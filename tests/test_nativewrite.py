@@ -481,6 +481,19 @@ def test_typedump_reads_the_drafting_defaults_of_config_0():
     assert ("angle", 45) in seen
 
 
+def test_a_sketch_point_record_is_constant_but_for_its_index_ids_and_coordinates():
+    found = []
+    for path in sorted(FIXTURES.glob("*.SLDPRT")):
+        data = read_document(path).data("Contents/Config-0-ResolvedFeatures")
+        for p in F.sketch_points(data):
+            start = data.rfind(b"\x00\x00\xfe\xff\xff\xff", 0, p.offset)
+            if p.offset + 16 - start == 134:
+                run = data[start - 12 : p.offset + 20]
+                assert run[1] == 0x80 and 1 <= struct.unpack_from("<H", run, 2)[0] < 16 and 1 <= run[60] < 16
+                found.append(run[3:60] + run[61:130] + run[146:])
+    assert len(found) >= 30 and len(set(found)) == 1
+
+
 def test_a_cstring_is_read_with_either_length_form():
     short = b"\xff\xfe\xff\x02" + "Ab".encode("utf-16-le")
     long_ = b"\xff\xfe\xff\xff\x02\x00" + "Ab".encode("utf-16-le")

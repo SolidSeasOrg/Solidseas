@@ -57,6 +57,7 @@ features are what remain (section 13).
 | `research/swnative/experiments.py` | Analysis: the candidate parts and `judge`, the verdict on a check's report |
 | `research/swnative/objdiff.py` | Analysis: object-level differences of two parts' feature streams, each run classified (section 4.8) |
 | `research/swnative/layouts.py` | Analysis: every class's field layout across all the part fixtures, from `Config-<n>` and its feature stream: constant runs, doubles, times, counters and `CString`s (`python -m swnative.layouts tests/fixtures/*.SLDPRT --class sgLineHandle`) |
+| `research/swnative/annotate.py` | Analysis: a feature span as class tokens with a typed reading between them, the view field-by-field decoding works from (4.10) |
 | `research/swnative/typedump.py` | Analysis: a typed reading of an undecoded run (strings, lengths in mm, angles, small integers), the first step of decoding a block whose meaning is unknown (4.9) |
 | `research/swnative/writer.py` | The seed writer of the first experiments (section 10); not shipped |
 | `src/solidseas/swapi/SwBridge/NativeCheck.cs`, `TestSession.cs` | The bridge's `native_check` and test-session operations |
@@ -285,6 +286,23 @@ written from a specification of these streams either computes those fields
 from what they mean, which needs each one decoded, or emits them as
 constants the specification lists. Which, and how far each goes, is the
 question section 13 item 6 records.
+
+### 4.10 A sketch point's record
+
+A corner rectangle's points other than its first corner are each written as
+one 150-byte run: a reference to the sketch entity class (`sgLineHandle`,
+`0x80 | index`), the entity's id as a u16, `FF FF FF FF`, a zero u32, then the
+point record: `00 00 FE FF FF FF`, zeros, the point's own id as a byte at
+offset 60 of the run, 69 bytes of flags and constants, the marker of 4.5,
+x and y as doubles in metres, and `00 00 02 00`. The entity id and the point's
+id differ (o02's three runs name entities 2, 4 and 3 and points 2, 3 and 4),
+so the entity is likely a line ending at the point: UNKNOWN. Across 36 such
+runs in 11 parts (o02 to o07, o11, o12 and o13's corners) every byte but the
+class index, the two ids and the two coordinates is the same. VERIFIED. The
+first corner (id 1) sits inside the sketch's own record and the origin's
+backed-up point inside `moPointBackedUpData_c` (`Point1@Origin`), which the
+annotate view (`python -m swnative.annotate part.sldprt Sketch1`) shows; the
+lines' records and the meaning of the constant flags are not decoded yet.
 
 ## 5. Authoritative records and caches
 
