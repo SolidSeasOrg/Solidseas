@@ -47,6 +47,22 @@ def test_text_is_escaped_anchored_and_rotated():
     assert runs["PRELIMINARY - NOT FOR MANUFACTURE"].get("transform").startswith("rotate(-90 ")
 
 
+def test_a_piece_of_text_keeps_its_leading_space():
+    """A hole callout is written as '6X \u00d84.50' and ' THRU'; viewers collapse the space
+    unless the element says to keep it, and then render '6X \u00d84.50THRU'."""
+    p = svg.SvgPainter()
+    p.begin_page(100.0, 50.0)
+    p.text(10.0, 10.0, 3.5, 0.0, "6X \u00d84.50", "Helvetica", "left")
+    p.text(30.0, 10.0, 3.5, 0.0, " THRU", "Helvetica", "left")
+    p.text(10.0, 20.0, 3.5, 0.0, "A  B", "Helvetica", "left")
+    p.end_page()
+    runs = {t.text: t for t in ET.fromstring(p.text_out()).iter(SVG + "text")}
+    keep = "{http://www.w3.org/XML/1998/namespace}space"
+    assert runs[" THRU"].get(keep) == "preserve"
+    assert runs["A  B"].get(keep) == "preserve"
+    assert runs["6X \u00d84.50"].get(keep) is None
+
+
 def test_the_logo_is_an_inline_png_and_nothing_is_active():
     text = svg.to_svg(sample_sheet())
     image = ET.fromstring(text).find(f".//{SVG}image")

@@ -102,9 +102,12 @@ class SvgPainter:
         weight = ' font-weight="bold"' if font.endswith("Bold") else ""
         ty = self._y(y)
         rotate = f' transform="rotate({_n(-angle_deg)} {_n(x)} {_n(ty)})"' if angle_deg else ""
+        # SVG viewers drop leading and trailing spaces and run spaces together unless told not to;
+        # a callout's " THRU", written as its own piece after the size, needs its space kept.
+        keep = ' xml:space="preserve"' if string != string.strip() or "  " in string else ""
         self.parts.append(
             f'<text x="{_n(x)}" y="{_n(ty)}" font-family="Helvetica, Arial, sans-serif" '
-            f'font-size="{_n(size)}"{weight} text-anchor="{_ANCHOR.get(anchor, "start")}"{rotate}>'
+            f'font-size="{_n(size)}"{weight} text-anchor="{_ANCHOR.get(anchor, "start")}"{rotate}{keep}>'
             f"{escape(string)}</text>\n"
         )
 
