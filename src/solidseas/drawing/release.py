@@ -225,6 +225,8 @@ def invalidate(drawing: types.Drawing) -> tuple[types.Drawing, tuple[str, ...]]:
     digest no longer matches the content; DRAWN is always kept), back to PRELIMINARY
     when CHECKED was cleared, and what was cleared, in words (13.2)."""
     require_editable(drawing)
+    if all(s.row == DRAWN for s in drawing.signatures):
+        return drawing, ()  # nothing an edit can clear, so no digest to compute
     digest = content_digest(drawing)
     kept, said = [], []
     for s in drawing.signatures:
