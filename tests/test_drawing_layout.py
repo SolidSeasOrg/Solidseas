@@ -769,3 +769,4 @@ def test_a_long_part_number_is_cut_before_the_models_revision_and_short_hash():
     typed = _title_block({"title": "PLATE", "number": "SS-1", "model": part + " REV C 1A2B3C4D5E6F7A8B"})
     (kept,) = [r for r in typed if r.text.endswith(" 1A2B3C4D5E6F7A8B")]
     assert kept.text.startswith("BRACKET") and "…" in kept.text
+

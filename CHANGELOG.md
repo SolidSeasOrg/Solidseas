@@ -1565,6 +1565,16 @@ while the project takes shape.
 
 ### Fixed
 
+- **A sheet too small for the drawing says so.** When you choose a sheet size
+  and the views with their dimensions fit it at no scale, the drawing now says
+  to choose a larger sheet and offers Sheet and Scale as a fix, instead of
+  saying the views do not fit the largest sheet. With the sheet left on
+  automatic, a larger sheet is picked as before.
+
+- **Hole callouts keep their space in SVG.** A callout such as "6X Ø4.50
+  THRU" no longer runs together as "6X Ø4.50THRU" when a drawing is shown as
+  SVG.
+
 - **The same drawing on Windows and Linux.** A drawing now orders lines of
   equal length, such as a cone's two outline lines, the same way on every
   computer, so its PDF, DXF and SVG come out identical on Windows and Linux.

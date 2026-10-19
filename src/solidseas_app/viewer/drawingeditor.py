@@ -1646,6 +1646,8 @@ class DrawingEditor(QMainWindow):
             self.edit("confirm_end", [fid], f"Confirm the end of {fid}")
         elif fix == "Add Detail View":
             self._say(f"Add Detail View: {LATER}")
+        elif fix == "Sheet and Scale":
+            self.sheet_and_scale()
         elif fix == "Edit the Title Block":
             self.select("")
         else:

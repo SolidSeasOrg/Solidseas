@@ -313,12 +313,14 @@ class _Run:
         sc = sheet.scale_order(self.options, self.settings)[-1]
         slots = self.slots_at(standards.scale_factor(sc))
         bands = {v: A.bands(self.ctx, s, self.band_inputs(s)) for v, s in slots.items()}
-        return (
-            f,
-            sc,
-            A.Arrangement(slots, bands, Box(0, 0, 0, 0)),
-            "the views do not fit the largest sheet at the smallest scale",
-        )
+        if self.options.sheet != "auto" or self.settings.sheets.size != "auto":
+            words = (
+                f"the views and their dimensions do not fit the {name} sheet at any scale: "
+                "choose a larger sheet"
+            )
+        else:
+            words = "the views do not fit the largest sheet at the smallest scale"
+        return f, sc, A.Arrangement(slots, bands, Box(0, 0, 0, 0)), words
 
     def parts_rows(self):
         """The parts list's headings, narrow columns and rows as painted."""

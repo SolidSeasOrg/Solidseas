@@ -793,7 +793,7 @@ def test_the_layouts_own_checks_are_kept_under_their_ids():
         ("R11.leaders", "warning", "d-1"),
         ("R12.views", "warning", "R12.views"),
     ]
-    assert next(c for c in said if c.code == "R12.views").fixes == ("Add Detail View",)
+    assert next(c for c in said if c.code == "R12.views").fixes == ("Add Detail View", "Sheet and Scale")
 
 
 def test_painted_overlaps_spacing_and_leaders_from_the_file():

@@ -472,3 +472,17 @@ def test_a_released_drawing_is_revised_from_its_changed_model():
     )
     assert report.model_unchanged and same.status == "PRELIMINARY"
     assert any(isinstance(a, D.Stamp) for a in same.sheet.annotations)  # laid out again, stamped
+
+
+def test_a_chosen_sheet_too_small_at_any_scale_asks_for_a_larger_sheet():
+    xt, _truth = P.random_plate(1, n=32)
+    m = facegraph.from_transmit(xt)
+    stages = {"source": lambda part, **_k: _Source("PLATE.SLDPRT"), "model": lambda bodies, **_k: m}
+    on_b = pipeline.run("PLATE.SLDPRT", stages=stages, options=DrawingOptions(units="mm", sheet="B")).drawing
+    said = [c for c in on_b.checks if "at any scale" in c.message]
+    assert [c.message for c in said] == [
+        "the views and their dimensions do not fit the B sheet at any scale: choose a larger sheet"
+    ]
+    assert said[0].code == "R12.views" and said[0].fixes == ("Add Detail View", "Sheet and Scale")
+    automatic = pipeline.run("PLATE.SLDPRT", stages=stages, options=DrawingOptions(units="mm")).drawing
+    assert automatic.sheet.name != "B" and not any("do not fit" in c.message for c in automatic.checks)

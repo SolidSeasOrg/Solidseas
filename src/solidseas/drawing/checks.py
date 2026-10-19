@@ -130,7 +130,7 @@ _LAYOUT_FIXES = {
     "L.reserved": ("Move",),
     "L.leader": ("Move",),
     "L.placement": ("Move", "Lay Out Again"),
-    "L.cramped": ("Add Detail View",),
+    "L.cramped": ("Add Detail View", "Sheet and Scale"),
     "L.characters": ("Edit the Text",),
 }
 

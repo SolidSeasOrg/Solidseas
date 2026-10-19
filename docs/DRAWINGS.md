@@ -1365,7 +1365,9 @@ insists on stays, flagged as an error.
    smallest first and the first that fits wins; the smallest-feature test counts
    only features dimensioned with extension lines (leader-dimensioned chamfers,
    radii and callouts are left out). Features that stay cramped are reported
-   with "Add Detail View" as the fix. Frozen after the first save.
+   with "Add Detail View" and "Sheet and Scale" as the fixes; on a sheet the
+   user chose, views that fit at no scale are reported as needing a larger
+   sheet. Frozen after the first save.
 
 ### 11.2 Painting
 
