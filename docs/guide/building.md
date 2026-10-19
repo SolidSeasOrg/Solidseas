@@ -35,6 +35,11 @@ from PowerShell:
 scripts\build-viewer.ps1 -Venv .venv
 ```
 
+Make that environment from a Python installed from python.org (or by
+`actions/setup-python`). A Python installed by uv carries a licence file without
+the terms of libffi, which the executable bundles, and the build stops with "Not
+built: it carries libffi-8.dll but ... has no terms for libffi".
+
 The script installs the library's dependencies and the `build` extra
 (PySide6-Essentials, PyInstaller and truststore) into that environment, then
 runs `packaging\SolidSeasViewer.spec`. It installs them from
