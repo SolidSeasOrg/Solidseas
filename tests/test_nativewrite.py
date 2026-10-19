@@ -443,6 +443,34 @@ def test_objdiff_of_one_model_saved_twice_is_bookkeeping_only():
     assert "double" not in d["counts"] and not d["unaligned"]
 
 
+# ------------------------------------------------------------------ the layout catalog
+from swnative import layouts as LY  # noqa: E402
+
+
+@pytest.fixture(scope="module")
+def catalog():
+    return LY.catalog(LY.instances(sorted(FIXTURES.glob("*.SLDPRT"))))
+
+
+def test_layouts_read_names_as_strings_so_instances_line_up(catalog):
+    planes = next(x for x in catalog["moNodeName_c"] if "Front Plane" in x.strings[0])
+    assert set(planes.strings[0]) == {"Front Plane", "Top Plane", "Right Plane"}
+    assert planes.count == 3 * planes.sources  # every mapped part has the three planes
+
+
+def test_layouts_find_the_rectangle_corners_as_doubles(catalog):
+    seen = {v for lay in catalog["sgLineHandle"] for f in lay.fields if f.kind == "f64" for v in f.values}
+    assert {0.01, 0.02} <= seen  # o02's far corner, 10 x 20 mm, in metres
+
+
+def test_a_cstring_is_read_with_either_length_form():
+    short = b"\xff\xfe\xff\x02" + "Ab".encode("utf-16-le")
+    long_ = b"\xff\xfe\xff\xff\x02\x00" + "Ab".encode("utf-16-le")
+    assert LY._cstring_at(short, 0) == ("Ab", len(short))
+    assert LY._cstring_at(long_, 0) == ("Ab", len(long_))
+    assert LY._blank_strings(b"\x01" + short + b"\x02") == (b"\x01\xff\xfe\xff\x00\x02", ("Ab",))
+
+
 @pytest.mark.parametrize(
     ("a", "b", "kind"),
     [

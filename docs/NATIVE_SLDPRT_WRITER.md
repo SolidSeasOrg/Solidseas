@@ -56,6 +56,7 @@ features are what remain (section 13).
 | `research/swnative/features.py` | Analysis: class records, named nodes, driving parameters, sketch points and the object map of a feature stream; edits doubles in place |
 | `research/swnative/experiments.py` | Analysis: the candidate parts and `judge`, the verdict on a check's report |
 | `research/swnative/objdiff.py` | Analysis: object-level differences of two parts' feature streams, each run classified (section 4.8) |
+| `research/swnative/layouts.py` | Analysis: every class's field layout across all the part fixtures, from `Config-<n>` and its feature stream: constant runs, doubles, times, counters and `CString`s (`python -m swnative.layouts tests/fixtures/*.SLDPRT --class sgLineHandle`) |
 | `research/swnative/writer.py` | The seed writer of the first experiments (section 10); not shipped |
 | `src/solidseas/swapi/SwBridge/NativeCheck.cs`, `TestSession.cs` | The bridge's `native_check` and test-session operations |
 | `scripts/sw-checks/native-writer.py`, `native-writer-attached.py` | The PC checks that run the candidates through SOLIDWORKS |
