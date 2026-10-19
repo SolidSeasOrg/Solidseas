@@ -249,6 +249,28 @@ to fill. Two samples do not show which counters SOLIDWORKS checks against
 the rest of the document, and the face ids are Parasolid's: a written part
 without a partition has none to match.
 
+### 4.9 How much of a part is the same in every part
+
+`swnative.layouts` lines up one feature's span (its named node to the next
+feature's) across every part, with `CString`s read as fields. The 18 features
+every part starts with, Comments to Origin, are the same length in all 14
+parts but the history folder and the Origin, and 87 to 99% of their bytes
+are the same in all of them. What varies is a few slots: the name tag (`04`
+or `05`), feature ids and other counters, two session stamps in every named
+node, and the reference planes' display sizes and positions, which follow
+the model's size (4.7). VERIFIED (14 parts, 15 streams).
+
+`Contents/Config-0` is 24,240 bytes in the empty part and 24,794 to 25,444
+in the others, and 99.4 to 99.8% of o01's bytes appear in the same order in
+each of them. VERIFIED (13 parts).
+
+So most of what a part holds is the same data in every part SOLIDWORKS
+saves: defaults and settings whose meaning is not decoded. A generator
+written from a specification of these streams either computes those fields
+from what they mean, which needs each one decoded, or emits them as
+constants the specification lists. Which, and how far each goes, is the
+question section 13 item 6 records.
+
 ## 5. Authoritative records and caches
 
 | Record | Role | Evidence |
@@ -529,6 +551,11 @@ disassembled, decompiled, debugged or hooked.
 4. The meaning of the 0x40 and 0xC0 flag bytes and of the unexplained double
    in `moExtrusion_c`.
 5. Whether a seed part may ship (section 10).
+6. How much opaque data the generator may carry. About 30 KB of `Config-0`
+   and of the first 18 features is the same in every part (4.9). Listing it
+   as specification constants makes the generator a template under another
+   name; decoding it field by field is the clean way and the long one. Experiment
+   M and per-run tests in SOLIDWORKS can show which of it SOLIDWORKS needs at all.
 
 ## 14. Reproducing
 

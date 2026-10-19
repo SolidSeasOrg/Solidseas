@@ -301,3 +301,23 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+
+def feature_spans(paths, name: str, stream: str = "Contents/Config-0-ResolvedFeatures") -> list[Instance]:
+    """Each part's span of the top-level feature ``name``: its named node to the next one's."""
+    out: list[Instance] = []
+    for path in paths:
+        doc = read_document(path)
+        if stream not in {m.name for m in doc.members}:
+            continue
+        data = doc.data(stream)
+        try:
+            start, end = F.feature_span(data, name)
+        except F.FeatureStreamError:
+            continue
+        raw = data[start:end]
+        label = str(path).rsplit("/", 1)[-1]
+        out.append(
+            Instance(f"{label}:{stream}", "features", start, name, "span", raw, _blank_strings(raw)[1])
+        )
+    return out

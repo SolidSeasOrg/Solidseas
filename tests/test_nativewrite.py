@@ -463,6 +463,14 @@ def test_layouts_find_the_rectangle_corners_as_doubles(catalog):
     assert {0.01, 0.02} <= seen  # o02's far corner, 10 x 20 mm, in metres
 
 
+def test_the_first_features_are_mostly_the_same_bytes_in_every_part():
+    paths = sorted(FIXTURES.glob("*.SLDPRT"))
+    for name in ("Comments", "Equations", "Front Plane"):
+        spans = LY.feature_spans(paths, name)
+        assert len(spans) >= 12 and len({len(i.body) for i in spans}) == 1
+        assert LY.layout(spans).constant_fraction() > 0.85
+
+
 def test_a_cstring_is_read_with_either_length_form():
     short = b"\xff\xfe\xff\x02" + "Ab".encode("utf-16-le")
     long_ = b"\xff\xfe\xff\xff\x02\x00" + "Ab".encode("utf-16-le")
