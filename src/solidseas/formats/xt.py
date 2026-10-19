@@ -326,7 +326,16 @@ def _text_of(f: _Fields, node: Node | None) -> str | None:
         return None
     if node.type in (CHAR_VALUES, ATT_DEF_ID):
         v = f.get(node, "values" if node.type == CHAR_VALUES else "string")
-        return v if isinstance(v, str) else None
+        if not isinstance(v, str):
+            return None
+        if node.type == CHAR_VALUES and any(c >= "\x80" for c in v):
+            # A string is bytes: one that is valid UTF-8 (as SolidSeas writes a name
+            # outside ASCII) is read as UTF-8, any other as Latin-1.
+            try:
+                return v.encode("latin-1").decode("utf-8")
+            except (UnicodeEncodeError, UnicodeDecodeError):
+                return v
+        return v
     if node.type == UNICODE_VALUES:
         v = f.get(node, "values")
         if not isinstance(v, list) or not all(isinstance(c, int) and 0 <= c < 0x10000 for c in v):

@@ -1581,9 +1581,11 @@ def _problem(p: dict[str, Any]) -> dict[str, Any]:
 
 
 def build_parasolid_result(
-    bodies: int, written: list[dict[str, Any]], problems: list[dict]
+    bodies: int, written: list[dict[str, Any]], problems: list[dict], *, assembly: Any = None
 ) -> dict[str, Any]:
-    """``parasolid_result`` data: bodies found, files written and the problems met."""
+    """``parasolid_result`` data: bodies found, files written and the problems met, and for
+    an assembly (``assembly``, a :class:`solidseas.parasolid.AssemblyParasolid`) what was
+    placed and left out."""
     keys = (
         "output",
         "kind",
@@ -1602,8 +1604,27 @@ def build_parasolid_result(
             "bodies": bodies,
             "written": [{k: w.get(k) for k in keys} for w in written],
             "problems": [_problem(p) for p in problems],
+            "assembly": _parasolid_assembly(assembly) if assembly is not None else None,
         }
     )
+
+
+def _parasolid_assembly(m: Any) -> dict[str, Any]:
+    return {
+        "name": m.name,
+        "configuration": m.configuration,
+        "counts": {k: int(v) for k, v in m.counts.items()},
+        "instances": [
+            {"id": i.id, "name": i.name, "file": i.file, "configuration": i.configuration, "bodies": i.bodies}
+            for i in m.instances
+        ],
+        "skipped": [
+            {"id": s.id, "name": s.name, "file": s.file, "reason": s.reason, "message": s.message}
+            for s in m.skipped
+        ],
+        "warnings": [w.to_dict() for w in m.warnings],
+        "seconds": round(m.seconds, 3),
+    }
 
 
 def build_batch_summary(
@@ -2987,6 +3008,23 @@ _PARASOLID_SCHEMA = _obj(
             )
         ),
         "problems": _arr(_obj({"stream": _STR_N, "block": _INT_N, "feature": _STR_N, "error": _STR})),
+        "assembly": _obj(
+            {
+                "name": _STR,
+                "configuration": _STR_N,
+                "counts": {"type": "object", "additionalProperties": _INT},
+                "instances": _arr(
+                    _obj({"id": _STR, "name": _STR, "file": _STR_N, "configuration": _STR_N, "bodies": _INT})
+                ),
+                "skipped": _arr(
+                    _obj({"id": _STR, "name": _STR, "file": _STR_N, "reason": _STR, "message": _STR})
+                ),
+                "warnings": _arr(_ref("warning")),
+                "seconds": {"type": "number"},
+            },
+            nullable=True,
+            description="an assembly's one transmit: what it places and leaves out (null for a part)",
+        ),
     }
 )
 _NUM_N = {"type": ["number", "null"]}
@@ -3752,7 +3790,7 @@ KINDS: dict[str, KindSpec] = {
             "parasolid_result",
             "SolidSeas Parasolid export",
             _PARASOLID_SCHEMA,
-            (),
+            ("warning",),
             build_parasolid_result,
             ("parasolid",),
             None,

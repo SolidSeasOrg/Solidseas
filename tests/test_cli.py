@@ -149,10 +149,11 @@ def test_parasolid_command(tmp_path, capsys):
     assert (out_dir / "o02_boxA_Default_body1.x_t").exists()
 
 
-def test_parasolid_on_assembly_reports_no_bodies(tmp_path, capsys):
-    # Finding no body is a result, not a failure: the count says so.
+def test_parasolid_on_assembly_writes_one_transmit(tmp_path, capsys):
+    # An assembly is one transmit of its placed parts (tests/test_parasolid_assembly.py).
     code, res = run_json(capsys, "parasolid", str(fixture_path(ASSEMBLY)), "-o", str(tmp_path / "x"))
-    assert code == 0 and res["bodies"] == 0 and res["written"] == []
+    assert code == 0 and res["bodies"] == 2 and [w["kind"] for w in res["written"]] == ["x_b"]
+    assert res["assembly"]["counts"]["instances"] == 2
 
 
 # --------------------------------------------------------------------------- refusals

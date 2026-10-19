@@ -16,6 +16,23 @@ while the project takes shape.
 
 ### Added
 
+- **Assemblies as Parasolid files.** `solidseas parasolid` now takes an
+  assembly too, and writes one `.x_b` file (and an `.x_t` file with `--text`)
+  holding every part of a configuration where the assembly places it: each part
+  once, placed by as many instances as use it, sub-assemblies kept as assemblies
+  of their own, and every instance named as in the FeatureManager tree.
+  Suppressed and hidden components are left out, and components excluded from
+  the bill of materials are kept. When a component file is missing or a part
+  does not store the bodies of the configuration the assembly uses, nothing is
+  written and the message names the components; `--allow-partial` writes the
+  rest, and `--other-configurations` writes such a part with the bodies it does
+  store. In Python it is `solidseas.parasolid.assembly_parasolid` (or
+  `Document.assembly_parasolid`) and `write_parasolid`. On the test assemblies
+  every part lands on the box SOLIDWORKS reports for it, and the volume, mass
+  and centre of mass match SOLIDWORKS' own. The files have not yet been opened
+  in a Parasolid kernel. Names outside ASCII in a Parasolid file's name
+  attributes are now read as UTF-8 when they are valid UTF-8.
+
 - **Native SOLIDWORKS part writing, first research steps.** The library has
   a new, experimental `solidseas.nativewrite` package that writes `.sldprt`
   files without SOLIDWORKS: it lays out the 2015+ container, changes a

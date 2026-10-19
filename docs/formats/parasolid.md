@@ -154,7 +154,9 @@ extension, and refused (below).
 - **`SDL/TYSA_NAME`** (type 8017; verified: the reference, a string on
   assemblies, bodies, instances and other entities) names assemblies, bodies
   and instances. SOLIDWORKS writes it empty on a multi-body part's bodies
-  (verified: `o12_multibody.x_b`).
+  (verified: `o12_multibody.x_b`). Its string is bytes: one that holds bytes
+  outside ASCII and is valid UTF-8 is read as UTF-8 (as SolidSeas writes an
+  assembly's instance names, `docs/API.md` 3.25), any other as Latin-1.
 - **`SWIMPLICITBODYNAME_ID_U`**, SOLIDWORKS' own attribute, names a body when it
   has no `SDL/TYSA_NAME` (verified: its first field, unicode, equals the body
   name SOLIDWORKS reported for every fixture body, `ground_truth.json`).

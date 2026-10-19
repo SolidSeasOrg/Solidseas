@@ -311,6 +311,14 @@ class Document:
             configurations=configurations,
         )
 
+    def assembly_parasolid(self, configuration: str | None = None, **options: Any):
+        """An assembly configuration as one Parasolid transmit of every part instance,
+        placed. Provisional: the same as :func:`solidseas.parasolid.assembly_parasolid`
+        (``docs/API.md`` section 3.25)."""
+        from ...parasolid import assembly_parasolid
+
+        return assembly_parasolid(self, configuration, **options)
+
     def tessellate(self, configuration: str | None = None, **options: Any):
         """Triangles of the part's Parasolid bodies in ``configuration`` (None: the active
         one), or None for an assembly or a drawing. Provisional: the same as

@@ -28,7 +28,8 @@ What it covers:
   (3.20, provisional), previews rendered from a model (3.21, provisional),
   conversion through SolidSeas' own SOLIDWORKS on Windows (3.22,
   provisional), the AI connector with the machine policy (3.23,
-  provisional), and the drawing core (3.24, provisional);
+  provisional), the drawing core (3.24, provisional), and an assembly's
+  Parasolid as one transmit (3.25, provisional);
 - the JSON kinds `document_summary`, `properties`, `configurations`,
   `components`, `references` (with resolution results, 5.10), `bom`, `path_report`,
   `listing`, `streams`, `file_written`, `parasolid_result`, `export_result`, `batch_summary`,
@@ -364,6 +365,7 @@ def open_document(
 | `resolve_references(roots=None, **options)` | `Resolution` | New, provisional. Finds each referenced file on this machine (3.10); the same as `solidseas.resolve.resolve_references(doc, ...)` |
 | `display_geometry(configuration=None, **options)` | `DisplayGeometry` or None | New, provisional. An assembly configuration's placed instances and the meshes they share (3.14); the same as `solidseas.geometry.display_geometry(doc, ...)` |
 | `bom(configuration=None, **options)` | `Bom` or None | New, provisional. The bill of materials of one assembly configuration, as SOLIDWORKS' BOM tables group and number it (3.16); the same as `solidseas.bom.build_bom(doc, ...)`; None for parts and drawings |
+| `assembly_parasolid(configuration=None, **options)` | `AssemblyParasolid` | New, provisional. An assembly configuration as one Parasolid transmit of every part instance, placed (3.25); the same as `solidseas.parasolid.assembly_parasolid(doc, ...)`. A part or a drawing raises `InvalidArgumentError` |
 | `tessellate(configuration=None, **options)` | `Tessellation` or None | New, provisional. The triangles of a part's Parasolid bodies in one configuration (3.15); the same as `solidseas.tessellate.tessellate_document(doc, ...)`; None for assemblies and drawings |
 | `path_report(*, max_stream_bytes=16 MiB, max_paths=100_000, max_documents=1_000, max_total_bytes=1 GiB)` | `PathReport` | New. Every path and user name the file, and each nested document in it, would reveal to whoever receives it (3.12) |
 | `nested(name)` | `Document` | New. The nested document in stream `name` (a virtual or imported component), opened once and closed with this one. An unknown name raises `StreamNotFoundError` |
@@ -4510,6 +4512,112 @@ revision letters, GD&T characteristics), `fonts` (Helvetica widths in WinAnsi
 and `measure`), `keys` (signatures and descriptors) and `types` (the stage
 contracts of `docs/DRAWINGS.md` 6).
 
+### 3.25 Parasolid of an assembly: `solidseas.parasolid` (provisional)
+
+One configuration of an assembly as a single Parasolid transmit: a root ASSEMBLY
+whose INSTANCEs place every part instance by a TRANSFORM, each part's bodies
+copied in once however many instances place it, written as text (`.x_t`) or
+binary (`.x_b`). No SOLIDWORKS is needed. A part's own bodies are written by
+`Document.parasolid()` (3.2) and the `parasolid` command.
+
+```python
+from solidseas import open_document
+from solidseas.parasolid import assembly_parasolid, write_parasolid
+
+with open_document("D:/Jobs/Example/frame.SLDASM") as doc:
+    m = assembly_parasolid(doc, "Default")      # or doc.assembly_parasolid("Default")
+    m.instances, m.skipped, m.counts, m.warnings, m.valid
+write_parasolid(m, "D:/Out/frame.x_t")          # the format from the extension; never over a file
+data = m.x_b()                                  # or the bytes, to send elsewhere
+```
+
+```python
+def assembly_parasolid(doc, configuration=None, *, name=None, allow_partial=False,
+                       other_configurations=False, include_hidden=False,
+                       max_bytes=64 << 20, max_nodes=20_000_000, max_seconds=300.0,
+                       roots=None, path_map=(), allow_outside_roots=True,
+                       cache=None) -> AssemblyParasolid
+def write_parasolid(model, path, format=None, *, overwrite=False) -> tuple[str, int]
+```
+
+- **Which instances.** The configuration and its instances are those of
+  `display_geometry` (3.14), found the same way (`roots`, `path_map`,
+  `allow_outside_roots` and `cache`; None: the document's own folder): every
+  part instance that neither it nor a parent suppresses or hides, at its
+  placement through every parent. A component excluded from the bill of
+  materials is written, since it is still part of the model. A virtual part is
+  read from inside the assembly (or the sub-assembly) that stores it.
+- **Which bodies.** For each part file and configuration, the bodies
+  `parasolid()` extracts for the configuration the instance uses, without the
+  bodies SOLIDWORKS hides (as SOLIDWORKS leaves them out of its own exports)
+  unless `include_hidden`; the warning `parasolid_bodies_hidden` counts them.
+  Each is copied in once. A part with one body is placed as that BODY; a part
+  with several is an ASSEMBLY of its bodies at the identity, placed as one, as
+  SOLIDWORKS writes a multi-body part's `.x_b`.
+- **What cannot be written.** A component that was not found or could not be
+  read (3.14's reasons), or whose part does not store the bodies of the
+  configuration it uses (`parasolid_refused`), raises `NotRepresentableError`
+  (`detail.rule` `instances_left_out`, `detail.instances` naming them) and
+  nothing is written. `allow_partial` writes the rest instead, lists those in
+  `skipped` and warns `parasolid_instances_left_out`. Another configuration's
+  geometry is never written in a configuration's place unless
+  `other_configurations` asks for it: then such a part's stored bodies (its
+  active configuration's) are written, with the warning
+  `parasolid_other_configuration`, and that instance's `configuration` says
+  which. When no instance can be written, `NothingToExportError` (rule
+  `no_instances`).
+- **Structure.** A sub-assembly the component tree lists is an ASSEMBLY of its
+  own, its instances placing its components in its frame, and sub-assemblies of
+  one file and configuration placed alike share one; a level the tree does not
+  list (read from a sub-assembly's own file) places its parts in the nearest
+  level it does. Each TRANSFORM holds the rotation row by row, the translation
+  in metres and a scale of 1, as the reader (3.20.6) reads them, and the flag
+  bits the XT Format Reference lists (1 translation, 2 rotation, 8 reflection,
+  16 not orthonormal). The top assembly is named after the document (`name=`),
+  each sub-assembly and multi-body part after its file, and each instance after
+  the component (`o02_boxA-1`), with the system attribute `SDL/TYSA_NAME`, a
+  string: a name outside ASCII is written as UTF-8, which the reader decodes.
+  The parts' own attributes (colours, SOLIDWORKS' body names) are kept, and
+  equal attribute definitions of different parts become one.
+- **Schemas.** A transmit has one layout per node type, and bodies saved by
+  different versions of SOLIDWORKS can differ. The newest transmit's layouts and
+  schema key are used, and an older body's nodes are carried over field by
+  field, by name: a field the newer layout added is written unset (a null
+  pointer, zero, or Parasolid's null value), one it no longer has is left out,
+  and the warning `parasolid_schemas_merged` counts both. Whether a Parasolid
+  kernel loads such a file has not been tested. The nodes this module adds use
+  the layouts the parts already have, else the base schema's.
+- **`AssemblyParasolid`**: `name`, `configuration`, `transmit` (the
+  `XtTransmit`), `instances` (a `PlacedPart` each: `id`, `name`, `file`, the
+  `configuration` whose bodies were written, `bodies` and `placement` in the
+  top assembly's frame), `skipped` (3.14's `SkippedInstance`), `warnings`,
+  `counts` (`instances`, `bodies_placed`, `parts`, `bodies`, `sub_assemblies`,
+  `skipped`, `suppressed`, `hidden`, `bodies_hidden` and `nodes`), `report`
+  (`validate()` of the whole transmit: every pointer resolves and the topology
+  is consistent), `valid`, `schema`, `seconds`, and `x_b(key=None)`,
+  `x_t(key=None)` and `data(format, key=None)`, the file's bytes with the
+  common header (`key` names it there; default `name`).
+- **`write_parasolid`** writes a new file through `solidseas.export.write_new`
+  (3.17): never over an existing file unless `overwrite`, never through a link,
+  never a SOLIDWORKS name. `format` is `x_b` or `x_t`, from the path's
+  extension when None; anything else raises `InvalidArgumentError`.
+- **Limits.** `max_bytes` bounds each transmit read, as `parasolid()`'s does;
+  `max_nodes` the nodes of the transmit written and `max_seconds` the whole
+  call, each raising `SldLimitError` (`detail.limit` `max_nodes` or
+  `seconds`). `assembly_parasolid` writes nothing, and every source document
+  is opened read-only.
+- **Checked on the fixtures** (`tests/test_parasolid_assembly.py`, every run):
+  o08, o15 and o16 in `Default` and `Lite`, written as `.x_b` and `.x_t` and
+  read back with SolidSeas' own reader, place one body for each part instance
+  SOLIDWORKS lists (2, 2, 12 and 10), each named after its component and each
+  on SOLIDWORKS' box of that component to 1e-9 m, a sub-assembly turned 40
+  degrees about (1, 1, 1) and the parts inside it among them; every body has its
+  part's volume, and the assembly's volume, mass and centre of mass (by the
+  parts' densities) are SOLIDWORKS' to 1e-9 (o16 with `other_configurations`,
+  since it places o06 in a configuration o06 stores no bodies for). The fixtures
+  hold no SOLIDWORKS export of an assembly, and these files have not been
+  loaded in a Parasolid kernel.
+
 ## 4. JSON encoding
 
 ### 4.1 Envelope
@@ -4872,12 +4980,19 @@ they describe.
   fields a command does not set are null. `source` (provisional) says where a
   preview came from: `stored` in the file, or `rendered` from a model file's
   geometry (3.21); null for `dump`.
-- `parasolid_result`: `{"bodies", "written", "problems"}`. Each written file is
-  `{"output", "kind", "bytes", "body", "configuration", "configuration_id",
-  "source", "body_type", "schema", "valid", "transmit"}` (`kind` is `x_b`,
-  `x_t`, `p_b` or `d_b`); each problem is `{"stream", "block", "feature",
-  "error"}`. A document without bodies gives `bodies: 0`, which is a result,
-  not an error.
+- `parasolid_result`: `{"bodies", "written", "problems", "assembly"}`. Each
+  written file is `{"output", "kind", "bytes", "body", "configuration",
+  "configuration_id", "source", "body_type", "schema", "valid", "transmit"}`
+  (`kind` is `x_b`, `x_t`, `p_b` or `d_b`); each problem is `{"stream",
+  "block", "feature", "error"}`. A document without bodies gives `bodies: 0`,
+  which is a result, not an error. `assembly` (new, provisional) is null for a
+  part; for an assembly's one transmit (3.25) it is `{"name", "configuration",
+  "counts", "instances", "skipped", "warnings", "seconds"}`, each instance
+  `{"id", "name", "file", "configuration", "bodies"}` and each instance left
+  out `{"id", "name", "file", "reason", "message"}`. Then `bodies` is the
+  bodies placed, and each written file has `source` `assembly`, the
+  assembly's `configuration` and null `body`, `body_type`, `configuration_id`
+  and `transmit`.
 - `batch_summary`: `{"files", "status_counts", "report_csv", "report_jsonl",
   "previews", "parasolid_files", "walk"}`, where `walk` holds the walker's
   counts (section 3.7). Row statuses are `ok`, `error`, `locked`, `refused`,
@@ -5566,7 +5681,7 @@ it.
 | `streams FILE` | | `streams` |
 | `dump FILE STREAM -o OUT` | `--raw`, `--force`, `--allow-source-dir` | `file_written` |
 | `preview FILE -o OUT` | `--prefer png` (default) or `dib`, `--nested STREAM`, `--render`, `--stored`, `--max-mb N`, `--force`, `--allow-source-dir` | `file_written` |
-| `parasolid FILE -o DIR` | `--text`, `--raw`, `--local-bodies fallback` (default), `always` or `never`, `--max-mb N`, `--force`, `--allow-source-dir` | `parasolid_result` |
+| `parasolid FILE -o DIR` | `--text`, `--raw` and `--local-bodies fallback` (default), `always` or `never` (a part), `--configuration NAME`, `--allow-partial`, `--other-configurations` and `--include-hidden` (an assembly), `--max-mb N`, `--force`, `--allow-source-dir` | `parasolid_result` |
 | `export FILE --format 3mf\|stl\|step` | `-o FILE` (or a folder that exists; default: the document's name in the current folder), `--configuration NAME`, `--chord MM` (0.0001 to 10) and `--merge` (3MF and STL), `--sheets`, `--allow-partial`, `--exact-only` and `--include-hidden` (STEP), `--max-mb N`, `--force`, `--allow-source-dir` | `export_result` (provisional) |
 | `list FOLDER` | `--formats solidworks\|all\|IDS` (default `solidworks`), `--recursive`, `--include properties,configurations`, `--preview none`, `meta` (default) or `inline`, `--max-depth N`, `--limit N`, `--max-examined N`, `--timeout SECONDS`, `--file-timeout SECONDS` (default 30), `--memory-mb N` (default 2048), `--in-process` | `listing` |
 | `batch FOLDER -o DIR` | `--no-recurse`, `--no-preview`, `--no-parasolid`, `--text`, `--max-mb N`, `--jobs N` (1 to 64, default 1), `--file-timeout SECONDS` (default 300), `--memory-mb N` (default 2048), `--in-process`, `--max-examined N`, `--force`, `--allow-source-dir` | `batch_summary` |
@@ -5785,7 +5900,7 @@ and a root that does not exist exits 1 (`not_found`).
 | 1 | Failed: the document could not be read, something asked for is absent, the service could not listen, or an internal error | `permission_denied`, `address_unavailable`, `not_found`, `configuration_not_found`, `stream_not_found`, `no_preview`, `not_in_catalog`, `nothing_to_export`, `not_representable`, `placeholder_file`, `unknown_format`, `format_not_supported`, `damaged_file`, `limit_exceeded`, `file_too_large`, `locked`, `internal`, `worker_crashed`, `not_implemented`, `busy`, `root_unavailable`, `timeout`, `drawing_invalid`, `drawing_too_complex`, `model_not_found` |
 | 2 | Usage: the arguments are wrong | `invalid_argument`, `unknown_parameter`, `duplicate_parameter` |
 | 3 | Refused by a safety rule | `path_refused`, `link_refused`, `feature_disabled`, `output_refused`, `bind_refused`, `token_file_refused`, `catalog_incompatible`, `drawing_released` |
-| 4 | Partial: a folder listing or batch run finished, and at least one item failed (for a batch, also a folder that could not be read or a walk cut short by its limits); a reference resolution whose folder index a limit cut short; an incomplete path report; an incomplete bill of materials; an export that left out instances of an assembly; a STEP export that left bodies out (`--allow-partial`); a catalog index run in which a file could not be read, or that a limit or a cancel stopped; or a `drawing check` that found an error-level check (with `--strict`, a warning too) or a model that is not the drawing's | |
+| 4 | Partial: a folder listing or batch run finished, and at least one item failed (for a batch, also a folder that could not be read or a walk cut short by its limits); a reference resolution whose folder index a limit cut short; an incomplete path report; an incomplete bill of materials; an export that left out instances of an assembly; an assembly's Parasolid that left out components (`--allow-partial`); a STEP export that left bodies out (`--allow-partial`); a catalog index run in which a file could not be read, or that a limit or a cancel stopped; or a `drawing check` that found an error-level check (with `--strict`, a warning too) or a model that is not the drawing's | |
 | 130 | Interrupted | `interrupted` |
 
 The exit for a failure comes from its error code, through
@@ -6883,8 +6998,8 @@ provisional item can change at any commit. It is:
   `AI_ERROR_CODES`, the plan and draft reply shapes, and `usage.json`.
 - The Python APIs of `solidseas.walk`, `solidseas.resolve`,
   `solidseas.workers`, `solidseas.jobs`, `solidseas.geometry`,
-  `solidseas.tessellate`, `solidseas.bom`, `solidseas.export`, `solidseas.step` and
-  `solidseas.serve`
+  `solidseas.tessellate`, `solidseas.bom`, `solidseas.export`, `solidseas.step`,
+  `solidseas.parasolid` and `solidseas.serve`
   (`ServeConfig`, `Server`), and
   `solidseas.formats.solidworks.paths.scan_bytes` and
   `solidseas.formats.solidworks.facetess`. What they

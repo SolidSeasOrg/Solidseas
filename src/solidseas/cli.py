@@ -635,10 +635,82 @@ def _write_parasolid(
     return written
 
 
+_ASSEMBLY_PARASOLID_FLAGS = (
+    ("--configuration", "configuration"),
+    ("--allow-partial", "allow_partial"),
+    ("--other-configurations", "other_configurations"),
+    ("--include-hidden", "include_hidden"),
+)
+
+
+def _parasolid_assembly(args: argparse.Namespace, doc: Document) -> int:
+    """``parasolid`` for an assembly: one transmit of every part instance of one
+    configuration (``solidseas.parasolid``), as .x_b and, with ``--text``, .x_t."""
+    from .formats.solidworks.parasolid import _safe
+    from .parasolid import assembly_parasolid
+
+    for flag, given in (("--raw", args.raw), ("--local-bodies", args.local_bodies != "fallback")):
+        if given:
+            raise InvalidArgumentError(f"{flag} is for a part", detail={"parameter": flag})
+    stem = os.path.splitext(os.path.basename(args.file))[0]
+    m = assembly_parasolid(
+        doc,
+        args.configuration,
+        name=stem,
+        allow_partial=args.allow_partial,
+        other_configurations=args.other_configurations,
+        include_hidden=args.include_hidden,
+        max_bytes=int(args.max_mb * (1 << 20)),
+    )
+    base = f"{stem}_{_safe(m.configuration)}" if m.configuration else stem
+    jobs = [(os.path.join(args.output, base + ".x_b"), "x_b")]
+    if args.text:
+        jobs.append((os.path.join(args.output, base + ".x_t"), "x_t"))
+    jobs = [
+        (check_output_file(path, [args.file], allow_source_dir=args.allow_source_dir, force=args.force), kind)
+        for path, kind in jobs
+    ]
+    written = []
+    for path, kind in jobs:
+        data = m.data(kind, base)
+        _write(path, data)
+        written.append(
+            {
+                "output": path,
+                "kind": kind,
+                "bytes": len(data),
+                "configuration": m.configuration,
+                "source": "assembly",
+                "schema": m.schema,
+                "valid": m.valid,
+            }
+        )
+    if not args.json:
+        for w in written:
+            _say(f"wrote {w['output']} ({w['bytes']} bytes)")
+        c = m.counts
+        _say(
+            f"{c['instances']} instance(s) of {c['parts']} part(s) placed, "
+            f"{c['bodies_placed']} bodies in all, configuration {m.configuration}"
+        )
+        for s in m.skipped:
+            _say(f"left out: {s.id}: {s.message}")
+        for w in m.warnings:
+            _say(f"warning: {w}")
+    code = EXIT_PARTIAL if m.skipped else EXIT_OK
+    data = model.build_parasolid_result(m.counts["bodies_placed"], written, [], assembly=m)
+    return _emit(args, "parasolid_result", data, code)
+
+
 def cmd_parasolid(args: argparse.Namespace, doc: Document) -> int:
     args.output = check_output_dir(
         args.output, [os.path.dirname(os.path.abspath(args.file))], allow_source_dir=args.allow_source_dir
     )
+    if doc.doc_type == "assembly":
+        return _parasolid_assembly(args, doc)
+    for flag, attr in _ASSEMBLY_PARASOLID_FLAGS:
+        if getattr(args, attr):
+            raise InvalidArgumentError(f"{flag} is for an assembly", detail={"parameter": flag})
     res = doc.parasolid(
         local_bodies=args.local_bodies, include_raw=args.raw, max_bytes=int(args.max_mb * (1 << 20))
     )
@@ -2946,11 +3018,32 @@ def build_parser() -> argparse.ArgumentParser:
     add_write_flags(sp)
     sp = add(
         "parasolid",
-        "write the embedded Parasolid bodies as .x_b (and .x_t) files, per configuration",
+        "write a part's Parasolid bodies as .x_b (and .x_t) files, per configuration, or an "
+        "assembly's placed parts as one .x_b (and .x_t) file",
         target="file",
     )
     sp.add_argument("-o", "--output", required=True, help="output folder")
     sp.add_argument("--text", action="store_true", help="also write text .x_t files")
+    sp.add_argument(
+        "--configuration", help="an assembly: configuration name (default: the active configuration)"
+    )
+    sp.add_argument(
+        "--allow-partial",
+        action="store_true",
+        help="an assembly: leave out the components that cannot be written, and say which, "
+        "rather than write nothing",
+    )
+    sp.add_argument(
+        "--other-configurations",
+        action="store_true",
+        help="an assembly: for a part that does not store the bodies of the configuration "
+        "a component uses, write the bodies it does store, with a warning",
+    )
+    sp.add_argument(
+        "--include-hidden",
+        action="store_true",
+        help="an assembly: also write the bodies SOLIDWORKS hides",
+    )
     sp.add_argument(
         "--raw", action="store_true", help="also write the raw partition (.p_b) and deltas (.d_b)"
     )

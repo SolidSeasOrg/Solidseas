@@ -256,7 +256,7 @@ the vendor's program, or has nothing to convert from.
 | Source | STL, 3MF | OBJ, PLY, GLB | STEP (B-rep) | STEP (faceted or AP242 tessellated) | Parasolid `.x_t`, `.x_b` | Native (SLDPRT, AD_PRT) |
 |---|---|---|---|---|---|---|
 | Mesh formats (STL, 3MF, OBJ, PLY, OFF, glTF, AMF) | Now | CV-2 | Never (no surfaces to recover) | CV-6 | CV-6 (a body of planar faces; research) | Never |
-| SOLIDWORKS part or assembly | Now | CV-2 | Now (parts), CV-5 (assemblies) | CV-6 | Now (`parasolid` command) | SOLIDWORKS backend |
+| SOLIDWORKS part or assembly | Now | CV-2 | Now (parts), CV-5 (assemblies) | CV-6 | Now (`parasolid` command; an assembly as one transmit, `solidseas.parasolid`) | SOLIDWORKS backend |
 | Parasolid file | Now | CV-2 | Now (parts), CV-5 (assemblies) | CV-6 | CV-3 (text to binary and back) | SOLIDWORKS backend |
 | STEP | Now | CV-2 | CV-4 (through Parasolid) | CV-6 | CV-3 | SOLIDWORKS backend |
 | Alibre part | Now (B-rep body, else the display mesh) | CV-2 | CV-4 (SAB to Parasolid to STEP) | CV-6 | CV-3 | Never |

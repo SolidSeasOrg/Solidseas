@@ -34,6 +34,35 @@ writes surface bodies beside solids (see
 [Exporting STEP](3d-print.md#exporting-step-for-other-cad-systems)).
 `solidseas drawing new` makes a drawing ([Drawings](drawings.md#from-the-command-line)).
 
+### Parasolid files
+
+`solidseas parasolid` writes Parasolid files for another CAD system, with no
+SOLIDWORKS needed:
+
+```bash
+solidseas parasolid D:\Jobs\Example\bracket.SLDPRT -o D:\Out --text   # each body, per configuration
+solidseas parasolid D:\Jobs\Example\frame.SLDASM -o D:\Out --text     # the whole assembly in one file
+```
+
+For a part you get one `.x_b` file (and with `--text` an `.x_t` file) for each
+body of each configuration the part stores. For an assembly you get one file,
+`frame_Default.x_b`, that holds every part of the active configuration (or the
+one `--configuration` names) where the assembly places it: each part once,
+placed by as many instances as use it, sub-assemblies kept as assemblies of
+their own, and every instance named as in the FeatureManager tree, such as
+`bracket-2`. Suppressed and hidden components are left out, and so are bodies
+SOLIDWORKS hides unless you add `--include-hidden`. A component excluded from
+the bill of materials is still written.
+
+The component files are looked for in the assembly's own folder. If one is
+missing or cannot be read, or a part does not store the bodies of the
+configuration the assembly uses, nothing is written and the message says which
+components are the problem. `--allow-partial` writes the rest and lists what was
+left out, and `--other-configurations` writes such a part with the bodies it
+does store, with a warning that they may not be the configuration the assembly
+uses. The files have not yet been opened in a Parasolid kernel such as
+SOLIDWORKS itself, so check an important one there before you send it.
+
 ## Other 3D formats
 
 SolidSeas also reads 3D files of other formats (provisional, API.md 3.20): STL,
