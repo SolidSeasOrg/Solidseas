@@ -163,6 +163,13 @@ while the project takes shape.
   through SolidSeas' MCP server can ask for the same picture with show_part.
   An administrator can turn pictures off.
 
+- **Balloons on parts hidden behind others.** On an assembly drawing, a part
+  that sits inside another, or behind other parts in every view, now has its
+  hidden lines drawn dashed in the front, top and side views, and its balloon
+  points at one of them, as a drafter would draw it. Before, it had no balloon
+  and the checks warned about it. Only those parts' hidden lines are drawn, so
+  an assembly whose parts all show is drawn as before.
+
 - **Items not shown on assembly drawings.** An item of the parts list that no
   view draws (hidden in the assembly, its file not found, or with no solid
   bodies) is listed in a note, ITEMS 3, 7 NOT SHOWN, and the checks no longer

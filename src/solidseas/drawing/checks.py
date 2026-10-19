@@ -2576,7 +2576,7 @@ def _asm_parts(s: _In, out: _Out) -> None:
                 continue
             out.add(
                 "ASM.balloons",
-                f"item {row[0]}{name} has no balloon: no view on the sheet shows a visible edge of it",
+                f"item {row[0]}{name} has no balloon: no view on the sheet shows an edge of it",
                 f"balloon-{row[0]}",
             )
 

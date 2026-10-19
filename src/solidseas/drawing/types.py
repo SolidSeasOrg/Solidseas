@@ -815,7 +815,8 @@ class BomLine:
 class Balloon:
     """An item balloon: the parts list's ``item`` it names, the view it is drawn in,
     the instance its leader points at and the point it ends on, a visible edge of
-    that instance, in view metres before scale as a view's runs are. ``others`` are
+    that instance (a hidden one when the item is hidden behind other parts in every
+    view), in view metres before scale as a view's runs are. ``others`` are
     the same for the other views that show the item, in order, for a layout that
     leaves the view out (an isometric with no room)."""
 

@@ -724,6 +724,9 @@ vector:
 The isometric uses the same engine with `d = (1, 1, 1)/√3`, visible runs only.
 Hidden lines are off by default in every view; a view turns them on only when
 a feature would otherwise be invisible in every view and no section is made.
+On an assembly drawing, a part hidden behind others in every view has its own
+hidden lines drawn, and no other part's, so its balloon has a line to point at
+(`docs/drawings/assemblies.md`).
 
 **Correctness tests use independent oracles:** synthetic `XtBuilder` parts
 whose hidden-line drawings are known analytically (a box with a through hole,

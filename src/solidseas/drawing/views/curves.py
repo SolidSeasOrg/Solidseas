@@ -131,6 +131,32 @@ def silhouette_primitive(pts: Sequence[Vec3], frame, straight: bool):
     return Polyline(tuple(project(p, frame) for p in pts))
 
 
+def outline_points(prim, tol: float) -> list[Point]:
+    """Points along a run's primitive whose chords stay within about ``tol`` of it (view
+    metres): how a run already drawn takes part in a later cleanup."""
+    if isinstance(prim, Segment):
+        return [prim.p0, prim.p1]
+    if isinstance(prim, (Arc, EllipseArc)):
+        if isinstance(prim, Arc):
+            radius, a0, span = prim.radius, math.radians(prim.start_deg), math.radians(prim.sweep())
+            at = lambda t: prim.point(math.degrees(t))  # noqa: E731
+        else:
+            radius, a0, span = math.hypot(*prim.major), prim.t0, prim.t1 - prim.t0
+            at = prim.point
+        # the chord of an angle 2 acos(1 - tol / r) strays tol from its arc
+        turn = 2.0 * math.acos(max(-1.0, 1.0 - tol / radius)) if radius > tol else math.pi
+        n = min(720, max(2, math.ceil(abs(span) / max(turn, 1e-9))))
+        return [at(a0 + span * k / n) for k in range(n + 1)]
+    if isinstance(prim, Polyline):
+        pts = list(prim.points)
+        return pts + [pts[0]] if prim.closed and pts else pts
+    if isinstance(prim, Spline):
+        from ..painter import spline_points
+
+        return spline_points(prim, tol)
+    return []
+
+
 def straight(prim) -> tuple[Point, Point] | None:
     """A primitive's two ends when it is a straight line."""
     if isinstance(prim, Segment):
@@ -138,4 +164,4 @@ def straight(prim) -> tuple[Point, Point] | None:
     return None
 
 
-__all__ = ["edge_primitive", "project", "silhouette_primitive", "straight"]
+__all__ = ["edge_primitive", "outline_points", "project", "silhouette_primitive", "straight"]

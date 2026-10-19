@@ -595,7 +595,7 @@ def test_an_assembly_is_checked_as_an_assembly():
     assert (parts.message, parts.item) == ("the sheet has no parts list", "parts")
     assert parts.fixes == ("Lay Out Again",)
     missing = found(_asm_balloons(), "ASM.balloons")
-    why = "has no balloon: no view on the sheet shows a visible edge of it"
+    why = "has no balloon: no view on the sheet shows an edge of it"
     assert [(c.item, c.message) for c in missing] == [
         ("balloon-1", f"item 1 (O02_BOXA) {why}"),
         ("balloon-2", f"item 2 (O07_BOXB_H31) {why}"),

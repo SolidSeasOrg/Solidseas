@@ -7,12 +7,15 @@ shorter). That removes back
 edges that project onto front edges, the edges of faces seen edge-on, hidden
 lines under visible ones, and the far rim of a through hole seen along its axis.
 A piece is dropped only when every one of its segments is covered, so a circle
-is kept or dropped whole.
+is kept or dropped whole. Pieces given as ``under`` stand for the runs an earlier
+cleanup kept: they are in place before any other, so a piece added to a view
+later is dropped where it lies along one of them.
 """
 
 from __future__ import annotations
 
 import math
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 from ..numbers import plain_sum
@@ -63,7 +66,7 @@ def rank(piece: Piece) -> tuple:
     )
 
 
-def cleanup(pieces: list[Piece], diagonal: float) -> list[Piece]:
+def cleanup(pieces: list[Piece], diagonal: float, *, under: Sequence[Piece] = ()) -> list[Piece]:
     eps = SHORT_FRACTION * diagonal
     cos_p = math.cos(math.radians(PARALLEL_DEG))
     cell = max(eps * CELL_FACTOR, 1e-12)
@@ -101,6 +104,13 @@ def cleanup(pieces: list[Piece], diagonal: float) -> list[Piece]:
         for key in cells(a, b):
             grid.setdefault(key, []).append((a, b))
 
+    for piece in under:
+        for a, b in zip(piece.points, piece.points[1:], strict=False):
+            # a long straight run in short steps, so each step fills only the cells near it
+            n = max(1, math.ceil(math.dist(a, b) / cell))
+            steps = [(a[0] + (b[0] - a[0]) * k / n, a[1] + (b[1] - a[1]) * k / n) for k in range(n + 1)]
+            for p, q in zip(steps, steps[1:], strict=False):
+                add(p, q)
     kept = []
     order = sorted(pieces, key=rank)
     for piece in order:

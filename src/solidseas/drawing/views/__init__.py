@@ -13,7 +13,8 @@ Tangent edges follow the view's setting (left out, thin or phantom) except
 where their common normal is square to the view within 2 degrees: then they are
 outline and drawn visible (8.6, measured on o11). The isometric draws visible
 runs only, its tangent edges thin, and no centre marks. Hidden lines are drawn
-only when the view asks for them.
+only when the view asks for them, or by :func:`with_hidden` for chosen bodies
+alone (an assembly's part hidden behind others, which its balloon points at).
 
 ``make_views`` draws the default set: front, top and right (or what the options
 name) and the isometric, framed from the front direction and its quarter turn.
@@ -25,13 +26,14 @@ from __future__ import annotations
 
 import math
 import time
+from dataclasses import replace
 
 from ..facegraph import BrepModel, Cone, Cylinder, Plane
 from ..limits import DEFAULT_LIMITS, DrawingLimits
 from ..types import AngledFace, DrawingOptions, FeatureSet, Run, Source, ViewGeometry, ViewSpec, Witness
 from .centres import centres
 from .cleanup import Piece, cleanup, length
-from .curves import edge_primitive, silhouette_primitive
+from .curves import edge_primitive, outline_points, silhouette_primitive
 from .curves import project as project_point
 from .hlr import STEP_FRACTION, Occluder, circle_snap, dot, own_faces_of_edge, vertex_faces, visibility
 from .silhouettes import analytic, from_mesh
@@ -112,80 +114,81 @@ def _arc_params(edge, s0: float, s1: float) -> tuple[float, float] | None:
     return at(s0), at(s1)
 
 
-def project(
+def _pieces(
     model: BrepModel,
     spec: ViewSpec,
+    occ: Occluder,
+    step: float,
     *,
-    features: FeatureSet | None = None,
-    limits: DrawingLimits = DEFAULT_LIMITS,
-    quality: str = "normal",
-) -> ViewGeometry:
-    """One view of the model (8.4 to 8.8)."""
+    hidden: bool,
+    bodies: frozenset[int] | None = None,
+) -> list[Piece]:
+    """The view's pieces before cleanup: every edge's and curved face's runs through the
+    hidden-line engine, the hidden ones only when ``hidden``; of ``bodies`` alone when
+    it is given."""
     frame = spec.frame()
-    right, up, d = frame
+    _right, _up, d = frame
     iso = spec.kind == "isometric"
-    hidden = spec.hidden and not iso
     tangent_mode = "thin" if iso else spec.tangent
-    occ = Occluder(model, frame, budget=limits.visibility_queries)
-    step = STEP_FRACTION * model.diagonal * (DRAFT_STEP if quality == "draft" else 1.0)
     at_vertex = vertex_faces(model)
     sin_sq = math.sin(math.radians(SQUARE_DEG))
     short = SHORT_FRACTION * model.diagonal
     pieces: list[Piece] = []
-    try:
-        for edge in model.edges.values():
-            if edge.kind == "seam":
+    for edge in model.edges.values():
+        if edge.kind == "seam" or (bodies is not None and edge.body not in bodies):
+            continue
+        style = "visible"
+        if edge.kind == "tangent":
+            ns = [n for n in edge.normals[0] if not math.isnan(n[0])]
+            outline = bool(ns) and all(abs(dot(n, d)) < sin_sq for n in ns)
+            if not outline:
+                if tangent_mode == "hidden":
+                    continue
+                style = "thin" if tangent_mode == "thin" else "phantom"
+        flat = [project_point(p, frame) for p in edge.points]
+        if length(flat) < short:
+            continue  # seen end on
+        own = own_faces_of_edge(edge, at_vertex)
+        runs = visibility(occ, edge.points, own, step, circle_snap(edge.curve))
+        whole = len(runs) == 1
+        for visible, part, (s0, s1) in runs:
+            if not visible and not hidden:
                 continue
-            style = "visible"
-            if edge.kind == "tangent":
-                ns = [n for n in edge.normals[0] if not math.isnan(n[0])]
-                outline = bool(ns) and all(abs(dot(n, d)) < sin_sq for n in ns)
-                if not outline:
-                    if tangent_mode == "hidden":
-                        continue
-                    style = "thin" if tangent_mode == "thin" else "phantom"
-            flat = [project_point(p, frame) for p in edge.points]
-            if length(flat) < short:
-                continue  # seen end on
-            own = own_faces_of_edge(edge, at_vertex)
-            runs = visibility(occ, edge.points, own, step, circle_snap(edge.curve))
-            whole = len(runs) == 1
-            for visible, part, (s0, s1) in runs:
+            pieces.append(
+                Piece(
+                    [project_point(p, frame) for p in part],
+                    visible,
+                    "edge",
+                    (edge, part, style if visible else "hidden", whole, (s0, s1)),
+                    edge.curve.kind != "line",
+                )
+            )
+    for face in model.faces:
+        if isinstance(face.surface, Plane) or (bodies is not None and face.body not in bodies):
+            continue
+        own = frozenset({face.index, *face.neighbours})
+        straight = isinstance(face.surface, (Cylinder, Cone))
+        parts = analytic(model, face, d) if straight else from_mesh(model, face, d)
+        for piece3 in parts:
+            for visible, part, _range in visibility(occ, piece3, own, step):
                 if not visible and not hidden:
                     continue
                 pieces.append(
                     Piece(
                         [project_point(p, frame) for p in part],
                         visible,
-                        "edge",
-                        (edge, part, style if visible else "hidden", whole, (s0, s1)),
-                        edge.curve.kind != "line",
+                        "silhouette",
+                        (face, part, "visible" if visible else "hidden", straight),
+                        not straight,
                     )
                 )
-        for face in model.faces:
-            if isinstance(face.surface, Plane):
-                continue
-            own = frozenset({face.index, *face.neighbours})
-            straight = isinstance(face.surface, (Cylinder, Cone))
-            parts = analytic(model, face, d) if straight else from_mesh(model, face, d)
-            for piece3 in parts:
-                for visible, part, _range in visibility(occ, piece3, own, step):
-                    if not visible and not hidden:
-                        continue
-                    pieces.append(
-                        Piece(
-                            [project_point(p, frame) for p in part],
-                            visible,
-                            "silhouette",
-                            (face, part, "visible" if visible else "hidden", straight),
-                            not straight,
-                        )
-                    )
-    except OverflowError:
-        raise limits.exceeded(
-            "visibility_queries", f"the {spec.name or spec.id} view needed too many visibility tests"
-        ) from None
-    kept = cleanup(pieces, model.diagonal)
+    return pieces
+
+
+def _runs(model: BrepModel, spec: ViewSpec, kept: list[Piece]) -> tuple[list[Run], dict[str, bool]]:
+    """The kept pieces as runs, each its exact entity with its style and source, and
+    whether each edge shows a visible run."""
+    frame = spec.frame()
     runs: list[Run] = []
     edge_visible: dict[str, bool] = {}
     for piece in kept:
@@ -201,6 +204,34 @@ def project(
             prim = silhouette_primitive(part, frame, straight)
             src = Source(model.faces[face.index].body, "silhouette", face.signature, spec.id)
             runs.append(Run(_styled(prim, style, src), style, src))
+    return runs, edge_visible
+
+
+def _step(model: BrepModel, quality: str) -> float:
+    return STEP_FRACTION * model.diagonal * (DRAFT_STEP if quality == "draft" else 1.0)
+
+
+def project(
+    model: BrepModel,
+    spec: ViewSpec,
+    *,
+    features: FeatureSet | None = None,
+    limits: DrawingLimits = DEFAULT_LIMITS,
+    quality: str = "normal",
+) -> ViewGeometry:
+    """One view of the model (8.4 to 8.8)."""
+    frame = spec.frame()
+    _right, _up, d = frame
+    iso = spec.kind == "isometric"
+    occ = Occluder(model, frame, budget=limits.visibility_queries)
+    try:
+        pieces = _pieces(model, spec, occ, _step(model, quality), hidden=spec.hidden and not iso)
+    except OverflowError:
+        raise limits.exceeded(
+            "visibility_queries", f"the {spec.name or spec.id} view needed too many visibility tests"
+        ) from None
+    kept = cleanup(pieces, model.diagonal)
+    runs, edge_visible = _runs(model, spec, kept)
     marks, lines, circles, end_on, side_on = ((), (), (), (), ()) if iso else centres(model, frame, features)
     for c in circles:
         runs.append(Run(c, "centre", Source(0, "centre", "pitch circle", spec.id)))
@@ -228,10 +259,50 @@ def project(
     )
 
 
+def with_hidden(
+    model: BrepModel,
+    spec: ViewSpec,
+    geom: ViewGeometry,
+    bodies: frozenset[int],
+    *,
+    limits: DrawingLimits = DEFAULT_LIMITS,
+    quality: str = "normal",
+) -> ViewGeometry:
+    """``geom`` with the hidden lines of ``bodies`` added, dashed, as the view would draw
+    them with hidden lines on: an assembly's part hidden behind others, which its
+    balloon's leader points at (``docs/drawings/assemblies.md``). Only those bodies'
+    edges and silhouettes go through the hidden-line engine again, and the cleanup
+    drops a hidden piece lying under a line the view already draws, as it would in a
+    view drawn whole. The view's own runs are kept as they are, so its visible lines,
+    witnesses and centre marks do not change. The isometric draws no hidden lines and
+    is returned as it is."""
+    if spec.kind == "isometric" or not bodies:
+        return geom
+    occ = Occluder(model, spec.frame(), budget=limits.visibility_queries)
+    try:
+        pieces = _pieces(model, spec, occ, _step(model, quality), hidden=True, bodies=bodies)
+    except OverflowError:
+        raise limits.exceeded(
+            "visibility_queries", f"the {spec.name or spec.id} view needed too many visibility tests"
+        ) from None
+    eps = SHORT_FRACTION * model.diagonal
+    drawn = [
+        Piece(outline_points(r.primitive, eps / 4), True, r.source.kind)
+        for r in geom.runs
+        if r.source.kind in ("edge", "silhouette")
+    ]
+    kept = cleanup([p for p in pieces if not p.visible], model.diagonal, under=drawn)
+    if not kept:
+        return geom
+    runs, edge_visible = _runs(model, spec, kept)
+    seen = dict(geom.edge_visible)
+    for sig, shown in edge_visible.items():
+        seen[sig] = seen.get(sig, False) or shown
+    return replace(geom, runs=geom.runs + tuple(runs), edge_visible=tuple(sorted(seen.items())))
+
+
 def _styled(prim, style: str, src: Source):
     """The primitive with its style and source set (display primitives are frozen)."""
-    from dataclasses import replace
-
     from ..display import Src
 
     return replace(prim, style=style, src=Src(src.body, src.signature, src.view))
@@ -321,4 +392,4 @@ def make_views(
     return tuple(out)
 
 
-__all__ = ["default_specs", "make_views", "project", "view_frames"]
+__all__ = ["default_specs", "make_views", "project", "view_frames", "with_hidden"]

@@ -7,6 +7,9 @@ configuration OracleAlt (item 2, whose bodies the part does not store, so it is
 not drawn), the sub-assembly o15 (item 3), three instances of o07 (item 4), the
 STEP import o09, o17 and a virtual part; a third instance of o02 is excluded from
 the bill of materials and drawn without a balloon.
+
+A synthetic assembly of two ``drawing_parts`` boxes, a key inside a block, shows a
+part hidden behind others ballooned on its hidden lines.
 """
 
 from __future__ import annotations
@@ -543,3 +546,140 @@ def test_an_item_no_view_draws_is_noted_and_the_check_says_why():
         "ITEMS 3, 7 NOT SHOWN"
     ) == {"3", "7"}
     assert not_shown_items("OVERALL SIZE (REF): 1 X 2 X 3") == set()
+
+
+# --------------------------------------------------------------------------- a part hidden by others
+
+
+def _synthetic_assembly(parts):
+    """A stand-in for the source stage: an assembly of synthetic parts (``drawing_parts``),
+    each ``(item, part number, Part, translation in metres)`` one instance and one parts
+    list line, so the model stage and everything after it run as on a file."""
+    import hashlib
+
+    import drawing_parts
+    from solidseas.drawing.source import DrawingSource, SourceBody, SourceUnits
+    from solidseas.formats.solidworks.parasolid import ParasolidBody
+
+    placed, instances, lines, records = [], [], [], []
+    for item, number, part, at in parts:
+        xt, _truth = drawing_parts.build(part)
+        body = ParasolidBody("Config-0/body1", 0, "Default", "partition", None, "solid", xt)
+        inst = f"{number}-1"
+        name = f"{inst}/Config-0/body1"
+        placement = Placement(((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0)), at)
+        instances.append(assembly.AssemblyInstance(inst, inst, number, "Default", item, (len(placed),)))
+        placed.append(assembly.PlacedBody(body, name, placement, inst))
+        records.append(SourceBody(name, "solid", 6, True))
+        lines.append(T.BomLine(item, number.upper(), instances=(inst,), file=f"{number}.SLDPRT"))
+    digest = hashlib.sha256(repr([(n, a) for _i, n, _p, a in parts]).encode()).hexdigest()
+
+    def stage(part=None, *, configuration=None, bodies=None, units=None, title_names=(), limits=None):
+        return DrawingSource(
+            name="hidden_inside.SLDASM",
+            format=assembly.FORMAT,
+            kind="brep",
+            configuration="Default",
+            bodies=tuple(records),
+            units=SourceUnits("mm", "file", None, "mm"),
+            material=None,
+            properties=(),
+            hints=(),
+            sha256=hashlib.sha256(digest.encode()).hexdigest(),
+            geometry_digest=digest,
+            properties_digest="0" * 64,
+            _bodies=tuple(placed),
+            assembly=assembly.AssemblyContents(tuple(instances), tuple(placed), tuple(lines)),
+        )
+
+    return stage
+
+
+@functools.cache
+def hidden_inside(where: str = "inside"):
+    """A 100 x 80 x 60 mm block and a 20 x 10 x 10 mm key: the key inside the block, so
+    hidden behind it in every view; inside it on its bottom face (``flush``); or
+    standing clear of it beside it (``beside``)."""
+    from drawing_parts import MM, box
+
+    at = {"inside": (40, 35, 25), "flush": (40, 0, 25), "beside": (130, 35, 25)}[where]
+    at = tuple(v * MM for v in at)
+    stage = _synthetic_assembly(
+        [
+            ("1", "block", box(100 * MM, 80 * MM, 60 * MM), (0.0, 0.0, 0.0)),
+            ("2", "key", box(20 * MM, 10 * MM, 10 * MM), at),
+        ]
+    )
+    return pipeline.run(None, settings=_settings(), fields=FIELDS, stages={"source": stage})
+
+
+def _on(segment, p, tol=1e-9) -> bool:
+    """Whether point ``p`` (view metres) lies on ``segment``."""
+    (x0, y0), (x1, y1) = segment.p0, segment.p1
+    cross = (x1 - x0) * (p[1] - y0) - (y1 - y0) * (p[0] - x0)
+    within = min(x0, x1) - tol <= p[0] <= max(x0, x1) + tol and min(y0, y1) - tol <= p[1] <= max(y0, y1) + tol
+    return abs(cross) <= tol and within
+
+
+def test_a_part_hidden_inside_another_is_ballooned_on_its_hidden_lines():
+    run = hidden_inside()
+    plan, d = run.plan[0], run.drawing
+    assert d.options.hidden is False, "the drawing's hidden lines stay off"
+    by_item = {b.item: b for b in plan.balloons}
+    assert set(by_item) == {"1", "2"}, "the key inside the block has a balloon"
+    key = by_item["2"]
+    front = next(s for s in plan.views if s.kind == "base")
+    assert (key.view, key.instance) == (front.id, "key-1"), "the front: the isometric draws no hidden lines"
+    assert [v for v, _i, _p in key.others] == [s.id for s in plan.views if s.kind == "projected"]
+    views = {s.id: g for s, g in run.orchestrated.views}
+    for spec, geom in run.views:
+        hidden = [r for r in views[spec.id].runs if r.style == "hidden"]
+        # the views stage drew no hidden lines; only the key's are added, the rest as they were
+        assert not [r for r in geom.runs if r.style == "hidden"]
+        assert views[spec.id].runs[: len(geom.runs)] == geom.runs
+        assert len(views[spec.id].runs) == len(geom.runs) + len(hidden)
+        if spec.kind == "isometric":
+            assert hidden == []
+        else:
+            assert len(hidden) == 4 and {r.source.body for r in hidden} == {1}, spec.name
+    # the leader ends at the middle of one of the key's dashed lines in the front
+    assert any(_on(r.primitive, key.at) for r in views[front.id].runs if r.style == "hidden")
+    dashed = [g for g in d.sheet.geometry if g.style == "hidden"]
+    assert len(dashed) == 12
+    assert {g.src.view for g in dashed} == {s.id for s in plan.views if s.kind != "isometric"}
+    assert [b.item for b in annotations(d, D.Balloon)] == ["1", "2"]
+    assert not [c for c in d.checks if c.code == "ASM.balloons"]
+    assert not [w for w in run.orchestrated.planned.detail.warnings if "no balloon" in w]
+    # the dashed lines are written on the hidden layer and kept through an edit
+    import dxf_reader
+
+    dxf = io.BytesIO()
+    write_dxf(d, dxf)
+    assert len([e for e in dxf_reader.read(dxf.getvalue()).entities if e.layer == "HIDDEN"]) == 12
+    moved, _checks = edit.move_balloon(d, "2", 12.0, 12.0)
+    assert [g for g in moved.sheet.geometry if g.style == "hidden"] == dashed
+    assert [b.item for b in annotations(moved, D.Balloon)] == ["1", "2"]
+
+
+def test_a_hidden_line_under_a_line_the_view_draws_is_left_out():
+    # the key's bottom edge lies under the block's own in the front and the right views
+    run = hidden_inside("flush")
+    views = {s.name: g for s, g in run.orchestrated.views}
+    hidden = {name: [r for r in g.runs if r.style == "hidden"] for name, g in views.items()}
+    assert {name: len(runs) for name, runs in hidden.items()} == {
+        "front": 3,
+        "top": 4,
+        "right": 3,
+        "isometric": 0,
+    }
+    for name in ("front", "right"):
+        assert all(max(r.primitive.p0[1], r.primitive.p1[1]) > 1e-6 for r in hidden[name])
+    assert {b.item for b in run.plan[0].balloons} == {"1", "2"}
+
+
+def test_an_assembly_with_no_part_hidden_draws_no_hidden_lines():
+    run = hidden_inside("beside")
+    assert {b.item for b in run.plan[0].balloons} == {"1", "2"}
+    assert run.orchestrated.views == run.views
+    assert not [g for g in run.drawing.sheet.geometry if g.style == "hidden"]
+    assert drawn().orchestrated.views == drawn().views  # o16, whose parts all show

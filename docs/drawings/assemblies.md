@@ -82,7 +82,8 @@ edge on the sheet is known to belong to its instance.
 defaults: the front, top and right views and the isometric, hidden lines off,
 and the front seen from the assembly's own front (+Z, SOLIDWORKS' Front view).
 What the user chose stays. There are no features: the features stage gives an
-empty `FeatureSet`. The views stage draws the views as for a part.
+empty `FeatureSet`. The views stage draws the views as for a part; the plan adds the
+hidden lines of a part hidden behind others (below).
 
 ## The plan
 
@@ -112,13 +113,25 @@ empty `FeatureSet`. The views stage draws the views as for a part.
   no room). Its leader ends at the middle of a visible run of the line's
   instances: of the runs at least a quarter as long as the instance's longest,
   the one nearest the view's outline going out from the view's centre, so the
-  leader is short and the leaders fan out. A line none of whose instances shows a
-  visible run gets no balloon, and the plan says so. A line none of whose instances
-  is drawn at all (hidden in the assembly, its file not found, no solid bodies) is
-  named in one note, `ITEMS 3, 7 NOT SHOWN`, and the check `ASM.balloons` says it
-  as information rather than as a warning; one drawn but hidden behind other parts
-  stays a warning (on the corpus, 58 of 69 items without a balloon were not drawn
-  at all, 11 hidden behind others).
+  leader is short and the leaders fan out;
+- a part hidden behind others (`plan.assembly.show_hidden`): a line drawn in some
+  view none of whose instances shows a visible run in any (on the corpus, 11 of
+  295 items, each inside another instance's box) has its instances' hidden lines
+  drawn, dashed on the hidden layer, in every view that draws no hidden lines of
+  its own; the isometric draws none. Only those instances go through the
+  hidden-line engine again (`views.with_hidden`), and a hidden run lying along a
+  line the view already draws is left out, as in a view drawn whole with hidden
+  lines on. Its balloon then goes as above on those hidden runs: in the front,
+  then the other views, its leader's arrowhead on the middle of a dashed line, as
+  a drafter points at a part seen only through hidden lines. The views stage
+  itself is unchanged, so a drawing with no hidden part draws no hidden line and
+  is the same as before;
+- a line none of whose instances shows a run at all, visible or hidden, gets no
+  balloon, and the plan says so. A line none of whose instances is drawn at all
+  (hidden in the assembly, its file not found, no solid bodies) is named in one
+  note, `ITEMS 3, 7 NOT SHOWN`, and the check `ASM.balloons` says it as
+  information rather than as a warning; one drawn with no edge in any view stays a
+  warning.
 
 ## The layout
 
@@ -153,7 +166,8 @@ own (its annotation's leader holds only the point on its part). Only when none o
 those is clear is it drawn where it does not fit and reported.
 
 **A balloon** is a circle round its item number, at the notes' height, on a
-leader ending in an arrowhead on the visible edge the plan chose. Views that
+leader ending in an arrowhead on the edge the plan chose (a hidden one for a
+part hidden behind others). Views that
 carry balloons get room all round for a balloon and the shortest leader, the
 isometric too. Each balloon goes outside its view in the direction from the
 view's centre through the edge where it can, its leader at 15 to 75 degrees as
@@ -198,7 +212,7 @@ no view to carry a dimension. Its own:
 | Id | Says | Level |
 |---|---|---|
 | `ASM.parts` | the sheet has no parts list | error |
-| `ASM.balloons` | an item of the parts list has no balloon (no view on the sheet shows a visible edge of it); a balloon names no item of the list (an error) | warning |
+| `ASM.balloons` | an item of the parts list has no balloon (no view on the sheet shows an edge of it, visible or hidden); a balloon names no item of the list (an error) | warning |
 
 ## Editing and Update from Model
 

@@ -11,9 +11,16 @@ layout that leaves the first out. Its leader ends at the middle of a visible run
 of the line's instances there (for a sub-assembly's line, of the parts inside
 it), so it points at an edge of the part it names: of the runs at least a
 quarter as long as the longest, the one nearest the view's outline going out
-from the view's centre, so the leader is short and the leaders fan out. A line
-none of whose instances shows a visible run in any view gets no balloon; the
-plan says so and the checks report it.
+from the view's centre, so the leader is short and the leaders fan out.
+
+**A part hidden behind others.** A line none of whose instances shows a visible
+run in any view, though drawn (inside another part, or behind several), has its
+instances' hidden lines drawn, dashed, in the views that draw no hidden lines
+(:func:`show_hidden`), and its balloon goes as above on those hidden runs: in the
+front, then the other views, since the isometric draws none. Only such parts'
+hidden lines are drawn, so an assembly with none hidden is drawn as before. A line
+that shows no run at all, visible or hidden, gets no balloon; the plan says so and
+the checks report it.
 
 **A parts list the BOM editor set** (the drawing's ``parts_list`` option, a
 :class:`~solidseas.bomtable.BomTableSpec`) is applied to the BOM of its type
@@ -42,7 +49,6 @@ from .assign import Assigner
 from .context import AXES, Context
 from .requirements import Pos, Requirements
 
-DRAWN = ("visible",)  # the run styles a leader may end on
 _RUN_KINDS = ("edge", "silhouette")
 
 
@@ -126,30 +132,73 @@ def _exit(p, centre, box) -> float:
     return max(0.0, t)
 
 
+def _runs(
+    ctx: Context, contents: Any, style: str
+) -> dict[tuple[str, str], list[tuple[float, tuple[float, float]]]]:
+    """Each instance's runs of ``style`` in each view, as (length, middle)."""
+    body_instance = {k: b.instance for k, b in enumerate(contents.bodies)}
+    out: dict[tuple[str, str], list[tuple[float, tuple[float, float]]]] = {}
+    for spec, geom in ctx.views:
+        for run in geom.runs:
+            if run.style != style or run.source.kind not in _RUN_KINDS:
+                continue
+            inst = body_instance.get(run.source.body)
+            got = middle(run.primitive) if inst is not None else None
+            if got is not None and got[1] > 0.0:
+                out.setdefault((spec.id, inst), []).append((got[1], got[0]))
+    return out
+
+
+def _unseen(ctx: Context, contents: Any, lines: Any) -> list[Any]:
+    """The lines drawn in some view none of whose instances shows a visible run in any."""
+    seen = {inst for _view, inst in _runs(ctx, contents, "visible")}
+    return [
+        line
+        for line in lines
+        if (members := contents.instances_of(line)) and not any(i.id in seen for i in members)
+    ]
+
+
+def show_hidden(ctx: Context, contents: Any, lines: Any, limits: DrawingLimits = DEFAULT_LIMITS) -> Context:
+    """``ctx`` with the hidden lines of the parts hidden behind others drawn, dashed, in
+    each view that draws no hidden lines (:func:`solidseas.drawing.views.with_hidden`):
+    the parts of the lines none of whose instances shows a visible run in any view, so
+    each such line's balloon can end on one of its hidden lines, as a drafter's would.
+    A view that already draws them, or hidden lines of its own, is kept as it is, and
+    so is every view of an assembly with no part hidden, so its drawing is unchanged."""
+    if contents is None:
+        return ctx
+    bodies = frozenset(
+        k for line in _unseen(ctx, contents, lines) for i in contents.instances_of(line) for k in i.bodies
+    )
+    if not bodies:
+        return ctx
+    from ..views import with_hidden
+
+    views = []
+    for spec, geom in ctx.views:
+        done = spec.hidden or any(r.style == "hidden" and r.source.body in bodies for r in geom.runs)
+        if not done:
+            geom = with_hidden(ctx.model, spec, geom, bodies, limits=limits, quality=ctx.options.quality)
+        views.append((spec, geom))
+    return replace(ctx, views=tuple(views), ids=ctx.ids)
+
+
 def balloons(ctx: Context, contents: Any, lines: Any = None) -> tuple[Balloon, ...]:
     """Each parts list line's balloon (see the module notes): of ``lines``, the
     assembly's own parts list when None."""
     if contents is None:
         return ()
     lines = contents.bom if lines is None else lines
-    body_instance = {k: b.instance for k, b in enumerate(contents.bodies)}
-    # each instance's visible runs in each view: (length, middle)
-    runs: dict[tuple[str, str], list[tuple[float, tuple[float, float]]]] = {}
     frames: dict[str, tuple] = {}
     for spec, geom in ctx.views:
         box = geom.bounds()
-        if box is None:
-            continue
-        frames[spec.id] = (((box[0] + box[2]) / 2, (box[1] + box[3]) / 2), box)
-        for run in geom.runs:
-            if run.style not in DRAWN or run.source.kind not in _RUN_KINDS:
-                continue
-            inst = body_instance.get(run.source.body)
-            got = middle(run.primitive) if inst is not None else None
-            if got is not None and got[1] > 0.0:
-                runs.setdefault((spec.id, inst), []).append((got[1], got[0]))
+        if box is not None:
+            frames[spec.id] = (((box[0] + box[2]) / 2, (box[1] + box[3]) / 2), box)
+    visible = _runs(ctx, contents, "visible")
+    hidden: dict | None = None  # read only when a line shows no visible run
 
-    def anchor(view: str, members: list[str]) -> tuple[str, tuple[float, float]] | None:
+    def anchor(runs: dict, view: str, members: list[str]) -> tuple[str, tuple[float, float]] | None:
         centre, box = frames[view]
         found = []
         for inst in members:
@@ -169,7 +218,11 @@ def balloons(ctx: Context, contents: Any, lines: Any = None) -> tuple[Balloon, .
     order = [v for v in view_order(ctx) if v in frames]
     for line in lines:
         members = [i.id for i in contents.instances_of(line)]
-        placed = [(v, got) for v in order if (got := anchor(v, members)) is not None]
+        placed = [(v, got) for v in order if (got := anchor(visible, v, members)) is not None]
+        if not placed and members:
+            # hidden behind other parts in every view: its leader ends on a hidden line
+            hidden = _runs(ctx, contents, "hidden") if hidden is None else hidden
+            placed = [(v, got) for v in order if (got := anchor(hidden, v, members)) is not None]
         if placed:
             (view, (inst, p)), rest = placed[0], placed[1:]
             others = tuple((v, i, (float(q[0]), float(q[1]))) for v, (i, q) in rest)
@@ -341,6 +394,8 @@ def make_plan(
     narrow: tuple[int, ...] = ()
     if contents is not None and ctx.options.parts_list is not None:
         lines, columns, narrow = edited_lines(ctx, contents, detail)
+    ctx = show_hidden(ctx, contents, lines, limits)
+    detail.ctx = ctx
     made = balloons(ctx, contents, lines)
     ballooned = {b.item for b in made}
     not_shown: list[str] = []
@@ -357,8 +412,8 @@ def make_plan(
             )
         else:
             detail.warnings.append(
-                f"item {line.item} ({line.part_number}) shows no visible edge in any view, "
-                "so it has no balloon"
+                f"item {line.item} ({line.part_number}) shows no edge, visible or hidden, in any "
+                "view, so it has no balloon"
             )
     sizes, size_notes = overall_size(ctx, detail)
     if not_shown:
@@ -387,5 +442,6 @@ __all__ = [
     "not_shown_items",
     "not_shown_note",
     "overall_size",
+    "show_hidden",
     "view_order",
 ]

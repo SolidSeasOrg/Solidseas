@@ -162,6 +162,9 @@ def run(
             if trimmed is not None:
                 ctx = trimmed
                 planned = make_plan(ctx, source, fields, limits=limits)
+    if is_assembly(source):
+        # with the hidden lines of any part hidden behind others, which its balloon ends on
+        views = planned.detail.ctx.views
     if time.perf_counter() - t0 > limits.seconds_plan:
         raise limits.exceeded("seconds_plan", "planning the dimensions took longer than a drawing allows")
     if logo is None:
