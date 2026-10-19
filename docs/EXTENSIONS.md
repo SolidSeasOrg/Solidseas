@@ -155,6 +155,10 @@ mesh children are Python worker processes of another kind and keep their own run
   (`THIRD_PARTY_NOTICES.txt` section 3). The video package is refused for an ffmpeg
   configured with `--enable-gpl` or `--enable-nonfree`, and needs `-FfmpegSource`, where
   the exact source of that ffmpeg build is, which it carries with ffmpeg's configure flags.
+  `packaging/ffmpeg/build.sh` makes that ffmpeg: run it in a `debian:trixie` container as its
+  header says, then build with `-FfmpegFolder packaging\ffmpeg\out -FfmpegSource
+  https://github.com/SolidSeas/SolidSeas/releases/tag/ffmpeg-9.0.2-source`, the release that
+  holds its source tarball, signature and build script.
 - The core build (`scripts/build-viewer.ps1 -WithExtensions`) runs it first and carries
   `accepted.json` inside the viewer, so a viewer accepts the packages of its own release and no
   others. The bridge is no longer copied beside the viewer: it ships in the CAD Bridge

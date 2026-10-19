@@ -216,12 +216,21 @@ any other file from SOLIDWORKS or Dassault Systemes.
   (PyInstaller one-file       PSF-2.0 (Python),              Python-LICENSE.txt,
   program, Python's standard  GPL-2.0-or-later WITH          PyInstaller-COPYING.txt
   library only)               Bootloader-exception
-  ffmpeg.exe                  LGPL-2.1-or-later (LGPL-3.0-   licenses/LGPL-2.1.txt (and
-                              or-later with                  LGPL-3.0.txt, GPL-3.0.txt),
-                              --enable-version3)             ffmpeg's own licence files,
+  ffmpeg.exe                  LGPL-2.1-or-later              COPYING.LGPLv2.1.txt,
+  (FFmpeg 9.0.2)                                             LICENSE-ffmpeg.md,
                                                              licenses/ffmpeg-build.txt
+  zlib, linked into           Zlib                           LICENSE-zlib.txt
+  ffmpeg.exe
+  the mingw-w64 runtime,      ZPL-2.1 and the permissive     LICENSE-mingw-w64.txt
+  linked into ffmpeg.exe      licences that file lists
+  GCC's runtime library,      GPL-3.0-or-later WITH          (no notice required)
+  linked into ffmpeg.exe      GCC-exception-3.1
 
 ffmpeg.exe is a separate program that the video helper starts; SolidSeas does not link to it.
+SolidSeas builds it with packaging/ffmpeg/build.sh: FFmpeg's release tarball, its signature
+checked, cross-compiled for Windows with only what the video helper uses (PNG frames in, GIF
+and MP4 out through Windows' own H.264 encoder or MPEG-4 part 2), with no GPL or nonfree
+part and no external codec library such as OpenH264.
 The build refuses an ffmpeg configured with --enable-gpl or --enable-nonfree, so the package
 holds no GPL-only or non-redistributable encoder. ffmpeg-build.txt records the build's
 version and configure flags as "ffmpeg -version" reports them, and where the exact source of
@@ -231,8 +240,10 @@ folder, it can be replaced by another build of FFmpeg that takes the same comman
 
 What the LGPL asks of SolidSeas for ffmpeg.exe: ship the licence text with it (done), say
 where its exact source is (ffmpeg-build.txt), and keep that source available for as long as
-the package is offered. A release should publish that source beside the packages rather than
-rely on the builder's site.
+the package is offered. The source tarball, its signature and the build script are published
+as the release ffmpeg-9.0.2-source on GitHub
+(https://github.com/SolidSeas/SolidSeas/releases/tag/ffmpeg-9.0.2-source), which stays for
+as long as any release offers a video package built from it.
 
 3.3 solidcraft-<version>.zip (SolidCraft)
 

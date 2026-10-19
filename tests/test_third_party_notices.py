@@ -26,6 +26,10 @@ MADE_BY_THE_BUILD = {
     "BUNDLED-FILES.txt",
     "ffmpeg-build.txt",
     "THIRD-PARTY-LICENSES.txt",
+    # what packaging/ffmpeg/build.sh writes beside ffmpeg.exe
+    "COPYING.LGPLv2.1.txt",
+    "LICENSE-zlib.txt",
+    "LICENSE-mingw-w64.txt",
 }
 # The third-party packages inside the executable and the texts of their licences.
 CARRIED = {
