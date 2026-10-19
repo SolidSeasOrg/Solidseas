@@ -684,6 +684,41 @@ def test_the_vocabulary_table_matches_the_design():
         assert f"`{name}`" in design, name
 
 
+def test_a_look_is_yes_no_or_cannot_tell_with_a_short_plain_reason():
+    from solidseas.ai.prompts import MAX_NOTE_CHARS, parse_look
+
+    for verdict in (True, False, None):
+        look = parse_look(json.dumps({"as_expected": verdict, "reason": "  The fillet\n is there. "}))
+        assert look.as_expected is verdict and look.reason == "The fillet is there."
+    fenced = "Here is my look:\n```json\n" + json.dumps({"as_expected": True, "reason": "ok"}) + "\n```"
+    assert parse_look(fenced).as_expected is True
+    assert len(parse_look(json.dumps({"as_expected": True, "reason": "x" * 1000})).reason) == MAX_NOTE_CHARS
+    for bad in (
+        {"as_expected": "yes", "reason": "ok"},
+        {"as_expected": 1, "reason": "ok"},
+        {"as_expected": True},
+        {"as_expected": True, "reason": "ok", "steps": []},  # a look cannot carry a plan
+        {"as_expected": True, "reason": 3},
+        {"as_expected": True, "reason": "bell \x07"},
+        [True, "ok"],
+    ):
+        with pytest.raises(ReplyInvalidError):
+            parse_look(json.dumps(bad))
+
+
+def test_the_look_prompt_sends_the_goal_the_step_and_the_picture_and_nothing_of_the_part():
+    from solidseas.ai.prompts import LOOK_SYSTEM, look_prompt, part_image
+    from solidseas.formats._source import encode_png
+
+    image = part_image(encode_png(2, 2, bytes(12), 3), "the part after step 2")
+    prompt = look_prompt("Round the edges 1 mm. My SSN is 123-45-6789", "2. fillet: radius 1 mm", 2, 3, image)
+    assert prompt.task == "look" and prompt.system == LOOK_SYSTEM and prompt.images == (image,)
+    assert "Step 2 of 3" in prompt.user and "2. fillet: radius 1 mm" in prompt.user
+    assert "the part after step 2" in prompt.user and image.line() in prompt.text()
+    assert "123-45-6789" not in prompt.user  # the goal is redacted as a plan's is
+    assert "<document_data>" not in prompt.user
+
+
 def test_the_degree_sign_counts_as_degrees():
     goal = "set the angle to 30\u00b0"
     plan = parse(

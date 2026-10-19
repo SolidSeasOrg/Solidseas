@@ -27,10 +27,12 @@ from automatic_support import (
     plan_of,
 )
 from solidseas.ai.context import Feature, PartSnapshot
+from solidseas.ai.errors import CancelledError
 from solidseas.swapi.bridge import BridgeRequestError
 from solidseas_app.assistant.automatic import RunStart
 from solidseas_app.assistant.run import (
     AutomaticRun,
+    StepLook,
     boss_box,
     differences,
     inverse_of,
@@ -245,6 +247,142 @@ def test_an_inverse_that_cannot_be_recorded_keeps_the_step_from_running(tmp_path
     live = FakeLive(dataclasses.replace(snap, dimensions=dims))
     outcome = run_of(tmp_path, live, plan).run()
     assert outcome.status == "failed" and "did not run" in outcome.message and live.ops() == []
+
+
+# --------------------------------------------------------------------------- a look after each step
+def test_a_look_comes_after_each_checked_step_and_a_doubtful_one_ends_the_run(tmp_path):
+    live = FakeLive(block())
+    seen = []
+
+    def look(record, cancel, seconds_left):
+        seen.append((record.step.index, record.status, live.ops()[-1]))
+        doubt = record.step.index == 2
+        return StepLook(
+            not doubt, "The block is taller than before." if doubt else "Rounded.", None, {"k": 1}
+        )
+
+    run = run_of(tmp_path, live, plan_of(live.state, FILLET, DEPTH, FINISH), look=look)
+    outcome = run.run()
+    # each look comes once the step is done and checked, and sees the part as the step left it
+    assert seen == [(1, "done", "fillet"), (2, "done", "set_dimension")]
+    assert outcome.status == "looks_wrong" and outcome.steps_done == 2
+    assert "The block is taller than before." in outcome.message and "Keep it, or Revert" in outcome.message
+    assert live.ops() == ["fillet", "set_dimension"]  # step 3 never ran; step 2 was not taken back
+    assert [r.status for r in run.records] == ["done", "done"] and run.records[1].look.as_expected is False
+    looked = [line for line in journal(tmp_path) if line["event"] == "step_looked"]
+    assert [(line["index"], line["as_expected"], line["call"]) for line in looked] == [
+        (1, True, {"k": 1}),
+        (2, False, {"k": 1}),
+    ]
+    assert run.revert() == [] and live.state == block()
+
+
+def test_a_step_its_checks_refuse_is_taken_back_without_a_look(tmp_path):
+    live = FakeLive(block(), effects={"set_property": lambda state, args: (state, {})})  # writes nothing
+    calls = []
+    run = run_of(tmp_path, live, plan_of(live.state, FINISH), look=lambda *a: calls.append(a))
+    assert run.run().status == "failed" and calls == []
+
+
+def test_a_look_that_cannot_be_made_is_said_and_the_run_goes_on(tmp_path):
+    live = FakeLive(block())
+    events = []
+
+    def look(record, cancel, seconds_left):
+        raise RuntimeError("the copy could not be drawn")
+
+    run = run_of(tmp_path, live, plan_of(live.state, FILLET, DEPTH), look=look)
+    run.on_event = lambda kind, data: events.append((kind, data))
+    outcome = run.run()
+    assert outcome.status == "done" and outcome.steps_done == 2
+    failed = [data for kind, data in events if kind == "look_failed"]
+    assert [(d["index"], d["message"]) for d in failed] == [
+        (1, "the copy could not be drawn"),
+        (2, "the copy could not be drawn"),
+    ]
+    assert [line["event"] for line in journal(tmp_path)].count("look_failed") == 2
+
+
+def test_stop_cancels_a_look_in_flight_and_no_other_step_starts(tmp_path):
+    live = FakeLive(block())
+    left = []
+
+    def look(record, cancel, seconds_left):
+        left.append(seconds_left)
+        run.stop()  # the person presses Stop while the model is looking
+        assert cancel.cancelled
+        raise CancelledError()
+
+    run = run_of(tmp_path, live, plan_of(live.state, FILLET, DEPTH), look=look)
+    outcome = run.run()
+    assert outcome.status == "stopped" and outcome.steps_done == 1 and live.ops() == ["fillet"]
+    assert 0 < left[0] <= 15 * 60
+
+
+def test_the_picture_after_a_step_is_drawn_from_a_copy_in_the_run_folder(tmp_path, monkeypatch):
+    import re
+
+    from automatic_support import WindowLive
+    from solidseas.ai.fake import ScriptedProvider
+    from solidseas.ai.prompts import part_image
+    from solidseas.formats._source import encode_png
+    from solidseas_app.assistant import picture
+
+    drawn = []
+
+    def draw(path, caption, *, side=picture.SIDE):
+        drawn.append((path, open(path, "rb").read(), caption))
+        return part_image(encode_png(2, 2, bytes(12), 3), caption)
+
+    monkeypatch.setattr(picture, "drawn", draw)
+    live = WindowLive(block())
+    plan = plan_of(live.state, FILLET, DEPTH)
+    start = started(tmp_path, plan)
+    pictures = picture.CopyPictures(live, SESSION, DOCUMENT, start.folder, start.run_id)
+    replies = [json.dumps({"as_expected": True, "reason": "Rounded."})] * 2
+    provider = ScriptedProvider(replies)
+    look = picture.ModelLook(provider, pictures, "Round the vertical edges 1 mm", len(plan.steps))
+    run = AutomaticRun(live, SESSION, DOCUMENT, start, baseline=live.state, look=look)
+    assert run.run().status == "done"
+    copies = [os.path.basename(path) for path, _, _ in drawn]
+    assert copies == ["checkpoint-run-step-1.sldprt", "checkpoint-run-step-2.sldprt"]
+    # the only names the bridge writes a copy under (Live.cs, CheckpointName), in the run's folder
+    assert all(re.fullmatch(r"checkpoint-[A-Za-z0-9-]{1,64}\.sldprt", c, re.IGNORECASE) for c in copies)
+    assert all(os.path.dirname(path) == start.folder and data == b"safety copy" for path, data, _ in drawn)
+    assert [c for c in live.calls if c[0] == "checkpoint"] == [("checkpoint", path) for path, _, _ in drawn]
+    first = provider.prompts[0]
+    assert "Step 1 of 2" in first.user and "1. fillet: edges" in first.user
+    assert first.images[0].caption == picture.step_caption(1) and "last saved" not in first.images[0].caption
+    assert "C:\\work" not in provider.sent_text() and "block.SLDPRT" not in provider.sent_text()
+    assert [line["call"]["prompt"] for line in journal(tmp_path) if line["event"] == "step_looked"] == [
+        p.text() for p in provider.prompts
+    ]
+
+
+def test_no_picture_is_made_once_an_administrator_forbids_them(tmp_path, policy_reader):
+    from automatic_support import WindowLive
+    from solidseas import policy
+    from solidseas.ai.fake import ScriptedProvider
+    from solidseas_app.assistant import picture
+
+    live = WindowLive(block())
+    plan = plan_of(live.state, FILLET)
+    start = started(tmp_path, plan)
+    provider = ScriptedProvider()
+    pictures = picture.CopyPictures(live, SESSION, DOCUMENT, start.folder, start.run_id)
+    run = AutomaticRun(
+        live,
+        SESSION,
+        DOCUMENT,
+        start,
+        baseline=live.state,
+        look=picture.ModelLook(provider, pictures, "Round the edges", 1),
+    )
+    policy_reader(policy.Policy(images_disabled=True))
+    assert run.run().status == "done"
+    failed = [line for line in journal(tmp_path) if line["event"] == "look_failed"]
+    assert [line["error"] for line in failed] == [picture.ADMIN_OFF]
+    assert provider.prompts == [] and not [c for c in live.calls if c[0] == "checkpoint"]
 
 
 # --------------------------------------------------------------------------- the rules

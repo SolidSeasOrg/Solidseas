@@ -10,6 +10,9 @@ an error. The tasks:
     Review mode: code and an explanation (:class:`~solidseas.ai.prompts.Draft`).
 ``plan_steps(goal, model_summary)``
     Automatic mode: one validated plan (:class:`~solidseas.ai.prompts.Plan`).
+``check_step(goal, step, index, count, image)``
+    Automatic mode, when the person asked for it: a look at a picture of the part after
+    one step (:class:`~solidseas.ai.prompts.Look`), which can only stop the run.
 
 A provider that supports the tasks runs each through :meth:`ModelProvider._run`,
 the one path a model call takes: the machine policy check, a cancellation
@@ -162,6 +165,15 @@ class ModelProvider(abc.ABC):
     ) -> TaskResult | None:
         """Automatic mode: plan ``goal`` for the part ``model_summary``, with ``image`` as
         for :meth:`draft_change`. None: this provider does not plan."""
+        return None
+
+    def check_step(
+        self, goal: Any, step: str, index: int, count: int, image: Any, *, call: CallOptions | None = None
+    ) -> TaskResult | None:
+        """Automatic mode: look at ``image`` (a :class:`~solidseas.ai.prompts.PartImage` of
+        the part after step ``index`` of ``count``, which ``step`` shows as the Plan panel
+        does) and say whether the part looks as the step should leave it. None: this
+        provider does not look."""
         return None
 
     # ----------------------------------------------------------------- the one call path

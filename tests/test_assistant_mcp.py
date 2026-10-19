@@ -600,3 +600,88 @@ def test_a_run_says_each_step_as_progress_when_the_client_asks():
     plain = {k: v for k, v in message["params"].items() if k != "_meta"}
     s._answer({**message, "id": 10, "params": plain}, quiet.append)
     assert [m.get("id") for m in quiet] == [10]
+
+
+# --------------------------------------------------------------------------- pictures after each step
+class CopyingLive(WindowLive):
+    """The stand-in part, whose copy after a step is the box fixture, a real SOLIDWORKS file,
+    so the picture is drawn as it is from a real copy."""
+
+    def write_checkpoint(self, session, document, path):
+        import shutil
+
+        from support import fixture_path
+
+        self.calls.append(("checkpoint", path))
+        shutil.copyfile(fixture_path("o02_boxA.SLDPRT"), path)
+        return {"path": path}
+
+
+def test_run_plan_returns_a_picture_after_each_step_only_when_asked():
+    from solidseas_app.assistant import picture
+
+    (schema,) = [t["inputSchema"] for t in mcp_server.TOOLS if t["name"] == "run_plan"]
+    assert schema["properties"]["pictures"]["type"] == "boolean" and "pictures" not in schema["required"]
+    live = CopyingLive(block())
+    s = server_on(live, confirm=lambda title, text: True)  # the person says yes to the new depth
+    ready(s)
+    plain = call(s, "run_plan", {"document": "d1", "plan": plan_of(FILLET)})
+    assert [c["type"] for c in plain["content"]] == ["text"] and "pictures" not in data(plain)
+    data(call(s, "keep_run", {"run": data(plain)["run"]}))
+    live.calls.clear()
+    ready(s)
+    got = call(s, "run_plan", {"document": "d1", "plan": plan_of(DEPTH), "pictures": True})
+    run = data(got)
+    assert run["status"] == "done" and run["steps"][0]["picture"] == picture.step_caption(1)
+    assert "1 picture(s) follow" in run["pictures"]
+    text, image = got["content"]
+    assert text["type"] == "text" and image["type"] == "image" and image["mimeType"] == "image/png"
+    import base64
+
+    png = base64.b64decode(image["data"])
+    assert png.startswith(b"\x89PNG") and "_images" not in run
+    copies = [c[1] for c in live.calls if c[0] == "checkpoint"]
+    assert len(copies) == 2 and copies[1].endswith(f"checkpoint-{run['run']}-step-1.sldprt")
+    assert "checkpoint" not in json.dumps(run) and os.sep + "runs" not in json.dumps(run)
+
+
+def test_run_plan_says_why_a_picture_is_missing_without_naming_the_run_folder(monkeypatch):
+    from solidseas_app.assistant import picture
+
+    def fail(path, caption, *, side=picture.SIDE):
+        raise OSError(f"{path} could not be read")
+
+    monkeypatch.setattr(picture, "drawn", fail)
+    s = server_on(WindowLive(block()))
+    ready(s)
+    run = data(call(s, "run_plan", {"document": "d1", "plan": plan_of(FILLET), "pictures": True}))
+    assert run["status"] == "done"  # a picture is a second look; the run goes on without it
+    assert run["steps"][0]["picture"].startswith("none: the run's folder")
+    assert run["pictures"].startswith("No picture was made")
+    assert os.sep + "runs" + os.sep not in json.dumps(run)
+
+
+def test_run_plan_sends_no_picture_where_an_administrator_forbids_them(policy_reader):
+    from solidseas_app.assistant import picture
+
+    live = WindowLive(block())
+    s = server_on(live)
+    ready(s)
+    policy_reader(policy.Policy(images_disabled=True))
+    got = call(s, "run_plan", {"document": "d1", "plan": plan_of(FILLET), "pictures": True})
+    run = data(got)
+    assert run["status"] == "done" and run["pictures"] == picture.ADMIN_OFF
+    assert [c["type"] for c in got["content"]] == ["text"] and "picture" not in run["steps"][0]
+    assert [c[0] for c in live.calls].count("checkpoint") == 1  # the safety copy only
+
+
+def test_pictures_is_true_or_false():
+    s = server_on(WindowLive(block()))
+    ready(s)
+    reply = s.handle(
+        request(
+            "tools/call",
+            {"name": "run_plan", "arguments": {"document": "d1", "plan": plan_of(FILLET), "pictures": "yes"}},
+        )
+    )
+    assert reply["error"]["code"] == -32602 and "pictures" in reply["error"]["message"]

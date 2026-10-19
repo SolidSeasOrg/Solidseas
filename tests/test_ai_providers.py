@@ -257,6 +257,43 @@ def test_only_a_png_within_the_limits_is_a_picture():
 
 
 @pytest.mark.parametrize("name", list(CASES))
+def test_check_step_sends_the_goal_the_step_and_the_picture_and_reads_the_look(name, server):
+    _, reply, path, _ = CASES[name]
+    look = json.dumps({"as_expected": False, "reason": "The fillet is not on the top edge."})
+    server.script.append(Reply(200, reply(look)))
+    image = _picture()
+    step = "1. fillet: edges E1 (from the model); radius 1 mm (you said)"
+    result = make(name, server).check_step("Round the top edge 1 mm", step, 1, 2, image)
+    assert result.value.as_expected is False and result.value.reason == "The fillet is not on the top edge."
+    assert result.prompt.task == "look" and result.prompt.images == (image,)
+    assert "Step 1 of 2" in result.prompt.user and step in result.prompt.user
+    assert "Round the top edge 1 mm" in result.prompt.user and image.caption in result.prompt.user
+    seen = server.seen[0]
+    assert seen.path == path and result.prompt.user in body_text(seen.json())
+    assert S.text not in seen.body.decode(), "a look sends no summary of the part"
+
+
+def test_a_look_is_refused_where_pictures_are_forbidden(server, policy_reader):
+    from solidseas.ai.base import IMAGES_MESSAGE
+    from solidseas.policy import Policy
+
+    policy_reader(lambda: Policy(images_disabled=True, locked=True))
+    with pytest.raises(PolicyRefusedError) as caught:
+        make("anthropic", server).check_step("fillet", "1. fillet", 1, 1, _picture())
+    assert str(caught.value) == IMAGES_MESSAGE and server.seen == []
+
+
+def test_a_look_shares_the_run_budget_and_its_small_output_cap():
+    from solidseas.ai.prompts import LOOK_OUTPUT_TOKENS
+
+    budget = RunBudget(30_000)
+    provider = ScriptedProvider([json.dumps({"as_expected": True, "reason": "It looks right."})])
+    result = provider.check_step("fillet", "1. fillet", 1, 1, _picture(), call=CallOptions(run_budget=budget))
+    assert result.value.as_expected is True and provider.output_caps == [LOOK_OUTPUT_TOKENS]
+    assert budget.used == result.input_tokens + result.output_tokens
+
+
+@pytest.mark.parametrize("name", list(CASES))
 def test_draft_change_reads_a_draft(name, server):
     _, reply, _, _ = CASES[name]
     server.script.append(Reply(200, reply(DRAFT)))

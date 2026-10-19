@@ -30,6 +30,13 @@ with Automatic ticked, states a goal the model plans once and SolidSeas carries 
   keeps the part as it is and Revert takes the steps off, newest first. The machine
   policy can turn Automatic mode off; then the box is greyed with "Set by your
   administrator".
+* **Pictures.** "Show the AI a picture of the part", off until ticked, sends a picture
+  of the part as last saved with a draft or a plan (:mod:`.picture`). In Automatic mode,
+  "Show it the part after each step", usable only while the first is ticked, has the
+  model look at a picture of the part after each step that passed its checks
+  (:class:`.picture.ModelLook`); a look that says the part does not look right ends the
+  run there. Both are greyed out under the ``DisableImages`` policy, and What the AI sees
+  says what goes.
 * **The provider** is built from the saved AI settings (:mod:`.aisettings`, ``AI.json``)
   through the factory, and built again whenever the AI settings page saves a change.
   With none configured every AI control is hidden; one the machine policy refuses keeps
@@ -73,6 +80,7 @@ from solidseas.ai.context import build_model_summary, prepare_request
 from solidseas.ai.errors import AI_ERROR_CODES, AIError
 from solidseas.ai.http import Cancel
 from solidseas.ai.prompts import Plan, draft_prompt, plan_prompt
+from solidseas.ai.usage import DEFAULT_RUN_TOKENS, RunBudget
 
 from . import picture
 from .aisettings import ADMIN, AIConfig, AISettingsStore
@@ -187,6 +195,7 @@ class AssistantWindow(QWidget):
         self._ai_hidden = False
         self._plan: Plan | None = None
         self._plan_target: tuple[LiveSession, LiveDocument] | None = None
+        self._plan_goal: Any = None  # the goal as the plan's call sent it, for the looks after steps
         self._run: AutomaticRun | None = None
         self._starting = False
         self._build()
@@ -234,6 +243,9 @@ class AssistantWindow(QWidget):
         self.names = QCheckBox(NAMES_TEXT)
         self.picture = QCheckBox(picture.PICTURE_TEXT)  # off until ticked
         self.picture.setToolTip(_tip(picture.PICTURE_TIP))
+        self.step_pictures = QCheckBox(picture.STEP_TEXT)  # Automatic mode only, off until ticked
+        self.step_pictures.setToolTip(_tip(picture.STEP_TIP))
+        self.step_pictures.setVisible(False)
         self.automatic = QCheckBox("Automatic")
         self.automatic.setToolTip(
             _tip("Plan the goal once and carry it out on the part, each step checked and revertible")
@@ -245,6 +257,7 @@ class AssistantWindow(QWidget):
         row = QHBoxLayout()
         row.addWidget(self.names)
         row.addWidget(self.picture)
+        row.addWidget(self.step_pictures)
         row.addWidget(self.automatic)
         row.addStretch(1)
         row.addWidget(self.draft_button)
@@ -361,7 +374,9 @@ class AssistantWindow(QWidget):
         self.run_stop.clicked.connect(self.stop_run)
         self.request.textChanged.connect(self._preview)
         self.names.toggled.connect(self._preview)
+        self.picture.toggled.connect(self._sync_step_pictures)
         self.picture.toggled.connect(self._preview)
+        self.step_pictures.toggled.connect(self._preview)
         self.automatic.toggled.connect(self._mode_changed)
         s.planned.connect(self._planned)
         s.run_started.connect(self._run_started)
@@ -407,6 +422,29 @@ class AssistantWindow(QWidget):
             self.picture.setChecked(False)
         self.picture.setEnabled(usable and allowed)
         self.picture.setToolTip(_tip(picture.PICTURE_TIP if allowed else picture.ADMIN_OFF))
+        self._sync_step_pictures()
+
+    def _sync_step_pictures(self, *_: Any) -> None:
+        """The box for a look after each step: shown in Automatic mode, usable only while
+        "Show the AI a picture of the part" is ticked (the person's word that pictures may
+        go), and unticked with it."""
+        allowed = picture.allowed()
+        on = self.picture.isChecked() and self.picture.isEnabled() and allowed
+        if not on:
+            self.step_pictures.setChecked(False)
+        self.step_pictures.setVisible(self.automatic.isChecked())
+        self.step_pictures.setEnabled(on)
+        tip = picture.STEP_TIP if on else (picture.ADMIN_OFF if not allowed else picture.STEP_NEEDS_PICTURE)
+        self.step_pictures.setToolTip(_tip(tip))
+
+    def _step_looks_wanted(self) -> bool:
+        """Whether the next run looks at the part after each step: asked for, and allowed."""
+        return (
+            self.automatic.isChecked()
+            and self.step_pictures.isChecked()
+            and self.picture.isChecked()
+            and picture.allowed()
+        )
 
     def _picture_path(self) -> str | None:
         """The part file a picture would show, when the person asked for one and may."""
@@ -620,7 +658,9 @@ class AssistantWindow(QWidget):
             if summary is None:
                 self.sees.setPlainText(f"Nothing would be sent: {NO_PART_TO_PLAN}")
             else:
-                self.sees.setPlainText(plan_prompt(request, summary).text() + self._picture_line())
+                self.sees.setPlainText(
+                    plan_prompt(request, summary).text() + self._picture_line() + self._step_look_line()
+                )
             return
         prompt = draft_prompt(request, summary)
         note = "" if summary is not None else NO_PART + "\n\n"
@@ -631,6 +671,17 @@ class AssistantWindow(QWidget):
         if self._picture_path() is None:
             return ""
         return f"\n\n[image] {picture.CAPTION} (made from the part's file when sent)"
+
+    def _step_look_line(self) -> str:
+        """What goes after each step of the run, when the person asked for a look."""
+        if not self._step_looks_wanted():
+            return ""
+        return (
+            "\n\n[after each step that passes SolidSeas' checks, one more request]\n"
+            "Your goal as above, that step as the Plan panel shows it, and\n"
+            f"[image] {picture.step_caption('N')}\n"
+            "The model only answers whether the part looks as the step should leave it."
+        )
 
     def draft(self) -> None:
         """Ask the provider for a draft (on a worker thread); with Automatic ticked, a plan."""
@@ -698,6 +749,7 @@ class AssistantWindow(QWidget):
         self.console_box.setVisible(not on)
         self.plan_box.setVisible(on)
         self.mode_label.setText(AUTOMATIC_TEXT if on else REVIEW_TEXT)
+        self._sync_step_pictures()
         self._preview()
 
     @property
@@ -728,6 +780,7 @@ class AssistantWindow(QWidget):
         self.draft_button.setEnabled(False)
         self.draft_stop.setEnabled(True)
         self._plan, self._plan_target = None, (session, document)
+        self._plan_goal = request
         self.plan_run.setEnabled(False)
         self.plan_view.setPlainText("")
         self.plan_note.setText("")
@@ -782,6 +835,14 @@ class AssistantWindow(QWidget):
         except Exception:  # unreadable settings: the default, off
             return False
 
+    def _run_tokens(self) -> int:
+        """The saved AI setting for a run's token budget, which the looks after steps share."""
+        try:
+            tokens = self.ai.settings.load().run_tokens
+        except Exception:  # unreadable settings: the default
+            return DEFAULT_RUN_TOKENS
+        return tokens if type(tokens) is int and 0 <= tokens <= 1_000_000 else DEFAULT_RUN_TOKENS
+
     def run_plan(self) -> None:
         """Run plan: the person's confirmation of a plan that waits."""
         self._start(confirmed=True)
@@ -805,6 +866,11 @@ class AssistantWindow(QWidget):
         self.draft_button.setEnabled(False)
         self.say(f"Starting the run on {document.title}: checking the part and writing the safety copy...")
         always = self._always_confirm()
+        provider, goal = self.provider, self._plan_goal
+        looks = self._step_looks_wanted() and goal is not None
+        if looks:
+            self.say("After each step, the model is shown the part and asked whether it looks right.")
+        tokens = self._run_tokens()
 
         def work() -> None:
             check = SessionTarget(self.sessions, session, document)
@@ -818,6 +884,10 @@ class AssistantWindow(QWidget):
             except Exception as exc:
                 self.sig.run_ended.emit(f"The run did not start: {type(exc).__name__}: {exc}")
                 return
+            look = None
+            if looks:
+                pictures = picture.CopyPictures(self.sessions, session, document, start.folder, start.run_id)
+                look = picture.ModelLook(provider, pictures, goal, len(plan.steps), budget=RunBudget(tokens))
             try:
                 run = AutomaticRun(
                     self.sessions,
@@ -826,6 +896,7 @@ class AssistantWindow(QWidget):
                     start,
                     baseline=check.snapshot,
                     on_event=lambda kind, data: self.sig.run_event.emit(kind, data),
+                    look=look,
                 )
             except Exception as exc:
                 start.release()
@@ -848,6 +919,14 @@ class AssistantWindow(QWidget):
             self.say(f"Step {data['index']} done and checked.")
         elif kind == "step_failed":
             self.say(f"Step {data['index']} was taken back: " + "; ".join(data.get("problems", ())))
+        elif kind == "step_looked":
+            verdict = {True: "it looks right", False: "it does not look right", None: "it cannot tell"}
+            words = verdict.get(data.get("as_expected"), "it cannot tell")
+            says = data.get("says", "")
+            self.say(f"Step {data['index']}: the model looked at the part and says {words}: {says}")
+        elif kind == "look_failed":
+            why = data.get("message", "")
+            self.say(f"Step {data['index']}: no look at the part ({why}). The run goes on.")
         elif kind == "step_reverted":
             self.say(f"Step {data['index']} reverted.")
 

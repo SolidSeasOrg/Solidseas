@@ -1,4 +1,4 @@
-"""What the chat providers share: the two tasks, and requests over :mod:`solidseas.ai.http`."""
+"""What the chat providers share: the tasks, and requests over :mod:`solidseas.ai.http`."""
 
 from __future__ import annotations
 
@@ -46,7 +46,7 @@ def path_segment(model: str) -> str:
 
 
 class ChatProvider(ModelProvider):
-    """A provider that does both tasks with the shared prompts and parsers."""
+    """A provider that does every task with the shared prompts and parsers."""
 
     def __init__(self, *, limits: prompts.PlanLimits | None = None, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -78,6 +78,19 @@ class ChatProvider(ModelProvider):
             return prompts.parse_plan(text, model_summary, goal=said, limits=self.limits)
 
         return self._run(prompt, parse, output_cap=prompts.PLAN_OUTPUT_TOKENS, call=call)
+
+    def check_step(
+        self,
+        goal: str | PreparedRequest,
+        step: str,
+        index: int,
+        count: int,
+        image: prompts.PartImage,
+        *,
+        call: CallOptions | None = None,
+    ) -> TaskResult[prompts.Look]:
+        prompt = prompts.look_prompt(goal, step, index, count, image)
+        return self._run(prompt, prompts.parse_look, output_cap=prompts.LOOK_OUTPUT_TOKENS, call=call)
 
 
 class HttpProvider(ChatProvider):

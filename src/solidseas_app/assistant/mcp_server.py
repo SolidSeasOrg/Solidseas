@@ -112,6 +112,10 @@ INSTRUCTIONS = f"""SolidSeas reaches the SOLIDWORKS running on this PC and build
    step failed, do not send the same plan again unchanged: read_part, then change the plan
    or tell the person what SolidSeas reported. A plan for a part that changed since your
    read_part is refused; read it again.
+6. run_plan with "pictures": true also returns a picture of the part after each step that
+   passed SolidSeas' checks. Look at them to see that the part has the shape the goal
+   asks for; if one does not, tell the person and offer revert_run. The pictures are a
+   second look, never a step's check: SolidSeas' checks decide whether a step is done.
 
 {NOTHING_SAVED}
 
@@ -155,7 +159,8 @@ TOOLS: list[dict[str, Any]] = [
         "title": "Show a part",
         "description": (
             "A picture of a part open in SOLIDWORKS, as its file was last saved (changes not yet "
-            "saved are not in it): to see its shape beside what read_part gives."
+            "saved are not in it): to see its shape beside what read_part gives. For the part after "
+            "each step of a run, ask run_plan for pictures."
         ),
         "inputSchema": {
             "type": "object",
@@ -172,7 +177,8 @@ TOOLS: list[dict[str, Any]] = [
             "Carry out a plan of operations on a part, step by step: a safety copy first, each step "
             "checked and in its own undo entry, a failed step taken back. A plan that would overwrite "
             "what the person has waits for them to confirm it on their PC. Returns each step's "
-            "result and the part's summary afterwards; then call keep_run or revert_run. The "
+            "result and the part's summary afterwards, and with pictures set, a picture of the part "
+            "after each step that passed its checks; then call keep_run or revert_run. The "
             "operations and their arguments are in the server's instructions."
         ),
         "inputSchema": {
@@ -184,6 +190,13 @@ TOOLS: list[dict[str, Any]] = [
                     "description": (
                         f'{{"vocabulary": {VOCABULARY_VERSION}, "steps": [{{"op": "...", "args": {{...}}, '
                         '"note": "what you expect"}], "notes": "..."}'
+                    ),
+                },
+                "pictures": {
+                    "type": "boolean",
+                    "description": (
+                        "true: a picture of the part after each step that passed SolidSeas' checks, "
+                        "drawn from a copy SolidSeas saves then, unsaved changes included. Off unless set."
                     ),
                 },
             },
@@ -737,13 +750,19 @@ class McpServer:
         }
 
     def _tool_run_plan(self, args: dict, rid: Any) -> dict:
-        self._only(args, "document", "plan")
+        from . import picture
+
+        self._only({k: v for k, v in args.items() if k != "pictures"}, "document", "plan")
+        wants_pictures = args.get("pictures", False)
+        if type(wants_pictures) is not bool:
+            raise InvalidParams("pictures is true or false")
         if policy.current().automatic_disabled:
             raise ToolRefused(AUTOMATIC_OFF)
         doc_id, session, document = self._document(args)
         raw = args["plan"]
         if not isinstance(raw, dict):
             raise InvalidParams("plan is an object")
+        pictures_allowed = picture.allowed()
         with self._lock:
             part = self._parts.get(doc_id)
         if part is None:
@@ -773,6 +792,17 @@ class McpServer:
             with self._lock:
                 self._parts.pop(doc_id, None)
             raise ToolRefused(f"The part changed since read_part ({', '.join(changed)}). {READ_AGAIN}")
+        look = None
+        if wants_pictures and pictures_allowed:
+            pictures = picture.CopyPictures(self.sessions, session, document, start.folder, start.run_id)
+            look = picture.PictureLook(pictures)
+        no_picture: dict[int, str] = {}  # step index: why no picture was made after it
+
+        def heard(kind: str, event: dict) -> None:
+            if kind == "look_failed":
+                no_picture[int(event.get("index", 0))] = str(event.get("message", ""))
+            self._run_progress(rid, kind, event)
+
         try:
             run = AutomaticRun(
                 self.sessions,
@@ -780,7 +810,8 @@ class McpServer:
                 document,
                 start,
                 baseline=check.snapshot,
-                on_event=lambda kind, data: self._run_progress(rid, kind, data),
+                on_event=heard,
+                look=look,
             )
         except BaseException:
             start.release()
@@ -810,6 +841,27 @@ class McpServer:
                 for r in run.records
             ],
         }
+        images: list[bytes] = []
+        if wants_pictures:
+            for entry, record in zip(data["steps"], run.records, strict=True):
+                if record.look is not None and record.look.image is not None:
+                    entry["picture"] = record.look.image.caption
+                    images.append(record.look.image.png)
+                elif record.step.index in no_picture:
+                    entry["picture"] = "none: " + self._local(no_picture[record.step.index], run)
+            if not pictures_allowed:
+                data["pictures"] = picture.ADMIN_OFF
+            elif images:
+                data["pictures"] = (
+                    f"{len(images)} picture(s) follow, one for each step marked with a picture, in order. "
+                    "They are a second look: SolidSeas' checks decide whether a step is done."
+                )
+            else:
+                data["pictures"] = (
+                    "No picture was made. One comes only after a step that passed SolidSeas' checks."
+                )
+            if images:
+                data["_images"] = tuple(images)
         if kept:
             data["kept_before"] = kept
         if outcome.steps_done:

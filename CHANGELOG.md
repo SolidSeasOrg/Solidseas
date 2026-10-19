@@ -199,6 +199,18 @@ while the project takes shape.
   and the checks warned about it. Only those parts' hidden lines are drawn, so
   an assembly whose parts all show is drawn as before.
 
+- **The AI can look at the part after each step.** In Automatic mode, with the
+  picture box ticked, a second box, Show it the part after each step, has the
+  model look at a picture of the part after every step that passed SolidSeas'
+  checks. SolidSeas saves a copy of the part as it is then, unsaved changes
+  included, draws it, and asks whether the part looks the way that step should
+  leave it. If the model says it does not, the run stops there and you choose
+  Keep or Revert; the look never lets through a step the checks refused, and a
+  look that cannot be made is noted in the log while the run goes on. It is
+  off until you tick it, costs one more request per step, and is greyed out
+  where your administrator has turned pictures off. A chat through SolidSeas'
+  MCP server can ask run_plan for the same pictures, one after each step.
+
 - **Items not shown on assembly drawings.** An item of the parts list that no
   view draws (hidden in the assembly, its file not found, or with no solid
   bodies) is listed in a note, ITEMS 3, 7 NOT SHOWN, and the checks no longer

@@ -189,3 +189,108 @@ def test_the_saved_always_confirm_setting_makes_every_plan_wait(app):
         assert not [c for c in live.calls if c[0] in ("operation", "checkpoint")]
     finally:
         w.close()
+
+
+# --------------------------------------------------------------------------- a look after each step
+def _drawn_without_rendering(monkeypatch):
+    """The copy after each step is "drawn" as a tiny PNG: the stand-in part's copy is not a
+    real SOLIDWORKS file (``tests/test_assistant_review.py`` draws a real one)."""
+    from solidseas.ai.prompts import part_image
+    from solidseas.formats._source import encode_png
+    from solidseas_app.assistant import picture
+
+    drawn = []
+
+    def draw(path, caption, *, side=picture.SIDE):
+        drawn.append(path)
+        return part_image(encode_png(2, 2, bytes(12), 3), caption)
+
+    monkeypatch.setattr(picture, "drawn", draw)
+    return drawn
+
+
+def test_the_look_after_each_step_is_offered_only_with_the_picture_and_says_what_goes(app):
+    from solidseas_app.assistant import picture
+
+    w = _window(app, ScriptedProvider(), WindowLive(block()))
+    try:
+        w.request.setPlainText("Round the four vertical edges 1 mm")
+        box = w.step_pictures
+        assert box.text() == picture.STEP_TEXT and box.isVisibleTo(w)
+        assert not box.isEnabled() and not box.isChecked() and picture.STEP_NEEDS_PICTURE in box.toolTip()
+        w.picture.setChecked(True)
+        assert box.isEnabled() and not box.isChecked()  # off until ticked
+        assert "after each step" not in w.sees.toPlainText()
+        box.setChecked(True)
+        shown = w.sees.toPlainText()
+        assert "[after each step that passes SolidSeas' checks, one more request]" in shown
+        assert "the part after step N, drawn from a copy SolidSeas saved after the step" in shown
+        w.picture.setChecked(False)  # the picture's box is the word that pictures may go at all
+        assert not box.isChecked() and not box.isEnabled()
+        assert "after each step" not in w.sees.toPlainText()
+        w.automatic.setChecked(False)
+        assert not box.isVisibleTo(w)
+    finally:
+        w.close()
+
+
+def test_with_the_look_ticked_the_model_sees_the_part_after_each_step(app, monkeypatch):
+    drawn = _drawn_without_rendering(monkeypatch)
+    live = WindowLive(block())
+    looks = [
+        json.dumps({"as_expected": True, "reason": "Four rounded edges."}),
+        json.dumps({"as_expected": False, "reason": "The part looks unchanged."}),
+    ]
+    provider = ScriptedProvider([plan_reply(FILLET, FINISH), *looks])
+    w = _window(app, provider, live)
+    try:
+        w.picture.setChecked(True)
+        w.step_pictures.setChecked(True)
+        w.request.setPlainText("Round the four vertical edges 1 mm and make it black")
+        w.draft()
+        _wait(app, lambda: w.plan_run.isEnabled())  # set_property waits
+        w.run_plan()
+        _wait(app, lambda: w._run is not None and w._run.outcome is not None and w.plan_revert.isEnabled())
+        assert w._run.outcome.status == "looks_wrong" and w._run.outcome.steps_done == 2
+        assert [os.path.basename(p) for p in drawn] == [
+            f"checkpoint-{w._run.start.run_id}-step-1.sldprt",
+            f"checkpoint-{w._run.start.run_id}-step-2.sldprt",
+        ]
+        plan_call, first, second = provider.prompts
+        assert plan_call.task == "plan" and (first.task, second.task) == ("look", "look")
+        assert "Round the four vertical edges" in first.user and "Step 2 of 2" in second.user
+        log = _log(w)
+        assert "After each step, the model is shown the part" in log
+        assert "Step 1: the model looked at the part and says it looks right: Four rounded edges." in log
+        assert "Step 2: the model looked at the part and says it does not look right" in log
+        assert "Keep it, or Revert." in log and w.plan_keep.isEnabled()
+    finally:
+        w.close()
+
+
+def test_without_the_look_no_picture_is_made_after_a_step(app, monkeypatch):
+    drawn = _drawn_without_rendering(monkeypatch)
+    live = WindowLive(block())
+    provider = ScriptedProvider([plan_reply(FILLET)])
+    w = _window(app, provider, live)
+    try:
+        w.picture.setChecked(True)  # a picture with the plan only
+        w.request.setPlainText("Round the four vertical edges 1 mm")
+        w.draft()
+        _wait(app, lambda: w._run is not None and w._run.outcome is not None)
+        assert w._run.outcome.status == "done" and drawn == [] and len(provider.prompts) == 1
+        assert [c[0] for c in live.calls].count("checkpoint") == 1  # the safety copy, and no other
+    finally:
+        w.close()
+
+
+def test_the_machine_policy_greys_out_the_look_after_each_step(app, policy_reader):
+    from solidseas_app.assistant import picture
+
+    policy_reader(policy.Policy(images_disabled=True))
+    w = _window(app, ScriptedProvider(), WindowLive(block()))
+    try:
+        assert not w.step_pictures.isEnabled() and not w.step_pictures.isChecked()
+        assert picture.ADMIN_OFF in w.step_pictures.toolTip()
+    finally:
+        w.close()

@@ -20,6 +20,12 @@ For each step, in order:
    else. A failure, a step past its soft limit, or an undo entry that recorded nothing
    applies the inverse at once and ends the run.
 5. **The journal** records the result and what the step made.
+6. **A look**, only when the person asked for one: a picture of the part after the step
+   and, in the window, the model's word on whether it looks as the step should leave it
+   (:class:`StepLook`, made by :mod:`.picture`). It comes after verification passed, so it
+   never lets a step through that the checks refused. A look that says the part does not
+   look right ends the run there, the step kept for the person's Keep or Revert; one that
+   cannot be made is said in the log and the run goes on.
 
 :meth:`AutomaticRun.revert` works newest first: before each inverse the part must still be
 as that step left it, or revert stops and points at the safety copy; after each inverse the
@@ -43,6 +49,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from solidseas.ai.context import PartSnapshot
+from solidseas.ai.http import Cancel
 from solidseas.ai.prompts import Angle, Handles, Plan, Profile, Step
 from solidseas.swapi.bridge import BridgeRequestError
 
@@ -357,15 +364,18 @@ def with_refs(step: Step, present: Mapping[str, str]) -> Step:
     return dataclasses.replace(step, args=args)
 
 
+def step_text(step: Step) -> str:
+    """One step as :func:`plan_text` shows it: every argument with its source, then the
+    model's expected effect on a line of its own."""
+    args = "; ".join(f"{name} {value.show()} ({value.source})" for name, value in step.args.items())
+    line = f"{step.index}. {step.op}: {args}"
+    return line + (f"\n   expected: {step.note}" if step.note else "")
+
+
 def plan_text(plan: Plan) -> str:
     """A plan as the person reads it, in the Plan panel and in a confirmation: each step
     with every argument and where its value came from, then the model's notes."""
-    lines = []
-    for step in plan.steps:
-        args = "; ".join(f"{name} {value.show()} ({value.source})" for name, value in step.args.items())
-        lines.append(f"{step.index}. {step.op}: {args}")
-        if step.note:
-            lines.append(f"   expected: {step.note}")
+    lines = [step_text(step) for step in plan.steps]
     if plan.notes:
         lines += ["", f"Notes: {plan.notes}"]
     return "\n".join(lines)
@@ -419,6 +429,11 @@ class Journal:
             os.fsync(f.fileno())
 
 
+def _sentence(text: str) -> str:
+    text = text.strip() or "it gave no reason"
+    return text if text[-1] in ".!?" else text + "."
+
+
 def _shown(step: Step) -> dict[str, Any]:
     out = {}
     for name, value in step.args.items():
@@ -470,6 +485,25 @@ class SessionTarget:
 
 
 # --------------------------------------------------------------------------- the run
+@dataclass(frozen=True)
+class StepLook:
+    """A look at the part after a step that passed its checks (module notes, item 6).
+    ``as_expected`` False ends the run after the step; True, or None (nobody judged, or the
+    model could not tell), lets it go on. ``says`` is for the log, as plain text;
+    ``image`` the picture (a :class:`~solidseas.ai.prompts.PartImage`) when one was made;
+    ``journal`` what the journal line keeps besides, such as the prompt sent."""
+
+    as_expected: bool | None
+    says: str
+    image: Any = None
+    journal: Mapping[str, Any] = field(default_factory=dict)
+
+
+# A look after a step: (the step's record, the run's cancellation token, the seconds left
+# before the run's deadline) -> what it found. Raising says no look could be made.
+LookAfterStep = Callable[["StepRecord", Cancel, float], StepLook]
+
+
 @dataclass
 class StepRecord:
     step: Step
@@ -479,11 +513,13 @@ class StepRecord:
     made: list[str] = field(default_factory=list)
     status: str = "running"  # running, done, failed, reverted
     problems: list[str] = field(default_factory=list)
+    look: StepLook | None = None
 
 
 @dataclass(frozen=True)
 class RunOutcome:
-    """How a run ended: ``status`` is done, failed, stopped, changed, limit or interrupted."""
+    """How a run ended: ``status`` is done, failed, stopped, changed, limit, interrupted or
+    looks_wrong (a look after a step said the part does not look right)."""
 
     status: str
     message: str
@@ -493,7 +529,9 @@ class RunOutcome:
 class AutomaticRun:
     """Carries out ``start``'s plan on the part (see the module notes). ``live`` is the
     session object (:class:`.live_sessions.BridgeSessions`); ``baseline`` the snapshot
-    the plan's handles were checked against; ``on_event(kind, data)`` hears each step."""
+    the plan's handles were checked against; ``on_event(kind, data)`` hears each step;
+    ``look``, when the person asked for one, looks at the part after each step that passed
+    its checks (:data:`LookAfterStep`)."""
 
     def __init__(
         self,
@@ -507,6 +545,7 @@ class AutomaticRun:
         step_soft_limit_s: float = STEP_SOFT_LIMIT_S,
         on_event: Callable[[str, dict], None] | None = None,
         clock: Callable[[], float] = time.monotonic,
+        look: LookAfterStep | None = None,
     ) -> None:
         self.live = live
         self.session = session
@@ -515,6 +554,8 @@ class AutomaticRun:
         self.baseline = baseline
         self.step_soft_limit_s = step_soft_limit_s
         self.on_event = on_event
+        self.look = look
+        self.cancel = Cancel()  # Stop sets it: a look's call to the model ends at once
         self.clock = clock
         self.deadline = clock() + deadline_s
         self.journal = Journal(start.folder)
@@ -540,6 +581,7 @@ class AutomaticRun:
         if not self._stop.is_set():
             self._stop.set()
             self.journal.write("stop_requested")
+        self.cancel.cancel()
 
     @property
     def stopping(self) -> bool:
@@ -671,6 +713,39 @@ class AutomaticRun:
             volume=after.volume,
         )
         self._emit("step_done", index=step.index, op=step.op)
+        if self.look is not None and not self._stop.is_set():
+            return self._look_at(record, self.look)
+        return None
+
+    def _look_at(self, record: StepRecord, look_after: LookAfterStep) -> RunOutcome | None:
+        """The look after a step that passed its checks: a look that says the part does not
+        look right ends the run, the step kept; one that cannot be made is said and the
+        run goes on, since the checks, not the look, decide a step."""
+        step = record.step
+        try:
+            look = look_after(record, self.cancel, max(0.0, self.deadline - self.clock()))
+        except Exception as exc:  # no picture, the model failed or Stop: said, never a step's failure
+            why = str(exc) or type(exc).__name__
+            self.journal.write("look_failed", index=step.index, error=why)
+            self._emit("look_failed", index=step.index, message=why)
+            return None
+        record.look = look
+        self.journal.write(
+            "step_looked",
+            index=step.index,
+            as_expected=look.as_expected,
+            says=look.says,
+            image=look.image.line() if look.image is not None else None,
+            call=dict(look.journal),
+        )
+        self._emit("step_looked", index=step.index, as_expected=look.as_expected, says=look.says)
+        if look.as_expected is False:
+            return self._end(
+                "looks_wrong",
+                f"After step {step.index} ({step.op}) the model says the part does not look right: "
+                f"{_sentence(look.says)} The run stopped there. The step passed SolidSeas' own checks "
+                "and is still in the part: Keep it, or Revert.",
+            )
         return None
 
     def _take_back(self, record: StepRecord) -> None:
@@ -770,14 +845,17 @@ __all__ = [
     "AutomaticRun",
     "InverseError",
     "Journal",
+    "LookAfterStep",
     "RunOutcome",
     "SessionTarget",
+    "StepLook",
     "StepRecord",
     "boss_box",
     "differences",
     "inverse_of",
     "plan_text",
     "step_refs",
+    "step_text",
     "verify",
     "with_refs",
 ]

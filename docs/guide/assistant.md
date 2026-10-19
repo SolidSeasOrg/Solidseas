@@ -28,6 +28,35 @@ described by numbers and handles only: your file names, paths and property
 values never leave the computer, and your feature names only when you tick
 "Send my feature and property names".
 
+## Showing the AI a picture of the part
+
+Tick **Show the AI a picture of the part** to send a picture of the part with
+your request, so the model sees its shape as well as its numbers. It is off
+until you tick it. The picture is drawn by SolidSeas: the part in grey, seen
+from the front, right and above, with no text, file name or dimension in it.
+It shows the part as it was last saved, so changes you have not saved in
+SOLIDWORKS are not in it. What the AI sees shows a line where the picture goes.
+
+When **Automatic** is ticked (the model plans your goal once and SolidSeas
+carries the plan out step by step), you can also tick **Show it the part after
+each step**. After each step passes SolidSeas' own checks, SolidSeas saves a
+copy of the part as it is at that moment, unsaved changes included, draws it,
+and asks the model whether the part looks the way that step should leave it.
+
+- If the model says it looks right, or cannot tell, the run goes on.
+- If the model says it does not look right, the run stops after that step and
+  the log says why. The step stays in the part, since it passed the checks:
+  choose **Keep** or **Revert** as after any run.
+- The model's look never lets through a step that SolidSeas' checks refused.
+  If a look cannot be made, the log says so and the run goes on.
+
+Each look is one more request to the AI, with a picture, so it counts against
+your budget, and each copy takes SOLIDWORKS a moment. The copies are kept in
+the run's folder, beside its safety copy.
+
+Both boxes are greyed out, with "Set by your administrator", where your
+administrator has turned pictures off.
+
 ## Running it
 
 Nothing runs until you press **Run**. Then:

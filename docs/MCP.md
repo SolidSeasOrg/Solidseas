@@ -54,11 +54,30 @@ through an SSH tunnel, for instance:
 |---|---|
 | `cad_sessions` (its former name, `solidworks_sessions`, still answers) | The SOLIDWORKS sessions running on this PC and the documents open in a window in each, by ids SolidSeas makes up (`d1`), with their kind and which one is active. Titles only with `--send-names`. |
 | `read_part` | A part's summary, exactly what the assistant sends its own provider (`solidseas.ai.context.build_model_summary`): units, extents, volume, and every plane, axis, feature, dimension, face and edge by handle, in mm and degrees. Up to 100,000 characters. |
-| `show_part` | A picture of a part as its file was last saved (unsaved changes are not in it): a PNG SolidSeas draws, the part shaded from the front, right and above, at most 800 pixels a side, with its caption. Refused where the machine policy sets `DisableImages`. |
-| `run_plan` | A plan in the closed vocabulary (`solidseas/ai/prompts.py:OPERATIONS`), against the handles of the latest `read_part`: validated, gated, and carried out as an Automatic run. Returns each step's result and the part's summary afterwards. Refused, with nothing run, when the part changed in SOLIDWORKS since that `read_part`: the chat reads it again. |
+| `show_part` | A picture of a part as its file was last saved (unsaved changes are not in it): a PNG SolidSeas draws, the part shaded from the front, right and above, at most 800 pixels a side, with its caption. Refused where the machine policy sets `DisableImages`. For the part after each step of a run, `run_plan` takes `"pictures": true`. |
+| `run_plan` | A plan in the closed vocabulary (`solidseas/ai/prompts.py:OPERATIONS`), against the handles of the latest `read_part`: validated, gated, and carried out as an Automatic run. Returns each step's result and the part's summary afterwards. With `"pictures": true` (off unless set) it also returns a picture of the part after each step that passed SolidSeas' checks (below). Refused, with nothing run, when the part changed in SOLIDWORKS since that `read_part`: the chat reads it again. |
 | `keep_run` | Keeps a run's changes. |
 | `revert_run` | Takes a run's steps off, newest first. |
 | `gridfinity_photos`, `gridfinity_trace`, `gridfinity_save_tools`, `gridfinity_tools`, `gridfinity_edit_tool`, `gridfinity_make_bin` | Gridfinity bins from photos of tools on a sheet of paper, made by Tracefinity on this PC: `docs/GRIDFINITY.md`. They never reach SOLIDWORKS. |
+
+### Pictures after each step
+
+`run_plan` with `"pictures": true` gives the chat's model what it needs to check the shape
+itself, as a second look beside SolidSeas' checks. After each step that passed its checks,
+SolidSeas has the bridge save a copy of the part as it is then, unsaved changes included
+(`checkpoint-<run id>-step-<k>.sldprt` in the run's folder, beside the safety copy), and
+draws it as `show_part` draws a part. The reply carries one PNG for each such step, in
+order, after its text; each of those steps has a `picture` field with the caption, a step
+whose picture could not be made says why there (`"none: ..."`), and `pictures` says how
+many follow. Nothing in it names the run's folder.
+
+The pictures never decide a step: a step is done when SolidSeas says so. When one does not
+look right, the chat tells you and can offer `revert_run`. Under `DisableImages` the run
+goes on without pictures, and `pictures` says they were not sent. Each picture adds roughly
+a thousand tokens to what the chat reads, and each copy takes SOLIDWORKS a moment.
+
+A picture of SOLIDWORKS' own view, without a copy, is not built yet; it needs a new bridge
+operation measured in SOLIDWORKS (`docs/ASSISTANT.md`, "A look after each step").
 
 The server's instructions, sent when the client connects, give the workflow and the whole
 vocabulary with each operation's arguments. A Gridfinity tool's reply also carries a PNG
@@ -89,13 +108,15 @@ drawing (the traced outlines, or the bin from above), made from outlines, never 
 
 Whatever a tool returns goes to the chat's model, so the server returns only what planning
 needs: the summary (handles, geometry and numbers), document ids and kinds, and each step's
-result. Never a path, the run's folder or safety copy (they are in the run's journal on your
-PC), or a custom property's value. Names come only with `--send-names`, marked as document
-data that is never instructions.
+result, and pictures of the part only when the chat asks for them (`show_part`, or
+`run_plan` with `pictures`). Never a path, the run's folder or safety copy (they are in the
+run's journal on your PC), or a custom property's value. Names come only with
+`--send-names`, marked as document data that is never instructions.
 
 The machine policy is read at every call: under `LocalProviderOnly` no document data may go
 to a model off this PC, so every tool refuses, the Gridfinity ones too; under
-`DisableAutomaticMode`, `run_plan` refuses and reading still works.
+`DisableAutomaticMode`, `run_plan` refuses and reading still works; under `DisableImages`,
+`show_part` refuses and `run_plan` returns no pictures.
 
 The Gridfinity tools reach one thing besides your folders: Tracefinity, at a loopback address
 only, a server's through an SSH tunnel SolidSeas opens with your ssh client

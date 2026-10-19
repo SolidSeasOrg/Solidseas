@@ -412,7 +412,8 @@ It follows the provider seam used across related projects (the
 - `solidseas/ai/base.py` defines the `ModelProvider` interface and imports no
   provider SDK. Task methods return `None` when a provider does not support a
   task, and callers treat that as a capability gap. The tasks are
-  `draft_change` for Review mode and `plan_steps` for Automatic mode.
+  `draft_change` for Review mode, and `plan_steps` and, when the person asks
+  for a look at the part after each step, `check_step` for Automatic mode.
 - `solidseas/ai/prompts.py` owns every prompt, every reply parser and the
   Automatic mode vocabulary version.
 - Providers: Anthropic, OpenAI, Gemini, Ollama for local use, and a `noop`

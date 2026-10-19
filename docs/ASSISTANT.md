@@ -199,9 +199,11 @@ removes it when the process holding it ends.
 
 ### Planning
 
-- Each run makes exactly one model call, `plan_steps(goal, model_summary)`,
-  before step 1. The model is not called again during the run, so nothing read
-  from the document after a step can change the run's direction.
+- Each run makes exactly one planning call, `plan_steps(goal, model_summary)`,
+  before step 1. The model is not asked to plan again during the run, so
+  nothing read from the document after a step can change the run's direction.
+  The one other call a run can make is the optional look after a step (below),
+  whose answer can only end the run; it never adds, changes or skips a step.
 - A network error, a 401, a 429 still failing after its retries, a timeout or
   an unparseable reply ends the run before anything has changed.
 - The model summary refers to everything by handles that SolidSeas issues:
@@ -467,6 +469,67 @@ fails, and its inverse is applied, on any other difference, any new What's
 Wrong entry, a rebuild that returns false or does not finish, or any value
 that cannot be read. When in doubt the run stops; it never guesses forward.
 
+### A look after each step
+
+An optional second look at the shape, beside verification and never instead of
+it. The idea comes from Millwright's vision loop (github.com/raylanlin/Millwright);
+none of its code is used.
+
+- **Off until ticked.** The window's "Show it the part after each step" box
+  shows in Automatic mode only, is usable only while "Show the AI a picture of
+  the part" is ticked, and is unticked with it. Under `DisableImages` both are
+  greyed out with "Set by your administrator", and the policy is read again
+  before every picture, so a policy that arrives during a run stops the looks
+  that follow.
+- **When.** After a step passed verification and its result is in the
+  journal, and only then. A step that failed is taken back without a look, and
+  no look is taken once Stop was pressed.
+- **The picture.** The bridge writes a copy of the part as it is now, unsaved
+  changes included, with the same `live_checkpoint` call that writes checkpoint
+  0 (`SaveAs3` with the copy and silent options, which leaves the open part, its
+  path, its saved state and its undo list alone). The copy is
+  `checkpoint-<run id>-step-<k>.sldprt` in the run folder, the only folder and
+  the only names the bridge writes a copy under, and it stays there with
+  checkpoint 0. SolidSeas draws it as it draws the picture sent with a plan
+  (`solidseas_app.assistant.picture.drawn`: grey, front, right and above, no
+  text, at most 800 pixels a side), captioned "the part after step k, drawn from
+  a copy SolidSeas saved after the step". The user's own file is never drawn
+  for a look: a run never saves, so it would show the part as it was before the
+  run.
+- **The call.** `check_step(goal, step, k, n, image)` on the person's provider,
+  through the same call path as every other (`ModelProvider._run`: policy,
+  budget, cancellation, parsing). The prompt (`prompts.look_prompt`,
+  `LOOK_SYSTEM`) holds the goal as the planning call sent it, the step as the
+  Plan panel shows it, and the picture: no summary, no names, no paths. The
+  output cap is 512 tokens, and the looks share one run budget of the run token
+  setting (30,000 by default). Stop cancels a look in flight.
+- **The answer.** `{"as_expected": true | false | null, "reason": "..."}`,
+  read by `prompts.parse_look`, which refuses any other field, a verdict that
+  is not true, false or null, and control characters, and cuts the reason at
+  300 characters. False ends the run with the status `looks_wrong` after that
+  step: the step passed its checks and stays in the part, and the person
+  chooses Keep or Revert as after any run. True, or null (the model cannot
+  tell, or cannot see pictures), lets the run go on.
+- **A look that cannot be made** (the copy, the drawing, the policy, the
+  budget, the deadline, a provider error, a refused reply) is journaled as
+  `look_failed`, said in the log, and the run goes on: verification decides a
+  step, the look only adds evidence.
+- **The journal** keeps each look as `step_looked`: the verdict, the reason,
+  the picture's line, the prompt sent and the tokens.
+- **Costs.** One more model call with a picture per step (about 1,000 input
+  tokens for the picture), one more copy per step, which takes SOLIDWORKS a
+  moment and raises `FileSavePostNotify` to add-ins as checkpoint 0 does, and a
+  second or two to draw it.
+- **Through the MCP server**, `run_plan` with `"pictures": true` makes the same
+  copies and pictures after each step, asks no model, and returns the pictures
+  to the chat, whose own model looks at them (`docs/MCP.md`).
+- **Not built: SOLIDWORKS' own view.** A `live_capture` operation in the bridge
+  would save the graphics view as a PNG into the bridge's temp folder, size
+  capped, without a copy of the part. It needs SOLIDWORKS to build and measure.
+  When it is built it becomes a second picture source
+  (`picture.PictureSource`), tried first, with the drawn copy kept as the
+  fallback.
+
 ### Checkpoints, journal and revert
 
 - **Run folder.** `%LOCALAPPDATA%\SolidSeas\runs\<run id>\`, named by
@@ -627,6 +690,10 @@ until it is released: an extrude's extents are bounded by the profile placed in
 the frame the bridge used, and a fillet or chamfer must have consumed exactly
 the planned edges, which a neighbouring edge cannot fake.
 
+The look after each step (above) is built on the bridge's existing copy, with
+SolidSeas' own drawing of it. SOLIDWORKS' own view through the bridge
+(`live_capture`) is not built.
+
 Not built yet: the global Stop hotkey (the window's Stop button works), holding
 the person's SOLIDWORKS options during a step, holding saves, pausing while the
 part is not the active document (the run ends instead), the notifications as
@@ -676,6 +743,11 @@ tools and what each returns.
   bridge, is still to come. One that cannot be made is said in the log, and the
   request goes without it. The chat server's `show_part` tool gives the same
   picture.
+- With "Show it the part after each step" also ticked, an Automatic run sends
+  one more request after each step that passed its checks: the goal, that step
+  as the Plan panel shows it, and a picture drawn the same way from a copy of
+  the part saved after the step ("A look after each step" above). "What the AI
+  sees" says so under the planning prompt, and the journal keeps each request.
 - Names the user typed (features, sketches, configurations, custom property
   names) are replaced by handles unless the user ticks "Send my feature and
   property names" for that run. When ticked, names go only as quoted strings in
@@ -718,7 +790,8 @@ It follows the `` pattern:
   so plainly, never as an error.
 - Tasks: `draft_change(context, request)` returns code and an explanation for
   Review mode; `plan_steps(goal, model_summary)` returns a plan for Automatic
-  mode.
+  mode; `check_step(goal, step, index, count, image)` returns the model's look
+  at a picture of the part after a step ("A look after each step").
 - `solidseas/ai/prompts.py` owns every prompt, every reply parser and the
   vocabulary version. All providers import them, so every provider is asked for
   identical JSON.
@@ -830,7 +903,7 @@ On a managed PC an administrator can set values under
 | `DisableAutomaticMode` | DWORD | 1 makes Automatic mode unavailable |
 | `LocalProviderOnly` | DWORD | 1 restricts SolidSeas to a local Ollama provider |
 | `AllowedProviderHosts` | REG_MULTI_SZ | Host names that also count as local, for an approved internal Ollama server |
-| `DisableImages` | DWORD | 1 stops pictures of the part being sent to any provider |
+| `DisableImages` | DWORD | 1 stops pictures of the part being sent to any provider or returned to a chat |
 
 Reading it, in `solidseas/policy.py`, following `fail-closed-machine-policy`:
 
@@ -869,7 +942,10 @@ also applies `LocalProviderOnly` itself, from its own kind and address, before
 each call and health check, so a provider built some other way would fail
 closed rather than ignore the policy. `DisableImages` is applied in the same
 place, the one call path every provider takes (`ModelProvider._run`): a prompt
-that carries a picture is refused before anything is sent.
+that carries a picture is refused before anything is sent. The window and the
+MCP server read it as well, so that under it no picture is made at all: the tick
+boxes are greyed, a look after a step is not taken, `show_part` refuses and
+`run_plan` returns no pictures.
 
 Local means the Ollama base URL's host is `127.0.0.1`, `::1`, `localhost`, or
 exactly one of `AllowedProviderHosts`; any other loopback literal
@@ -920,6 +996,12 @@ SolidSeas executable.
   is ever passed to the WebEngine 3D viewer.
 - A "What the AI sees" panel, a live log, the plan with each argument's
   source, and Stop.
+- Beside "Send my feature and property names", "Show the AI a picture of the
+  part", off until ticked, and in Automatic mode "Show it the part after each
+  step", usable only while the first is ticked. Under `DisableImages` both are
+  greyed out, with "Set by your administrator" as their tooltip. "What the AI
+  sees" shows a line for each picture in its place, and for the looks after
+  steps, what each of those requests holds.
 - An AI Settings button that opens the AI settings page (below). Whenever
   drafting is not available (the factory served `noop`), the window says why
   in plain text, from the provider's reason, beside a button that opens the
@@ -993,7 +1075,7 @@ writes the user's `AI.json`.
 
 | What | Where | Kept |
 |---|---|---|
-| Run folder: checkpoint 0 and `journal.jsonl` | `%LOCALAPPDATA%\SolidSeas\runs\<run id>\` | Until Keep or Revert, then the retention period (7 days by default) |
+| Run folder: checkpoint 0, the copy after each step when the look after each step is on, and `journal.jsonl` | `%LOCALAPPDATA%\SolidSeas\runs\<run id>\` | Until Keep or Revert, then the retention period (7 days by default) |
 | SOLIDWORKS options held during a run | `%LOCALAPPDATA%\SolidSeas\sw-options.json` | Until the options are restored |
 | Usage | `%LOCALAPPDATA%\SolidSeas\usage.json`, with `usage.json.lock` beside it | Monthly buckets, the last 24 months; a call's hold until it ends, at most 10 minutes |
 | AI settings: provider, model, Ollama address, budgets and limits, never a key | `%APPDATA%\SolidSeas\AI.json`, beside the viewer's `Viewer.ini` | Until changed on the AI settings page; roams with a roaming profile |
@@ -1038,6 +1120,12 @@ writes the user's `AI.json`.
 - The verification table, against snapshots recorded from the oracle part
   fixtures, including the wrong-but-similar fillet edge and a change in another
   configuration.
+- The look after each step: offered only with the picture ticked and greyed
+  under `DisableImages`; taken only after a step that passed its checks; a
+  doubtful look ends the run with the step kept; a look that cannot be made is
+  said and the run goes on; Stop cancels one in flight; the copy is written
+  only under the names the bridge accepts, in the run folder; the prompt holds
+  no summary, name or path; and the reply parser refuses any other shape.
 
 ## Confirm before building
 
