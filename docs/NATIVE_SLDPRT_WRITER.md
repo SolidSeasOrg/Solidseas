@@ -265,6 +265,20 @@ the model's size (4.7). VERIFIED (14 parts, 15 streams).
 in the others, and 99.4 to 99.8% of o01's bytes appear in the same order in
 each of them. VERIFIED (13 parts).
 
+Lined up against each of the other parts, only 185 of o01's 24,240 bytes ever
+differ. They fall in a few places: the document's own name and times in
+its first named node, `moVisualProperties_c` (66 bytes: the appearance and
+material display), `gcXhatch_c` (the crosshatch pattern, 26), `uoModelData_c`
+(11), `moTransRefPlaneData_c` (10), the last light (16), and
+`moSketchBlockMgr_c`, `suObList` and `moCThreadRefMgr_c` at the end (about 15),
+where the parts with features keep their managers' lists. Elsewhere one byte
+differs at the start of each style block and view, where a class index
+shifts. The rest, about 24 KB, is the same bytes in every part: the units
+table, the drafting standard's defaults (its 16 KB middle: fonts such as
+Century Gothic at 3.5 mm, CONTINUOUS line styles, arrow sizes and angles, as
+`swnative.typedump` reads them), the lights and the ten standard views.
+VERIFIED (13 parts).
+
 So most of what a part holds is the same data in every part SOLIDWORKS
 saves: defaults and settings whose meaning is not decoded. A generator
 written from a specification of these streams either computes those fields
