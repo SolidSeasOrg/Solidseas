@@ -471,6 +471,16 @@ def test_the_first_features_are_mostly_the_same_bytes_in_every_part():
         assert LY.layout(spans).constant_fraction() > 0.85
 
 
+def test_typedump_reads_the_drafting_defaults_of_config_0():
+    from swnative import typedump as TD
+
+    data = read_document(FIXTURES / "o01_empty.SLDPRT").data("Contents/Config-0")
+    seen = [(i.kind, i.value) for i in TD.items(data)]
+    assert ("cstring", "Century Gothic") in seen and ("cstring", "CONTINUOUS") in seen
+    assert ("length", 3.5) in seen  # the default text height, in mm
+    assert ("angle", 45) in seen
+
+
 def test_a_cstring_is_read_with_either_length_form():
     short = b"\xff\xfe\xff\x02" + "Ab".encode("utf-16-le")
     long_ = b"\xff\xfe\xff\xff\x02\x00" + "Ab".encode("utf-16-le")
