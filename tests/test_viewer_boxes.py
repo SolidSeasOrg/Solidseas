@@ -779,6 +779,7 @@ for instanced in (True, False):
     }
     view.set_assembly(scene, boxes=False)
     app.processEvents()
+    view.grabFramebuffer()  # a frame, even where the window is never shown (an SSH session)
     report = view.box_report()
     r = view.renderer
     out[f"{instanced} off"] = {"boxes": r.boxes, "report": report, "instances": r.instances}
@@ -887,7 +888,7 @@ for instanced in (True, False):
     app.processEvents()
     nx, ny, _ = view.camera.project((0.5, 0.5, 0.5))
     rec["inside"] = view.instance_at((nx + 1) * w / 2, (1 - ny) * h / 2)
-    nx, ny, _ = view.camera.project((1.5, -0.5, 1.5))
+    nx, ny, _ = view.camera.project((1.5, -0.3, 1.3))  # on the box's face, clear of its outline
     rec["beside"] = view.instance_at((nx + 1) * w / 2, (1 - ny) * h / 2, radius=0)
     rec["box_pixel"] = view.pixel_of(1) is not None
     # A box far smaller than a pixel: no failure of the boxes' check, a subpixel one.
