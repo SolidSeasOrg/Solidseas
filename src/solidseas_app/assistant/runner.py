@@ -319,6 +319,13 @@ class Runner:
         with self._lock:
             ending = self._ending
         if status not in ("done", "error", "memory") or ending is not None:
+            if ending is None:
+                # its output closed because it is ending by itself: let it, so it keeps
+                # its own exit code rather than the one ending the job gives it
+                try:
+                    proc.wait(2)
+                except subprocess.TimeoutExpired:
+                    pass
             self._end(ending or "crashed")
         try:
             proc.wait(10)

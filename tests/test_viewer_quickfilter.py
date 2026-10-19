@@ -685,7 +685,8 @@ def test_every_glyph_is_drawn_inside_its_square_at_any_scale(app, scale):
             assert max(y for _, y in white) <= max(y for _, y in drawn) - 2, ft.key
         if ft.glyph != "badge" and ft.letters:  # a tag's letters, about 6 pixels tall at 100 percent
             tag = [y for x, y in white if x > 4 + 0.35 * side and y > 4 + 0.5 * side]
-            assert max(tag) - min(tag) + 1 >= 6 * scale - 0.5, ft.key
+            # hinting snaps the letters to whole pixels, so a font may come out a pixel short
+            assert max(tag) - min(tag) + 1 >= 6 * scale - 1, ft.key
         pictures[ft.key] = bytes(img.constBits())
     assert len(set(pictures.values())) == len(pictures)  # no two types look the same
 

@@ -191,4 +191,10 @@ def test_the_credential_structure_matches_wincred_h():
 @pytest.mark.skipif(not WINDOWS, reason="Credential Manager is Windows only")
 def test_the_real_store_reads_a_missing_entry_as_none():
     # read only, at a name nothing uses: the real Credential Manager is never written by a test
-    assert WindowsCredentialStore().get("test-absent-" + uuid.uuid4().hex[:12]) is None
+    try:
+        got = WindowsCredentialStore().get("test-absent-" + uuid.uuid4().hex[:12])
+    except CredentialStoreError as exc:
+        if exc.detail.get("value") == 1312:  # ERROR_NO_SUCH_LOGON_SESSION: an SSH or service logon
+            pytest.skip("this logon has no Credential Manager session")
+        raise
+    assert got is None
