@@ -25,6 +25,7 @@ import math
 import struct
 from collections import defaultdict
 from dataclasses import asdict, dataclass, field
+from pathlib import Path
 
 from solidseas.nativewrite.container import read_document
 
@@ -139,7 +140,7 @@ def instances(paths, configuration: int = 0) -> list[Instance]:
         except F.FeatureStreamError:
             continue  # the imported-body parts, whose scan is 8 short (section 4.6)
         start_map = F.ObjectMap({}, F.name_tag(feats)[0] - 2).walk(config)
-        label = str(path).rsplit("/", 1)[-1]
+        label = Path(path).name
         for off, cls, kind, body in _tokens(config, 0, start_map.references, after_config.classes):
             out.append(
                 Instance(
@@ -316,7 +317,7 @@ def feature_spans(paths, name: str, stream: str = "Contents/Config-0-ResolvedFea
         except F.FeatureStreamError:
             continue
         raw = data[start:end]
-        label = str(path).rsplit("/", 1)[-1]
+        label = Path(path).name
         out.append(
             Instance(f"{label}:{stream}", "features", start, name, "span", raw, _blank_strings(raw)[1])
         )
