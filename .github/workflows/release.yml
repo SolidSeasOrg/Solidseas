@@ -50,11 +50,9 @@ jobs:
       - name: Fetch the private SOLIDWORKS fixtures
         shell: bash
         env:
-          FIXTURES_TOKEN: ${{ secrets.FIXTURES_TOKEN }}
-        run: |
-          git -c credential.helper= clone -q --depth 1 \
-            "https://x-access-token:${FIXTURES_TOKEN}@github.com/SolidSeas/SolidSeas-fixtures.git" "$RUNNER_TEMP/fixtures"
-          python scripts/fetch-fixtures.py --from "$RUNNER_TEMP/fixtures"
+          FIXTURES_DEPLOY_KEY: ${{ secrets.FIXTURES_DEPLOY_KEY }}
+          FIXTURES_REQUIRED: "1"
+        run: scripts/ci-clone-fixtures.sh "$RUNNER_TEMP/fixtures"
 
       - name: Check the version matches the tag
         run: |
