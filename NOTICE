@@ -1,0 +1,98 @@
+SolidSeas
+Copyright 2026 SolidSeas
+
+This product is licensed under the Apache License, Version 2.0. See LICENSE.
+
+The third-party software that SolidSeas distributes in SolidSeas Viewer and its extension
+packages, with what each licence asks, is listed in THIRD_PARTY_NOTICES.txt; the licence
+texts are in the licenses folder.
+
+Trademarks
+----------
+SolidSeas is an independent project. It is not affiliated with, endorsed by,
+sponsored by or connected to Dassault Systèmes, Dassault Systèmes SolidWorks
+Corporation or Siemens Industry Software Inc. SOLIDWORKS, eDrawings,
+3DEXPERIENCE and ACIS are trademarks or registered trademarks of Dassault
+Systèmes or its subsidiaries in the US and other countries. Parasolid is a
+trademark or registered trademark of Siemens Industry Software Inc. or its
+subsidiaries or affiliates. Other product names are trademarks of their
+owners. They are used here only to name the files and programs SolidSeas
+works with.
+
+The attribution notices of third-party work below are quoted as their authors
+wrote them.
+
+Third-party work
+----------------
+Projects whose code is reused in SolidSeas are listed below with their licence.
+Projects that were only consulted are credited in docs/FORMAT.md.
+
+sldprt2step
+  Source:   https://github.com/BlinkingSun/sldprt2step
+            (commit fa954124f4f126e0c465c8f96454978ac80b812e)
+  Licence:  Apache License, Version 2.0
+  Used in:  src/solidseas/formats/solidworks/xt_schema.py, the Parasolid
+            SCH_13006 base node-layout table (modified: header added, type
+            annotations modernised; layouts unchanged). The binary transmit
+            reader in src/solidseas/formats/solidworks/parasolid.py follows the
+            structure of its sldprt2step_lib/xt/reader.py. The STEP export in
+            src/solidseas/step/part21.py, entities.py, mapper.py, bspline.py,
+            approx.py, blend.py and product.py is adapted from its
+            sldprt2step_lib/step/mapper.py and sldprt2step_lib/xt/geom.py
+            (modified: rewritten to read SolidSeas' own transmits and to measure
+            every approximation; corrections listed in docs/FORMAT.md
+            section 18; each file's header says what it derives from), and so
+            are the curve fitting and the rolling blends that the export shares
+            with the tessellator, in src/solidseas/tessellate/fit.py and blend.py.
+  Attribution notices from its NOTICE file:
+            sldprt2step is a Python port of "open-sld-to-step" (version 0.1.0),
+            licensed under the Apache License 2.0.
+            SolidWorks(R) is a registered trademark of Dassault Systemes
+            SolidWorks Corporation. Parasolid(R) is a registered trademark of
+            Siemens Industry Software Inc.
+
+earcut
+  Source:   https://github.com/mapbox/earcut (the 3.x releases; the notice
+            below is the LICENSE file of v3.2.4, word for word)
+  Licence:  ISC License
+
+            Copyright (c) 2026, Mapbox
+
+            Permission to use, copy, modify, and/or distribute this software for any purpose
+            with or without fee is hereby granted, provided that the above copyright notice
+            and this permission notice appear in all copies.
+
+            THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+            REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+            FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+            INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS
+            OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+            TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
+            THIS SOFTWARE.
+  Used in:  src/solidseas/tessellate/triangulate.py, a Python port of its ear
+            clipping (hole bridging, z-order hashing, the filter, cure and split
+            passes), changed so that collinear points, and points at one place
+            with different point ids, are kept.
+
+Adobe Core 14 AFM files (Helvetica, Helvetica-Bold)
+  Source:   Adobe's Core 14 AFM files, the font metrics of the PDF base-14
+            fonts
+  Licence:  the Adobe AFM licence (APAFML), whose paragraph follows
+            This file and the 14 PostScript(R) AFM files it accompanies may be
+            used, copied, and distributed for any purpose and without charge,
+            with or without modification, provided that all copyright notices
+            are retained; that the AFM files are not distributed without this
+            file; that all modifications to this file or any of the AFM files
+            are prominently noted in the modified file(s); and that this
+            paragraph is not modified. Adobe Systems has no responsibility or
+            obligation to support the use of the AFM files.
+  Copyright notices of the two files:
+            Copyright (c) 1985, 1987, 1989, 1990, 1997 Adobe Systems
+            Incorporated. All Rights Reserved. Helvetica is a trademark of
+            Linotype-Hell AG and/or its subsidiaries.
+  Used in:  src/solidseas/drawing/fonts.py, the advance widths of Helvetica
+            and Helvetica-Bold for the WinAnsi characters (modified: the widths
+            only, transcribed into Python tables, without kerning; no AFM file
+            is distributed). The transcription and this notice are checked
+            against the files themselves before the first release that makes
+            drawings (docs/drawings/README.md, "Checks still owed").

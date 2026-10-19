@@ -1,0 +1,213 @@
+{
+  "golden": "pair-origin-moved",
+  "part": "drawing_parts.pair_origin_moved: an 80 x 50 x 10 mm plate with a 6 mm hole, moved 10 along x and -5 along y",
+  "profile": "ASME mm, machined, datum scheme",
+  "proves": "matching and merge: a part whose origin moved keeps every feature and dimension",
+  "expected": {
+    "dimensions": [
+      {"id": "d-1", "key": "callout/f-1", "kind": "hole_callout", "value": "Ø6.00 THRU", "tolerance": "block", "frame": "position | Ø0.25 MMC | A | B | C"},
+      {"id": "d-2", "key": "size/f-2", "kind": "linear", "value": "80.0", "tolerance": "block"},
+      {"id": "d-3", "key": "size/f-3", "kind": "linear", "value": "50.0", "tolerance": "block"},
+      {"id": "d-4", "key": "size/f-4", "kind": "linear", "value": "10.0", "tolerance": "block"},
+      {"id": "d-5", "key": "loc/f-1/x", "kind": "linear", "value": "[20]", "tolerance": "basic"},
+      {"id": "d-6", "key": "loc/f-1/y", "kind": "linear", "value": "[25]", "tolerance": "basic"},
+      {"id": "d-7", "key": "datum/a", "kind": "datum_feature", "value": "A", "axis": "z"},
+      {"id": "d-8", "key": "datum/b", "kind": "datum_feature", "value": "B", "axis": "y"},
+      {"id": "d-9", "key": "datum/c", "kind": "datum_feature", "value": "C", "axis": "x"}
+    ],
+    "merge": {
+      "resized": [],
+      "gone": [],
+      "new": []
+    }
+  },
+  "findings": {},
+  "snapshot": {
+    "plan": {
+      "options": {
+        "process": "machined",
+        "profile": "asme",
+        "units": "mm",
+        "scheme": "datum",
+        "arrangement": {},
+        "front": {"direction": "+z", "turn": 0},
+        "views": [
+          "front",
+          "top",
+          "right",
+          "isometric"
+        ],
+        "sheet": "B",
+        "scale": [1, 1],
+        "hidden": null,
+        "tangent": null,
+        "bodies": null,
+        "quality": "normal",
+        "configuration": null
+      },
+      "sheet": "B 1:1",
+      "views": [
+        "v-1 at 1",
+        "v-2 at 1",
+        "v-4 at 1"
+      ],
+      "dimensions": [
+        {"id": "d-1", "key": "callout/f-1", "kind": "hole_callout", "view": "v-1", "axis": null, "mm": 6.0, "tol": "block", "places": 2, "prefix": "Ø", "suffix": ["THRU"], "role": "feature_size", "frame": "position | Ø0.25mm mmc | A | B | C"},
+        {"id": "d-2", "key": "size/f-2", "kind": "linear", "view": "v-1", "axis": "x", "mm": 80.0, "tol": "block", "places": 1, "prefix": "", "suffix": [], "role": "envelope"},
+        {"id": "d-3", "key": "size/f-3", "kind": "linear", "view": "v-1", "axis": "y", "mm": 50.0, "tol": "block", "places": 1, "prefix": "", "suffix": [], "role": "envelope"},
+        {"id": "d-4", "key": "size/f-4", "kind": "linear", "view": "v-2", "axis": "z", "mm": 10.0, "tol": "block", "places": 1, "prefix": "", "suffix": [], "role": "envelope"},
+        {"id": "d-5", "key": "loc/f-1/x", "kind": "linear", "view": "v-1", "axis": "x", "mm": 20.0, "tol": "basic", "places": 2, "prefix": "", "suffix": [], "role": "feature_location"},
+        {"id": "d-6", "key": "loc/f-1/y", "kind": "linear", "view": "v-1", "axis": "y", "mm": 25.0, "tol": "basic", "places": 2, "prefix": "", "suffix": [], "role": "feature_location"},
+        {"id": "d-7", "key": "datum/a", "kind": "datum_feature", "view": "v-2", "axis": "z", "mm": 0.0, "tol": "block", "places": 2, "prefix": "", "suffix": ["A"], "role": "form"},
+        {"id": "d-8", "key": "datum/b", "kind": "datum_feature", "view": "v-1", "axis": "y", "mm": -5.0, "tol": "block", "places": 2, "prefix": "", "suffix": ["B"], "role": "form", "flags": ["changed"]},
+        {"id": "d-9", "key": "datum/c", "kind": "datum_feature", "view": "v-1", "axis": "x", "mm": 10.0, "tol": "block", "places": 2, "prefix": "", "suffix": ["C"], "role": "form", "flags": ["changed"]}
+      ],
+      "datums": [
+        "A face 2: the largest planar face",
+        "B face 3: the largest planar face square to datum A",
+        "C face 6: the largest planar face square to datums A and B"
+      ],
+      "notes": [
+        "UNLESS OTHERWISE SPECIFIED, ALL SURFACES",
+        "REMOVE ALL BURRS. BREAK SHARP EDGES 0.1-0.4",
+        "SURFACE FINISH RA 3.2 µm MAX.",
+        "DIMENSIONS APPLY AFTER FINISH."
+      ],
+      "title": {"number": "PAIR_ORIGIN_MOVED", "title": "PAIR_ORIGIN_MOVED", "part_number": "PAIR_ORIGIN_MOVED", "revision": "A", "model": "pair_origin_moved B2F9B31EB9ED2041"},
+      "coverage": [4, 0, 7, 7],
+      "graphs": [
+        "linear/x: complete, a tree",
+        "linear/y: complete, a tree",
+        "linear/z: complete, a tree"
+      ],
+      "bands": [
+        "±0.2 x3",
+        "±0.05 x1"
+      ],
+      "checks": [
+        "information R3.roles R3.roles: 4 dimensions take their precision from their role (3 at ±0.2, 1 at ±0.05); review them before CHECKED is signed",
+        "information R6.signatures APPROVED: APPROVED is not signed",
+        "information R6.signatures CHECKED: CHECKED is not signed",
+        "error R6.title DRAWN: nobody is named as DRAWN, with the date",
+        "error R6.title finish: the title block's FINISH is empty",
+        "error R6.title material: the title block's MATERIAL is empty"
+      ],
+      "merge": {"words": "7 unchanged, 2 changed, 0 new, 0 dropped, 0 needs attention", "resized": [], "gone": [], "new": [], "items": ["the title field model follows the part: pair_origin_moved B2F9B31EB9ED2041"]}
+    },
+    "svg": {
+      "border": {"n": 85, "sum": 11438.17, "digest": "f0d5ad01e0786d36"},
+      "centre": {"n": 15, "sum": 1359.07, "digest": "0e74d20f6517316a"},
+      "dimensions": {"n": 448, "sum": 52173.5, "digest": "4ea16f53d68d790e"},
+      "notes": {"n": 15, "sum": 2208.17, "digest": "208951d176fbff6e"},
+      "page": {"n": 10, "sum": 2133.6, "digest": "f99e23aad011247d"},
+      "stamp": {"n": 6, "sum": 460.93, "digest": "f0b5668866b0c02a"},
+      "title": {"n": 537, "sum": 114338.12, "digest": "be12e3ba2c48737f"},
+      "visible": {"n": 164, "sum": 25429.73, "digest": "015c76ccea85f789"}
+    },
+    "pdf": {
+      "content": "a6bfee23b0f29d18",
+      "operators": {"BDC": 7, "BT": 85, "EMC": 7, "ET": 85, "G": 1, "J": 2, "S": 121, "Tf": 85, "Tj": 85, "Tm": 85, "c": 26, "d": 3, "f": 14, "g": 1, "h": 60, "j": 1, "l": 232, "m": 135, "w": 6},
+      "groups": [
+        "Visible",
+        "Centre lines",
+        "Dimensions",
+        "Notes",
+        "Title block",
+        "Stamp"
+      ],
+      "text": [
+        "1",
+        "1",
+        "2",
+        "2",
+        "3",
+        "3",
+        "4",
+        "4",
+        "A",
+        "A",
+        "B",
+        "B",
+        "20",
+        "80.0",
+        "25",
+        "50.0",
+        "10.0",
+        "A",
+        "B",
+        "C",
+        "Ø6.00",
+        " THRU",
+        "Ø0.25",
+        "M",
+        "A",
+        "B",
+        "C",
+        "0.4",
+        "A",
+        "B",
+        "C",
+        "NOTES:",
+        "1. UNLESS OTHERWISE SPECIFIED, ALL SURFACES",
+        "2. REMOVE ALL BURRS. BREAK SHARP EDGES 0.1-0.4",
+        "3. SURFACE FINISH RA 3.2 µm MAX.",
+        "4. DIMENSIONS APPLY AFTER FINISH.",
+        "Example Engineering Co.",
+        "TITLE",
+        "PAIR_ORIGIN_MOVED",
+        "SIZE",
+        "B",
+        "CAGE",
+        "DWG NO",
+        "PAIR_ORIGIN_MOVED",
+        "REV",
+        "A",
+        "SCALE",
+        "1:1",
+        "CALC WT",
+        "SHEET",
+        "1 OF 1",
+        "STATUS",
+        "PRELIMINARY",
+        "MODEL / MODEL REV",
+        "pair_origin_moved B2F9B31EB9ED2041",
+        "MATERIAL",
+        "FINISH",
+        "UNLESS OTHERWISE SPECIFIED: DIMENSIONS ARE IN",
+        "MILLIMETERS",
+        "TOLERANCES: X ±0.5 X.X ±0.2 X.XX ±0.05",
+        "ANGLES ±0.5°",
+        "DIMENSIONING AND TOLERANCING PER ASME Y14.5-2018",
+        "DRAWN",
+        "NAME",
+        "DATE",
+        "CHECKED",
+        "NAME",
+        "DATE",
+        "APPROVED",
+        "NAME",
+        "DATE",
+        "DO NOT SCALE DRAWING",
+        "THIS DRAWING AND THE DESIGN IT SHOWS BELONG TO EXAMPLE ENGINEERING CO.. DO NOT",
+        "COPY OR DISCLOSE IT, OR USE IT FOR ANY PURPOSE OTHER THAN THE ONE FOR WHICH IT",
+        "WAS SUPPLIED, WITHOUT ITS WRITTEN PERMISSION.",
+        "REVISIONS",
+        "ZONE",
+        "REV",
+        "DESCRIPTION",
+        "DATE",
+        "APPROVED",
+        "A",
+        "INITIAL RELEASE",
+        "PRELIMINARY - NOT FOR MANUFACTURE",
+        "SolidSeas {version}, pair_origin_moved.SLDPRT (Default)"
+      ]
+    },
+    "dxf": {
+      "tags": "3af66e469e5d62fe",
+      "count": 5095,
+      "entities": {"CIRCLE VISIBLE": 1, "DIMENSION DIM": 6, "ELLIPSE VISIBLE": 1, "INSERT DIM": 5, "LINE BORDER": 8, "LINE CENTER": 3, "LINE TITLE": 1, "LINE VISIBLE": 22, "LWPOLYLINE BORDER": 1, "LWPOLYLINE TITLE": 37, "SPLINE TITLE": 2, "TEXT BORDER": 12, "TEXT NOTES": 5, "TEXT STAMP": 1, "TEXT TITLE": 47},
+      "blocks": {"LINE 0": 35, "LWPOLYLINE 0": 7, "POINT DEFPOINTS": 17, "SOLID 0": 14, "SPLINE 0": 3, "TEXT 0": 19}
+    }
+  }
+}

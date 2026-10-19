@@ -1,0 +1,80 @@
+name: Bug report
+description: Something in SolidSeas does not work as it should.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report this.
+
+        **Please never attach confidential CAD files**, or files from a customer or an employer.
+        If a problem only shows up with one file, describe the file, or try to reproduce it with
+        a simple part you made yourself and can share.
+
+        Security problems go through private reporting instead, as SECURITY.md explains.
+  - type: input
+    id: version
+    attributes:
+      label: SolidSeas version
+      description: The output of `solidseas --version`, or the version in the viewer's title bar.
+      placeholder: "0.2.327"
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which part of SolidSeas?
+      options:
+        - The Python library
+        - The command line
+        - The REST service (solidseas serve)
+        - SolidSeas Viewer
+        - Drawings
+        - The modeling assistant or the MCP server
+        - An extension
+        - Something else
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system and Python version
+      placeholder: "Windows 11, Python 3.12"
+    validations:
+      required: true
+  - type: input
+    id: filetype
+    attributes:
+      label: File type
+      description: For example a part, an assembly, a drawing, STEP or STL, and the SOLIDWORKS version that saved it if you know it.
+      placeholder: ".sldprt saved in SOLIDWORKS 2024"
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: What did you do?
+      description: The command, the code or the clicks that lead to the problem.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened instead?
+      description: Include the full error message or traceback. Remove any paths or names you would rather not share.
+      render: text
+    validations:
+      required: true
+  - type: checkboxes
+    id: confidential
+    attributes:
+      label: Before you submit
+      options:
+        - label: I have not attached confidential CAD files or anything else I am not allowed to share.
+          required: true

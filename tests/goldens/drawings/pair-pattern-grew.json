@@ -1,0 +1,220 @@
+{
+  "golden": "pair-pattern-grew",
+  "part": "drawing_parts.pair_pattern_grew: a 120 x 40 x 10 mm plate whose row of four 5 mm holes at 25 pitch becomes five",
+  "profile": "ASME mm, machined, datum scheme",
+  "proves": "matching and merge: the row keeps its id and count, the new hole takes the next id",
+  "expected": {
+    "dimensions": [
+      {"id": "d-1", "key": "callout/f-5", "kind": "hole_callout", "value": "5X Ø5.00 THRU", "tolerance": "block", "frame": "position | Ø0.25 MMC | A | B | C"},
+      {"id": "d-2", "key": "pitch/f-5/x", "kind": "linear", "value": "4X [25]", "tolerance": "basic"},
+      {"id": "d-3", "key": "size/f-6", "kind": "linear", "value": "120.0", "tolerance": "block"},
+      {"id": "d-4", "key": "size/f-7", "kind": "linear", "value": "40.0", "tolerance": "block"},
+      {"id": "d-5", "key": "size/f-8", "kind": "linear", "value": "10.0", "tolerance": "block"},
+      {"id": "d-6", "key": "loc/f-1/x", "kind": "linear", "value": "[10]", "tolerance": "basic"},
+      {"id": "d-7", "key": "loc/f-1/y", "kind": "linear", "value": "[20]", "tolerance": "basic"},
+      {"id": "d-8", "key": "datum/a", "kind": "datum_feature", "value": "A", "axis": "z"},
+      {"id": "d-9", "key": "datum/b", "kind": "datum_feature", "value": "B", "axis": "y"},
+      {"id": "d-10", "key": "datum/c", "kind": "datum_feature", "value": "C", "axis": "x"}
+    ],
+    "merge": {
+      "resized": [
+        "f-5"
+      ],
+      "gone": [],
+      "new": [
+        "f-9"
+      ]
+    }
+  },
+  "findings": {},
+  "snapshot": {
+    "plan": {
+      "options": {
+        "process": "machined",
+        "profile": "asme",
+        "units": "mm",
+        "scheme": "datum",
+        "arrangement": {},
+        "front": {"direction": "+z", "turn": 0},
+        "views": [
+          "front",
+          "top",
+          "right",
+          "isometric"
+        ],
+        "sheet": "B",
+        "scale": [2, 1],
+        "hidden": null,
+        "tangent": null,
+        "bodies": null,
+        "quality": "normal",
+        "configuration": null
+      },
+      "sheet": "B 2:1",
+      "views": [
+        "v-1 at 2",
+        "v-2 at 2",
+        "v-4 at 1"
+      ],
+      "dimensions": [
+        {"id": "d-1", "key": "callout/f-5", "kind": "hole_callout", "view": "v-1", "axis": null, "mm": 5.0, "tol": "block", "places": 2, "prefix": "5X Ø", "suffix": ["THRU"], "role": "feature_size", "frame": "position | Ø0.25mm mmc | A | B | C", "flags": ["changed"]},
+        {"id": "d-2", "key": "pitch/f-5/x", "kind": "linear", "view": "v-1", "axis": "x", "mm": 25.0, "tol": "basic", "places": 2, "prefix": "4X ", "suffix": [], "role": "pattern", "flags": ["changed"]},
+        {"id": "d-3", "key": "size/f-6", "kind": "linear", "view": "v-1", "axis": "x", "mm": 120.0, "tol": "block", "places": 1, "prefix": "", "suffix": [], "role": "envelope"},
+        {"id": "d-4", "key": "size/f-7", "kind": "linear", "view": "v-1", "axis": "y", "mm": 40.0, "tol": "block", "places": 1, "prefix": "", "suffix": [], "role": "envelope"},
+        {"id": "d-5", "key": "size/f-8", "kind": "linear", "view": "v-2", "axis": "z", "mm": 10.0, "tol": "block", "places": 1, "prefix": "", "suffix": [], "role": "envelope"},
+        {"id": "d-6", "key": "loc/f-1/x", "kind": "linear", "view": "v-1", "axis": "x", "mm": 10.0, "tol": "basic", "places": 2, "prefix": "", "suffix": [], "role": "feature_location", "flags": ["changed"]},
+        {"id": "d-7", "key": "loc/f-1/y", "kind": "linear", "view": "v-1", "axis": "y", "mm": 20.0, "tol": "basic", "places": 2, "prefix": "", "suffix": [], "role": "feature_location", "flags": ["changed"]},
+        {"id": "d-8", "key": "datum/a", "kind": "datum_feature", "view": "v-2", "axis": "z", "mm": 0.0, "tol": "block", "places": 2, "prefix": "", "suffix": ["A"], "role": "form"},
+        {"id": "d-9", "key": "datum/b", "kind": "datum_feature", "view": "v-1", "axis": "y", "mm": 0.0, "tol": "block", "places": 2, "prefix": "", "suffix": ["B"], "role": "form"},
+        {"id": "d-10", "key": "datum/c", "kind": "datum_feature", "view": "v-1", "axis": "x", "mm": 0.0, "tol": "block", "places": 2, "prefix": "", "suffix": ["C"], "role": "form"}
+      ],
+      "datums": [
+        "A face 6: the largest planar face",
+        "B face 7: the largest planar face square to datum A",
+        "C face 10: the largest planar face square to datums A and B"
+      ],
+      "notes": [
+        "UNLESS OTHERWISE SPECIFIED, ALL SURFACES",
+        "REMOVE ALL BURRS. BREAK SHARP EDGES 0.1-0.4",
+        "SURFACE FINISH RA 3.2 µm MAX.",
+        "DIMENSIONS APPLY AFTER FINISH."
+      ],
+      "title": {"number": "PAIR_PATTERN_GREW", "title": "PAIR_PATTERN_GREW", "part_number": "PAIR_PATTERN_GREW", "revision": "A", "model": "pair_pattern_grew 63D52052BC80E33C"},
+      "coverage": [9, 0, 11, 11],
+      "graphs": [
+        "linear/x: complete, a tree",
+        "linear/y: complete, a tree",
+        "linear/z: complete, a tree"
+      ],
+      "bands": [
+        "±0.2 x3",
+        "±0.05 x1"
+      ],
+      "checks": [
+        "information R3.roles R3.roles: 4 dimensions take their precision from their role (3 at ±0.2, 1 at ±0.05); review them before CHECKED is signed",
+        "information R6.signatures APPROVED: APPROVED is not signed",
+        "information R6.signatures CHECKED: CHECKED is not signed",
+        "error R6.title DRAWN: nobody is named as DRAWN, with the date",
+        "error R6.title finish: the title block's FINISH is empty",
+        "error R6.title material: the title block's MATERIAL is empty"
+      ],
+      "merge": {"words": "6 unchanged, 4 changed, 0 new, 0 dropped, 0 needs attention", "resized": ["f-5"], "gone": [], "new": ["f-9"], "items": ["the title field model follows the part: pair_pattern_grew 63D52052BC80E33C"]}
+    },
+    "svg": {
+      "border": {"n": 85, "sum": 11438.17, "digest": "f0d5ad01e0786d36"},
+      "centre": {"n": 84, "sum": 9229.99, "digest": "62b2194b0e0c0fd8"},
+      "dimensions": {"n": 497, "sum": 76101.28, "digest": "2e34c6caae643077"},
+      "notes": {"n": 15, "sum": 2208.17, "digest": "208951d176fbff6e"},
+      "page": {"n": 10, "sum": 2133.6, "digest": "f99e23aad011247d"},
+      "stamp": {"n": 6, "sum": 460.93, "digest": "f0b5668866b0c02a"},
+      "title": {"n": 537, "sum": 114337.74, "digest": "c92141bb3b5aacd5"},
+      "visible": {"n": 420, "sum": 69051.93, "digest": "a54d5649a8cd6778"}
+    },
+    "pdf": {
+      "content": "7576603df398b683",
+      "operators": {"BDC": 7, "BT": 86, "EMC": 7, "ET": 86, "G": 1, "J": 2, "S": 156, "Tf": 86, "Tj": 86, "Tm": 86, "c": 58, "d": 5, "f": 16, "g": 1, "h": 67, "j": 1, "l": 265, "m": 172, "w": 6},
+      "groups": [
+        "Visible",
+        "Centre lines",
+        "Dimensions",
+        "Notes",
+        "Title block",
+        "Stamp"
+      ],
+      "text": [
+        "1",
+        "1",
+        "2",
+        "2",
+        "3",
+        "3",
+        "4",
+        "4",
+        "A",
+        "A",
+        "B",
+        "B",
+        "10",
+        "4X 25",
+        "120.0",
+        "20",
+        "40.0",
+        "10.0",
+        "A",
+        "B",
+        "C",
+        "5X Ø5.00",
+        " THRU",
+        "Ø0.25",
+        "M",
+        "A",
+        "B",
+        "C",
+        "0.4",
+        "A",
+        "B",
+        "C",
+        "NOTES:",
+        "1. UNLESS OTHERWISE SPECIFIED, ALL SURFACES",
+        "2. REMOVE ALL BURRS. BREAK SHARP EDGES 0.1-0.4",
+        "3. SURFACE FINISH RA 3.2 µm MAX.",
+        "4. DIMENSIONS APPLY AFTER FINISH.",
+        "Example Engineering Co.",
+        "TITLE",
+        "PAIR_PATTERN_GREW",
+        "SIZE",
+        "B",
+        "CAGE",
+        "DWG NO",
+        "PAIR_PATTERN_GREW",
+        "REV",
+        "A",
+        "SCALE",
+        "2:1",
+        "CALC WT",
+        "SHEET",
+        "1 OF 1",
+        "STATUS",
+        "PRELIMINARY",
+        "MODEL / MODEL REV",
+        "pair_pattern_grew 63D52052BC80E33C",
+        "MATERIAL",
+        "FINISH",
+        "UNLESS OTHERWISE SPECIFIED: DIMENSIONS ARE IN",
+        "MILLIMETERS",
+        "TOLERANCES: X ±0.5 X.X ±0.2 X.XX ±0.05",
+        "ANGLES ±0.5°",
+        "DIMENSIONING AND TOLERANCING PER ASME Y14.5-2018",
+        "DRAWN",
+        "NAME",
+        "DATE",
+        "CHECKED",
+        "NAME",
+        "DATE",
+        "APPROVED",
+        "NAME",
+        "DATE",
+        "DO NOT SCALE DRAWING",
+        "THIS DRAWING AND THE DESIGN IT SHOWS BELONG TO EXAMPLE ENGINEERING CO.. DO NOT",
+        "COPY OR DISCLOSE IT, OR USE IT FOR ANY PURPOSE OTHER THAN THE ONE FOR WHICH IT",
+        "WAS SUPPLIED, WITHOUT ITS WRITTEN PERMISSION.",
+        "REVISIONS",
+        "ZONE",
+        "REV",
+        "DESCRIPTION",
+        "DATE",
+        "APPROVED",
+        "A",
+        "INITIAL RELEASE",
+        "PRELIMINARY - NOT FOR MANUFACTURE",
+        "SolidSeas {version}, pair_pattern_grew.SLDPRT (Default)"
+      ]
+    },
+    "dxf": {
+      "tags": "f43918602da5931b",
+      "count": 5708,
+      "entities": {"CIRCLE VISIBLE": 5, "DIMENSION DIM": 7, "ELLIPSE VISIBLE": 5, "INSERT DIM": 5, "LINE BORDER": 8, "LINE CENTER": 16, "LINE TITLE": 1, "LINE VISIBLE": 30, "LWPOLYLINE BORDER": 1, "LWPOLYLINE TITLE": 37, "SPLINE TITLE": 2, "TEXT BORDER": 12, "TEXT NOTES": 5, "TEXT STAMP": 1, "TEXT TITLE": 47},
+      "blocks": {"LINE 0": 40, "LWPOLYLINE 0": 8, "POINT DEFPOINTS": 20, "SOLID 0": 16, "SPLINE 0": 3, "TEXT 0": 20}
+    }
+  }
+}

@@ -1,0 +1,139 @@
+name: Release installer
+
+# Builds the Windows installer, SolidSeas-Setup-<version>.exe, for a published release and
+# attaches it, with its SHA-256, to that release. It can also be run by hand for an existing
+# release tag, which replaces the installer attached to it.
+#
+# It runs only on GitHub's own Windows runner, never on the project's self-hosted machine,
+# and never for a pull request: it builds only a tag a maintainer has released. The token
+# may write the repository's contents, which is what attaching a file to a release needs,
+# and nothing else. Every action is pinned to a full commit, with its version beside it.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "The release tag to build, for example v0.2.335"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  installer:
+    name: Windows installer
+    if: github.repository == 'SolidSeas/SolidSeas'
+    runs-on: windows-latest
+    timeout-minutes: 60
+    concurrency:
+      group: release-installer-${{ github.event.release.tag_name || inputs.tag }}
+      cancel-in-progress: false
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+      INNO_SETUP_VERSION: "6.7.1"
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Check the tag
+        run: |
+          if ($env:TAG -notmatch '^v\d+\.\d+\.\d+$') { throw "Not a release tag: $env:TAG" }
+
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5.1.0
+        with:
+          ref: refs/tags/${{ env.TAG }}
+          persist-credentials: false
+
+      - name: Fetch the private SOLIDWORKS fixtures
+        shell: bash
+        env:
+          FIXTURES_TOKEN: ${{ secrets.FIXTURES_TOKEN }}
+        run: |
+          git -c credential.helper= clone -q --depth 1 \
+            "https://x-access-token:${FIXTURES_TOKEN}@github.com/SolidSeas/SolidSeas-fixtures.git" "$RUNNER_TEMP/fixtures"
+          python scripts/fetch-fixtures.py --from "$RUNNER_TEMP/fixtures"
+
+      - name: Check the version matches the tag
+        run: |
+          $init = Get-Content -LiteralPath src\solidseas\__init__.py -Raw
+          $version = [regex]::Match($init, '(?m)^__version__ = "(\d+\.\d+\.\d+)"').Groups[1].Value
+          if ("v$version" -ne $env:TAG) { throw "The tag $env:TAG does not match __version__ $version" }
+          "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
+        with:
+          python-version: "3.12"
+          architecture: x64
+
+      - name: Install Inno Setup
+        run: |
+          choco install innosetup --version $env:INNO_SETUP_VERSION -y --no-progress --allow-downgrade
+          if ($LASTEXITCODE -ne 0) { throw "choco could not install Inno Setup $env:INNO_SETUP_VERSION" }
+          # ISCC.exe carries no version resource (it reads 0.0.0.0), so ask Chocolatey what it installed.
+          $found = (choco list innosetup --exact --limit-output) -replace '^innosetup\|', ''
+          "Inno Setup $found"
+          if ($found -ne $env:INNO_SETUP_VERSION) { throw "Expected Inno Setup $env:INNO_SETUP_VERSION, found $found" }
+          $iscc = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'
+          if (-not (Test-Path -LiteralPath $iscc)) { throw "ISCC.exe is not at $iscc" }
+
+      - name: Build the installer
+        run: scripts\build-installer.ps1 -Venv "$env:RUNNER_TEMP\venv" -Python python
+
+      - name: Install it, run the self-test and uninstall it
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          $setup = "dist\SolidSeas-Setup-$env:VERSION.exe"
+          $app = Join-Path $env:RUNNER_TEMP 'SolidSeas'
+          $log = Join-Path $env:RUNNER_TEMP 'setup.log'
+          $p = Start-Process -FilePath $setup -Wait -PassThru -ArgumentList @(
+            '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/CURRENTUSER', "/DIR=$app", "/LOG=$log")
+          if ($p.ExitCode -ne 0) { Get-Content -LiteralPath $log; throw "Setup failed with exit code $($p.ExitCode)" }
+          $exe = Join-Path $app 'SolidSeasViewer.exe'
+          foreach ($needed in @($exe, (Join-Path $app '_internal\licenses\BUNDLED-FILES.txt'),
+                                (Join-Path $app '_internal\licenses\LGPL-3.0.txt'))) {
+            if (-not (Test-Path -LiteralPath $needed)) { throw "Not installed: $needed" }
+          }
+          # The 3D view is left off: the runner has no display and no OpenGL.
+          $out = Join-Path $env:RUNNER_TEMP 'selftest'
+          $p = Start-Process -FilePath $exe -Wait -PassThru -ArgumentList @(
+            '--self-test', (Resolve-Path tests\fixtures).Path, '--screenshot-dir', $out, '--select-all')
+          $report = Join-Path $out 'selftest.json'
+          if (Test-Path -LiteralPath $report) { Get-Content -LiteralPath $report -TotalCount 200 }
+          if ($p.ExitCode -ne 0) { throw "The installed viewer's self-test failed with exit code $($p.ExitCode)" }
+          $p = Start-Process -FilePath (Join-Path $app 'unins000.exe') -Wait -PassThru -ArgumentList @(
+            '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART')
+          if ($p.ExitCode -ne 0) { throw "Uninstall failed with exit code $($p.ExitCode)" }
+          # The uninstaller finishes from a copy of itself, so give it a moment.
+          for ($i = 0; $i -lt 30 -and (Test-Path -LiteralPath $exe); $i++) { Start-Sleep -Seconds 1 }
+          if (Test-Path -LiteralPath $exe) { throw "Uninstall left $exe behind" }
+
+      - name: Build the single-file viewer and run its self-test
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          # The same locked environment the installer was built from; nothing is installed again.
+          scripts\build-viewer.ps1 -Venv "$env:RUNNER_TEMP\venv" -SkipInstall
+          if ($LASTEXITCODE -ne 0) { throw "The single-file build failed" }
+          $exe = Resolve-Path 'dist\SolidSeasViewer.exe'
+          $out = Join-Path $env:RUNNER_TEMP 'selftest-onefile'
+          $p = Start-Process -FilePath $exe -Wait -PassThru -ArgumentList @(
+            '--self-test', (Resolve-Path tests\fixtures).Path, '--screenshot-dir', $out, '--select-all')
+          if ($p.ExitCode -ne 0) { throw "The single-file viewer's self-test failed with exit code $($p.ExitCode)" }
+          $hash = (Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash.ToLowerInvariant()
+          Set-Content -LiteralPath 'dist\SolidSeasViewer.exe.sha256' -Value "$hash  SolidSeasViewer.exe" -Encoding ascii
+
+      - name: Attach the installer and the single-file viewer to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $setup = "dist\SolidSeas-Setup-$env:VERSION.exe"
+          # The same installer under a name without the version, so a link to the latest
+          # release's SolidSeas-Setup.exe (the website's download) always finds the newest.
+          Copy-Item -LiteralPath $setup -Destination 'dist\SolidSeas-Setup.exe' -Force
+          gh release upload $env:TAG $setup "$setup.sha256" 'dist\SolidSeas-Setup.exe' `
+            'dist\SolidSeasViewer.exe' 'dist\SolidSeasViewer.exe.sha256' --clobber --repo $env:GITHUB_REPOSITORY
+          if ($LASTEXITCODE -ne 0) { throw "gh could not attach the installer to $env:TAG" }

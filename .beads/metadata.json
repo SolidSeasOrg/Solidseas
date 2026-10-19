@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "SolidSeas",
+  "project_id": "ab68e709-7e1e-4371-aa75-d98b74352dd8"
+}

@@ -1,0 +1,64 @@
+{
+  "format": "solidcraft/28",
+  "name": "rect-extrude-40x30x10",
+  "units": "mm",
+  "next_id": 4,
+  "params": [
+    {"name": "width", "expr": "40 mm", "unit": "mm", "model": false},
+    {"name": "d1", "expr": "width", "unit": "mm", "model": true},
+    {"name": "d2", "expr": "30", "unit": "mm", "model": true}
+  ],
+  "features": [
+    {
+      "id": 1,
+      "name": "Sketch1",
+      "type": "sketch",
+      "suppressed": false,
+      "plane": {"type": "origin", "name": "XY"},
+      "sketch": {
+        "points": [
+          {"id": "origin", "pos": [0.0, 0.0], "fixed": true},
+          {"id": "p1", "pos": [0.0, 0.0], "fixed": false},
+          {"id": "p2", "pos": [40.0, 0.0], "fixed": false},
+          {"id": "p3", "pos": [40.0, 30.0], "fixed": false},
+          {"id": "p4", "pos": [0.0, 30.0], "fixed": false}
+        ],
+        "curves": [
+          {"id": "l1", "type": "line", "a": 1, "b": 2, "construction": false},
+          {"id": "l2", "type": "line", "a": 2, "b": 3, "construction": false},
+          {"id": "l3", "type": "line", "a": 3, "b": 4, "construction": false},
+          {"id": "l4", "type": "line", "a": 4, "b": 1, "construction": false}
+        ],
+        "constraints": [
+          {"id": "k1", "type": "coincident", "p": 0, "q": 1},
+          {"id": "k2", "type": "horizontal", "l": 0},
+          {"id": "k3", "type": "horizontal", "l": 2},
+          {"id": "k4", "type": "vertical", "l": 1},
+          {"id": "k5", "type": "vertical", "l": 3},
+          {"id": "k6", "type": "length", "l": 0, "param": "d1", "value": 40.0},
+          {"id": "k7", "type": "length", "l": 1, "param": "d2", "value": 30.0}
+        ],
+        "counters": {"k": 7, "l": 4, "p": 4}
+      }
+    },
+    {
+      "id": 2,
+      "name": "Extrude1",
+      "type": "extrude",
+      "suppressed": false,
+      "sketch": 1,
+      "profiles": {"type": "curves", "loops": [["l1", "l2", "l3", "l4"]]},
+      "extent": {"distance": "10", "direction": "positive", "convention": "total_distance"},
+      "operation": "new_body",
+      "param_names": ["d3"]
+    },
+    {
+      "id": 3,
+      "name": "Fillet1",
+      "type": "fillet",
+      "suppressed": false,
+      "edges": [[40.0, 15.0, 10.0]],
+      "radius": "2"
+    }
+  ]
+}

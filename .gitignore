@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+.venv-installer/
+venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# SolidSeas local state (catalog index, snapshots, caches)
+.solidseas/
+
+# SOLIDWORKS lock files and backups
+~$*
+Backup (*) of *
+
+# Local research artefacts that must never be committed
+corpus/
+work/
+*.manifest.csv
+output/
+
+# Editors and OS
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+*.db
+.beads-credential-key
+
+# written by the release build: the extension packages this core accepts
+src/solidseas_app/extensions/accepted.json
+
+# The private SOLIDWORKS fixtures (scripts/fetch-fixtures.py copies them in).
+tests/fixtures/*.SLDPRT
+tests/fixtures/*.SLDASM
+tests/fixtures/*.SLDDRW
+tests/fixtures/generation.log
+tests/fixtures/scrub_report.txt
+tests/fixtures/ground_truth.private.json

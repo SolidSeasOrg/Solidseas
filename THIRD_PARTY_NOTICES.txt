@@ -1,0 +1,289 @@
+SolidSeas third-party notices
+=============================
+
+SolidSeas is licensed under the Apache License, Version 2.0 (LICENSE). NOTICE holds the
+attribution notices the Apache License asks to be kept, and the projects whose code SolidSeas
+reuses. This file lists the third-party software that SolidSeas distributes, for each thing it
+distributes, with the licence of each part and what that licence asks of SolidSeas and of you.
+The bundled licences cover only their own components; they do not change the terms of
+SolidSeas itself.
+
+SolidSeas is distributed in three forms, each covered below:
+
+  1. The library: the Python package solidseas, from source or as a wheel.
+  2. SolidSeas Viewer: SolidSeasViewer.exe, one Windows program built with PyInstaller.
+  3. The extension packages: cad-bridge-<version>.zip, video-<version>.zip and
+     solidcraft-<version>.zip, added from the viewer's Extensions page.
+
+Where the licence texts are:
+
+  - In the repository: LICENSE, NOTICE, this file, and the licenses folder.
+  - In SolidSeasViewer.exe: in a licenses folder inside the program, shown by
+    Help > Licences. Python's own licence is added there when the program is built, from the
+    Python it is built with (Python-LICENSE.txt), and so is BUNDLED-FILES.txt, the list of
+    every library inside that build.
+  - In each extension package: in its licenses folder or beside its program, and as the
+    notices on the Extensions page (Details).
+
+
+1. The library
+--------------
+
+The source and the wheel hold SolidSeas' own code only, with LICENSE and NOTICE. Its one
+required dependency, olefile, and the optional extras are installed by pip from their own
+publishers, so SolidSeas does not redistribute them; their licences apply to whoever installs
+them and are listed here for reference.
+
+  Package                     Version     Licence (SPDX)                 Needed for
+  olefile                     >=0.47      BSD-2-Clause                   always (legacy OLE files)
+  PySide6                     >=6.7       LGPL-3.0-only                  extra "app", the viewer
+  PySide6-Essentials          >=6.7       LGPL-3.0-only                  extra "build"
+  pyinstaller                 >=6         GPL-2.0-or-later WITH Bootloader-exception, extra "build"
+  truststore                  >=0.9       MIT                            extras "build" and "ai"
+  cadquery                    >=2.4       Apache-2.0 (its OCP and OCCT: LGPL-2.1 with the OCCT
+                                          exception)                     extra "cad"
+  pywin32                     >=306       PSF-2.0                        extra "swapi", Windows
+  Pillow                      >=10        MIT-CMU                        extra "image"
+  pytest                      >=8         MIT                            extra "dev", tests only
+  ruff                        >=0.6       MIT                            extra "dev", lint only
+
+Code in the library that is derived from other projects (sldprt2step, Apache-2.0; earcut,
+ISC; the widths from Adobe's Core 14 AFM files, APAFML) is credited in NOTICE with its
+licence, and each derived file's header says what it derives from. Projects that were only
+read or run while studying the formats, with no code taken, are credited in docs/FORMAT.md
+section 18 (Prior art) and in docs/formats/: cadmpeg (Apache-2.0 code; its CC-BY-4.0 format
+notes were the starting hypothesis for docs/FORMAT.md section 9, credited there),
+sldprt-format-research (MIT), model_viewer (MIT), the ezdxf ACIS notes (MIT), the published
+SAT format chapter and the public specifications listed there.
+
+
+2. SolidSeas Viewer (SolidSeasViewer.exe)
+-----------------------------------------
+
+The program is built by scripts/build-viewer.ps1 from packaging/SolidSeasViewer.spec, with the
+exact packages and file hashes in requirements/build-windows.txt (64-bit Windows, CPython
+3.12). It carries SolidSeas' own code and the components below. The build stops when it would
+carry a Python package this file does not cover, or another version of one than this file
+lists.
+
+The program comes in two forms built from the same files: SolidSeasViewer.exe on its own (the
+one-file build), and the one-folder build, a SolidSeasViewer folder holding SolidSeasViewer.exe
+with its libraries and these licence texts as plain files in its _internal folder. The
+installer, SolidSeas-Setup-<version>.exe, installs the one-folder build.
+
+2.1 What the program carries
+
+  Package                     Version     Licence (SPDX)                 Text
+  pyside6-essentials          6.12.0      LGPL-3.0-only                  LGPL-3.0.txt, GPL-3.0.txt
+  shiboken6                   6.12.0      LGPL-3.0-only                  LGPL-3.0.txt, GPL-3.0.txt
+  olefile                     0.47        BSD-2-Clause and HPND (PIL)    olefile-LICENSE.txt
+  truststore                  0.10.5      MIT                            truststore-LICENSE.txt
+
+  Component                   Version     Licence                        Text
+  Qt (QtCore, QtGui,          6.12.0      LGPL-3.0-only                  LGPL-3.0.txt, GPL-3.0.txt
+  QtWidgets, QtOpenGL,
+  QtOpenGLWidgets, the
+  Windows platform and
+  style plugins)
+  Third-party code in         as listed   as listed (zlib, PCRE2,        Qt-third-party.txt
+  Qt Core and Qt GUI                      FreeType under the FTL,
+                                          HarfBuzz, libpng, libjpeg,
+                                          Unicode data and others)
+  Python (the interpreter     the build   PSF-2.0, with the licences     Python-LICENSE.txt
+  and the standard library)   Python's    of what it carries (OpenSSL
+                                          Apache-2.0, libffi MIT, zlib,
+                                          expat, mpdecimal and others)
+  OpenSSL (libcrypto-3.dll,   Python's    Apache-2.0                     OpenSSL-LICENSE.txt
+  libssl-3.dll)
+  SQLite (sqlite3.dll)        Python's    Public domain                  SQLite-public-domain.txt
+  liblzma from XZ Utils       Python's    Public domain                  xz-COPYING.txt
+  (_lzma.pyd)
+  mpdecimal (_decimal.pyd)    Python's    BSD-2-Clause                   mpdecimal-LICENSE.txt
+  PyInstaller bootloader      6.22.3      GPL-2.0-or-later WITH          PyInstaller-COPYING.txt
+  and loader                              Bootloader-exception
+  PyInstaller run-time hooks  6.22.3      Apache-2.0                     LICENSE
+  Microsoft Visual C++        as shipped  Microsoft Distributable Code   Python-LICENSE.txt
+  runtime (vcruntime140.dll,  by Python   (not open source)              ("Additional Conditions")
+  msvcp140.dll and similar)   and PySide6
+
+BUNDLED-FILES.txt, written by each build, lists every library inside that build, grouped as
+above, and the run-time hooks it carries.
+
+What these licences ask, and how SolidSeas meets it:
+
+  - Apache-2.0, BSD, MIT, HPND, ISC, zlib and the other permissive licences: keep the
+    copyright notice and the licence text with the program. They are inside it (Help >
+    Licences) and in the repository.
+  - FreeType (in Qt GUI) is used under the FreeType License, not the GPL: Portions of this
+    software are copyright (c) 2026 The FreeType Project (www.freetype.org). All rights
+    reserved. This software is based in part on the work of the FreeType Team.
+  - PSF-2.0: keep the PSF's copyright notice and licence with the program: Python-LICENSE.txt.
+  - PyInstaller's bootloader exception lets the bootloader be embedded in a program under
+    any licence; the GPL covers only changes to PyInstaller itself, and SolidSeas makes none.
+  - The Microsoft Visual C++ runtime files are Microsoft's, are redistributed only as part
+    of this program under the terms in Python-LICENSE.txt, and are not covered by the Apache
+    License or any open-source licence.
+  - LGPL-3.0 (Qt, PySide6, shiboken6): section 2.2.
+
+No font is bundled. The viewer draws with the fonts Windows has; the drawing PDFs name the
+PDF base-14 fonts, which the PDF reader supplies, and SolidSeas carries only their advance
+widths (credited in NOTICE). The program's icon is drawn by SolidSeas' own code
+(src/solidseas_app/viewer/icon.py), and the program carries no image, icon or font file from
+another project. Qt's DejaVu fonts are used only on Qt's WebAssembly platform and are not
+in the program.
+
+2.2 Qt, Qt for Python and the LGPL
+
+SolidSeas uses Qt 6.12.0 and Qt for Python (PySide6 6.12.0 and shiboken6 6.12.0), as
+published by The Qt Company in the PySide6-Essentials and shiboken6 wheels, under the GNU
+Lesser General Public License version 3 (LGPL-3.0.txt), which adds permissions to the GNU
+General Public License version 3 (GPL-3.0.txt). SolidSeas has not changed them. The wheels'
+own licence files name only the Qt commercial licence; SolidSeas does not use Qt under that
+licence, and the LGPL texts in the licenses folder are the ones that apply.
+
+Source code. The exact source of the Qt and Qt for Python versions in the program:
+
+  - Qt 6.12.0:
+    https://download.qt.io/official_releases/qt/6.12/6.12.0/single/qt-everywhere-src-6.12.0.tar.xz
+  - Qt for Python and shiboken6 6.12.0:
+    https://download.qt.io/official_releases/QtForPython/pyside6/PySide6-6.12.0-src/pyside-setup-everywhere-src-6.12.0.zip
+  - The wheels the program was built from, checked by the SHA-256 hashes in
+    requirements/build-windows.txt: https://pypi.org/project/PySide6-Essentials/6.12.0/ and
+    https://pypi.org/project/shiboken6/6.12.0/
+
+Copies of these two source archives are also attached to each SolidSeas release on GitHub
+(https://github.com/SolidSeas/SolidSeas/releases), beside the program, for as long
+as that release is offered.
+
+If any of these stops being available, ask for the source by opening an issue at
+https://github.com/SolidSeas/SolidSeas/issues and it will be provided at no charge
+for as long as the release that carries it is offered.
+
+Using another build of Qt. The LGPL lets you run SolidSeas with a modified version of Qt or
+Qt for Python. How the program is built matters here:
+
+  - The installer installs the one-folder build. Its Qt, PySide6 and shiboken6 libraries are
+    plain DLL and PYD files in the _internal folder beside SolidSeasViewer.exe, at the paths
+    BUNDLED-FILES.txt lists, and Windows loads them from there as shared libraries each time
+    the program starts. To run SolidSeas with your own build of the same version, replace
+    those files with yours. Nothing has to be rebuilt, which is the LGPL's shared-library
+    option (section 4(d)(1)). The one-folder build also starts faster, and it is the
+    recommended form. Installing over it, as a newer SolidSeas does, puts the original files
+    back.
+  - SolidSeasViewer.exe on its own is a PyInstaller one-file program. The Qt, PySide6 and shiboken6
+    libraries are separate DLL and PYD files packed inside it (BUNDLED-FILES.txt names them),
+    which Windows loads as shared libraries. Each time the program starts it unpacks them
+    into a new folder named _MEI followed by digits in the Windows temporary folder, and it
+    removes that folder when it ends. Replacing a file in that folder therefore lasts only
+    until the program ends, and is not a practical way to use another Qt.
+  - What does work: all of SolidSeas' source, the build script and the exact list of
+    packages are published under the Apache License 2.0. To use your own Qt or Qt for
+    Python, install your build of PySide6 and shiboken6 (same version, or a compatible one)
+    into the build environment in place of the locked wheels, and run
+    "scripts\build-viewer.ps1 -Venv <your environment> -SkipInstall". The program it builds
+    is SolidSeas with your Qt. This is the relinking the LGPL asks for (section 4(d)(0)).
+    SolidSeas' licence allows it, and allows the reverse engineering needed to debug such
+    changes, as the LGPL requires.
+  - From a source checkout (pip install solidseas[app]; python -m solidseas_app), PySide6 is
+    an ordinary installed package and can be replaced directly.
+
+The installer puts the program in the user's own folder (%LOCALAPPDATA%\Programs\SolidSeas)
+unless an administrator chooses to install it for all users. Installed for all users, it is
+in Program Files, where users cannot write, and that still meets the LGPL: an administrator
+acting for the person or organisation that received the program can replace the files.
+
+
+3. The extension packages
+-------------------------
+
+Each package is a zip built by scripts/build-extensions.ps1. Its manifest (extension.json)
+carries its notices, shown on the Extensions page under Details.
+
+3.1 cad-bridge-<version>.zip (the CAD Bridge)
+
+  Component                   Licence           Text
+  SolidSeas.SwBridge.exe      Apache-2.0        licenses/LICENSE, licenses/NOTICE
+
+The bridge is SolidSeas' own C# code (src/solidseas/swapi/SwBridge), compiled with the C#
+compiler of the .NET Framework that ships with Windows. It uses SOLIDWORKS' interop
+assemblies from the SOLIDWORKS installed on the PC; the package does not contain them, or
+any other file from SOLIDWORKS or Dassault Systemes.
+
+3.2 video-<version>.zip (video export)
+
+  Component                   Licence                        Text
+  solidseas-video.exe         Apache-2.0 (SolidSeas),        licenses/LICENSE, NOTICE,
+  (PyInstaller one-file       PSF-2.0 (Python),              Python-LICENSE.txt,
+  program, Python's standard  GPL-2.0-or-later WITH          PyInstaller-COPYING.txt
+  library only)               Bootloader-exception
+  ffmpeg.exe                  LGPL-2.1-or-later (LGPL-3.0-   licenses/LGPL-2.1.txt (and
+                              or-later with                  LGPL-3.0.txt, GPL-3.0.txt),
+                              --enable-version3)             ffmpeg's own licence files,
+                                                             licenses/ffmpeg-build.txt
+
+ffmpeg.exe is a separate program that the video helper starts; SolidSeas does not link to it.
+The build refuses an ffmpeg configured with --enable-gpl or --enable-nonfree, so the package
+holds no GPL-only or non-redistributable encoder. ffmpeg-build.txt records the build's
+version and configure flags as "ffmpeg -version" reports them, and where the exact source of
+that build is (the build is not made without it). FFmpeg's own downloads are at
+https://ffmpeg.org/download.html. Because ffmpeg.exe is an ordinary file in the package's
+folder, it can be replaced by another build of FFmpeg that takes the same command line.
+
+What the LGPL asks of SolidSeas for ffmpeg.exe: ship the licence text with it (done), say
+where its exact source is (ffmpeg-build.txt), and keep that source available for as long as
+the package is offered. A release should publish that source beside the packages rather than
+rely on the builder's site.
+
+3.3 solidcraft-<version>.zip (SolidCraft)
+
+  Component                   Licence                        Text
+  solidcraft-cli.exe 0.11.1   MIT OR Apache-2.0              LICENSE-MIT, LICENSE-APACHE,
+                                                             NOTICE (SolidCraft's)
+  Its Rust dependencies       permissive (MIT, Apache-2.0,   THIRD-PARTY-LICENSES.txt
+                              BSD, ISC, Zlib, Unicode-3.0,
+                              BSL-1.0, CDLA-Permissive-2.0,
+                              OFL-1.1 for fonts)
+
+The package carries SolidCraft's portable release unchanged (checked by its SHA-256) with
+all four of SolidCraft's licence files. Where a SolidCraft dependency offers a choice of
+licences that includes the LGPL or the GPL, the permissive choice applies.
+
+3.4 OCCT
+
+The planned OCCT package (docs/EXTENSIONS.md, docs/OCCT.md) is not built or distributed yet.
+Open CASCADE Technology is LGPL-2.1 with its exception; when the package is built it will
+carry those texts and the source location in the same way as the video package.
+
+
+4. Build tools, not distributed
+-------------------------------
+
+These are installed from requirements/build-windows.txt to build the program and are not
+inside it (the build stops if one would be), so their licences place no obligation on the
+program. Their own licence files come with their wheels.
+
+  Package                     Version     Licence (SPDX)
+  altgraph                    0.17.5      MIT
+  packaging                   26.3        Apache-2.0 OR BSD-2-Clause
+  pefile                      2024.8.26   MIT
+  pyinstaller                 6.22.3      GPL-2.0-or-later WITH Bootloader-exception
+                                          (the parts embedded in the program: section 2.1)
+  pyinstaller-hooks-contrib   2026.8      GPL-2.0-or-later (hooks), Apache-2.0 (run-time hooks)
+  pywin32-ctypes              0.2.3       BSD-3-Clause
+  setuptools                  84.0.0      MIT
+
+The installer is made with Inno Setup 6 (https://jrsoftware.org/isinfo.php), the version
+.github/workflows/release.yml pins, which is not part of the program. The installer and the
+uninstaller it leaves behind are Inno Setup's own setup program, carrying Jordan Russell's
+and Martijn Laan's copyright notices as Inno Setup's licence asks; that licence allows them
+to be redistributed for any purpose, and its terms do not extend to the program they install.
+
+
+5. Test files
+-------------
+
+tests/fixtures holds synthetic parts, assemblies and drawings made for this project through
+the SOLIDWORKS API, and exports SOLIDWORKS wrote from them (tests/fixtures/README.md says how).
+The assemblies and drawings were made from templates that the SOLIDWORKS installer ships.
+tests/goldens holds files written by SolidSeas' own tests. Neither is part of the library
+wheel, the program or the packages.

@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# Pre-commit: bump the patch version so every commit carries a distinct
+# version. Installed by scripts/install-git-hooks.sh, which chains this onto
+# whatever pre-commit hook is already active.
+#
+# It stays out of the way when:
+#   - a rebase, merge, cherry-pick or revert is in progress (replaying commits
+#     must not create new version bumps)
+#   - the commit already changes __version__ (a deliberate bump)
+#   - nothing is staged
+set -euo pipefail
+
+ROOT="$(git rev-parse --show-toplevel)"
+# --git-dir resolves to the worktree's private directory in a linked worktree,
+# which is where the in-progress markers live.
+GIT_DIR="$(git rev-parse --git-dir)"
+
+for marker in rebase-merge rebase-apply MERGE_HEAD CHERRY_PICK_HEAD REVERT_HEAD; do
+  if [ -e "$GIT_DIR/$marker" ]; then
+    exit 0
+  fi
+done
+
+if [ -z "$(git diff --cached --name-only)" ]; then
+  exit 0
+fi
+
+if git diff --cached -U0 -- src/solidseas/__init__.py | grep -q '^[+-]__version__ = '; then
+  exit 0
+fi
+
+# through bash: the repository records its scripts without the executable bit
+bash "$ROOT/scripts/bump-version.sh" patch >/dev/null
+git add -- "$ROOT/src/solidseas/__init__.py"

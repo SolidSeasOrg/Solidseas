@@ -1,0 +1,38 @@
+name: Feature request
+description: Suggest something SolidSeas could do, or do better.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the idea. Starting with the problem you are trying to solve helps us find the
+        best way to solve it, even if that turns out to be different from the first suggestion.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: The task or the situation, and what gets in the way today.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would help?
+      description: How you picture SolidSeas handling it.
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Anything you have tried instead?
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which part of SolidSeas?
+      options:
+        - The Python library
+        - The command line
+        - The REST service (solidseas serve)
+        - SolidSeas Viewer
+        - Drawings
+        - The modeling assistant or the MCP server
+        - An extension
+        - Something else

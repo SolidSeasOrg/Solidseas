@@ -1,0 +1,54 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "solidseas"
+dynamic = ["version"]
+description = "Read, preview and manage SOLIDWORKS files, with or without SOLIDWORKS. An independent project, not affiliated with or endorsed by Dassault Systèmes."
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+requires-python = ">=3.11"
+dependencies = [
+    "olefile>=0.47",
+]
+
+[project.urls]
+Homepage = "https://github.com/SolidSeas/SolidSeas"
+Documentation = "https://github.com/SolidSeas/SolidSeas/tree/main/docs"
+Issues = "https://github.com/SolidSeas/SolidSeas/issues"
+Changelog = "https://github.com/SolidSeas/SolidSeas/blob/main/CHANGELOG.md"
+
+[project.optional-dependencies]
+app = ["PySide6>=6.7"]
+build = ["PySide6-Essentials>=6.7", "pyinstaller>=6", "truststore>=0.9"]
+cad = ["cadquery>=2.4"]
+swapi = ["pywin32>=306; sys_platform == 'win32'"]
+ai = ["truststore>=0.9"]
+dev = ["pytest>=8", "ruff>=0.6"]
+image = ["Pillow>=10"]
+
+[project.scripts]
+solidseas = "solidseas.cli:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "solidseas.__version__" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", "research"]
+markers = [
+    "occt: the opt-in OCCT oracle; skipped unless SOLIDSEAS_OCCT_PYTHON names an interpreter where OCP imports (tests/README.md)",
+]
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+src = ["src", "tests", "research"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]

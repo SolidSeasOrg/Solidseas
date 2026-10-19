@@ -1,0 +1,5102 @@
+{
+  "_generation": {
+    "kit_version": "2026-10-01.4",
+    "generated_utc": "2026-10-02T00:25:46Z",
+    "test_mode": false,
+    "current_account_mode": true,
+    "mode": "current_account",
+    "windows_account": null,
+    "profile_folder_name": null,
+    "profile_folder_short_name": null,
+    "expected_neutral_account": "solidseas",
+    "output_folder": "C:\\Users\\Public\\Documents\\SolidSeasFixtures\\current-account\\out\\",
+    "culture": {
+      "name": "en-US",
+      "short_date_pattern": "M/d/yyyy",
+      "time_zone": "Eastern Standard Time",
+      "utc_offset_minutes_2024_03_15_noon": -240
+    },
+    "notes": [
+      "Keys other than _generation are output file names. Native documents carry what the SOLIDWORKS API reported after the kit reopened the saved file read-only (the 'api' object, including the OpenDoc6 error and warning codes of that reopening), how the kit made it (the 'generation' object, whose recipe and notes are the kit's own description), and, for parts, what the kit's own container parser found in the saved file (the 'kit_container_scan' object, not a SOLIDWORKS value).",
+      "Lengths are metres, areas m^2, volumes m^3, masses kg (SOLIDWORKS API units).",
+      "transform_array_data is IMathTransform.ArrayData of Component2.Transform2: elements 0 to 8 are the 3x3 rotation, 9 to 11 the translation in metres, 12 the scale, 13 to 15 unused (SOLIDWORKS API help). Transform2 is relative to the top-level assembly, also for components inside sub-assemblies.",
+      "point_probe lists where the component-space points (0,0,0), (1,0,0), (0,1,0) and (0,0,1) land in top-level assembly space (MathPoint.MultiplyTransform with Transform2). It fixes the meaning of the rotation layout without assuming it.",
+      "Paths are relative to the output folder when they are inside it; %TEMP% and %USERPROFILE% replace those folders otherwise."
+    ],
+    "transform_array_data_layout": {
+      "0-8": "3x3 rotation matrix, in the order IMathTransform.ArrayData returns it",
+      "9-11": "translation, metres",
+      "12": "scale",
+      "13-15": "unused",
+      "source": "SOLIDWORKS API help, IMathTransform::ArrayData"
+    },
+    "guards": {
+      "note_0": "clean-account checks skipped (current-account mode; the template checks and the scrub report verdict take their place)",
+      "note_1": "other SOLIDWORKS processes running at start: 1, in this session: 1",
+      "template_check": [
+        "OK: part template C:\\ProgramData\\SolidWorks\\SOLIDWORKS 2024\\templates\\Part.prtdot (the default part template, made in this account): 6 embedded paths, all allowed (2 the SOLIDWORKS data folder in ProgramData, 2 the Windows folder, 1 this account's bare Desktop folder, 1 this account's bare Temp folder); 1 stored user name(s), all this account's",
+        "OK: assembly template C:\\ProgramData\\SolidWorks\\SOLIDWORKS 2024\\templates\\MBD\\assembly 0250mm and smaller.asmdot (Dassault-shipped): 44 embedded paths, 4 of them in the profiles of Dassault template authors; 4 stored names, none of them this account or another local account",
+        "OK: drawing template C:\\Program Files\\SOLIDWORKS Corp\\SOLIDWORKS\\data\\templates\\ansi.drwdot (Dassault-shipped): 123 embedded paths, 25 of them in the profiles of Dassault template authors; 13 stored names, none of them this account or another local account",
+        "OK: assembly_o08 template C:\\ProgramData\\SolidWorks\\SOLIDWORKS 2024\\templates\\MBD\\assembly 0250mm and smaller.asmdot (Dassault-shipped): 44 embedded paths, 4 of them in the profiles of Dassault template authors; 4 stored names, none of them this account or another local account",
+        "OK: the Dassault-shipped templates store 15 author and profile folder names; the scrub report lists them and allows only those besides this account",
+        "OK: bom template C:\\Program Files\\SOLIDWORKS Corp\\SOLIDWORKS\\lang\\english\\bom-standard.sldbomtbt"
+      ]
+    },
+    "templates": {
+      "mode": "current_account",
+      "current_account_note": "Current-account mode: every assembly (o08, o15, o16) uses the MBD assembly template and every drawing (o18, o19) a drawing template, both put in place by the SOLIDWORKS installer; the default part template is used only after the check under part.current_account_check.",
+      "part": {
+        "path": "C:\\ProgramData\\SolidWorks\\SOLIDWORKS 2024\\templates\\Part.prtdot",
+        "present": true,
+        "bytes": 20709,
+        "sha256": "710d1c7661922918e3e21a26619843abab315f4321436e0643b8dbce76b653d5",
+        "last_write_utc": "2024-03-25T23:26:52Z",
+        "embedded_path_count": 6,
+        "header2_user_count": 1,
+        "skipped_members": [],
+        "current_account_check": {
+          "rule": "The default part template (SOLIDWORKS also uses it by itself for o09, o10 and the o16 virtual part) may name only this account's bare Temp folder (or SOLIDWORKS scratch inside it) and bare Desktop folder, the SOLIDWORKS installation and data folders and the Windows folder, and may store no user name but this account's.",
+          "allowed": {
+            "the SOLIDWORKS data folder in ProgramData": 2,
+            "the Windows folder": 2,
+            "this account's bare Desktop folder": 1,
+            "this account's bare Temp folder": 1
+          },
+          "not_allowed": {},
+          "header2_user_count": 1,
+          "header2_users_other_than_this_account": 0,
+          "result": "OK"
+        },
+        "names_local_accounts_other_than_this": []
+      },
+      "assembly": {
+        "path": "C:\\ProgramData\\SolidWorks\\SOLIDWORKS 2024\\templates\\MBD\\assembly 0250mm and smaller.asmdot",
+        "present": true,
+        "bytes": 29840,
+        "sha256": "59839cfa762cc6986f7d4eee65a41dd49952fc61f1685340d83b92ed596e0c3b",
+        "last_write_utc": "2024-01-17T21:02:10Z",
+        "embedded_path_count": 44,
+        "header2_user_count": 4,
+        "skipped_members": [],
+        "current_account_check": {
+          "rule": "A template the SOLIDWORKS installer put in place (data\\templates in the installation folder, or the MBD templates folder in ProgramData), which names neither this account nor another local account on this PC. The names it stores are Dassault template authors and their profile folders; the scrub report allows those and the paths this template carries.",
+          "in_a_folder_the_installer_fills": true,
+          "embedded_paths_under_a_user_profile": 4,
+          "paths_in_this_account": 0,
+          "names_of_this_account": 0,
+          "stored_name_count": 4,
+          "result": "OK"
+        },
+        "names_local_accounts_other_than_this": []
+      },
+      "drawing": {
+        "path": "C:\\Program Files\\SOLIDWORKS Corp\\SOLIDWORKS\\data\\templates\\ansi.drwdot",
+        "present": true,
+        "bytes": 23854,
+        "sha256": "b33fef64aadd4e9c73966bff71d6602f9086e186d3b2b46e033a665f99639d3a",
+        "last_write_utc": "2024-01-17T21:02:10Z",
+        "embedded_path_count": 123,
+        "header2_user_count": 10,
+        "skipped_members": [],
+        "current_account_check": {
+          "rule": "A template the SOLIDWORKS installer put in place (data\\templates in the installation folder, or the MBD templates folder in ProgramData), which names neither this account nor another local account on this PC. The names it stores are Dassault template authors and their profile folders; the scrub report allows those and the paths this template carries.",
+          "in_a_folder_the_installer_fills": true,
+          "embedded_paths_under_a_user_profile": 25,
+          "paths_in_this_account": 0,
+          "names_of_this_account": 0,
+          "stored_name_count": 13,
+          "result": "OK"
+        },
+        "names_local_accounts_other_than_this": []
+      },
+      "assembly_o08": {
+        "path": "C:\\ProgramData\\SolidWorks\\SOLIDWORKS 2024\\templates\\MBD\\assembly 0250mm and smaller.asmdot",
+        "present": true,
+        "bytes": 29840,
+        "sha256": "59839cfa762cc6986f7d4eee65a41dd49952fc61f1685340d83b92ed596e0c3b",
+        "last_write_utc": "2024-01-17T21:02:10Z",
+        "embedded_path_count": 44,
+        "header2_user_count": 4,
+        "skipped_members": [],
+        "current_account_check": {
+          "rule": "A template the SOLIDWORKS installer put in place (data\\templates in the installation folder, or the MBD templates folder in ProgramData), which names neither this account nor another local account on this PC. The names it stores are Dassault template authors and their profile folders; the scrub report allows those and the paths this template carries.",
+          "in_a_folder_the_installer_fills": true,
+          "embedded_paths_under_a_user_profile": 4,
+          "paths_in_this_account": 0,
+          "names_of_this_account": 0,
+          "stored_name_count": 4,
+          "result": "OK"
+        },
+        "names_local_accounts_other_than_this": [],
+        "used_for_o08": "C:\\ProgramData\\SolidWorks\\SOLIDWORKS 2024\\templates\\MBD\\assembly 0250mm and smaller.asmdot"
+      },
+      "dassault_names": {
+        "count": 15,
+        "note": "Header2 user names and profile folder names stored in the Dassault-shipped templates above (Dassault template authors), hashed like name_sha256. The scrub report lists them in clear; in current-account mode its verdict allows these names and the paths those templates carry, and no other account's."
+      },
+      "bom": {
+        "path": "C:\\Program Files\\SOLIDWORKS Corp\\SOLIDWORKS\\lang\\english\\bom-standard.sldbomtbt",
+        "present": true
+      }
+    },
+    "session": {
+      "journal_message_dismissed": 1,
+      "pid_checked_through_GetProcessID": true,
+      "anchor_document": "an unsaved part kept open so the background session survives between steps",
+      "user_control": false,
+      "visible": true,
+      "frame_state": 2,
+      "working_directory_set_to_output_folder": true
+    },
+    "solidworks_revision": "32.1.0",
+    "solidworks_build": {
+      "base": "sw2024_SP01",
+      "current": "d240117.001",
+      "hotfixes": ""
+    },
+    "default_template_preferences": {
+      "part": "C:\\ProgramData\\SolidWorks\\SOLIDWORKS 2024\\templates\\Part.prtdot",
+      "assembly": "C:\\ProgramData\\SolidWorks\\SOLIDWORKS 2024\\templates\\MBD\\assembly 0250mm and smaller.asmdot",
+      "drawing": "C:\\ProgramData\\SolidWorks\\SOLIDWORKS 2024\\templates\\Drawing.drwdot",
+      "part_is_the_vetted_part_template": true,
+      "note": "The kit passes template paths explicitly, except where SOLIDWORKS picks the default part template itself: the LoadFile4 import (o09, o10) and the virtual part of o16 (InsertNewVirtualPart)."
+    },
+    "preferences_at_start": {
+      "swParasolidOutputVersion": 0,
+      "swExportStlUnits": 0,
+      "swSTLQuality": 2,
+      "swStepAP": 203,
+      "swSTLBinaryFormat": true,
+      "swSTLDontTranslateToPositive": false,
+      "sw3MFAppearances": false,
+      "sw3MFMaterials": false,
+      "sw3MFDecals": false,
+      "swStepExportPreference": 0,
+      "swStepExportFaceEdgeProps": true,
+      "swStepExportSplitPeriodic": true,
+      "swStepExport3DCurveFeatures": false,
+      "swStepExportAppearances": false,
+      "swStepExportConfigurationData": false,
+      "swMultiCAD_Enable3DInterconnect": true,
+      "swImportAutoRunImportDiagnostics": true,
+      "swImportNeutralRunDiagnostics": false,
+      "swAlwaysUseDefaultTemplates": true,
+      "swDrawingShowSheetFormatDialog": false,
+      "swOneConfigOnlyTopLevelBom": false
+    },
+    "export_settings": {
+      "swSTLBinaryFormat": "already True",
+      "swSTLDontTranslateToPositive": "already False",
+      "sw3MFAppearances": "already False",
+      "sw3MFMaterials": "already False",
+      "sw3MFDecals": "already False",
+      "swStepExportFaceEdgeProps": "already True",
+      "swStepExportSplitPeriodic": "already True",
+      "swStepExport3DCurveFeatures": "already False",
+      "swStepExportAppearances": "already False",
+      "swStepExportConfigurationData": "already False",
+      "swExportStlUnits": "already 0",
+      "swStepExportPreference": "already 0",
+      "swParasolidOutputVersion": "already 0",
+      "swStepAP": "already 203",
+      "in_effect": {
+        "swParasolidOutputVersion": 0,
+        "swExportStlUnits": 0,
+        "swSTLQuality": 2,
+        "swStepAP": 203,
+        "swSTLBinaryFormat": true,
+        "swSTLDontTranslateToPositive": false,
+        "sw3MFAppearances": false,
+        "sw3MFMaterials": false,
+        "sw3MFDecals": false,
+        "swStepExportPreference": 0,
+        "swStepExportFaceEdgeProps": true,
+        "swStepExportSplitPeriodic": true,
+        "swStepExport3DCurveFeatures": false,
+        "swStepExportAppearances": false,
+        "swStepExportConfigurationData": false
+      }
+    },
+    "preferences_restored": 0,
+    "files": [
+      {
+        "file": "o01_empty.SLDPRT",
+        "status": "made"
+      },
+      {
+        "file": "o02_boxA.SLDPRT",
+        "status": "made"
+      },
+      {
+        "file": "o03_boxA_again.SLDPRT",
+        "status": "made"
+      },
+      {
+        "file": "o02_boxA.x_t",
+        "status": "made"
+      },
+      {
+        "file": "o02_boxA.x_b",
+        "status": "made"
+      },
+      {
+        "file": "o02_boxA.step",
+        "status": "made"
+      },
+      {
+        "file": "o02_boxA.STL",
+        "status": "made"
+      },
+      {
+        "file": "o02_boxA.3mf",
+        "status": "made"
+      },
+      {
+        "file": "o04_boxA_props.SLDPRT",
+        "status": "made"
+      },
+      {
+        "file": "o05_boxA_props_mat.SLDPRT",
+        "status": "made"
+      },
+      {
+        "file": "o06_boxA_props_mat_cfg.SLDPRT",
+        "status": "made"
+      },
+      {
+        "file": "o07_boxB_h31.SLDPRT",
+        "status": "made"
+      },
+      {
+        "file": "o07_boxB_h31.x_b",
+        "status": "made"
+      },
+      {
+        "file": "o08_asm_2x_boxA.SLDASM",
+        "status": "made"
+      },
+      {
+        "file": "o09_import_step.SLDPRT",
+        "status": "made"
+      },
+      {
+        "file": "o10_import_step_cut.SLDPRT",
+        "status": "made"
+      },
+      {
+        "file": "o11_curved.SLDPRT",
+        "status": "made"
+      },
+      {
+        "file": "o11_curved.x_b",
+        "status": "made"
+      },
+      {
+        "file": "o12_multibody.SLDPRT",
+        "status": "made"
+      },
+      {
+        "file": "o12_multibody.x_b",
+        "status": "made"
+      },
+      {
+        "file": "o13_two_geometry_configs.SLDPRT",
+        "status": "made"
+      },
+      {
+        "file": "o14_property_types.SLDPRT",
+        "status": "made"
+      },
+      {
+        "file": "o17_\u0434\u0435\u0442\u0430\u043b\u044c.SLDPRT",
+        "status": "made"
+      },
+      {
+        "file": "o15_sub_asm.SLDASM",
+        "status": "made"
+      },
+      {
+        "file": "o16_asm_features.SLDASM",
+        "status": "made"
+      },
+      {
+        "file": "o18_drw_boxA.SLDDRW",
+        "status": "made"
+      },
+      {
+        "file": "o19_drw_asm.SLDDRW",
+        "status": "made"
+      }
+    ],
+    "steps": [
+      {
+        "step": "ready",
+        "status": "OK",
+        "seconds": 2.2
+      },
+      {
+        "step": "session",
+        "status": "OK",
+        "seconds": 5.1
+      },
+      {
+        "step": "export_settings",
+        "status": "OK",
+        "seconds": 0.2
+      },
+      {
+        "step": "o01",
+        "status": "OK",
+        "seconds": 1.3
+      },
+      {
+        "step": "o02_o06",
+        "status": "OK",
+        "seconds": 4.3
+      },
+      {
+        "step": "o07",
+        "status": "OK",
+        "seconds": 2.1
+      },
+      {
+        "step": "o08",
+        "status": "OK",
+        "seconds": 4.5
+      },
+      {
+        "step": "o09_o10",
+        "status": "OK",
+        "seconds": 3.5
+      },
+      {
+        "step": "o11",
+        "status": "OK",
+        "seconds": 4.2
+      },
+      {
+        "step": "o12",
+        "status": "OK",
+        "seconds": 2.8
+      },
+      {
+        "step": "o13",
+        "status": "OK",
+        "seconds": 5.1
+      },
+      {
+        "step": "o14",
+        "status": "OK",
+        "seconds": 7.8
+      },
+      {
+        "step": "o17",
+        "status": "OK",
+        "seconds": 2.7
+      },
+      {
+        "step": "o15",
+        "status": "OK",
+        "seconds": 7.6
+      },
+      {
+        "step": "o16",
+        "status": "OK",
+        "seconds": 22.7
+      },
+      {
+        "step": "o18",
+        "status": "OK",
+        "seconds": 4
+      },
+      {
+        "step": "o19",
+        "status": "OK",
+        "seconds": 7
+      },
+      {
+        "step": "gt:o01_empty.SLDPRT",
+        "status": "OK",
+        "seconds": 5.7
+      },
+      {
+        "step": "gt:o02_boxA.SLDPRT",
+        "status": "OK",
+        "seconds": 6.9
+      },
+      {
+        "step": "gt:o03_boxA_again.SLDPRT",
+        "status": "OK",
+        "seconds": 4.3
+      },
+      {
+        "step": "gt:o04_boxA_props.SLDPRT",
+        "status": "OK",
+        "seconds": 4.4
+      },
+      {
+        "step": "gt:o05_boxA_props_mat.SLDPRT",
+        "status": "OK",
+        "seconds": 4.3
+      },
+      {
+        "step": "gt:o06_boxA_props_mat_cfg.SLDPRT",
+        "status": "OK",
+        "seconds": 6.4
+      },
+      {
+        "step": "gt:o07_boxB_h31.SLDPRT",
+        "status": "OK",
+        "seconds": 6
+      },
+      {
+        "step": "gt:o08_asm_2x_boxA.SLDASM",
+        "status": "OK",
+        "seconds": 3.9
+      },
+      {
+        "step": "gt:o09_import_step.SLDPRT",
+        "status": "OK",
+        "seconds": 6.1
+      },
+      {
+        "step": "gt:o10_import_step_cut.SLDPRT",
+        "status": "OK",
+        "seconds": 5.2
+      },
+      {
+        "step": "gt:o11_curved.SLDPRT",
+        "status": "OK",
+        "seconds": 5.4
+      },
+      {
+        "step": "gt:o12_multibody.SLDPRT",
+        "status": "OK",
+        "seconds": 5.6
+      },
+      {
+        "step": "gt:o13_two_geometry_configs.SLDPRT",
+        "status": "OK",
+        "seconds": 5.8
+      },
+      {
+        "step": "gt:o14_property_types.SLDPRT",
+        "status": "OK",
+        "seconds": 5.3
+      },
+      {
+        "step": "gt:o17_\u0434\u0435\u0442\u0430\u043b\u044c.SLDPRT",
+        "status": "OK",
+        "seconds": 5
+      },
+      {
+        "step": "gt:o15_sub_asm.SLDASM",
+        "status": "OK",
+        "seconds": 3.9
+      },
+      {
+        "step": "gt:o16_asm_features.SLDASM",
+        "status": "OK",
+        "seconds": 11.9
+      },
+      {
+        "step": "gt:o18_drw_boxA.SLDDRW",
+        "status": "OK",
+        "seconds": 3.1
+      },
+      {
+        "step": "gt:o19_drw_asm.SLDDRW",
+        "status": "OK",
+        "seconds": 3.8
+      },
+      {
+        "step": "restore_settings",
+        "status": "OK",
+        "seconds": 0.1
+      },
+      {
+        "step": "shutdown",
+        "status": "OK: exit requested",
+        "seconds": 1.1
+      }
+    ]
+  },
+  "o01_empty.SLDPRT": {
+    "generation": {
+      "step": "o01",
+      "template": "C:\\ProgramData\\SolidWorks\\SOLIDWORKS 2024\\templates\\Part.prtdot",
+      "recipe": "New part from the part template, nothing added. SaveAs3 Silent|Copy.",
+      "template_unit_system": 5
+    },
+    "type": "part",
+    "api": {
+      "version_history": [
+        "17000[2024/16]"
+      ],
+      "open_error": 0,
+      "open_error_names": [],
+      "open_warnings": 0,
+      "open_warning_names": [],
+      "document_type": 1,
+      "unit_system": 5,
+      "configuration_names": [
+        "Default"
+      ],
+      "active_configuration": "Default",
+      "features": [
+        {
+          "name": "Comments",
+          "type": "CommentsFolder"
+        },
+        {
+          "name": "Favorites",
+          "type": "FavoriteFolder"
+        },
+        {
+          "name": "Folder ",
+          "type": "HistoryFolder"
+        },
+        {
+          "name": "Selection Sets",
+          "type": "SelectionSetFolder"
+        },
+        {
+          "name": "Sensors",
+          "type": "SensorFolder"
+        },
+        {
+          "name": "Design Binder",
+          "type": "DocsFolder"
+        },
+        {
+          "name": "Annotations",
+          "type": "DetailCabinet"
+        },
+        {
+          "name": "Surface Bodies",
+          "type": "SurfaceBodyFolder"
+        },
+        {
+          "name": "Solid Bodies",
+          "type": "SolidBodyFolder"
+        },
+        {
+          "name": "Lights and Cameras",
+          "type": "EnvFolder"
+        },
+        {
+          "name": "Markups",
+          "type": "InkMarkupFolder"
+        },
+        {
+          "name": "Equations",
+          "type": "EqnFolder"
+        },
+        {
+          "name": "Material <not specified>",
+          "type": "MaterialFolder"
+        },
+        {
+          "name": "Front Plane",
+          "type": "RefPlane"
+        },
+        {
+          "name": "Top Plane",
+          "type": "RefPlane"
+        },
+        {
+          "name": "Right Plane",
+          "type": "RefPlane"
+        },
+        {
+          "name": "Origin",
+          "type": "OriginProfileFeature"
+        }
+      ],
+      "configurations": {
+        "Default": {
+          "shown": false,
+          "rebuilt": true,
+          "comment": "",
+          "alternate_name": "",
+          "file_properties": [],
+          "configuration_properties": [],
+          "mass_properties_status": 2,
+          "mass_properties": null,
+          "material": null,
+          "material_database": null,
+          "solid_bodies": 0,
+          "bodies": [],
+          "bounding_box_m": [0, 0, 0, 0, 0, 0]
+        }
+      }
+    },
+    "kit_container_scan": {
+      "source": "the kit's own parse of the saved file's container (PathScan.Members), not a SOLIDWORKS API value",
+      "partition_streams": [
+        "Contents/Config-0-Partition"
+      ]
+    }
+  },
+  "o02_boxA.SLDPRT": {
+    "generation": {
+      "step": "o02_o06",
+      "template": "C:\\ProgramData\\SolidWorks\\SOLIDWORKS 2024\\templates\\Part.prtdot",
+      "recipe": "Rectangle 10 x 20 mm from the origin on the Front Plane, extruded 30 mm blind (FeatureExtrusion2). SaveAs3 Silent|Copy.",
+      "template_unit_system": 5
+    },
+    "type": "part",
+    "api": {
+      "version_history": [
+        "17000[2024/16]"
+      ],
+      "open_error": 0,
+      "open_error_names": [],
+      "open_warnings": 0,
+      "open_warning_names": [],
+      "document_type": 1,
+      "unit_system": 5,
+      "configuration_names": [
+        "Default"
+      ],
+      "active_configuration": "Default",
+      "features": [
+        {
+          "name": "Comments",
+          "type": "CommentsFolder"
+        },
+        {
+          "name": "Favorites",
+          "type": "FavoriteFolder"
+        },
+        {
+          "name": "Folder ",
+          "type": "HistoryFolder"
+        },
+        {
+          "name": "Selection Sets",
+          "type": "SelectionSetFolder"
+        },
+        {
+          "name": "Sensors",
+          "type": "SensorFolder"
+        },
+        {
+          "name": "Design Binder",
+          "type": "DocsFolder"
+        },
+        {
+          "name": "Annotations",
+          "type": "DetailCabinet"
+        },
+        {
+          "name": "Surface Bodies",
+          "type": "SurfaceBodyFolder"
+        },
+        {
+          "name": "Solid Bodies",
+          "type": "SolidBodyFolder"
+        },
+        {
+          "name": "Lights and Cameras",
+          "type": "EnvFolder"
+        },
+        {
+          "name": "Markups",
+          "type": "InkMarkupFolder"
+        },
+        {
+          "name": "Equations",
+          "type": "EqnFolder"
+        },
+        {
+          "name": "Material <not specified>",
+          "type": "MaterialFolder"
+        },
+        {
+          "name": "Front Plane",
+          "type": "RefPlane"
+        },
+        {
+          "name": "Top Plane",
+          "type": "RefPlane"
+        },
+        {
+          "name": "Right Plane",
+          "type": "RefPlane"
+        },
+        {
+          "name": "Origin",
+          "type": "OriginProfileFeature"
+        },
+        {
+          "name": "Sketch1",
+          "type": "ProfileFeature"
+        },
+        {
+          "name": "Boss-Extrude1",
+          "type": "Extrusion"
+        }
+      ],
+      "configurations": {
+        "Default": {
+          "shown": false,
+          "rebuilt": true,
+          "comment": "",
+          "alternate_name": "",
+          "file_properties": [],
+          "configuration_properties": [],
+          "mass_properties_status": 0,
+          "volume_m3": 5.9999999999999993E-06,
+          "surface_area_m2": 0.0022,
+          "mass_kg": 0.0059999999999999993,
+          "center_of_mass_m": [0.005, 0.01, 0.015000000000000001],
+          "density_kg_m3": 1000,
+          "material": null,
+          "material_database": null,
+          "solid_bodies": 1,
+          "bodies": [
+            {
+              "name": "Boss-Extrude1",
+              "faces": 6,
+              "edges": 12,
+              "face_surface_types": {
+                "plane": 6
+              },
+              "box_m": [0, 0, 0, 0.01, 0.02, 0.03]
+            }
+          ],
+          "bounding_box_m": [0, 0, 0, 0.01, 0.02, 0.03]
+        }
+      }
+    },
+    "kit_container_scan": {
+      "source": "the kit's own parse of the saved file's container (PathScan.Members), not a SOLIDWORKS API value",
+      "partition_streams": [
+        "Contents/Config-0-Partition"
+      ]
+    }
+  },
+  "o03_boxA_again.SLDPRT": {
+    "generation": {
+      "step": "o02_o06",
+      "template": "C:\\ProgramData\\SolidWorks\\SOLIDWORKS 2024\\templates\\Part.prtdot",
+      "recipe": "The same open document as o02, saved again immediately with no change in between."
+    },
+    "type": "part",
+    "api": {
+      "version_history": [
+        "17000[2024/16]"
+      ],
+      "open_error": 0,
+      "open_error_names": [],
+      "open_warnings": 0,
+      "open_warning_names": [],
+      "document_type": 1,
+      "unit_system": 5,
+      "configuration_names": [
+        "Default"
+      ],
+      "active_configuration": "Default",
+      "features": [
+        {
+          "name": "Comments",
+          "type": "CommentsFolder"
+        },
+        {
+          "name": "Favorites",
+          "type": "FavoriteFolder"
+        },
+        {
+          "name": "Folder ",
+          "type": "HistoryFolder"
+        },
+        {
+          "name": "Selection Sets",
+          "type": "SelectionSetFolder"
+        },
+        {
+          "name": "Sensors",
+          "type": "SensorFolder"
+        },
+        {
+          "name": "Design Binder",
+          "type": "DocsFolder"
+        },
+        {
+          "name": "Annotations",
+          "type": "DetailCabinet"
+        },
+        {
+          "name": "Surface Bodies",
+          "type": "SurfaceBodyFolder"
+        },
+        {
+          "name": "Solid Bodies",
+          "type": "SolidBodyFolder"
+        },
+        {
+          "name": "Lights and Cameras",
+          "type": "EnvFolder"
+        },
+        {
+          "name": "Markups",
+          "type": "InkMarkupFolder"
+        },
+        {
+          "name": "Equations",
+          "type": "EqnFolder"
+        },
+        {
+          "name": "Material <not specified>",
+          "type": "MaterialFolder"
+        },
+        {
+          "name": "Front Plane",
+          "type": "RefPlane"
+        },
+        {
+          "name": "Top Plane",
+          "type": "RefPlane"
+        },
+        {
+          "name": "Right Plane",
+          "type": "RefPlane"
+        },
+        {
+          "name": "Origin",
+          "type": "OriginProfileFeature"
+        },
+        {
+          "name": "Sketch1",
+          "type": "ProfileFeature"
+        },
+        {
+          "name": "Boss-Extrude1",
+          "type": "Extrusion"
+        }
+      ],
+      "configurations": {
+        "Default": {
+          "shown": false,
+          "rebuilt": true,
+          "comment": "",
+          "alternate_name": "",
+          "file_properties": [],
+          "configuration_properties": [],
+          "mass_properties_status": 0,
+          "volume_m3": 5.9999999999999993E-06,
+          "surface_area_m2": 0.0022,
+          "mass_kg": 0.0059999999999999993,
+          "center_of_mass_m": [0.005, 0.01, 0.015000000000000001],
+          "density_kg_m3": 1000,
+          "material": null,
+          "material_database": null,
+          "solid_bodies": 1,
+          "bodies": [
+            {
+              "name": "Boss-Extrude1",
+              "faces": 6,
+              "edges": 12,
+              "face_surface_types": {
+                "plane": 6
+              },
+              "box_m": [0, 0, 0, 0.01, 0.02, 0.03]
+            }
+          ],
+          "bounding_box_m": [0, 0, 0, 0.01, 0.02, 0.03]
+        }
+      }
+    },
+    "kit_container_scan": {
+      "source": "the kit's own parse of the saved file's container (PathScan.Members), not a SOLIDWORKS API value",
+      "partition_streams": [
+        "Contents/Config-0-Partition"
+      ]
+    }
+  },
+  "o02_boxA.x_t": {
+    "type": "export",
+    "format": "Parasolid text transmit (.x_t)",
+    "source_document": "o02_boxA.SLDPRT",
+    "source_configuration": "Default",
+    "api": "IModelDocExtension.SaveAs3 with swSaveAsOptions_Silent | swSaveAsOptions_Copy",
+    "preferences_at_export": {
+      "swParasolidOutputVersion": 0,
+      "swExportStlUnits": 0,
+      "swSTLQuality": 2,
+      "swStepAP": 203,
+      "swSTLBinaryFormat": true,
+      "swSTLDontTranslateToPositive": false,
+      "sw3MFAppearances": false,
+      "sw3MFMaterials": false,
+      "sw3MFDecals": false,
+      "swStepExportPreference": 0,
+      "swStepExportFaceEdgeProps": true,
+      "swStepExportSplitPeriodic": true,
+      "swStepExport3DCurveFeatures": false,
+      "swStepExportAppearances": false,
+      "swStepExportConfigurationData": false
+    }
+  },
+  "o02_boxA.x_b": {
+    "type": "export",
+    "format": "Parasolid binary transmit (.x_b)",
+    "source_document": "o02_boxA.SLDPRT",
+    "source_configuration": "Default",
+    "api": "IModelDocExtension.SaveAs3 with swSaveAsOptions_Silent | swSaveAsOptions_Copy",
+    "preferences_at_export": {
+      "swParasolidOutputVersion": 0,
+      "swExportStlUnits": 0,
+      "swSTLQuality": 2,
+      "swStepAP": 203,
+      "swSTLBinaryFormat": true,
+      "swSTLDontTranslateToPositive": false,
+      "sw3MFAppearances": false,
+      "sw3MFMaterials": false,
+      "sw3MFDecals": false,
+      "swStepExportPreference": 0,
+      "swStepExportFaceEdgeProps": true,
+      "swStepExportSplitPeriodic": true,
+      "swStepExport3DCurveFeatures": false,
+      "swStepExportAppearances": false,
+      "swStepExportConfigurationData": false
+    }
+  },
+  "o02_boxA.step": {
+    "type": "export",
+    "format": "STEP (ISO 10303-21)",
+    "source_document": "o02_boxA.SLDPRT",
+    "source_configuration": "Default",
+    "api": "IModelDocExtension.SaveAs3 with swSaveAsOptions_Silent | swSaveAsOptions_Copy",
+    "preferences_at_export": {
+      "swParasolidOutputVersion": 0,
+      "swExportStlUnits": 0,
+      "swSTLQuality": 2,
+      "swStepAP": 203,
+      "swSTLBinaryFormat": true,
+      "swSTLDontTranslateToPositive": false,
+      "sw3MFAppearances": false,
+      "sw3MFMaterials": false,
+      "sw3MFDecals": false,
+      "swStepExportPreference": 0,
+      "swStepExportFaceEdgeProps": true,
+      "swStepExportSplitPeriodic": true,
+      "swStepExport3DCurveFeatures": false,
+      "swStepExportAppearances": false,
+      "swStepExportConfigurationData": false
+    }
+  },
+  "o02_boxA.STL": {
+    "type": "export",
+    "format": "STL",
+    "source_document": "o02_boxA.SLDPRT",
+    "source_configuration": "Default",
+    "api": "IModelDocExtension.SaveAs3 with swSaveAsOptions_Silent | swSaveAsOptions_Copy",
+    "preferences_at_export": {
+      "swParasolidOutputVersion": 0,
+      "swExportStlUnits": 0,
+      "swSTLQuality": 2,
+      "swStepAP": 203,
+      "swSTLBinaryFormat": true,
+      "swSTLDontTranslateToPositive": false,
+      "sw3MFAppearances": false,
+      "sw3MFMaterials": false,
+      "sw3MFDecals": false,
+      "swStepExportPreference": 0,
+      "swStepExportFaceEdgeProps": true,
+      "swStepExportSplitPeriodic": true,
+      "swStepExport3DCurveFeatures": false,
+      "swStepExportAppearances": false,
+      "swStepExportConfigurationData": false
+    }
+  },
+  "o02_boxA.3mf": {
+    "type": "export",
+    "format": "3MF package",
+    "source_document": "o02_boxA.SLDPRT",
+    "source_configuration": "Default",
+    "api": "IModelDocExtension.SaveAs3 with swSaveAsOptions_Silent | swSaveAsOptions_Copy",
+    "preferences_at_export": {
+      "swParasolidOutputVersion": 0,
+      "swExportStlUnits": 0,
+      "swSTLQuality": 2,
+      "swStepAP": 203,
+      "swSTLBinaryFormat": true,
+      "swSTLDontTranslateToPositive": false,
+      "sw3MFAppearances": false,
+      "sw3MFMaterials": false,
+      "sw3MFDecals": false,
+      "swStepExportPreference": 0,
+      "swStepExportFaceEdgeProps": true,
+      "swStepExportSplitPeriodic": true,
+      "swStepExport3DCurveFeatures": false,
+      "swStepExportAppearances": false,
+      "swStepExportConfigurationData": false
+    }
+  },
+  "o04_boxA_props.SLDPRT": {
+    "generation": {
+      "step": "o02_o06",
+      "template": "C:\\ProgramData\\SolidWorks\\SOLIDWORKS 2024\\templates\\Part.prtdot",
+      "recipe": "o02 plus file properties PartNo, Description (text) and Qty (number 42)."
+    },
+    "type": "part",
+    "api": {
+      "version_history": [
+        "17000[2024/16]"
+      ],
+      "open_error": 0,
+      "open_error_names": [],
+      "open_warnings": 0,
+      "open_warning_names": [],
+      "document_type": 1,
+      "unit_system": 5,
+      "configuration_names": [
+        "Default"
+      ],
+      "active_configuration": "Default",
+      "features": [
+        {
+          "name": "Comments",
+          "type": "CommentsFolder"
+        },
+        {
+          "name": "Favorites",
+          "type": "FavoriteFolder"
+        },
+        {
+          "name": "Folder ",
+          "type": "HistoryFolder"
+        },
+        {
+          "name": "Selection Sets",
+          "type": "SelectionSetFolder"
+        },
+        {
+          "name": "Sensors",
+          "type": "SensorFolder"
+        },
+        {
+          "name": "Design Binder",
+          "type": "DocsFolder"
+        },
+        {
+          "name": "Annotations",
+          "type": "DetailCabinet"
+        },
+        {
+          "name": "Surface Bodies",
+          "type": "SurfaceBodyFolder"
+        },
+        {
+          "name": "Solid Bodies",
+          "type": "SolidBodyFolder"
+        },
+        {
+          "name": "Lights and Cameras",
+          "type": "EnvFolder"
+        },
+        {
+          "name": "Markups",
+          "type": "InkMarkupFolder"
+        },
+        {
+          "name": "Equations",
+          "type": "EqnFolder"
+        },
+        {
+          "name": "Material <not specified>",
+          "type": "MaterialFolder"
+        },
+        {
+          "name": "Front Plane",
+          "type": "RefPlane"
+        },
+        {
+          "name": "Top Plane",
+          "type": "RefPlane"
+        },
+        {
+          "name": "Right Plane",
+          "type": "RefPlane"
+        },
+        {
+          "name": "Origin",
+          "type": "OriginProfileFeature"
+        },
+        {
+          "name": "Sketch1",
+          "type": "ProfileFeature"
+        },
+        {
+          "name": "Boss-Extrude1",
+          "type": "Extrusion"
+        }
+      ],
+      "configurations": {
+        "Default": {
+          "shown": false,
+          "rebuilt": true,
+          "comment": "",
+          "alternate_name": "",
+          "file_properties": [
+            {
+              "name": "PartNo",
+              "type": "Text",
+              "type_id": 30,
+              "expression": "ORACLE-PN-123",
+              "evaluated": "ORACLE-PN-123",
+              "was_resolved": true,
+              "linked": false,
+              "get6_result": 2
+            },
+            {
+              "name": "Description",
+              "type": "Text",
+              "type_id": 30,
+              "expression": "Oracle test box",
+              "evaluated": "Oracle test box",
+              "was_resolved": true,
+              "linked": false,
+              "get6_result": 2
+            },
+            {
+              "name": "Qty",
+              "type": "Number",
+              "type_id": 3,
+              "expression": "42",
+              "evaluated": "42",
+              "was_resolved": true,
+              "linked": false,
+              "get6_result": 2
+            }
+          ],
+          "configuration_properties": [],
+          "mass_properties_status": 0,
+          "volume_m3": 5.9999999999999993E-06,
+          "surface_area_m2": 0.0022,
+          "mass_kg": 0.0059999999999999993,
+          "center_of_mass_m": [0.005, 0.01, 0.015000000000000001],
+          "density_kg_m3": 1000,
+          "material": null,
+          "material_database": null,
+          "solid_bodies": 1,
+          "bodies": [
+            {
+              "name": "Boss-Extrude1",
+              "faces": 6,
+              "edges": 12,
+              "face_surface_types": {
+                "plane": 6
+              },
+              "box_m": [0, 0, 0, 0.01, 0.02, 0.03]
+            }
+          ],
+          "bounding_box_m": [0, 0, 0, 0.01, 0.02, 0.03]
+        }
+      }
+    },
+    "kit_container_scan": {
+      "source": "the kit's own parse of the saved file's container (PathScan.Members), not a SOLIDWORKS API value",
+      "partition_streams": [
+        "Contents/Config-0-Partition"
+      ]
+    }
+  },
+  "o05_boxA_props_mat.SLDPRT": {
+    "generation": {
+      "step": "o02_o06",
+      "template": "C:\\ProgramData\\SolidWorks\\SOLIDWORKS 2024\\templates\\Part.prtdot",
+      "recipe": "o04 plus material 1060 Alloy from SOLIDWORKS Materials."
+    },
+    "type": "part",
+    "api": {
+      "version_history": [
+        "17000[2024/16]"
+      ],
+      "open_error": 0,
+      "open_error_names": [],
+      "open_warnings": 0,
+      "open_warning_names": [],
+      "document_type": 1,
+      "unit_system": 5,
+      "configuration_names": [
+        "Default"
+      ],
+      "active_configuration": "Default",
+      "features": [
+        {
+          "name": "Comments",
+          "type": "CommentsFolder"
+        },
+        {
+          "name": "Favorites",
+          "type": "FavoriteFolder"
+        },
+        {
+          "name": "Folder ",
+          "type": "HistoryFolder"
+        },
+        {
+          "name": "Selection Sets",
+          "type": "SelectionSetFolder"
+        },
+        {
+          "name": "Sensors",
+          "type": "SensorFolder"
+        },
+        {
+          "name": "Design Binder",
+          "type": "DocsFolder"
+        },
+        {
+          "name": "Annotations",
+          "type": "DetailCabinet"
+        },
+        {
+          "name": "Surface Bodies",
+          "type": "SurfaceBodyFolder"
+        },
+        {
+          "name": "Solid Bodies",
+          "type": "SolidBodyFolder"
+        },
+        {
+          "name": "Lights and Cameras",
+          "type": "EnvFolder"
+        },
+        {
+          "name": "Markups",
+          "type": "InkMarkupFolder"
+        },
+        {
+          "name": "Equations",
+          "type": "EqnFolder"
+        },
+        {
+          "name": "1060 Alloy",
+          "type": "MaterialFolder"
+        },
+        {
+          "name": "Front Plane",
+          "type": "RefPlane"
+        },
+        {
+          "name": "Top Plane",
+          "type": "RefPlane"
+        },
+        {
+          "name": "Right Plane",
+          "type": "RefPlane"
+        },
+        {
+          "name": "Origin",
+          "type": "OriginProfileFeature"
+        },
+        {
+          "name": "Sketch1",
+          "type": "ProfileFeature"
+        },
+        {
+          "name": "Boss-Extrude1",
+          "type": "Extrusion"
+        }
+      ],
+      "configurations": {
+        "Default": {
+          "shown": false,
+          "rebuilt": true,
+          "comment": "",
+          "alternate_name": "",
+          "file_properties": [
+            {
+              "name": "PartNo",
+              "type": "Text",
+              "type_id": 30,
+              "expression": "ORACLE-PN-123",
+              "evaluated": "ORACLE-PN-123",
+              "was_resolved": true,
+              "linked": false,
+              "get6_result": 2
+            },
+            {
+              "name": "Description",
+              "type": "Text",
+              "type_id": 30,
+              "expression": "Oracle test box",
+              "evaluated": "Oracle test box",
+              "was_resolved": true,
+              "linked": false,
+              "get6_result": 2
+            },
+            {
+              "name": "Qty",
+              "type": "Number",
+              "type_id": 3,
+              "expression": "42",
+              "evaluated": "42",
+              "was_resolved": true,
+              "linked": false,
+              "get6_result": 2
+            }
+          ],
+          "configuration_properties": [],
+          "mass_properties_status": 0,
+          "volume_m3": 5.9999999999999993E-06,
+          "surface_area_m2": 0.0022,
+          "mass_kg": 0.0162,
+          "center_of_mass_m": [0.0049999999999999992, 0.0099999999999999985, 0.015],
+          "density_kg_m3": 2700,
+          "material": "1060 Alloy",
+          "material_database": "SOLIDWORKS Materials",
+          "solid_bodies": 1,
+          "bodies": [
+            {
+              "name": "Boss-Extrude1",
+              "faces": 6,
+              "edges": 12,
+              "face_surface_types": {
+                "plane": 6
+              },
+              "box_m": [0, 0, 0, 0.01, 0.02, 0.03]
+            }
+          ],
+          "bounding_box_m": [0, 0, 0, 0.01, 0.02, 0.03]
+        }
+      }
+    },
+    "kit_container_scan": {
+      "source": "the kit's own parse of the saved file's container (PathScan.Members), not a SOLIDWORKS API value",
+      "partition_streams": [
+        "Contents/Config-0-Partition"
+      ]
+    }
+  },
+  "o06_boxA_props_mat_cfg.SLDPRT": {
+    "generation": {
+      "step": "o02_o06",
+      "template": "C:\\ProgramData\\SolidWorks\\SOLIDWORKS 2024\\templates\\Part.prtdot",
+      "recipe": "o05 plus configuration OracleAlt (comment 'oracle alt config') with property CfgOnly; Default active at save."
+    },
+    "type": "part",
+    "api": {
+      "version_history": [
+        "17000[2024/16]"
+      ],
+      "open_error": 0,
+      "open_error_names": [],
+      "open_warnings": 0,
+      "open_warning_names": [],
+      "document_type": 1,
+      "unit_system": 5,
+      "configuration_names": [
+        "Default",
+        "OracleAlt"
+      ],
+      "active_configuration": "Default",
+      "features": [
+        {
+          "name": "Comments",
+          "type": "CommentsFolder"
+        },
+        {
+          "name": "Configuration Comments",
+          "type": "ConfigCommentsFolder"
+        },
+        {
+          "name": "Favorites",
+          "type": "FavoriteFolder"
+        },
+        {
+          "name": "Folder ",
+          "type": "HistoryFolder"
+        },
+        {
+          "name": "Selection Sets",
+          "type": "SelectionSetFolder"
+        },
+        {
+          "name": "Sensors",
+          "type": "SensorFolder"
+        },
+        {
+          "name": "Design Binder",
+          "type": "DocsFolder"
+        },
+        {
+          "name": "Annotations",
+          "type": "DetailCabinet"
+        },
+        {
+          "name": "Surface Bodies",
+          "type": "SurfaceBodyFolder"
+        },
+        {
+          "name": "Solid Bodies",
+          "type": "SolidBodyFolder"
+        },
+        {
+          "name": "Lights and Cameras",
+          "type": "EnvFolder"
+        },
+        {
+          "name": "Markups",
+          "type": "InkMarkupFolder"
+        },
+        {
+          "name": "Equations",
+          "type": "EqnFolder"
+        },
+        {
+          "name": "1060 Alloy",
+          "type": "MaterialFolder"
+        },
+        {
+          "name": "Front Plane",
+          "type": "RefPlane"
+        },
+        {
+          "name": "Top Plane",
+          "type": "RefPlane"
+        },
+        {
+          "name": "Right Plane",
+          "type": "RefPlane"
+        },
+        {
+          "name": "Origin",
+          "type": "OriginProfileFeature"
+        },
+        {
+          "name": "Sketch1",
+          "type": "ProfileFeature"
+        },
+        {
+          "name": "Boss-Extrude1",
+          "type": "Extrusion"
+        }
+      ],
+      "configurations": {
+        "Default": {
+          "shown": false,
+          "rebuilt": true,
+          "comment": "",
+          "alternate_name": "",
+          "file_properties": [
+            {
+              "name": "PartNo",
+              "type": "Text",
+              "type_id": 30,
+              "expression": "ORACLE-PN-123",
+              "evaluated": "ORACLE-PN-123",
+              "was_resolved": true,
+              "linked": false,
+              "get6_result": 2
+            },
+            {
+              "name": "Description",
+              "type": "Text",
+              "type_id": 30,
+              "expression": "Oracle test box",
+              "evaluated": "Oracle test box",
+              "was_resolved": true,
+              "linked": false,
+              "get6_result": 2
+            },
+            {
+              "name": "Qty",
+              "type": "Number",
+              "type_id": 3,
+              "expression": "42",
+              "evaluated": "42",
+              "was_resolved": true,
+              "linked": false,
+              "get6_result": 2
+            }
+          ],
+          "configuration_properties": [],
+          "mass_properties_status": 0,
+          "volume_m3": 5.9999999999999993E-06,
+          "surface_area_m2": 0.0022,
+          "mass_kg": 0.0162,
+          "center_of_mass_m": [0.0049999999999999992, 0.0099999999999999985, 0.015],
+          "density_kg_m3": 2700,
+          "material": "1060 Alloy",
+          "material_database": "SOLIDWORKS Materials",
+          "solid_bodies": 1,
+          "bodies": [
+            {
+              "name": "Boss-Extrude1",
+              "faces": 6,
+              "edges": 12,
+              "face_surface_types": {
+                "plane": 6
+              },
+              "box_m": [0, 0, 0, 0.01, 0.02, 0.03]
+            }
+          ],
+          "bounding_box_m": [0, 0, 0, 0.01, 0.02, 0.03]
+        },
+        "OracleAlt": {
+          "shown": true,
+          "rebuilt": true,
+          "comment": "oracle alt config",
+          "alternate_name": "",
+          "file_properties": [
+            {
+              "name": "PartNo",
+              "type": "Text",
+              "type_id": 30,
+              "expression": "ORACLE-PN-123",
+              "evaluated": "ORACLE-PN-123",
+              "was_resolved": true,
+              "linked": false,
+              "get6_result": 2
+            },
+            {
+              "name": "Description",
+              "type": "Text",
+              "type_id": 30,
+              "expression": "Oracle test box",
+              "evaluated": "Oracle test box",
+              "was_resolved": true,
+              "linked": false,
+              "get6_result": 2
+            },
+            {
+              "name": "Qty",
+              "type": "Number",
+              "type_id": 3,
+              "expression": "42",
+              "evaluated": "42",
+              "was_resolved": true,
+              "linked": false,
+              "get6_result": 2
+            }
+          ],
+          "configuration_properties": [
+            {
+              "name": "CfgOnly",
+              "type": "Text",
+              "type_id": 30,
+              "expression": "ALT-VALUE",
+              "evaluated": "ALT-VALUE",
+              "was_resolved": true,
+              "linked": false,
+              "get6_result": 2
+            }
+          ],
+          "mass_properties_status": 0,
+          "volume_m3": 5.9999999999999993E-06,
+          "surface_area_m2": 0.0022,
+          "mass_kg": 0.0162,
+          "center_of_mass_m": [0.0049999999999999992, 0.0099999999999999985, 0.015],
+          "density_kg_m3": 2700,
+          "material": "1060 Alloy",
+          "material_database": "SOLIDWORKS Materials",
+          "solid_bodies": 1,
+          "bodies": [
+            {
+              "name": "Boss-Extrude1",
+              "faces": 6,
+              "edges": 12,
+              "face_surface_types": {
+                "plane": 6
+              },
+              "box_m": [0, 0, 0, 0.01, 0.02, 0.03]
+            }
+          ],
+          "bounding_box_m": [0, 0, 0, 0.01, 0.02, 0.03]
+        }
+      }
+    },
+    "kit_container_scan": {
+      "source": "the kit's own parse of the saved file's container (PathScan.Members), not a SOLIDWORKS API value",
+      "partition_streams": [
+        "Contents/Config-0-Partition"
+      ]
+    }
+  },
+  "o07_boxB_h31.SLDPRT": {
+    "generation": {
+      "step": "o07",
+      "template": "C:\\ProgramData\\SolidWorks\\SOLIDWORKS 2024\\templates\\Part.prtdot",
+      "recipe": "Same as o02 but extruded 31 mm.",
+      "template_unit_system": 5
+    },
+    "type": "part",
+    "api": {
+      "version_history": [
+        "17000[2024/16]"
+      ],
+      "open_error": 0,
+      "open_error_names": [],
+      "open_warnings": 0,
+      "open_warning_names": [],
+      "document_type": 1,
+      "unit_system": 5,
+      "configuration_names": [
+        "Default"
+      ],
+      "active_configuration": "Default",
+      "features": [
+        {
+          "name": "Comments",
+          "type": "CommentsFolder"
+        },
+        {
+          "name": "Favorites",
+          "type": "FavoriteFolder"
+        },
+        {
+          "name": "Folder ",
+          "type": "HistoryFolder"
+        },
+        {
+          "name": "Selection Sets",
+          "type": "SelectionSetFolder"
+        },
+        {
+          "name": "Sensors",
+          "type": "SensorFolder"
+        },
+        {
+          "name": "Design Binder",
+          "type": "DocsFolder"
+        },
+        {
+          "name": "Annotations",
+          "type": "DetailCabinet"
+        },
+        {
+          "name": "Surface Bodies",
+          "type": "SurfaceBodyFolder"
+        },
+        {
+          "name": "Solid Bodies",
+          "type": "SolidBodyFolder"
+        },
+        {
+          "name": "Lights and Cameras",
+          "type": "EnvFolder"
+        },
+        {
+          "name": "Markups",
+          "type": "InkMarkupFolder"
+        },
+        {
+          "name": "Equations",
+          "type": "EqnFolder"
+        },
+        {
+          "name": "Material <not specified>",
+          "type": "MaterialFolder"
+        },
+        {
+          "name": "Front Plane",
+          "type": "RefPlane"
+        },
+        {
+          "name": "Top Plane",
+          "type": "RefPlane"
+        },
+        {
+          "name": "Right Plane",
+          "type": "RefPlane"
+        },
+        {
+          "name": "Origin",
+          "type": "OriginProfileFeature"
+        },
+        {
+          "name": "Sketch1",
+          "type": "ProfileFeature"
+        },
+        {
+          "name": "Boss-Extrude1",
+          "type": "Extrusion"
+        }
+      ],
+      "configurations": {
+        "Default": {
+          "shown": false,
+          "rebuilt": true,
+          "comment": "",
+          "alternate_name": "",
+          "file_properties": [],
+          "configuration_properties": [],
+          "mass_properties_status": 0,
+          "volume_m3": 6.2E-06,
+          "surface_area_m2": 0.0022600000000000003,
+          "mass_kg": 0.0062,
+          "center_of_mass_m": [0.005, 0.01, 0.0155],
+          "density_kg_m3": 1000,
+          "material": null,
+          "material_database": null,
+          "solid_bodies": 1,
+          "bodies": [
+            {
+              "name": "Boss-Extrude1",
+              "faces": 6,
+              "edges": 12,
+              "face_surface_types": {
+                "plane": 6
+              },
+              "box_m": [0, 0, 0, 0.01, 0.02, 0.031]
+            }
+          ],
+          "bounding_box_m": [0, 0, 0, 0.01, 0.02, 0.031]
+        }
+      }
+    },
+    "kit_container_scan": {
+      "source": "the kit's own parse of the saved file's container (PathScan.Members), not a SOLIDWORKS API value",
+      "partition_streams": [
+        "Contents/Config-0-Partition"
+      ]
+    }
+  },
+  "o07_boxB_h31.x_b": {
+    "type": "export",
+    "format": "Parasolid binary transmit (.x_b)",
+    "source_document": "o07_boxB_h31.SLDPRT",
+    "source_configuration": "Default",
+    "api": "IModelDocExtension.SaveAs3 with swSaveAsOptions_Silent | swSaveAsOptions_Copy",
+    "preferences_at_export": {
+      "swParasolidOutputVersion": 0,
+      "swExportStlUnits": 0,
+      "swSTLQuality": 2,
+      "swStepAP": 203,
+      "swSTLBinaryFormat": true,
+      "swSTLDontTranslateToPositive": false,
+      "sw3MFAppearances": false,
+      "sw3MFMaterials": false,
+      "sw3MFDecals": false,
+      "swStepExportPreference": 0,
+      "swStepExportFaceEdgeProps": true,
+      "swStepExportSplitPeriodic": true,
+      "swStepExport3DCurveFeatures": false,
+      "swStepExportAppearances": false,
+      "swStepExportConfigurationData": false
+    }
+  },
+  "o08_asm_2x_boxA.SLDASM": {
+    "generation": {
+      "step": "o08",
+      "template": "C:\\ProgramData\\SolidWorks\\SOLIDWORKS 2024\\templates\\MBD\\assembly 0250mm and smaller.asmdot",
+      "recipe": "New assembly from the MBD assembly template 'assembly 0250mm and smaller' with o02 inserted twice by AddComponent5 at (0,0,0) and (0.05,0,0); those numbers place the bounding-box centre, not the origin. SaveAs3 Silent|Copy.",
+      "template_unit_system": 5
+    },
+    "type": "assembly",
+    "api": {
+      "version_history": [
+        "10000[2016/280,2017/33]",
+        "10191[2017/151]",
+        "10800[2017/235]",
+        "11800[2018/235]",
+        "12000[2018/256]",
+        "12800[2019/246]",
+        "13000[2019/255]",
+        "15800[2022/207]",
+        "16000[2022/235]",
+        "16800[2023/211]",
+        "17000[2023/241,2024/16]"
+      ],
+      "open_error": 0,
+      "open_error_names": [],
+      "open_warnings": 0,
+      "open_warning_names": [],
+      "document_type": 2,
+      "unit_system": 5,
+      "configuration_names": [
+        "Default"
+      ],
+      "active_configuration": "Default",
+      "configurations": {
+        "Default": {
+          "shown": false,
+          "rebuilt": true,
+          "comment": "",
+          "alternate_name": "",
+          "file_properties": [],
+          "configuration_properties": [],
+          "mass_properties_status": 0,
+          "volume_m3": 1.1999999999999999E-05,
+          "surface_area_m2": 0.0044,
+          "mass_kg": 0.011999999999999999,
+          "center_of_mass_m": [0.025, 0, 1.7347234759768071E-18],
+          "density_kg_m3": 1000,
+          "bounding_box_m": [-0.005, -0.01, -0.015, 0.055, 0.01, 0.015],
+          "components": [
+            {
+              "name": "o02_boxA-2",
+              "parent": null,
+              "depth": 1,
+              "file_name": "o02_boxA.SLDPRT",
+              "path": "o02_boxA.SLDPRT",
+              "referenced_configuration": "Default",
+              "suppression_state": 2,
+              "suppression_state_name": "fully resolved",
+              "suppressed": false,
+              "exclude_from_bom": false,
+              "virtual": false,
+              "pattern_instance": false,
+              "fixed": false,
+              "visibility": 1,
+              "hidden": false,
+              "transform_array_data": [1, 0, 0, 0, 1, 0, 0, 0, 1, 0.045000000000000005, -0.01, -0.015, 1, 0, 0, 0],
+              "point_probe": [
+                [0.045000000000000005, -0.01, -0.015],
+                [1.045, -0.01, -0.015],
+                [0.045000000000000005, 0.99, -0.015],
+                [0.045000000000000005, -0.01, 0.985]
+              ],
+              "box_m": [0.045000000000000005, -0.01, -0.015, 0.055, 0.01, 0.015]
+            },
+            {
+              "name": "o02_boxA-1",
+              "parent": null,
+              "depth": 1,
+              "file_name": "o02_boxA.SLDPRT",
+              "path": "o02_boxA.SLDPRT",
+              "referenced_configuration": "Default",
+              "suppression_state": 2,
+              "suppression_state_name": "fully resolved",
+              "suppressed": false,
+              "exclude_from_bom": false,
+              "virtual": false,
+              "pattern_instance": false,
+              "fixed": true,
+              "visibility": 1,
+              "hidden": false,
+              "transform_array_data": [1, 0, 0, 0, 1, 0, 0, 0, 1, -0.005, -0.01, -0.015, 1, 0, 0, 0],
+              "point_probe": [
+                [-0.005, -0.01, -0.015],
+                [0.995, -0.01, -0.015],
+                [-0.005, 0.99, -0.015],
+                [-0.005, -0.01, 0.985]
+              ],
+              "box_m": [-0.005, -0.01, -0.015, 0.005, 0.01, 0.015]
+            }
+          ]
+        }
+      }
+    }
+  },
+  "o09_import_step.SLDPRT": {
+    "generation": {
+      "step": "o09_o10",
+      "template": "C:\\ProgramData\\SolidWorks\\SOLIDWORKS 2024\\templates\\Part.prtdot",
+      "recipe": "o02_boxA.step (written earlier in this run) imported with LoadFile4(path, \"r\") into a new part, saved with SaveAs3 Silent|Copy. The import uses this account's default part template.",
+      "3d_interconnect_before_import": true,
+      "3d_interconnect_during_import": true,
+      "notes": [
+        "current-account mode: 3D Interconnect is on and was left on, so the import goes through 3D Interconnect"
+      ],
+      "template_unit_system": 5,
+      "features_after_import": [
+        "Comments [CommentsFolder]",
+        "Favorites [FavoriteFolder]",
+        "Folder  [HistoryFolder]",
+        "Selection Sets [SelectionSetFolder]",
+        "Sensors [SensorFolder]",
+        "Design Binder [DocsFolder]",
+        "Annotations [DetailCabinet]",
+        "Surface Bodies [SurfaceBodyFolder]",
+        "Solid Bodies [SolidBodyFolder]",
+        "Lights and Cameras [EnvFolder]",
+        "Markups [InkMarkupFolder]",
+        "Equations [EqnFolder]",
+        "Material <not specified> [MaterialFolder]",
+        "Front Plane [RefPlane]",
+        "Top Plane [RefPlane]",
+        "Right Plane [RefPlane]",
+        "Origin [OriginProfileFeature]",
+        "o02_boxA.step<1> [MBimport]"
+      ],
+      "import_feature": {
+        "name": "o02_boxA.step<1>",
+        "type": "MBimport"
+      },
+      "import_route": "3D Interconnect (MBimport feature)"
+    },
+    "type": "part",
+    "api": {
+      "version_history": [
+        "17000[2024/16]"
+      ],
+      "open_error": 0,
+      "open_error_names": [],
+      "open_warnings": 0,
+      "open_warning_names": [],
+      "document_type": 1,
+      "unit_system": 5,
+      "configuration_names": [
+        "Default"
+      ],
+      "active_configuration": "Default",
+      "features": [
+        {
+          "name": "Comments",
+          "type": "CommentsFolder"
+        },
+        {
+          "name": "Favorites",
+          "type": "FavoriteFolder"
+        },
+        {
+          "name": "Folder ",
+          "type": "HistoryFolder"
+        },
+        {
+          "name": "Selection Sets",
+          "type": "SelectionSetFolder"
+        },
+        {
+          "name": "Sensors",
+          "type": "SensorFolder"
+        },
+        {
+          "name": "Design Binder",
+          "type": "DocsFolder"
+        },
+        {
+          "name": "Annotations",
+          "type": "DetailCabinet"
+        },
+        {
+          "name": "Surface Bodies",
+          "type": "SurfaceBodyFolder"
+        },
+        {
+          "name": "Solid Bodies",
+          "type": "SolidBodyFolder"
+        },
+        {
+          "name": "Lights and Cameras",
+          "type": "EnvFolder"
+        },
+        {
+          "name": "Markups",
+          "type": "InkMarkupFolder"
+        },
+        {
+          "name": "Equations",
+          "type": "EqnFolder"
+        },
+        {
+          "name": "Material <not specified>",
+          "type": "MaterialFolder"
+        },
+        {
+          "name": "Front Plane",
+          "type": "RefPlane"
+        },
+        {
+          "name": "Top Plane",
+          "type": "RefPlane"
+        },
+        {
+          "name": "Right Plane",
+          "type": "RefPlane"
+        },
+        {
+          "name": "Origin",
+          "type": "OriginProfileFeature"
+        },
+        {
+          "name": "o02_boxA.step<1>",
+          "type": "MBimport"
+        }
+      ],
+      "configurations": {
+        "Default": {
+          "shown": false,
+          "rebuilt": true,
+          "comment": "",
+          "alternate_name": "",
+          "file_properties": [
+            {
+              "name": "Nomenclature",
+              "type": "Text",
+              "type_id": 30,
+              "expression": "o02_boxA",
+              "evaluated": "o02_boxA",
+              "was_resolved": true,
+              "linked": false,
+              "get6_result": 2
+            },
+            {
+              "name": "Part Number",
+              "type": "Text",
+              "type_id": 30,
+              "expression": "o02_boxA",
+              "evaluated": "o02_boxA",
+              "was_resolved": true,
+              "linked": false,
+              "get6_result": 2
+            },
+            {
+              "name": "Source",
+              "type": "Text",
+              "type_id": 30,
+              "expression": "NOT_KNOWN",
+              "evaluated": "NOT_KNOWN",
+              "was_resolved": true,
+              "linked": false,
+              "get6_result": 2
+            },
+            {
+              "name": "Revision",
+              "type": "Text",
+              "type_id": 30,
+              "expression": "ANY",
+              "evaluated": "ANY",
+              "was_resolved": true,
+              "linked": false,
+              "get6_result": 2
+            },
+            {
+              "name": "Definition",
+              "type": "Text",
+              "type_id": 30,
+              "expression": "UNKNOWN",
+              "evaluated": "UNKNOWN",
+              "was_resolved": true,
+              "linked": false,
+              "get6_result": 2
+            }
+          ],
+          "configuration_properties": [],
+          "mass_properties_status": 0,
+          "volume_m3": 5.9999999999999993E-06,
+          "surface_area_m2": 0.0021999999999999997,
+          "mass_kg": 0.0059999999999999993,
+          "center_of_mass_m": [0.005, 0.01, 0.015000000000000001],
+          "density_kg_m3": 1000,
+          "material": null,
+          "material_database": null,
+          "solid_bodies": 1,
+          "bodies": [
+            {
+              "name": "o02_boxA.step<1>",
+              "faces": 6,
+              "edges": 12,
+              "face_surface_types": {
+                "plane": 6
+              },
+              "box_m": [0, 0, 0, 0.01, 0.02, 0.03]
+            }
+          ],
+          "bounding_box_m": [0, 0, 0, 0.01, 0.02, 0.03]
+        }
+      }
+    },
+    "kit_container_scan": {
+      "source": "the kit's own parse of the saved file's container (PathScan.Members), not a SOLIDWORKS API value",
+      "partition_streams": [
+        "Contents/Config-0-Partition"
+      ]
+    }
+  },
+  "o10_import_step_cut.SLDPRT": {
+    "generation": {
+      "step": "o09_o10",
+      "template": "C:\\ProgramData\\SolidWorks\\SOLIDWORKS 2024\\templates\\Part.prtdot",
+      "recipe": "o09 plus a 5 mm diameter circle at (5, 10) mm on the Front Plane, cut through all in both directions (FeatureCut4)."
+    },
+    "type": "part",
+    "api": {
+      "version_history": [
+        "17000[2024/16]"
+      ],
+      "open_error": 0,
+      "open_error_names": [],
+      "open_warnings": 0,
+      "open_warning_names": [],
+      "document_type": 1,
+      "unit_system": 5,
+      "configuration_names": [
+        "Default"
+      ],
+      "active_configuration": "Default",
+      "features": [
+        {
+          "name": "Comments",
+          "type": "CommentsFolder"
+        },
+        {
+          "name": "Favorites",
+          "type": "FavoriteFolder"
+        },
+        {
+          "name": "Folder ",
+          "type": "HistoryFolder"
+        },
+        {
+          "name": "Selection Sets",
+          "type": "SelectionSetFolder"
+        },
+        {
+          "name": "Sensors",
+          "type": "SensorFolder"
+        },
+        {
+          "name": "Design Binder",
+          "type": "DocsFolder"
+        },
+        {
+          "name": "Annotations",
+          "type": "DetailCabinet"
+        },
+        {
+          "name": "Surface Bodies",
+          "type": "SurfaceBodyFolder"
+        },
+        {
+          "name": "Solid Bodies",
+          "type": "SolidBodyFolder"
+        },
+        {
+          "name": "Lights and Cameras",
+          "type": "EnvFolder"
+        },
+        {
+          "name": "Markups",
+          "type": "InkMarkupFolder"
+        },
+        {
+          "name": "Equations",
+          "type": "EqnFolder"
+        },
+        {
+          "name": "Material <not specified>",
+          "type": "MaterialFolder"
+        },
+        {
+          "name": "Front Plane",
+          "type": "RefPlane"
+        },
+        {
+          "name": "Top Plane",
+          "type": "RefPlane"
+        },
+        {
+          "name": "Right Plane",
+          "type": "RefPlane"
+        },
+        {
+          "name": "Origin",
+          "type": "OriginProfileFeature"
+        },
+        {
+          "name": "o02_boxA.step<1>",
+          "type": "MBimport"
+        },
+        {
+          "name": "Sketch1",
+          "type": "ProfileFeature"
+        },
+        {
+          "name": "Cut-Extrude1",
+          "type": "ICE"
+        }
+      ],
+      "configurations": {
+        "Default": {
+          "shown": false,
+          "rebuilt": true,
+          "comment": "",
+          "alternate_name": "",
+          "file_properties": [
+            {
+              "name": "Nomenclature",
+              "type": "Text",
+              "type_id": 30,
+              "expression": "o02_boxA",
+              "evaluated": "o02_boxA",
+              "was_resolved": true,
+              "linked": false,
+              "get6_result": 2
+            },
+            {
+              "name": "Part Number",
+              "type": "Text",
+              "type_id": 30,
+              "expression": "o02_boxA",
+              "evaluated": "o02_boxA",
+              "was_resolved": true,
+              "linked": false,
+              "get6_result": 2
+            },
+            {
+              "name": "Source",
+              "type": "Text",
+              "type_id": 30,
+              "expression": "NOT_KNOWN",
+              "evaluated": "NOT_KNOWN",
+              "was_resolved": true,
+              "linked": false,
+              "get6_result": 2
+            },
+            {
+              "name": "Revision",
+              "type": "Text",
+              "type_id": 30,
+              "expression": "ANY",
+              "evaluated": "ANY",
+              "was_resolved": true,
+              "linked": false,
+              "get6_result": 2
+            },
+            {
+              "name": "Definition",
+              "type": "Text",
+              "type_id": 30,
+              "expression": "UNKNOWN",
+              "evaluated": "UNKNOWN",
+              "was_resolved": true,
+              "linked": false,
+              "get6_result": 2
+            }
+          ],
+          "configuration_properties": [],
+          "mass_properties_status": 0,
+          "volume_m3": 5.4109513774519129E-06,
+          "surface_area_m2": 0.0026319689898685961,
+          "mass_kg": 0.0054109513774519133,
+          "center_of_mass_m": [0.005, 0.01, 0.014999999999999998],
+          "density_kg_m3": 1000.0000000000001,
+          "material": null,
+          "material_database": null,
+          "solid_bodies": 1,
+          "bodies": [
+            {
+              "name": "Cut-Extrude1",
+              "faces": 7,
+              "edges": 14,
+              "face_surface_types": {
+                "cylinder": 1,
+                "plane": 6
+              },
+              "box_m": [0, 0, 0, 0.01, 0.02, 0.03]
+            }
+          ],
+          "bounding_box_m": [0, 0, 0, 0.01, 0.02, 0.03]
+        }
+      }
+    },
+    "kit_container_scan": {
+      "source": "the kit's own parse of the saved file's container (PathScan.Members), not a SOLIDWORKS API value",
+      "partition_streams": [
+        "Contents/Config-0-Partition"
+      ]
+    }
+  },
+  "o11_curved.SLDPRT": {
+    "generation": {
+      "step": "o11",
+      "template": "C:\\ProgramData\\SolidWorks\\SOLIDWORKS 2024\\templates\\Part.prtdot",
+      "recipe": "Block 40 x 30 x 10 mm (rectangle on the Front Plane, extruded 10 mm along +Z), 3 mm fillets on the four edges parallel to Z, a 10 mm through hole at (20, 15) mm, and a 1 mm fillet on the hole's edge at z = 10 mm.",
+      "notes": [
+        "The four corner fillets only give cylindrical faces; the 1 mm fillet on the hole edge adds the toroidal face."
+      ],
+      "template_unit_system": 5,
+      "corner_fillets": "CreateDefinition(swFmFillet) with Edges as DispatchWrapper[] -> Fillet1",
+      "hole_edge_fillet": "CreateDefinition(swFmFillet) with Edges as DispatchWrapper[] -> Fillet2"
+    },
+    "type": "part",
+    "api": {
+      "version_history": [
+        "17000[2024/16]"
+      ],
+      "open_error": 0,
+      "open_error_names": [],
+      "open_warnings": 0,
+      "open_warning_names": [],
+      "document_type": 1,
+      "unit_system": 5,
+      "configuration_names": [
+        "Default"
+      ],
+      "active_configuration": "Default",
+      "features": [
+        {
+          "name": "Comments",
+          "type": "CommentsFolder"
+        },
+        {
+          "name": "Favorites",
+          "type": "FavoriteFolder"
+        },
+        {
+          "name": "Folder ",
+          "type": "HistoryFolder"
+        },
+        {
+          "name": "Selection Sets",
+          "type": "SelectionSetFolder"
+        },
+        {
+          "name": "Sensors",
+          "type": "SensorFolder"
+        },
+        {
+          "name": "Design Binder",
+          "type": "DocsFolder"
+        },
+        {
+          "name": "Annotations",
+          "type": "DetailCabinet"
+        },
+        {
+          "name": "Surface Bodies",
+          "type": "SurfaceBodyFolder"
+        },
+        {
+          "name": "Solid Bodies",
+          "type": "SolidBodyFolder"
+        },
+        {
+          "name": "Lights and Cameras",
+          "type": "EnvFolder"
+        },
+        {
+          "name": "Markups",
+          "type": "InkMarkupFolder"
+        },
+        {
+          "name": "Equations",
+          "type": "EqnFolder"
+        },
+        {
+          "name": "Material <not specified>",
+          "type": "MaterialFolder"
+        },
+        {
+          "name": "Front Plane",
+          "type": "RefPlane"
+        },
+        {
+          "name": "Top Plane",
+          "type": "RefPlane"
+        },
+        {
+          "name": "Right Plane",
+          "type": "RefPlane"
+        },
+        {
+          "name": "Origin",
+          "type": "OriginProfileFeature"
+        },
+        {
+          "name": "Sketch1",
+          "type": "ProfileFeature"
+        },
+        {
+          "name": "Boss-Extrude1",
+          "type": "Extrusion"
+        },
+        {
+          "name": "Fillet1",
+          "type": "Fillet"
+        },
+        {
+          "name": "Sketch2",
+          "type": "ProfileFeature"
+        },
+        {
+          "name": "Cut-Extrude1",
+          "type": "ICE"
+        },
+        {
+          "name": "Fillet2",
+          "type": "Fillet"
+        }
+      ],
+      "configurations": {
+        "Default": {
+          "shown": false,
+          "rebuilt": true,
+          "comment": "",
+          "alternate_name": "",
+          "file_properties": [],
+          "configuration_properties": [],
+          "mass_properties_status": 0,
+          "volume_m3": 1.1130302074337022E-05,
+          "surface_area_m2": 0.0038770848550334653,
+          "mass_kg": 0.011130302074337023,
+          "center_of_mass_m": [0.02, 0.015000000000000003, 0.0049969749076643781],
+          "density_kg_m3": 1000,
+          "material": null,
+          "material_database": null,
+          "solid_bodies": 1,
+          "bodies": [
+            {
+              "name": "Fillet2",
+              "faces": 12,
+              "edges": 27,
+              "face_surface_types": {
+                "cylinder": 5,
+                "plane": 6,
+                "torus": 1
+              },
+              "box_m": [0, 0, 0, 0.04, 0.03, 0.01]
+            }
+          ],
+          "bounding_box_m": [0, 0, 0, 0.04, 0.03, 0.01]
+        }
+      }
+    },
+    "kit_container_scan": {
+      "source": "the kit's own parse of the saved file's container (PathScan.Members), not a SOLIDWORKS API value",
+      "partition_streams": [
+        "Contents/Config-0-Partition"
+      ]
+    }
+  },
+  "o11_curved.x_b": {
+    "type": "export",
+    "format": "Parasolid binary transmit (.x_b)",
+    "source_document": "o11_curved.SLDPRT",
+    "source_configuration": "Default",
+    "api": "IModelDocExtension.SaveAs3 with swSaveAsOptions_Silent | swSaveAsOptions_Copy",
+    "preferences_at_export": {
+      "swParasolidOutputVersion": 0,
+      "swExportStlUnits": 0,
+      "swSTLQuality": 2,
+      "swStepAP": 203,
+      "swSTLBinaryFormat": true,
+      "swSTLDontTranslateToPositive": false,
+      "sw3MFAppearances": false,
+      "sw3MFMaterials": false,
+      "sw3MFDecals": false,
+      "swStepExportPreference": 0,
+      "swStepExportFaceEdgeProps": true,
+      "swStepExportSplitPeriodic": true,
+      "swStepExport3DCurveFeatures": false,
+      "swStepExportAppearances": false,
+      "swStepExportConfigurationData": false
+    }
+  },
+  "o12_multibody.SLDPRT": {
+    "generation": {
+      "step": "o12",
+      "template": "C:\\ProgramData\\SolidWorks\\SOLIDWORKS 2024\\templates\\Part.prtdot",
+      "recipe": "Box A (o02 recipe), then a second rectangle (30, 0)-(40, 20) mm on the Front Plane extruded 10 mm with Merge off (FeatureExtrusion3): two separate solid bodies that do not touch.",
+      "template_unit_system": 5,
+      "solid_bodies_at_save": 2
+    },
+    "type": "part",
+    "api": {
+      "version_history": [
+        "17000[2024/16]"
+      ],
+      "open_error": 0,
+      "open_error_names": [],
+      "open_warnings": 0,
+      "open_warning_names": [],
+      "document_type": 1,
+      "unit_system": 5,
+      "configuration_names": [
+        "Default"
+      ],
+      "active_configuration": "Default",
+      "features": [
+        {
+          "name": "Comments",
+          "type": "CommentsFolder"
+        },
+        {
+          "name": "Favorites",
+          "type": "FavoriteFolder"
+        },
+        {
+          "name": "Folder ",
+          "type": "HistoryFolder"
+        },
+        {
+          "name": "Selection Sets",
+          "type": "SelectionSetFolder"
+        },
+        {
+          "name": "Sensors",
+          "type": "SensorFolder"
+        },
+        {
+          "name": "Design Binder",
+          "type": "DocsFolder"
+        },
+        {
+          "name": "Annotations",
+          "type": "DetailCabinet"
+        },
+        {
+          "name": "Surface Bodies",
+          "type": "SurfaceBodyFolder"
+        },
+        {
+          "name": "Solid Bodies",
+          "type": "SolidBodyFolder"
+        },
+        {
+          "name": "Lights and Cameras",
+          "type": "EnvFolder"
+        },
+        {
+          "name": "Markups",
+          "type": "InkMarkupFolder"
+        },
+        {
+          "name": "Equations",
+          "type": "EqnFolder"
+        },
+        {
+          "name": "Material <not specified>",
+          "type": "MaterialFolder"
+        },
+        {
+          "name": "Front Plane",
+          "type": "RefPlane"
+        },
+        {
+          "name": "Top Plane",
+          "type": "RefPlane"
+        },
+        {
+          "name": "Right Plane",
+          "type": "RefPlane"
+        },
+        {
+          "name": "Origin",
+          "type": "OriginProfileFeature"
+        },
+        {
+          "name": "Sketch1",
+          "type": "ProfileFeature"
+        },
+        {
+          "name": "Boss-Extrude1",
+          "type": "Extrusion"
+        },
+        {
+          "name": "Sketch2",
+          "type": "ProfileFeature"
+        },
+        {
+          "name": "Boss-Extrude2",
+          "type": "ICE"
+        }
+      ],
+      "configurations": {
+        "Default": {
+          "shown": false,
+          "rebuilt": true,
+          "comment": "",
+          "alternate_name": "",
+          "file_properties": [],
+          "configuration_properties": [],
+          "mass_properties_status": 0,
+          "volume_m3": 8E-06,
+          "surface_area_m2": 0.0032000000000000006,
+          "mass_kg": 0.008,
+          "center_of_mass_m": [0.012500000000000002, 0.01, 0.012499999999999999],
+          "density_kg_m3": 1000.0000000000001,
+          "material": null,
+          "material_database": null,
+          "solid_bodies": 2,
+          "bodies": [
+            {
+              "name": "Boss-Extrude1",
+              "faces": 6,
+              "edges": 12,
+              "face_surface_types": {
+                "plane": 6
+              },
+              "box_m": [0, 0, 0, 0.01, 0.02, 0.03]
+            },
+            {
+              "name": "Boss-Extrude2",
+              "faces": 6,
+              "edges": 12,
+              "face_surface_types": {
+                "plane": 6
+              },
+              "box_m": [0.03, 0, 0, 0.04, 0.02, 0.01]
+            }
+          ],
+          "bounding_box_m": [0, 0, 0, 0.04, 0.02, 0.03]
+        }
+      }
+    },
+    "kit_container_scan": {
+      "source": "the kit's own parse of the saved file's container (PathScan.Members), not a SOLIDWORKS API value",
+      "partition_streams": [
+        "Contents/Config-0-Partition"
+      ]
+    }
+  },
+  "o12_multibody.x_b": {
+    "type": "export",
+    "format": "Parasolid binary transmit (.x_b)",
+    "source_document": "o12_multibody.SLDPRT",
+    "source_configuration": "Default",
+    "api": "IModelDocExtension.SaveAs3 with swSaveAsOptions_Silent | swSaveAsOptions_Copy",
+    "preferences_at_export": {
+      "swParasolidOutputVersion": 0,
+      "swExportStlUnits": 0,
+      "swSTLQuality": 2,
+      "swStepAP": 203,
+      "swSTLBinaryFormat": true,
+      "swSTLDontTranslateToPositive": false,
+      "sw3MFAppearances": false,
+      "sw3MFMaterials": false,
+      "sw3MFDecals": false,
+      "swStepExportPreference": 0,
+      "swStepExportFaceEdgeProps": true,
+      "swStepExportSplitPeriodic": true,
+      "swStepExport3DCurveFeatures": false,
+      "swStepExportAppearances": false,
+      "swStepExportConfigurationData": false
+    }
+  },
+  "o13_two_geometry_configs.SLDPRT": {
+    "generation": {
+      "step": "o13",
+      "template": "C:\\ProgramData\\SolidWorks\\SOLIDWORKS 2024\\templates\\Part.prtdot",
+      "recipe": "Box A (o02 recipe); configuration Tall added; the extrusion depth set to 45 mm in Tall only (Dimension.SetSystemValue3, this configuration); every configuration marked for rebuild-and-save, then shown and rebuilt; Default active at save. The kit's own container parser checks the saved file for one Partition stream per configuration (partition_streams; not a SOLIDWORKS value).",
+      "template_unit_system": 5,
+      "rebuild_save_mark": {
+        "Default": true,
+        "Tall": true
+      },
+      "depth_per_configuration_m": [0.03, 0.045],
+      "configuration_order": [
+        "Default",
+        "Tall"
+      ],
+      "partition_streams_after_save_as_copy": [
+        "Contents/Config-0-Partition"
+      ],
+      "partition_streams_after_save_as": [
+        "Contents/Config-0-Partition",
+        "Contents/Config-1-Partition"
+      ],
+      "notes": [
+        "the save as copy stored geometry for 1 of 2 configurations; the part was saved again under its final name without Copy (SaveAs3), giving partition streams: Contents/Config-0-Partition, Contents/Config-1-Partition"
+      ],
+      "partition_streams": [
+        "Contents/Config-0-Partition",
+        "Contents/Config-1-Partition"
+      ]
+    },
+    "type": "part",
+    "api": {
+      "version_history": [
+        "17000[2024/16]"
+      ],
+      "open_error": 0,
+      "open_error_names": [],
+      "open_warnings": 0,
+      "open_warning_names": [],
+      "document_type": 1,
+      "unit_system": 5,
+      "configuration_names": [
+        "Default",
+        "Tall"
+      ],
+      "active_configuration": "Default",
+      "features": [
+        {
+          "name": "Comments",
+          "type": "CommentsFolder"
+        },
+        {
+          "name": "Favorites",
+          "type": "FavoriteFolder"
+        },
+        {
+          "name": "Folder ",
+          "type": "HistoryFolder"
+        },
+        {
+          "name": "Selection Sets",
+          "type": "SelectionSetFolder"
+        },
+        {
+          "name": "Sensors",
+          "type": "SensorFolder"
+        },
+        {
+          "name": "Design Binder",
+          "type": "DocsFolder"
+        },
+        {
+          "name": "Annotations",
+          "type": "DetailCabinet"
+        },
+        {
+          "name": "Surface Bodies",
+          "type": "SurfaceBodyFolder"
+        },
+        {
+          "name": "Solid Bodies",
+          "type": "SolidBodyFolder"
+        },
+        {
+          "name": "Lights and Cameras",
+          "type": "EnvFolder"
+        },
+        {
+          "name": "Markups",
+          "type": "InkMarkupFolder"
+        },
+        {
+          "name": "Equations",
+          "type": "EqnFolder"
+        },
+        {
+          "name": "Material <not specified>",
+          "type": "MaterialFolder"
+        },
+        {
+          "name": "Front Plane",
+          "type": "RefPlane"
+        },
+        {
+          "name": "Top Plane",
+          "type": "RefPlane"
+        },
+        {
+          "name": "Right Plane",
+          "type": "RefPlane"
+        },
+        {
+          "name": "Origin",
+          "type": "OriginProfileFeature"
+        },
+        {
+          "name": "Sketch1",
+          "type": "ProfileFeature"
+        },
+        {
+          "name": "Boss-Extrude1",
+          "type": "Extrusion"
+        }
+      ],
+      "configurations": {
+        "Default": {
+          "shown": false,
+          "rebuilt": true,
+          "comment": "",
+          "alternate_name": "",
+          "file_properties": [],
+          "configuration_properties": [],
+          "mass_properties_status": 0,
+          "volume_m3": 5.9999999999999993E-06,
+          "surface_area_m2": 0.0022,
+          "mass_kg": 0.0059999999999999993,
+          "center_of_mass_m": [0.005, 0.01, 0.015000000000000001],
+          "density_kg_m3": 1000,
+          "material": null,
+          "material_database": null,
+          "solid_bodies": 1,
+          "bodies": [
+            {
+              "name": "Boss-Extrude1",
+              "faces": 6,
+              "edges": 12,
+              "face_surface_types": {
+                "plane": 6
+              },
+              "box_m": [0, 0, 0, 0.01, 0.02, 0.03]
+            }
+          ],
+          "bounding_box_m": [0, 0, 0, 0.01, 0.02, 0.03]
+        },
+        "Tall": {
+          "shown": true,
+          "rebuilt": true,
+          "comment": "",
+          "alternate_name": "",
+          "file_properties": [],
+          "configuration_properties": [],
+          "mass_properties_status": 0,
+          "volume_m3": 8.9999999999999985E-06,
+          "surface_area_m2": 0.0031,
+          "mass_kg": 0.009,
+          "center_of_mass_m": [0.0049999999999999992, 0.0099999999999999985, 0.0225],
+          "density_kg_m3": 1000.0000000000001,
+          "material": null,
+          "material_database": null,
+          "solid_bodies": 1,
+          "bodies": [
+            {
+              "name": "Boss-Extrude1",
+              "faces": 6,
+              "edges": 12,
+              "face_surface_types": {
+                "plane": 6
+              },
+              "box_m": [0, 0, 0, 0.01, 0.02, 0.045]
+            }
+          ],
+          "bounding_box_m": [0, 0, 0, 0.01, 0.02, 0.045]
+        }
+      }
+    },
+    "kit_container_scan": {
+      "source": "the kit's own parse of the saved file's container (PathScan.Members), not a SOLIDWORKS API value",
+      "partition_streams": [
+        "Contents/Config-0-Partition",
+        "Contents/Config-1-Partition"
+      ]
+    }
+  },
+  "o14_property_types.SLDPRT": {
+    "generation": {
+      "step": "o14",
+      "template": "C:\\ProgramData\\SolidWorks\\SOLIDWORKS 2024\\templates\\Part.prtdot",
+      "recipe": "Box A (o02 recipe) with material 1060 Alloy and file properties requested as Text, Date, Number, Double and Yes or no (properties_added records the type SOLIDWORKS stored for each), a configuration property, then saved under its final name (no Copy) so the linked properties Mass and Material can name the file, and saved again (Save3).",
+      "date_property_input": "3/15/2024",
+      "date_property_culture": "en-US",
+      "date_property_short_date_pattern": "M/d/yyyy",
+      "notes": [
+        "The date 2024-03-15 was passed in this account's short date format (en-US, M/d/yyyy).",
+        "property DoubleProp was requested as type Double (5) with the value [3.25]; SOLIDWORKS stored it as type Number (3).",
+        "no property in this fixture has the stored type Double, so that type is not covered by o14."
+      ],
+      "template_unit_system": 5,
+      "properties_added": [
+        {
+          "name": "TextProp",
+          "configuration": null,
+          "requested_type_id": 30,
+          "requested_type": "Text",
+          "value": "Plain text value",
+          "add3_result": 0,
+          "stored_type_id": 30,
+          "stored_type": "Text"
+        },
+        {
+          "name": "DateProp",
+          "configuration": null,
+          "requested_type_id": 64,
+          "requested_type": "Date",
+          "value": "3/15/2024",
+          "add3_result": 0,
+          "stored_type_id": 64,
+          "stored_type": "Date"
+        },
+        {
+          "name": "NumberProp",
+          "configuration": null,
+          "requested_type_id": 3,
+          "requested_type": "Number",
+          "value": "7",
+          "add3_result": 0,
+          "stored_type_id": 3,
+          "stored_type": "Number"
+        },
+        {
+          "name": "DoubleProp",
+          "configuration": null,
+          "requested_type_id": 5,
+          "requested_type": "Double",
+          "value": "3.25",
+          "add3_result": 0,
+          "stored_type_id": 3,
+          "stored_type": "Number"
+        },
+        {
+          "name": "YesNoProp",
+          "configuration": null,
+          "requested_type_id": 11,
+          "requested_type": "Yes or no",
+          "value": "Yes",
+          "add3_result": 0,
+          "stored_type_id": 11,
+          "stored_type": "Yes or no"
+        },
+        {
+          "name": "CfgProp",
+          "configuration": "Default",
+          "requested_type_id": 30,
+          "requested_type": "Text",
+          "value": "Configuration value",
+          "add3_result": 0,
+          "stored_type_id": 30,
+          "stored_type": "Text"
+        },
+        {
+          "name": "Mass",
+          "configuration": null,
+          "requested_type_id": 30,
+          "requested_type": "Text",
+          "value": "\"SW-Mass@o14_property_types.SLDPRT\"",
+          "add3_result": 0,
+          "stored_type_id": 30,
+          "stored_type": "Text"
+        },
+        {
+          "name": "Material",
+          "configuration": null,
+          "requested_type_id": 30,
+          "requested_type": "Text",
+          "value": "\"SW-Material@o14_property_types.SLDPRT\"",
+          "add3_result": 0,
+          "stored_type_id": 30,
+          "stored_type": "Text"
+        }
+      ],
+      "stored_property_types_covered": {
+        "Text": true,
+        "Date": true,
+        "Number": true,
+        "Double": false,
+        "Yes or no": true
+      }
+    },
+    "type": "part",
+    "api": {
+      "version_history": [
+        "17000[2024/16]"
+      ],
+      "open_error": 0,
+      "open_error_names": [],
+      "open_warnings": 0,
+      "open_warning_names": [],
+      "document_type": 1,
+      "unit_system": 5,
+      "configuration_names": [
+        "Default"
+      ],
+      "active_configuration": "Default",
+      "features": [
+        {
+          "name": "Comments",
+          "type": "CommentsFolder"
+        },
+        {
+          "name": "Favorites",
+          "type": "FavoriteFolder"
+        },
+        {
+          "name": "Folder ",
+          "type": "HistoryFolder"
+        },
+        {
+          "name": "Selection Sets",
+          "type": "SelectionSetFolder"
+        },
+        {
+          "name": "Sensors",
+          "type": "SensorFolder"
+        },
+        {
+          "name": "Design Binder",
+          "type": "DocsFolder"
+        },
+        {
+          "name": "Annotations",
+          "type": "DetailCabinet"
+        },
+        {
+          "name": "Surface Bodies",
+          "type": "SurfaceBodyFolder"
+        },
+        {
+          "name": "Solid Bodies",
+          "type": "SolidBodyFolder"
+        },
+        {
+          "name": "Lights and Cameras",
+          "type": "EnvFolder"
+        },
+        {
+          "name": "Markups",
+          "type": "InkMarkupFolder"
+        },
+        {
+          "name": "Equations",
+          "type": "EqnFolder"
+        },
+        {
+          "name": "1060 Alloy",
+          "type": "MaterialFolder"
+        },
+        {
+          "name": "Front Plane",
+          "type": "RefPlane"
+        },
+        {
+          "name": "Top Plane",
+          "type": "RefPlane"
+        },
+        {
+          "name": "Right Plane",
+          "type": "RefPlane"
+        },
+        {
+          "name": "Origin",
+          "type": "OriginProfileFeature"
+        },
+        {
+          "name": "Sketch1",
+          "type": "ProfileFeature"
+        },
+        {
+          "name": "Boss-Extrude1",
+          "type": "Extrusion"
+        }
+      ],
+      "configurations": {
+        "Default": {
+          "shown": false,
+          "rebuilt": true,
+          "comment": "",
+          "alternate_name": "",
+          "file_properties": [
+            {
+              "name": "TextProp",
+              "type": "Text",
+              "type_id": 30,
+              "expression": "Plain text value",
+              "evaluated": "Plain text value",
+              "was_resolved": true,
+              "linked": false,
+              "get6_result": 2
+            },
+            {
+              "name": "DateProp",
+              "type": "Date",
+              "type_id": 64,
+              "expression": "3/15/2024",
+              "evaluated": "3/15/2024",
+              "was_resolved": true,
+              "linked": false,
+              "get6_result": 2
+            },
+            {
+              "name": "NumberProp",
+              "type": "Number",
+              "type_id": 3,
+              "expression": "7",
+              "evaluated": "7",
+              "was_resolved": true,
+              "linked": false,
+              "get6_result": 2
+            },
+            {
+              "name": "DoubleProp",
+              "type": "Number",
+              "type_id": 3,
+              "expression": "3.250000",
+              "evaluated": "3.250000",
+              "was_resolved": true,
+              "linked": false,
+              "get6_result": 2
+            },
+            {
+              "name": "YesNoProp",
+              "type": "Yes or no",
+              "type_id": 11,
+              "expression": "Yes",
+              "evaluated": "Yes",
+              "was_resolved": true,
+              "linked": false,
+              "get6_result": 2
+            },
+            {
+              "name": "Mass",
+              "type": "Text",
+              "type_id": 30,
+              "expression": "\"SW-Mass@o14_property_types.SLDPRT\"",
+              "evaluated": "16.20",
+              "was_resolved": true,
+              "linked": false,
+              "get6_result": 2
+            },
+            {
+              "name": "Material",
+              "type": "Text",
+              "type_id": 30,
+              "expression": "\"SW-Material@o14_property_types.SLDPRT\"",
+              "evaluated": "1060 Alloy",
+              "was_resolved": true,
+              "linked": false,
+              "get6_result": 2
+            }
+          ],
+          "configuration_properties": [
+            {
+              "name": "CfgProp",
+              "type": "Text",
+              "type_id": 30,
+              "expression": "Configuration value",
+              "evaluated": "Configuration value",
+              "was_resolved": true,
+              "linked": false,
+              "get6_result": 2
+            }
+          ],
+          "mass_properties_status": 0,
+          "volume_m3": 5.9999999999999993E-06,
+          "surface_area_m2": 0.0022,
+          "mass_kg": 0.0162,
+          "center_of_mass_m": [0.0049999999999999992, 0.0099999999999999985, 0.015],
+          "density_kg_m3": 2700,
+          "material": "1060 Alloy",
+          "material_database": "SOLIDWORKS Materials",
+          "solid_bodies": 1,
+          "bodies": [
+            {
+              "name": "Boss-Extrude1",
+              "faces": 6,
+              "edges": 12,
+              "face_surface_types": {
+                "plane": 6
+              },
+              "box_m": [0, 0, 0, 0.01, 0.02, 0.03]
+            }
+          ],
+          "bounding_box_m": [0, 0, 0, 0.01, 0.02, 0.03]
+        }
+      }
+    },
+    "kit_container_scan": {
+      "source": "the kit's own parse of the saved file's container (PathScan.Members), not a SOLIDWORKS API value",
+      "partition_streams": [
+        "Contents/Config-0-Partition"
+      ]
+    }
+  },
+  "o17_\u0434\u0435\u0442\u0430\u043b\u044c.SLDPRT": {
+    "generation": {
+      "step": "o17",
+      "template": "C:\\ProgramData\\SolidWorks\\SOLIDWORKS 2024\\templates\\Part.prtdot",
+      "recipe": "Box A (o02 recipe) saved as a copy under a file name with Cyrillic letters.",
+      "template_unit_system": 5
+    },
+    "type": "part",
+    "api": {
+      "version_history": [
+        "17000[2024/16]"
+      ],
+      "open_error": 0,
+      "open_error_names": [],
+      "open_warnings": 0,
+      "open_warning_names": [],
+      "document_type": 1,
+      "unit_system": 5,
+      "configuration_names": [
+        "Default"
+      ],
+      "active_configuration": "Default",
+      "features": [
+        {
+          "name": "Comments",
+          "type": "CommentsFolder"
+        },
+        {
+          "name": "Favorites",
+          "type": "FavoriteFolder"
+        },
+        {
+          "name": "Folder ",
+          "type": "HistoryFolder"
+        },
+        {
+          "name": "Selection Sets",
+          "type": "SelectionSetFolder"
+        },
+        {
+          "name": "Sensors",
+          "type": "SensorFolder"
+        },
+        {
+          "name": "Design Binder",
+          "type": "DocsFolder"
+        },
+        {
+          "name": "Annotations",
+          "type": "DetailCabinet"
+        },
+        {
+          "name": "Surface Bodies",
+          "type": "SurfaceBodyFolder"
+        },
+        {
+          "name": "Solid Bodies",
+          "type": "SolidBodyFolder"
+        },
+        {
+          "name": "Lights and Cameras",
+          "type": "EnvFolder"
+        },
+        {
+          "name": "Markups",
+          "type": "InkMarkupFolder"
+        },
+        {
+          "name": "Equations",
+          "type": "EqnFolder"
+        },
+        {
+          "name": "Material <not specified>",
+          "type": "MaterialFolder"
+        },
+        {
+          "name": "Front Plane",
+          "type": "RefPlane"
+        },
+        {
+          "name": "Top Plane",
+          "type": "RefPlane"
+        },
+        {
+          "name": "Right Plane",
+          "type": "RefPlane"
+        },
+        {
+          "name": "Origin",
+          "type": "OriginProfileFeature"
+        },
+        {
+          "name": "Sketch1",
+          "type": "ProfileFeature"
+        },
+        {
+          "name": "Boss-Extrude1",
+          "type": "Extrusion"
+        }
+      ],
+      "configurations": {
+        "Default": {
+          "shown": false,
+          "rebuilt": true,
+          "comment": "",
+          "alternate_name": "",
+          "file_properties": [],
+          "configuration_properties": [],
+          "mass_properties_status": 0,
+          "volume_m3": 5.9999999999999993E-06,
+          "surface_area_m2": 0.0022,
+          "mass_kg": 0.0059999999999999993,
+          "center_of_mass_m": [0.005, 0.01, 0.015000000000000001],
+          "density_kg_m3": 1000,
+          "material": null,
+          "material_database": null,
+          "solid_bodies": 1,
+          "bodies": [
+            {
+              "name": "Boss-Extrude1",
+              "faces": 6,
+              "edges": 12,
+              "face_surface_types": {
+                "plane": 6
+              },
+              "box_m": [0, 0, 0, 0.01, 0.02, 0.03]
+            }
+          ],
+          "bounding_box_m": [0, 0, 0, 0.01, 0.02, 0.03]
+        }
+      }
+    },
+    "kit_container_scan": {
+      "source": "the kit's own parse of the saved file's container (PathScan.Members), not a SOLIDWORKS API value",
+      "partition_streams": [
+        "Contents/Config-0-Partition"
+      ]
+    }
+  },
+  "o15_sub_asm.SLDASM": {
+    "generation": {
+      "step": "o15",
+      "template": "C:\\ProgramData\\SolidWorks\\SOLIDWORKS 2024\\templates\\MBD\\assembly 0250mm and smaller.asmdot",
+      "recipe": "Sub-assembly from the Dassault-shipped MBD assembly template 'assembly 0250mm and smaller' (current-account mode): o02 at the origin and o07 rotated +90 degrees about X and moved 30 mm along X. Saved with SaveAs3 Silent (no Copy).",
+      "template_unit_system": 5,
+      "placements": [
+        {
+          "instance": "o02_boxA-1",
+          "file": "o02_boxA.SLDPRT",
+          "purpose": "o02 at the origin",
+          "requested_configuration": null,
+          "x_axis_image": [1, 0, 0],
+          "y_axis_image": [0, 1, 0],
+          "z_axis_image": [0, 0, 1],
+          "translation_m": [0, 0, 0],
+          "point_probe_after_rebuild": [
+            [0, 0, 0],
+            [1, 0, 0],
+            [0, 1, 0],
+            [0, 0, 1]
+          ],
+          "origin_deviation_after_rebuild_m": 0
+        },
+        {
+          "instance": "o07_boxB_h31-1",
+          "file": "o07_boxB_h31.SLDPRT",
+          "purpose": "o07 rotated +90 degrees about X, translated (30, 0, 0) mm",
+          "requested_configuration": null,
+          "x_axis_image": [1, 0, 0],
+          "y_axis_image": [0, 0, 1],
+          "z_axis_image": [0, -1, 0],
+          "translation_m": [0.03, 0, 0],
+          "point_probe_after_rebuild": [
+            [0.03, 0, 0],
+            [1.03, 0, 0],
+            [0.03, 0, 1],
+            [0.03, -1, 0]
+          ],
+          "origin_deviation_after_rebuild_m": 0
+        }
+      ]
+    },
+    "type": "assembly",
+    "api": {
+      "version_history": [
+        "10000[2016/280,2017/33]",
+        "10191[2017/151]",
+        "10800[2017/235]",
+        "11800[2018/235]",
+        "12000[2018/256]",
+        "12800[2019/246]",
+        "13000[2019/255]",
+        "15800[2022/207]",
+        "16000[2022/235]",
+        "16800[2023/211]",
+        "17000[2023/241,2024/16]"
+      ],
+      "open_error": 0,
+      "open_error_names": [],
+      "open_warnings": 0,
+      "open_warning_names": [],
+      "document_type": 2,
+      "unit_system": 5,
+      "configuration_names": [
+        "Default"
+      ],
+      "active_configuration": "Default",
+      "configurations": {
+        "Default": {
+          "shown": false,
+          "rebuilt": true,
+          "comment": "",
+          "alternate_name": "",
+          "file_properties": [],
+          "configuration_properties": [],
+          "mass_properties_status": 0,
+          "volume_m3": 1.2199999999999998E-05,
+          "surface_area_m2": 0.00446,
+          "mass_kg": 0.012199999999999999,
+          "center_of_mass_m": [0.020245901639344258, -0.0029590163934426227, 0.012459016393442624],
+          "density_kg_m3": 1000,
+          "bounding_box_m": [0, -0.031, 0, 0.039999999999999994, 0.02, 0.03],
+          "components": [
+            {
+              "name": "o07_boxB_h31-1",
+              "parent": null,
+              "depth": 1,
+              "file_name": "o07_boxB_h31.SLDPRT",
+              "path": "o07_boxB_h31.SLDPRT",
+              "referenced_configuration": "Default",
+              "suppression_state": 2,
+              "suppression_state_name": "fully resolved",
+              "suppressed": false,
+              "exclude_from_bom": false,
+              "virtual": false,
+              "pattern_instance": false,
+              "fixed": false,
+              "visibility": 1,
+              "hidden": false,
+              "transform_array_data": [1, 0, 0, 0, 0, 1, 0, -1, 0, 0.03, 0, 0, 1, 0, 0, 0],
+              "point_probe": [
+                [0.03, 0, 0],
+                [1.03, 0, 0],
+                [0.03, 0, 1],
+                [0.03, -1, 0]
+              ],
+              "box_m": [0.029999999999999995, -0.031, 0, 0.039999999999999994, 0, 0.02]
+            },
+            {
+              "name": "o02_boxA-1",
+              "parent": null,
+              "depth": 1,
+              "file_name": "o02_boxA.SLDPRT",
+              "path": "o02_boxA.SLDPRT",
+              "referenced_configuration": "Default",
+              "suppression_state": 2,
+              "suppression_state_name": "fully resolved",
+              "suppressed": false,
+              "exclude_from_bom": false,
+              "virtual": false,
+              "pattern_instance": false,
+              "fixed": true,
+              "visibility": 1,
+              "hidden": false,
+              "transform_array_data": [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
+              "point_probe": [
+                [0, 0, 0],
+                [1, 0, 0],
+                [0, 1, 0],
+                [0, 0, 1]
+              ],
+              "box_m": [0, 0, 0, 0.01, 0.02, 0.03]
+            }
+          ]
+        }
+      }
+    }
+  },
+  "o16_asm_features.SLDASM": {
+    "generation": {
+      "step": "o16",
+      "template": "C:\\ProgramData\\SolidWorks\\SOLIDWORKS 2024\\templates\\MBD\\assembly 0250mm and smaller.asmdot",
+      "recipe": "Main assembly from the Dassault-shipped MBD assembly template 'assembly 0250mm and smaller' (current-account mode); see placements and notes. Saved under its final name (no Copy) before the virtual component was made, then saved again (Save3).",
+      "template_unit_system": 5,
+      "placements": [
+        {
+          "instance": "o02_boxA-1",
+          "file": "o02_boxA.SLDPRT",
+          "purpose": "o02 at the origin",
+          "requested_configuration": null,
+          "x_axis_image": [1, 0, 0],
+          "y_axis_image": [0, 1, 0],
+          "z_axis_image": [0, 0, 1],
+          "translation_m": [0, 0, 0],
+          "point_probe_after_rebuild": [
+            [0, 0, 0],
+            [1, 0, 0],
+            [0, 1, 0],
+            [0, 0, 1]
+          ],
+          "origin_deviation_after_rebuild_m": 0
+        },
+        {
+          "instance": "o02_boxA-2",
+          "file": "o02_boxA.SLDPRT",
+          "purpose": "o02 rotated +90 degrees about Z, translated (100, 0, 0) mm",
+          "requested_configuration": null,
+          "x_axis_image": [0, 1, 0],
+          "y_axis_image": [-1, 0, 0],
+          "z_axis_image": [0, 0, 1],
+          "translation_m": [0.1, 0, 0],
+          "point_probe_after_rebuild": [
+            [0.1, 0, 0],
+            [0.1, 1, 0],
+            [-0.9, 0, 0],
+            [0.1, 0, 1]
+          ],
+          "origin_deviation_after_rebuild_m": 0
+        },
+        {
+          "instance": "o02_boxA-3",
+          "file": "o02_boxA.SLDPRT",
+          "purpose": "o02 excluded from the BOM",
+          "requested_configuration": null,
+          "x_axis_image": [1, 0, 0],
+          "y_axis_image": [0, 1, 0],
+          "z_axis_image": [0, 0, 1],
+          "translation_m": [0, -0.06, 0],
+          "point_probe_after_rebuild": [
+            [0, -0.06, 0],
+            [1, -0.06, 0],
+            [0, 0.94, 0],
+            [0, -0.06, 1]
+          ],
+          "origin_deviation_after_rebuild_m": 0
+        },
+        {
+          "instance": "o06_boxA_props_mat_cfg-1",
+          "file": "o06_boxA_props_mat_cfg.SLDPRT",
+          "purpose": "o06 referencing configuration OracleAlt",
+          "requested_configuration": "OracleAlt",
+          "x_axis_image": [1, 0, 0],
+          "y_axis_image": [0, 1, 0],
+          "z_axis_image": [0, 0, 1],
+          "translation_m": [0.03, 0, 0],
+          "point_probe_after_rebuild": [
+            [0.03, 0, 0],
+            [1.03, 0, 0],
+            [0.03, 1, 0],
+            [0.03, 0, 1]
+          ],
+          "origin_deviation_after_rebuild_m": 0
+        },
+        {
+          "instance": "o15_sub_asm-1",
+          "file": "o15_sub_asm.SLDASM",
+          "purpose": "sub-assembly o15, rotated 40 degrees about (1, 1, 1), translated (0, 100, 0) mm",
+          "requested_configuration": null,
+          "x_axis_image": [0.84402962874598542, 0.44909878511128692, -0.29312841385727223],
+          "y_axis_image": [-0.29312841385727223, 0.84402962874598542, 0.44909878511128692],
+          "z_axis_image": [0.44909878511128692, -0.29312841385727223, 0.84402962874598542],
+          "translation_m": [0, 0.1, 0],
+          "point_probe_after_rebuild": [
+            [0, 0.1, 0],
+            [0.84402962874598542, 0.549098785111287, -0.29312841385727223],
+            [-0.29312841385727223, 0.94402962874598539, 0.44909878511128692],
+            [0.44909878511128692, -0.19312841385727222, 0.84402962874598542]
+          ],
+          "origin_deviation_after_rebuild_m": 0
+        },
+        {
+          "instance": "o07_boxB_h31-1",
+          "file": "o07_boxB_h31.SLDPRT",
+          "purpose": "o07 suppressed",
+          "requested_configuration": null,
+          "x_axis_image": [1, 0, 0],
+          "y_axis_image": [0, 1, 0],
+          "z_axis_image": [0, 0, 1],
+          "translation_m": [0.06, 0, 0],
+          "point_probe_after_rebuild": [
+            [0.06, 0, 0],
+            [1.06, 0, 0],
+            [0.06, 1, 0],
+            [0.06, 0, 1]
+          ],
+          "origin_deviation_after_rebuild_m": 0
+        },
+        {
+          "instance": "o07_boxB_h31-2",
+          "file": "o07_boxB_h31.SLDPRT",
+          "purpose": "o07 seed of a linear component pattern, 3 instances, 20 mm apart",
+          "requested_configuration": null,
+          "x_axis_image": [1, 0, 0],
+          "y_axis_image": [0, 1, 0],
+          "z_axis_image": [0, 0, 1],
+          "translation_m": [0, -0.12, 0],
+          "point_probe_after_rebuild": [
+            [0, -0.12, 0],
+            [1, -0.12, 0],
+            [0, 0.88, 0],
+            [0, -0.12, 1]
+          ],
+          "origin_deviation_after_rebuild_m": 0
+        },
+        {
+          "instance": "o09_import_step-1",
+          "file": "o09_import_step.SLDPRT",
+          "purpose": "o09, imported geometry",
+          "requested_configuration": null,
+          "x_axis_image": [1, 0, 0],
+          "y_axis_image": [0, 1, 0],
+          "z_axis_image": [0, 0, 1],
+          "translation_m": [0.13, 0, 0],
+          "point_probe_after_rebuild": [
+            [0.13, 0, 0],
+            [1.13, 0, 0],
+            [0.13, 1, 0],
+            [0.13, 0, 1]
+          ],
+          "origin_deviation_after_rebuild_m": 0
+        },
+        {
+          "instance": "o17_\u0434\u0435\u0442\u0430\u043b\u044c-1",
+          "file": "o17_\u0434\u0435\u0442\u0430\u043b\u044c.SLDPRT",
+          "purpose": "o17, Cyrillic file name",
+          "requested_configuration": null,
+          "x_axis_image": [1, 0, 0],
+          "y_axis_image": [0, 1, 0],
+          "z_axis_image": [0, 0, 1],
+          "translation_m": [0.16, 0, 0],
+          "point_probe_after_rebuild": [
+            [0.16, 0, 0],
+            [1.16, 0, 0],
+            [0.16, 1, 0],
+            [0.16, 0, 1]
+          ],
+          "origin_deviation_after_rebuild_m": 0
+        },
+        {
+          "instance": "Part12^o16_asm_features-1",
+          "file": null,
+          "purpose": "virtual part made in the assembly: InsertNewVirtualPart on the Front Plane, rectangle (-50, 0)-(-40, 10) mm extruded 10 mm in context"
+        }
+      ],
+      "component_pattern": "linear component pattern LocalLPattern1 (seed o07_boxB_h31-2, 3 instances, 20 mm, direction normal to the Right Plane)",
+      "virtual_state_after_insert": "editing assembly itself=True, sketch open=False",
+      "virtual_component": "InsertNewVirtualPart with an in-context sketch and extrusion (Part12^o16_asm_features-1)",
+      "configurations_made": [
+        "Default",
+        "Lite"
+      ]
+    },
+    "type": "assembly",
+    "api": {
+      "version_history": [
+        "10000[2016/280,2017/33]",
+        "10191[2017/151]",
+        "10800[2017/235]",
+        "11800[2018/235]",
+        "12000[2018/256]",
+        "12800[2019/246]",
+        "13000[2019/255]",
+        "15800[2022/207]",
+        "16000[2022/235]",
+        "16800[2023/211]",
+        "17000[2023/241,2024/16]"
+      ],
+      "open_error": 0,
+      "open_error_names": [],
+      "open_warnings": 32,
+      "open_warning_names": [
+        "swFileLoadWarning_NeedsRegen"
+      ],
+      "open_note": "SOLIDWORKS reported that the file needs a rebuild when it was reopened; the values below are read after rebuilding each configuration and may differ from what the file stores.",
+      "document_type": 2,
+      "unit_system": 5,
+      "configuration_names": [
+        "Default",
+        "Lite"
+      ],
+      "active_configuration": "Default",
+      "configurations": {
+        "Default": {
+          "shown": false,
+          "rebuilt": true,
+          "comment": "",
+          "alternate_name": "",
+          "file_properties": [
+            {
+              "name": "PartNo",
+              "type": "Text",
+              "type_id": 30,
+              "expression": "ORACLE-ASM-016",
+              "evaluated": "ORACLE-ASM-016",
+              "was_resolved": true,
+              "linked": false,
+              "get6_result": 2
+            }
+          ],
+          "configuration_properties": [],
+          "mass_properties_status": 0,
+          "volume_m3": 6.78E-05,
+          "surface_area_m2": 0.025040000000000003,
+          "mass_kg": 0.077999999999999986,
+          "center_of_mass_m": [0.047106670120223369, -0.00914227677668651, 0.013153555374411872],
+          "density_kg_m3": 1150.4424778761061,
+          "bounding_box_m": [-0.049999999999999996, -0.12, -0.02564719889274078, 0.17, 0.13484454397937118, 0.034302864564605295],
+          "components": [
+            {
+              "name": "o07_boxB_h31-1",
+              "parent": null,
+              "depth": 1,
+              "file_name": "o07_boxB_h31.SLDPRT",
+              "path": "o07_boxB_h31.SLDPRT",
+              "referenced_configuration": "Default",
+              "suppression_state": 0,
+              "suppression_state_name": "suppressed",
+              "suppressed": true,
+              "exclude_from_bom": false,
+              "virtual": false,
+              "pattern_instance": false,
+              "fixed": false,
+              "visibility": 1,
+              "hidden": false,
+              "transform_array_data": [1, 0, 0, 0, 1, 0, 0, 0, 1, 0.06, 0, 0, 1, 0, 0, 0],
+              "point_probe": [
+                [0.06, 0, 0],
+                [1.06, 0, 0],
+                [0.06, 1, 0],
+                [0.06, 0, 1]
+              ],
+              "box_m": null
+            },
+            {
+              "name": "o09_import_step-1",
+              "parent": null,
+              "depth": 1,
+              "file_name": "o09_import_step.SLDPRT",
+              "path": "o09_import_step.SLDPRT",
+              "referenced_configuration": "Default",
+              "suppression_state": 2,
+              "suppression_state_name": "fully resolved",
+              "suppressed": false,
+              "exclude_from_bom": false,
+              "virtual": false,
+              "pattern_instance": false,
+              "fixed": false,
+              "visibility": 1,
+              "hidden": false,
+              "transform_array_data": [1, 0, 0, 0, 1, 0, 0, 0, 1, 0.13, 0, 0, 1, 0, 0, 0],
+              "point_probe": [
+                [0.13, 0, 0],
+                [1.13, 0, 0],
+                [0.13, 1, 0],
+                [0.13, 0, 1]
+              ],
+              "box_m": [0.13, 0, 0, 0.14, 0.02, 0.03]
+            },
+            {
+              "name": "o17_\u0434\u0435\u0442\u0430\u043b\u044c-1",
+              "parent": null,
+              "depth": 1,
+              "file_name": "o17_\u0434\u0435\u0442\u0430\u043b\u044c.SLDPRT",
+              "path": "o17_\u0434\u0435\u0442\u0430\u043b\u044c.SLDPRT",
+              "referenced_configuration": "Default",
+              "suppression_state": 2,
+              "suppression_state_name": "fully resolved",
+              "suppressed": false,
+              "exclude_from_bom": false,
+              "virtual": false,
+              "pattern_instance": false,
+              "fixed": false,
+              "visibility": 1,
+              "hidden": false,
+              "transform_array_data": [1, 0, 0, 0, 1, 0, 0, 0, 1, 0.16, 0, 0, 1, 0, 0, 0],
+              "point_probe": [
+                [0.16, 0, 0],
+                [1.16, 0, 0],
+                [0.16, 1, 0],
+                [0.16, 0, 1]
+              ],
+              "box_m": [0.16, 0, 0, 0.17, 0.02, 0.03]
+            },
+            {
+              "name": "o02_boxA-2",
+              "parent": null,
+              "depth": 1,
+              "file_name": "o02_boxA.SLDPRT",
+              "path": "o02_boxA.SLDPRT",
+              "referenced_configuration": "Default",
+              "suppression_state": 2,
+              "suppression_state_name": "fully resolved",
+              "suppressed": false,
+              "exclude_from_bom": false,
+              "virtual": false,
+              "pattern_instance": false,
+              "fixed": false,
+              "visibility": 1,
+              "hidden": false,
+              "transform_array_data": [0, 1, 0, -1, 0, 0, 0, 0, 1, 0.1, 0, 0, 1, 0, 0, 0],
+              "point_probe": [
+                [0.1, 0, 0],
+                [0.1, 1, 0],
+                [-0.9, 0, 0],
+                [0.1, 0, 1]
+              ],
+              "box_m": [0.080000000000000016, 0, 0, 0.1, 0.01, 0.03]
+            },
+            {
+              "name": "Part12^o16_asm_features-1",
+              "parent": null,
+              "depth": 1,
+              "file_name": "Part12^o16_asm_features.SLDPRT",
+              "path": "%TEMP%/swx6788/VC~~/o16_asm_features/Part12^o16_asm_features.SLDPRT",
+              "referenced_configuration": "Default",
+              "suppression_state": 2,
+              "suppression_state_name": "fully resolved",
+              "suppressed": false,
+              "exclude_from_bom": false,
+              "virtual": true,
+              "pattern_instance": false,
+              "fixed": false,
+              "visibility": 1,
+              "hidden": false,
+              "transform_array_data": [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
+              "point_probe": [
+                [0, 0, 0],
+                [1, 0, 0],
+                [0, 1, 0],
+                [0, 0, 1]
+              ],
+              "box_m": [-0.049999999999999996, 0, 0, -0.04, 0.01, 0.01]
+            },
+            {
+              "name": "o02_boxA-1",
+              "parent": null,
+              "depth": 1,
+              "file_name": "o02_boxA.SLDPRT",
+              "path": "o02_boxA.SLDPRT",
+              "referenced_configuration": "Default",
+              "suppression_state": 2,
+              "suppression_state_name": "fully resolved",
+              "suppressed": false,
+              "exclude_from_bom": false,
+              "virtual": false,
+              "pattern_instance": false,
+              "fixed": true,
+              "visibility": 1,
+              "hidden": false,
+              "transform_array_data": [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
+              "point_probe": [
+                [0, 0, 0],
+                [1, 0, 0],
+                [0, 1, 0],
+                [0, 0, 1]
+              ],
+              "box_m": [0, 0, 0, 0.01, 0.02, 0.03]
+            },
+            {
+              "name": "o02_boxA-3",
+              "parent": null,
+              "depth": 1,
+              "file_name": "o02_boxA.SLDPRT",
+              "path": "o02_boxA.SLDPRT",
+              "referenced_configuration": "Default",
+              "suppression_state": 2,
+              "suppression_state_name": "fully resolved",
+              "suppressed": false,
+              "exclude_from_bom": true,
+              "virtual": false,
+              "pattern_instance": false,
+              "fixed": false,
+              "visibility": 1,
+              "hidden": false,
+              "transform_array_data": [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.06, 0, 1, 0, 0, 0],
+              "point_probe": [
+                [0, -0.06, 0],
+                [1, -0.06, 0],
+                [0, 0.94, 0],
+                [0, -0.06, 1]
+              ],
+              "box_m": [0, -0.06, 0, 0.01, -0.039999999999999994, 0.03]
+            },
+            {
+              "name": "o06_boxA_props_mat_cfg-1",
+              "parent": null,
+              "depth": 1,
+              "file_name": "o06_boxA_props_mat_cfg.SLDPRT",
+              "path": "o06_boxA_props_mat_cfg.SLDPRT",
+              "referenced_configuration": "OracleAlt",
+              "suppression_state": 2,
+              "suppression_state_name": "fully resolved",
+              "suppressed": false,
+              "exclude_from_bom": false,
+              "virtual": false,
+              "pattern_instance": false,
+              "fixed": false,
+              "visibility": 1,
+              "hidden": false,
+              "transform_array_data": [1, 0, 0, 0, 1, 0, 0, 0, 1, 0.03, 0, 0, 1, 0, 0, 0],
+              "point_probe": [
+                [0.03, 0, 0],
+                [1.03, 0, 0],
+                [0.03, 1, 0],
+                [0.03, 0, 1]
+              ],
+              "box_m": [0.029999999999999995, 0, 0, 0.039999999999999994, 0.02, 0.03]
+            },
+            {
+              "name": "o15_sub_asm-1",
+              "parent": null,
+              "depth": 1,
+              "file_name": "o15_sub_asm.SLDASM",
+              "path": "o15_sub_asm.SLDASM",
+              "referenced_configuration": "Default",
+              "suppression_state": 2,
+              "suppression_state_name": "fully resolved",
+              "suppressed": false,
+              "exclude_from_bom": false,
+              "virtual": false,
+              "pattern_instance": false,
+              "fixed": false,
+              "visibility": 1,
+              "hidden": false,
+              "transform_array_data": [0.84402962874598542, 0.44909878511128692, -0.29312841385727223, -0.29312841385727223, 0.84402962874598542, 0.44909878511128692, 0.44909878511128692, -0.29312841385727223, 0.84402962874598542, 0, 0.1, 0, 1, 0, 0, 0],
+              "point_probe": [
+                [0, 0.1, 0],
+                [0.84402962874598542, 0.549098785111287, -0.29312841385727223],
+                [-0.29312841385727223, 0.94402962874598539, 0.44909878511128692],
+                [0.44909878511128692, -0.19312841385727222, 0.84402962874598542]
+              ],
+              "box_m": [-0.005862568277145444, 0.06504122909315628, -0.02564719889274078, 0.056321129532753457, 0.13484454397937118, 0.034302864564605295]
+            },
+            {
+              "name": "o15_sub_asm-1/o02_boxA-1",
+              "parent": "o15_sub_asm-1",
+              "depth": 2,
+              "file_name": "o02_boxA.SLDPRT",
+              "path": "o02_boxA.SLDPRT",
+              "referenced_configuration": "Default",
+              "suppression_state": 2,
+              "suppression_state_name": "fully resolved",
+              "suppressed": false,
+              "exclude_from_bom": false,
+              "virtual": false,
+              "pattern_instance": false,
+              "fixed": false,
+              "visibility": 1,
+              "hidden": false,
+              "transform_array_data": [0.84402962874598542, 0.44909878511128692, -0.29312841385727223, -0.29312841385727223, 0.84402962874598542, 0.44909878511128692, 0.44909878511128692, -0.29312841385727223, 0.84402962874598542, 0, 0.1, 0, 1, 0, 0, 0],
+              "point_probe": [
+                [0, 0.1, 0],
+                [0.84402962874598542, 0.549098785111287, -0.29312841385727223],
+                [-0.29312841385727223, 0.94402962874598539, 0.44909878511128692],
+                [0.44909878511128692, -0.19312841385727222, 0.84402962874598542]
+              ],
+              "box_m": [-0.0058625682771454458, 0.091206147584281846, -0.002931284138572722, 0.021913259840798463, 0.12137158042603259, 0.0343028645646053]
+            },
+            {
+              "name": "o15_sub_asm-1/o07_boxB_h31-1",
+              "parent": "o15_sub_asm-1",
+              "depth": 2,
+              "file_name": "o07_boxB_h31.SLDPRT",
+              "path": "o07_boxB_h31.SLDPRT",
+              "referenced_configuration": "Default",
+              "suppression_state": 2,
+              "suppression_state_name": "fully resolved",
+              "suppressed": false,
+              "exclude_from_bom": false,
+              "virtual": false,
+              "pattern_instance": false,
+              "fixed": false,
+              "visibility": 1,
+              "hidden": false,
+              "transform_array_data": [0.84402962874598542, 0.44909878511128692, -0.29312841385727223, 0.44909878511128692, -0.29312841385727223, 0.84402962874598542, 0.29312841385727223, -0.84402962874598542, -0.44909878511128692, 0.02532088886237956, 0.11347296355333861, -0.0087938524157181661, 1, 0, 0, 0],
+              "point_probe": [
+                [0.02532088886237956, 0.11347296355333861, -0.0087938524157181661],
+                [0.869350517608365, 0.56257174866462556, -0.3019222662729904],
+                [0.47441967397366647, -0.17965545030393362, 0.83523577633026724],
+                [0.31844930271965177, -0.73055666519264684, -0.4578926375270051]
+              ],
+              "box_m": [0.025320888862379556, 0.081445476785067611, -0.02564719889274078, 0.051830141681640587, 0.11796395140445148, 0.0080867401592015428]
+            },
+            {
+              "name": "o07_boxB_h31-2",
+              "parent": null,
+              "depth": 1,
+              "file_name": "o07_boxB_h31.SLDPRT",
+              "path": "o07_boxB_h31.SLDPRT",
+              "referenced_configuration": "Default",
+              "suppression_state": 2,
+              "suppression_state_name": "fully resolved",
+              "suppressed": false,
+              "exclude_from_bom": false,
+              "virtual": false,
+              "pattern_instance": false,
+              "fixed": false,
+              "visibility": 1,
+              "hidden": false,
+              "transform_array_data": [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.12, 0, 1, 0, 0, 0],
+              "point_probe": [
+                [0, -0.12, 0],
+                [1, -0.12, 0],
+                [0, 0.88, 0],
+                [0, -0.12, 1]
+              ],
+              "box_m": [0, -0.12, 0, 0.01, -0.1, 0.031]
+            },
+            {
+              "name": "o07_boxB_h31-3",
+              "parent": null,
+              "depth": 1,
+              "file_name": "o07_boxB_h31.SLDPRT",
+              "path": "o07_boxB_h31.SLDPRT",
+              "referenced_configuration": "Default",
+              "suppression_state": 2,
+              "suppression_state_name": "fully resolved",
+              "suppressed": false,
+              "exclude_from_bom": false,
+              "virtual": false,
+              "pattern_instance": true,
+              "fixed": false,
+              "visibility": 1,
+              "hidden": false,
+              "transform_array_data": [1, 0, 0, 0, 1, 0, 0, 0, 1, 0.02, -0.12, 0, 1, 0, 0, 0],
+              "point_probe": [
+                [0.02, -0.12, 0],
+                [1.02, -0.12, 0],
+                [0.02, 0.88, 0],
+                [0.02, -0.12, 1]
+              ],
+              "box_m": [0.02, -0.12, 0, 0.030000000000000002, -0.1, 0.031]
+            },
+            {
+              "name": "o07_boxB_h31-4",
+              "parent": null,
+              "depth": 1,
+              "file_name": "o07_boxB_h31.SLDPRT",
+              "path": "o07_boxB_h31.SLDPRT",
+              "referenced_configuration": "Default",
+              "suppression_state": 2,
+              "suppression_state_name": "fully resolved",
+              "suppressed": false,
+              "exclude_from_bom": false,
+              "virtual": false,
+              "pattern_instance": true,
+              "fixed": false,
+              "visibility": 1,
+              "hidden": false,
+              "transform_array_data": [1, 0, 0, 0, 1, 0, 0, 0, 1, 0.04, -0.12, 0, 1, 0, 0, 0],
+              "point_probe": [
+                [0.04, -0.12, 0],
+                [1.04, -0.12, 0],
+                [0.04, 0.88, 0],
+                [0.04, -0.12, 1]
+              ],
+              "box_m": [0.04, -0.12, 0, 0.049999999999999996, -0.1, 0.031]
+            }
+          ]
+        },
+        "Lite": {
+          "shown": true,
+          "rebuilt": true,
+          "comment": "",
+          "alternate_name": "",
+          "file_properties": [
+            {
+              "name": "PartNo",
+              "type": "Text",
+              "type_id": 30,
+              "expression": "ORACLE-ASM-016",
+              "evaluated": "ORACLE-ASM-016",
+              "was_resolved": true,
+              "linked": false,
+              "get6_result": 2
+            }
+          ],
+          "configuration_properties": [],
+          "mass_properties_status": 0,
+          "volume_m3": 5.5599999999999989E-05,
+          "surface_area_m2": 0.020580000000000005,
+          "mass_kg": 0.065799999999999984,
+          "center_of_mass_m": [0.05147416413373862, -0.029924012158054725, 0.014989361702127661],
+          "density_kg_m3": 1183.4532374100718,
+          "bounding_box_m": [-0.049999999999999996, -0.12, 0, 0.17, 0.02, 0.031],
+          "components": [
+            {
+              "name": "Part12^o16_asm_features-1",
+              "parent": null,
+              "depth": 1,
+              "file_name": "Part12^o16_asm_features.SLDPRT",
+              "path": "%TEMP%/swx6788/VC~~/o16_asm_features/Part12^o16_asm_features.SLDPRT",
+              "referenced_configuration": "Default",
+              "suppression_state": 2,
+              "suppression_state_name": "fully resolved",
+              "suppressed": false,
+              "exclude_from_bom": false,
+              "virtual": true,
+              "pattern_instance": false,
+              "fixed": false,
+              "visibility": 1,
+              "hidden": false,
+              "transform_array_data": [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
+              "point_probe": [
+                [0, 0, 0],
+                [1, 0, 0],
+                [0, 1, 0],
+                [0, 0, 1]
+              ],
+              "box_m": [-0.049999999999999996, 0, 0, -0.04, 0.01, 0.01]
+            },
+            {
+              "name": "o17_\u0434\u0435\u0442\u0430\u043b\u044c-1",
+              "parent": null,
+              "depth": 1,
+              "file_name": "o17_\u0434\u0435\u0442\u0430\u043b\u044c.SLDPRT",
+              "path": "o17_\u0434\u0435\u0442\u0430\u043b\u044c.SLDPRT",
+              "referenced_configuration": "Default",
+              "suppression_state": 2,
+              "suppression_state_name": "fully resolved",
+              "suppressed": false,
+              "exclude_from_bom": false,
+              "virtual": false,
+              "pattern_instance": false,
+              "fixed": false,
+              "visibility": 1,
+              "hidden": false,
+              "transform_array_data": [1, 0, 0, 0, 1, 0, 0, 0, 1, 0.16, 0, 0, 1, 0, 0, 0],
+              "point_probe": [
+                [0.16, 0, 0],
+                [1.16, 0, 0],
+                [0.16, 1, 0],
+                [0.16, 0, 1]
+              ],
+              "box_m": [0.16, 0, 0, 0.17, 0.02, 0.03]
+            },
+            {
+              "name": "o02_boxA-3",
+              "parent": null,
+              "depth": 1,
+              "file_name": "o02_boxA.SLDPRT",
+              "path": "o02_boxA.SLDPRT",
+              "referenced_configuration": "Default",
+              "suppression_state": 2,
+              "suppression_state_name": "fully resolved",
+              "suppressed": false,
+              "exclude_from_bom": true,
+              "virtual": false,
+              "pattern_instance": false,
+              "fixed": false,
+              "visibility": 1,
+              "hidden": false,
+              "transform_array_data": [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.06, 0, 1, 0, 0, 0],
+              "point_probe": [
+                [0, -0.06, 0],
+                [1, -0.06, 0],
+                [0, 0.94, 0],
+                [0, -0.06, 1]
+              ],
+              "box_m": [0, -0.06, 0, 0.01, -0.039999999999999994, 0.03]
+            },
+            {
+              "name": "o06_boxA_props_mat_cfg-1",
+              "parent": null,
+              "depth": 1,
+              "file_name": "o06_boxA_props_mat_cfg.SLDPRT",
+              "path": "o06_boxA_props_mat_cfg.SLDPRT",
+              "referenced_configuration": "OracleAlt",
+              "suppression_state": 2,
+              "suppression_state_name": "fully resolved",
+              "suppressed": false,
+              "exclude_from_bom": false,
+              "virtual": false,
+              "pattern_instance": false,
+              "fixed": false,
+              "visibility": 1,
+              "hidden": false,
+              "transform_array_data": [1, 0, 0, 0, 1, 0, 0, 0, 1, 0.03, 0, 0, 1, 0, 0, 0],
+              "point_probe": [
+                [0.03, 0, 0],
+                [1.03, 0, 0],
+                [0.03, 1, 0],
+                [0.03, 0, 1]
+              ],
+              "box_m": [0.029999999999999995, 0, 0, 0.039999999999999994, 0.02, 0.03]
+            },
+            {
+              "name": "o15_sub_asm-1",
+              "parent": null,
+              "depth": 1,
+              "file_name": "o15_sub_asm.SLDASM",
+              "path": "o15_sub_asm.SLDASM",
+              "referenced_configuration": "Default",
+              "suppression_state": 0,
+              "suppression_state_name": "suppressed",
+              "suppressed": true,
+              "exclude_from_bom": false,
+              "virtual": false,
+              "pattern_instance": false,
+              "fixed": false,
+              "visibility": 1,
+              "hidden": false,
+              "transform_array_data": [0.84402962874598542, 0.44909878511128692, -0.29312841385727223, -0.29312841385727223, 0.84402962874598542, 0.44909878511128692, 0.44909878511128692, -0.29312841385727223, 0.84402962874598542, 0, 0.1, 0, 1, 0, 0, 0],
+              "point_probe": [
+                [0, 0.1, 0],
+                [0.84402962874598542, 0.549098785111287, -0.29312841385727223],
+                [-0.29312841385727223, 0.94402962874598539, 0.44909878511128692],
+                [0.44909878511128692, -0.19312841385727222, 0.84402962874598542]
+              ],
+              "box_m": null
+            },
+            {
+              "name": "o07_boxB_h31-1",
+              "parent": null,
+              "depth": 1,
+              "file_name": "o07_boxB_h31.SLDPRT",
+              "path": "o07_boxB_h31.SLDPRT",
+              "referenced_configuration": "Default",
+              "suppression_state": 0,
+              "suppression_state_name": "suppressed",
+              "suppressed": true,
+              "exclude_from_bom": false,
+              "virtual": false,
+              "pattern_instance": false,
+              "fixed": false,
+              "visibility": 1,
+              "hidden": false,
+              "transform_array_data": [1, 0, 0, 0, 1, 0, 0, 0, 1, 0.06, 0, 0, 1, 0, 0, 0],
+              "point_probe": [
+                [0.06, 0, 0],
+                [1.06, 0, 0],
+                [0.06, 1, 0],
+                [0.06, 0, 1]
+              ],
+              "box_m": null
+            },
+            {
+              "name": "o02_boxA-2",
+              "parent": null,
+              "depth": 1,
+              "file_name": "o02_boxA.SLDPRT",
+              "path": "o02_boxA.SLDPRT",
+              "referenced_configuration": "Default",
+              "suppression_state": 2,
+              "suppression_state_name": "fully resolved",
+              "suppressed": false,
+              "exclude_from_bom": false,
+              "virtual": false,
+              "pattern_instance": false,
+              "fixed": false,
+              "visibility": 1,
+              "hidden": false,
+              "transform_array_data": [0, 1, 0, -1, 0, 0, 0, 0, 1, 0.1, 0, 0, 1, 0, 0, 0],
+              "point_probe": [
+                [0.1, 0, 0],
+                [0.1, 1, 0],
+                [-0.9, 0, 0],
+                [0.1, 0, 1]
+              ],
+              "box_m": [0.080000000000000016, 0, 0, 0.1, 0.01, 0.03]
+            },
+            {
+              "name": "o07_boxB_h31-3",
+              "parent": null,
+              "depth": 1,
+              "file_name": "o07_boxB_h31.SLDPRT",
+              "path": "o07_boxB_h31.SLDPRT",
+              "referenced_configuration": "Default",
+              "suppression_state": 2,
+              "suppression_state_name": "fully resolved",
+              "suppressed": false,
+              "exclude_from_bom": false,
+              "virtual": false,
+              "pattern_instance": true,
+              "fixed": false,
+              "visibility": 1,
+              "hidden": false,
+              "transform_array_data": [1, 0, 0, 0, 1, 0, 0, 0, 1, 0.02, -0.12, 0, 1, 0, 0, 0],
+              "point_probe": [
+                [0.02, -0.12, 0],
+                [1.02, -0.12, 0],
+                [0.02, 0.88, 0],
+                [0.02, -0.12, 1]
+              ],
+              "box_m": [0.02, -0.12, 0, 0.030000000000000002, -0.1, 0.031]
+            },
+            {
+              "name": "o07_boxB_h31-4",
+              "parent": null,
+              "depth": 1,
+              "file_name": "o07_boxB_h31.SLDPRT",
+              "path": "o07_boxB_h31.SLDPRT",
+              "referenced_configuration": "Default",
+              "suppression_state": 2,
+              "suppression_state_name": "fully resolved",
+              "suppressed": false,
+              "exclude_from_bom": false,
+              "virtual": false,
+              "pattern_instance": true,
+              "fixed": false,
+              "visibility": 1,
+              "hidden": false,
+              "transform_array_data": [1, 0, 0, 0, 1, 0, 0, 0, 1, 0.04, -0.12, 0, 1, 0, 0, 0],
+              "point_probe": [
+                [0.04, -0.12, 0],
+                [1.04, -0.12, 0],
+                [0.04, 0.88, 0],
+                [0.04, -0.12, 1]
+              ],
+              "box_m": [0.04, -0.12, 0, 0.049999999999999996, -0.1, 0.031]
+            },
+            {
+              "name": "o07_boxB_h31-2",
+              "parent": null,
+              "depth": 1,
+              "file_name": "o07_boxB_h31.SLDPRT",
+              "path": "o07_boxB_h31.SLDPRT",
+              "referenced_configuration": "Default",
+              "suppression_state": 2,
+              "suppression_state_name": "fully resolved",
+              "suppressed": false,
+              "exclude_from_bom": false,
+              "virtual": false,
+              "pattern_instance": false,
+              "fixed": false,
+              "visibility": 1,
+              "hidden": false,
+              "transform_array_data": [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.12, 0, 1, 0, 0, 0],
+              "point_probe": [
+                [0, -0.12, 0],
+                [1, -0.12, 0],
+                [0, 0.88, 0],
+                [0, -0.12, 1]
+              ],
+              "box_m": [0, -0.12, 0, 0.01, -0.1, 0.031]
+            },
+            {
+              "name": "o09_import_step-1",
+              "parent": null,
+              "depth": 1,
+              "file_name": "o09_import_step.SLDPRT",
+              "path": "o09_import_step.SLDPRT",
+              "referenced_configuration": "Default",
+              "suppression_state": 2,
+              "suppression_state_name": "fully resolved",
+              "suppressed": false,
+              "exclude_from_bom": false,
+              "virtual": false,
+              "pattern_instance": false,
+              "fixed": false,
+              "visibility": 1,
+              "hidden": false,
+              "transform_array_data": [1, 0, 0, 0, 1, 0, 0, 0, 1, 0.13, 0, 0, 1, 0, 0, 0],
+              "point_probe": [
+                [0.13, 0, 0],
+                [1.13, 0, 0],
+                [0.13, 1, 0],
+                [0.13, 0, 1]
+              ],
+              "box_m": [0.13, 0, 0, 0.14, 0.02, 0.03]
+            },
+            {
+              "name": "o02_boxA-1",
+              "parent": null,
+              "depth": 1,
+              "file_name": "o02_boxA.SLDPRT",
+              "path": "o02_boxA.SLDPRT",
+              "referenced_configuration": "Default",
+              "suppression_state": 2,
+              "suppression_state_name": "fully resolved",
+              "suppressed": false,
+              "exclude_from_bom": false,
+              "virtual": false,
+              "pattern_instance": false,
+              "fixed": true,
+              "visibility": 1,
+              "hidden": false,
+              "transform_array_data": [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
+              "point_probe": [
+                [0, 0, 0],
+                [1, 0, 0],
+                [0, 1, 0],
+                [0, 0, 1]
+              ],
+              "box_m": [0, 0, 0, 0.01, 0.02, 0.03]
+            }
+          ]
+        }
+      }
+    }
+  },
+  "o18_drw_boxA.SLDDRW": {
+    "generation": {
+      "step": "o18",
+      "template": "C:\\Program Files\\SOLIDWORKS Corp\\SOLIDWORKS\\data\\templates\\ansi.drwdot",
+      "recipe": "Drawing of o02 from the Dassault-shipped drawing template 'ansi.drwdot' (current-account mode) with one Front view (CreateDrawViewFromModelView3). Saved with SaveAs3 Silent (no Copy)."
+    },
+    "type": "drawing",
+    "api": {
+      "version_history": [
+        "3919[2007/337]",
+        "4100[2008/308]",
+        "4379[2009/235]",
+        "4400[2009/244]",
+        "4607[2010/172]",
+        "4617[2010/201]",
+        "4623[2010/221]",
+        "4628[2010/242]",
+        "4700[2010/257]",
+        "4875[2011/159]",
+        "4888[2011/192]",
+        "4894[2011/227]",
+        "5000[2011/254]",
+        "5238[2012/157]",
+        "5248[2012/215]",
+        "5800[2012/233]",
+        "6000[2012/260]",
+        "6240[2013/154]",
+        "6247[2013/185]",
+        "6252[2013/211]",
+        "6800[2013/232]",
+        "7232[2014/160]",
+        "7248[2014/187]",
+        "7254[2014/211]",
+        "7800[2014/231]",
+        "8000[2014/252]",
+        "8218[2015/154]",
+        "8220[2015/183]",
+        "8223[2015/210]",
+        "8800[2015/231]",
+        "9000[2015/252]",
+        "9226[2016/152]",
+        "9233[2016/179]",
+        "9239[2016/209]",
+        "9800[2016/238]",
+        "10800[2017/235]",
+        "11800[2018/235]",
+        "12000[2018/256]",
+        "12800[2019/246]",
+        "13000[2019/255]",
+        "15800[2022/207]",
+        "16000[2022/235]",
+        "16800[2023/211]",
+        "17000[2023/241,2024/16]"
+      ],
+      "open_error": 0,
+      "open_error_names": [],
+      "open_warnings": 0,
+      "open_warning_names": [],
+      "document_type": 3,
+      "unit_system": 3,
+      "sheets": [
+        {
+          "name": "Sheet1",
+          "properties": [8, 13, 2, 1, 1, 0.42, 0.297, 1],
+          "views": [
+            {
+              "name": "Drawing View1",
+              "type": 7,
+              "referenced_document": "o02_boxA.SLDPRT",
+              "referenced_configuration": "Default"
+            }
+          ]
+        }
+      ],
+      "bom_tables": []
+    }
+  },
+  "o19_drw_asm.SLDDRW": {
+    "generation": {
+      "step": "o19",
+      "template": "C:\\Program Files\\SOLIDWORKS Corp\\SOLIDWORKS\\data\\templates\\ansi.drwdot",
+      "recipe": "Drawing of o16 from the Dassault-shipped drawing template 'ansi.drwdot' (current-account mode) with one Isometric view and two BOM tables on it (InsertBomTable5): top-level only and indented. Saved with SaveAs3 Silent (no Copy).",
+      "bom_configuration": "Default",
+      "bom_tables_at_creation": [
+        {
+          "requested": "top-level only",
+          "bom_type": 2,
+          "bom_type_name": "top-level only",
+          "bom_configuration": "",
+          "feature_name": "Bill of Materials1",
+          "rows": 8,
+          "columns": 4,
+          "header_rows": 1,
+          "column_titles": [
+            "ITEM NO.",
+            "PART NUMBER",
+            "DESCRIPTION",
+            "QTY."
+          ],
+          "cells": [
+            [
+              "ITEM NO.",
+              "PART NUMBER",
+              "DESCRIPTION",
+              "QTY."
+            ],
+            [
+              "1",
+              "o02_boxA",
+              "",
+              "2"
+            ],
+            [
+              "2",
+              "o06_boxA_props_mat_cfg",
+              "Oracle test box",
+              "1"
+            ],
+            [
+              "3",
+              "o15_sub_asm",
+              "",
+              "1"
+            ],
+            [
+              "4",
+              "o07_boxB_h31",
+              "",
+              "3"
+            ],
+            [
+              "5",
+              "o09_import_step",
+              "",
+              "1"
+            ],
+            [
+              "6",
+              "o17_\u0434\u0435\u0442\u0430\u043b\u044c",
+              "",
+              "1"
+            ],
+            [
+              "7",
+              "Part12^o16_asm_features",
+              "",
+              "1"
+            ]
+          ],
+          "row_documents": [
+            {
+              "row": 0,
+              "item_number": null,
+              "part_number": null,
+              "documents": []
+            },
+            {
+              "row": 1,
+              "item_number": "1",
+              "part_number": "o02_boxA",
+              "documents": [
+                "o02_boxA.SLDPRT"
+              ]
+            },
+            {
+              "row": 2,
+              "item_number": "2",
+              "part_number": "o06_boxA_props_mat_cfg",
+              "documents": [
+                "o06_boxA_props_mat_cfg.SLDPRT"
+              ]
+            },
+            {
+              "row": 3,
+              "item_number": "3",
+              "part_number": "o15_sub_asm",
+              "documents": [
+                "o15_sub_asm.SLDASM"
+              ]
+            },
+            {
+              "row": 4,
+              "item_number": "4",
+              "part_number": "o07_boxB_h31",
+              "documents": [
+                "o07_boxB_h31.SLDPRT"
+              ]
+            },
+            {
+              "row": 5,
+              "item_number": "5",
+              "part_number": "o09_import_step",
+              "documents": [
+                "o09_import_step.SLDPRT"
+              ]
+            },
+            {
+              "row": 6,
+              "item_number": "6",
+              "part_number": "o17_\u0434\u0435\u0442\u0430\u043b\u044c",
+              "documents": [
+                "o17_\u0434\u0435\u0442\u0430\u043b\u044c.SLDPRT"
+              ]
+            },
+            {
+              "row": 7,
+              "item_number": "7",
+              "part_number": "Part12^o16_asm_features",
+              "documents": [
+                "%TEMP%/swx6788/VC~~/o16_asm_features/Part12^o16_asm_features.SLDPRT"
+              ]
+            }
+          ]
+        },
+        {
+          "requested": "indented",
+          "bom_type": 3,
+          "bom_type_name": "indented",
+          "bom_configuration": "Default",
+          "feature_name": "Bill of Materials2",
+          "rows": 10,
+          "columns": 4,
+          "header_rows": 1,
+          "column_titles": [
+            "ITEM NO.",
+            "PART NUMBER",
+            "DESCRIPTION",
+            "QTY."
+          ],
+          "cells": [
+            [
+              "ITEM NO.",
+              "PART NUMBER",
+              "DESCRIPTION",
+              "QTY."
+            ],
+            [
+              "1",
+              "o02_boxA",
+              "",
+              "2"
+            ],
+            [
+              "2",
+              "o06_boxA_props_mat_cfg",
+              "Oracle test box",
+              "1"
+            ],
+            [
+              "3",
+              "o15_sub_asm",
+              "",
+              "1"
+            ],
+            [
+              "3.1",
+              "  o02_boxA",
+              "",
+              "1"
+            ],
+            [
+              "3.2",
+              "  o07_boxB_h31",
+              "",
+              "1"
+            ],
+            [
+              "4",
+              "o07_boxB_h31",
+              "",
+              "3"
+            ],
+            [
+              "5",
+              "o09_import_step",
+              "",
+              "1"
+            ],
+            [
+              "6",
+              "o17_\u0434\u0435\u0442\u0430\u043b\u044c",
+              "",
+              "1"
+            ],
+            [
+              "7",
+              "Part12^o16_asm_features",
+              "",
+              "1"
+            ]
+          ],
+          "row_documents": [
+            {
+              "row": 0,
+              "item_number": null,
+              "part_number": null,
+              "documents": []
+            },
+            {
+              "row": 1,
+              "item_number": "1",
+              "part_number": "o02_boxA",
+              "documents": [
+                "o02_boxA.SLDPRT"
+              ]
+            },
+            {
+              "row": 2,
+              "item_number": "2",
+              "part_number": "o06_boxA_props_mat_cfg",
+              "documents": [
+                "o06_boxA_props_mat_cfg.SLDPRT"
+              ]
+            },
+            {
+              "row": 3,
+              "item_number": "3",
+              "part_number": "o15_sub_asm",
+              "documents": [
+                "o15_sub_asm.SLDASM"
+              ]
+            },
+            {
+              "row": 4,
+              "item_number": "3.1",
+              "part_number": "  o02_boxA",
+              "documents": [
+                "o02_boxA.SLDPRT"
+              ]
+            },
+            {
+              "row": 5,
+              "item_number": "3.2",
+              "part_number": "  o07_boxB_h31",
+              "documents": [
+                "o07_boxB_h31.SLDPRT"
+              ]
+            },
+            {
+              "row": 6,
+              "item_number": "4",
+              "part_number": "o07_boxB_h31",
+              "documents": [
+                "o07_boxB_h31.SLDPRT"
+              ]
+            },
+            {
+              "row": 7,
+              "item_number": "5",
+              "part_number": "o09_import_step",
+              "documents": [
+                "o09_import_step.SLDPRT"
+              ]
+            },
+            {
+              "row": 8,
+              "item_number": "6",
+              "part_number": "o17_\u0434\u0435\u0442\u0430\u043b\u044c",
+              "documents": [
+                "o17_\u0434\u0435\u0442\u0430\u043b\u044c.SLDPRT"
+              ]
+            },
+            {
+              "row": 9,
+              "item_number": "7",
+              "part_number": "Part12^o16_asm_features",
+              "documents": [
+                "%TEMP%/swx6788/VC~~/o16_asm_features/Part12^o16_asm_features.SLDPRT"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "type": "drawing",
+    "api": {
+      "version_history": [
+        "3919[2007/337]",
+        "4100[2008/308]",
+        "4379[2009/235]",
+        "4400[2009/244]",
+        "4607[2010/172]",
+        "4617[2010/201]",
+        "4623[2010/221]",
+        "4628[2010/242]",
+        "4700[2010/257]",
+        "4875[2011/159]",
+        "4888[2011/192]",
+        "4894[2011/227]",
+        "5000[2011/254]",
+        "5238[2012/157]",
+        "5248[2012/215]",
+        "5800[2012/233]",
+        "6000[2012/260]",
+        "6240[2013/154]",
+        "6247[2013/185]",
+        "6252[2013/211]",
+        "6800[2013/232]",
+        "7232[2014/160]",
+        "7248[2014/187]",
+        "7254[2014/211]",
+        "7800[2014/231]",
+        "8000[2014/252]",
+        "8218[2015/154]",
+        "8220[2015/183]",
+        "8223[2015/210]",
+        "8800[2015/231]",
+        "9000[2015/252]",
+        "9226[2016/152]",
+        "9233[2016/179]",
+        "9239[2016/209]",
+        "9800[2016/238]",
+        "10800[2017/235]",
+        "11800[2018/235]",
+        "12000[2018/256]",
+        "12800[2019/246]",
+        "13000[2019/255]",
+        "15800[2022/207]",
+        "16000[2022/235]",
+        "16800[2023/211]",
+        "17000[2023/241,2024/16]"
+      ],
+      "open_error": 0,
+      "open_error_names": [],
+      "open_warnings": 0,
+      "open_warning_names": [],
+      "document_type": 3,
+      "unit_system": 3,
+      "sheets": [
+        {
+          "name": "Sheet1",
+          "properties": [8, 13, 1, 2, 1, 0.42, 0.297, 1],
+          "views": [
+            {
+              "name": "Drawing View1",
+              "type": 7,
+              "referenced_document": "o16_asm_features.SLDASM",
+              "referenced_configuration": "Default"
+            }
+          ]
+        }
+      ],
+      "bom_tables": [
+        {
+          "requested": "found after reopening",
+          "bom_type": 2,
+          "bom_type_name": "top-level only",
+          "bom_configuration": "",
+          "feature_name": "Bill of Materials1",
+          "rows": 8,
+          "columns": 4,
+          "header_rows": 1,
+          "column_titles": [
+            "ITEM NO.",
+            "PART NUMBER",
+            "DESCRIPTION",
+            "QTY."
+          ],
+          "cells": [
+            [
+              "ITEM NO.",
+              "PART NUMBER",
+              "DESCRIPTION",
+              "QTY."
+            ],
+            [
+              "1",
+              "o02_boxA",
+              "",
+              "2"
+            ],
+            [
+              "2",
+              "o06_boxA_props_mat_cfg",
+              "Oracle test box",
+              "1"
+            ],
+            [
+              "3",
+              "o15_sub_asm",
+              "",
+              "1"
+            ],
+            [
+              "4",
+              "o07_boxB_h31",
+              "",
+              "3"
+            ],
+            [
+              "5",
+              "o09_import_step",
+              "",
+              "1"
+            ],
+            [
+              "6",
+              "o17_\u0434\u0435\u0442\u0430\u043b\u044c",
+              "",
+              "1"
+            ],
+            [
+              "7",
+              "Part12^o16_asm_features",
+              "",
+              "1"
+            ]
+          ],
+          "row_documents": [
+            {
+              "row": 0,
+              "item_number": null,
+              "part_number": null,
+              "documents": []
+            },
+            {
+              "row": 1,
+              "item_number": "1",
+              "part_number": "o02_boxA",
+              "documents": [
+                "o02_boxA.SLDPRT"
+              ]
+            },
+            {
+              "row": 2,
+              "item_number": "2",
+              "part_number": "o06_boxA_props_mat_cfg",
+              "documents": [
+                "o06_boxA_props_mat_cfg.SLDPRT"
+              ]
+            },
+            {
+              "row": 3,
+              "item_number": "3",
+              "part_number": "o15_sub_asm",
+              "documents": [
+                "o15_sub_asm.SLDASM"
+              ]
+            },
+            {
+              "row": 4,
+              "item_number": "4",
+              "part_number": "o07_boxB_h31",
+              "documents": [
+                "o07_boxB_h31.SLDPRT"
+              ]
+            },
+            {
+              "row": 5,
+              "item_number": "5",
+              "part_number": "o09_import_step",
+              "documents": [
+                "o09_import_step.SLDPRT"
+              ]
+            },
+            {
+              "row": 6,
+              "item_number": "6",
+              "part_number": "o17_\u0434\u0435\u0442\u0430\u043b\u044c",
+              "documents": [
+                "o17_\u0434\u0435\u0442\u0430\u043b\u044c.SLDPRT"
+              ]
+            },
+            {
+              "row": 7,
+              "item_number": "7",
+              "part_number": "Part12^o16_asm_features",
+              "documents": [
+                "%TEMP%/swx6788/VC~~/o16_asm_features/Part12^o16_asm_features.SLDPRT"
+              ]
+            }
+          ],
+          "sheet": "Sheet1"
+        },
+        {
+          "requested": "found after reopening",
+          "bom_type": 3,
+          "bom_type_name": "indented",
+          "bom_configuration": "Default",
+          "feature_name": "Bill of Materials2",
+          "rows": 10,
+          "columns": 4,
+          "header_rows": 1,
+          "column_titles": [
+            "ITEM NO.",
+            "PART NUMBER",
+            "DESCRIPTION",
+            "QTY."
+          ],
+          "cells": [
+            [
+              "ITEM NO.",
+              "PART NUMBER",
+              "DESCRIPTION",
+              "QTY."
+            ],
+            [
+              "1",
+              "o02_boxA",
+              "",
+              "2"
+            ],
+            [
+              "2",
+              "o06_boxA_props_mat_cfg",
+              "Oracle test box",
+              "1"
+            ],
+            [
+              "3",
+              "o15_sub_asm",
+              "",
+              "1"
+            ],
+            [
+              "3.1",
+              "  o02_boxA",
+              "",
+              "1"
+            ],
+            [
+              "3.2",
+              "  o07_boxB_h31",
+              "",
+              "1"
+            ],
+            [
+              "4",
+              "o07_boxB_h31",
+              "",
+              "3"
+            ],
+            [
+              "5",
+              "o09_import_step",
+              "",
+              "1"
+            ],
+            [
+              "6",
+              "o17_\u0434\u0435\u0442\u0430\u043b\u044c",
+              "",
+              "1"
+            ],
+            [
+              "7",
+              "Part12^o16_asm_features",
+              "",
+              "1"
+            ]
+          ],
+          "row_documents": [
+            {
+              "row": 0,
+              "item_number": null,
+              "part_number": null,
+              "documents": []
+            },
+            {
+              "row": 1,
+              "item_number": "1",
+              "part_number": "o02_boxA",
+              "documents": [
+                "o02_boxA.SLDPRT"
+              ]
+            },
+            {
+              "row": 2,
+              "item_number": "2",
+              "part_number": "o06_boxA_props_mat_cfg",
+              "documents": [
+                "o06_boxA_props_mat_cfg.SLDPRT"
+              ]
+            },
+            {
+              "row": 3,
+              "item_number": "3",
+              "part_number": "o15_sub_asm",
+              "documents": [
+                "o15_sub_asm.SLDASM"
+              ]
+            },
+            {
+              "row": 4,
+              "item_number": "3.1",
+              "part_number": "  o02_boxA",
+              "documents": [
+                "o02_boxA.SLDPRT"
+              ]
+            },
+            {
+              "row": 5,
+              "item_number": "3.2",
+              "part_number": "  o07_boxB_h31",
+              "documents": [
+                "o07_boxB_h31.SLDPRT"
+              ]
+            },
+            {
+              "row": 6,
+              "item_number": "4",
+              "part_number": "o07_boxB_h31",
+              "documents": [
+                "o07_boxB_h31.SLDPRT"
+              ]
+            },
+            {
+              "row": 7,
+              "item_number": "5",
+              "part_number": "o09_import_step",
+              "documents": [
+                "o09_import_step.SLDPRT"
+              ]
+            },
+            {
+              "row": 8,
+              "item_number": "6",
+              "part_number": "o17_\u0434\u0435\u0442\u0430\u043b\u044c",
+              "documents": [
+                "o17_\u0434\u0435\u0442\u0430\u043b\u044c.SLDPRT"
+              ]
+            },
+            {
+              "row": 9,
+              "item_number": "7",
+              "part_number": "Part12^o16_asm_features",
+              "documents": [
+                "%TEMP%/swx6788/VC~~/o16_asm_features/Part12^o16_asm_features.SLDPRT"
+              ]
+            }
+          ],
+          "sheet": "Sheet1"
+        }
+      ]
+    }
+  }
+}

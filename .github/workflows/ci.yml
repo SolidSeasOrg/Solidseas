@@ -1,0 +1,112 @@
+name: CI
+
+# Lint and test on Linux and Windows. Integrations run SolidSeas on Linux, so
+# every change has to pass there as well as on the Windows development machine.
+# No deploy. One secret, FIXTURES_TOKEN, reads the private SOLIDWORKS fixtures
+# (scripts/fetch-fixtures.py); without it, as in a fork's pull request, the
+# test modules that need them are left out of the run.
+#
+# Every push to main runs on the project's own Linux machine (a self-hosted
+# runner labelled solidseas-vm), which costs no Actions minutes. GitHub's Linux
+# and Windows runners run for every pull request, once a day and on demand.
+#
+# The repository is public, so the self-hosted runner never runs code from a
+# pull request. A pull request, from a fork or not, could run anything on the
+# machine that picks it up, so the own-linux job runs only for a push to main
+# (code a maintainer has already merged) or a workflow_dispatch (which needs
+# write access), and only in this repository, never in a fork. Pull requests
+# use the pull_request event, never pull_request_target, so a fork gets a
+# read-only token and no secrets, and is tested only on GitHub's hosted runners.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "17 7 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  own-linux:
+    name: own Linux machine, Python 3.12
+    # Never for pull_request: see the note at the top. Only while a self-hosted runner is
+    # registered for this repository (the repository variable SELF_HOSTED_RUNNER is true);
+    # without one the job would wait in the queue until a later run cancels it.
+    if: >-
+      github.repository == 'SolidSeas/SolidSeas' &&
+      vars.SELF_HOSTED_RUNNER == 'true' &&
+      ((github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      github.event_name == 'workflow_dispatch')
+    runs-on: [self-hosted, linux, solidseas-vm]
+    timeout-minutes: 30
+    concurrency:
+      group: own-linux
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Fetch the private SOLIDWORKS fixtures
+        shell: bash
+        env:
+          FIXTURES_TOKEN: ${{ secrets.FIXTURES_TOKEN }}
+        run: |
+          if [ -n "$FIXTURES_TOKEN" ]; then
+            git -c credential.helper= clone -q --depth 1 \
+              "https://x-access-token:${FIXTURES_TOKEN}@github.com/SolidSeas/SolidSeas-fixtures.git" "$RUNNER_TEMP/fixtures"
+            python scripts/fetch-fixtures.py --from "$RUNNER_TEMP/fixtures"
+          else
+            echo "no FIXTURES_TOKEN: the tests that need the private fixtures are left out"
+          fi
+      - name: Install
+        run: |
+          python -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/python" -m pip install -q -e ".[dev]"
+      - name: Lint
+        run: '"$RUNNER_TEMP/venv/bin/python" -m ruff check .'
+      - name: Test
+        run: '"$RUNNER_TEMP/venv/bin/python" -m pytest -q -p no:cacheprovider'
+
+  hosted:
+    name: ${{ matrix.os }}, Python 3.12
+    if: >-
+      github.event_name == 'pull_request' || github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch'
+    runs-on: ${{ matrix.os }}
+    # The whole suite takes about 15 minutes on Linux and over 20 on Windows.
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Fetch the private SOLIDWORKS fixtures
+        shell: bash
+        env:
+          FIXTURES_TOKEN: ${{ secrets.FIXTURES_TOKEN }}
+        run: |
+          if [ -n "$FIXTURES_TOKEN" ]; then
+            git -c credential.helper= clone -q --depth 1 \
+              "https://x-access-token:${FIXTURES_TOKEN}@github.com/SolidSeas/SolidSeas-fixtures.git" "$RUNNER_TEMP/fixtures"
+            python scripts/fetch-fixtures.py --from "$RUNNER_TEMP/fixtures"
+          else
+            echo "no FIXTURES_TOKEN: the tests that need the private fixtures are left out"
+          fi
+      - name: Install
+        run: python -m pip install -e ".[dev]"
+      - name: Lint
+        run: python -m ruff check .
+      - name: Test
+        run: python -m pytest -q

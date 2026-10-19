@@ -1,0 +1,228 @@
+{
+  "golden": "pocket-tab",
+  "part": "drawing_parts.pocket_tab_block: an 80 x 20 mm block 50 deep with a 6 mm tab 15 high on top and a 40 x 12 x 8 mm pocket in its +Z face",
+  "profile": "ASME inch, machined, datum scheme",
+  "proves": "widths and gaps stated directly (tab thickness, pocket width and length), the pocket depth as a note",
+  "expected": {
+    "dimensions": [
+      {"key": "size/f-2", "kind": "linear", "value": "3.15", "tolerance": "block"},
+      {"key": "size/f-3", "kind": "linear", "value": "1.57", "tolerance": "block"},
+      {"key": "size/f-4", "kind": "linear", "value": ".24", "tolerance": "block"},
+      {"key": "size/f-5", "kind": "linear", "value": "1.38", "tolerance": "block"},
+      {"key": "size/f-6", "kind": "linear", "value": ".47", "tolerance": "block"},
+      {"key": "size/f-7", "kind": "linear", "value": ".16", "tolerance": "block"},
+      {"key": "size/f-8", "kind": "linear", "value": "1.97", "tolerance": "block"},
+      {"key": "depth/f-1", "kind": "leader_note", "value": "↧ .31", "tolerance": "block"},
+      {"key": "loc/f-1/x", "kind": "linear", "value": "[.5906]", "tolerance": "basic"},
+      {"key": "loc/f-4/x", "kind": "linear", "value": "[2.8346]", "tolerance": "basic"},
+      {"key": "loc/f-9/y", "kind": "linear", "value": "[.7874]", "tolerance": "basic"},
+      {"key": "datum/a", "kind": "datum_feature", "value": "A", "axis": "y"},
+      {"key": "datum/b", "kind": "datum_feature", "value": "B", "axis": "z"},
+      {"key": "datum/c", "kind": "datum_feature", "value": "C", "axis": "x"}
+    ]
+  },
+  "findings": {
+    "automated": {
+      "finding": "R4.coincident: the block's top at Y .79 is two faces, either side of the tab, and the location .7874 (d-11) and the .16 wall above the pocket (d-6) reach them with one extension line and no count (10.2: a merged position whose faces are not one continuous visible line gets a count or an extension line to each).",
+      "problems": [
+        "error R4.coincident d-6: d-6 (.16) meets 2 separate surfaces at Y .79 in v-1 with one extension line; give it a count (2X) or an extension line to each",
+        "error R4.coincident d-11: d-11 ([.7874]) meets 2 separate surfaces at Y .79 in v-1 with one extension line; give it a count (2X) or an extension line to each"
+      ]
+    }
+  },
+  "snapshot": {
+    "plan": {
+      "options": {
+        "process": "machined",
+        "profile": "asme",
+        "units": "in",
+        "scheme": "datum",
+        "arrangement": {},
+        "front": {"direction": "+z", "turn": 0},
+        "views": [
+          "front",
+          "top",
+          "right",
+          "isometric"
+        ],
+        "sheet": "B",
+        "scale": [2, 1],
+        "hidden": null,
+        "tangent": null,
+        "bodies": null,
+        "quality": "normal",
+        "configuration": null
+      },
+      "sheet": "B 2:1",
+      "views": [
+        "v-1 at 2",
+        "v-2 at 2",
+        "v-4 at 1.5"
+      ],
+      "dimensions": [
+        {"id": "d-1", "key": "size/f-2", "kind": "linear", "view": "v-1", "axis": "x", "mm": 80.0, "tol": "block", "places": 2, "prefix": "", "suffix": [], "role": "envelope"},
+        {"id": "d-2", "key": "size/f-3", "kind": "linear", "view": "v-1", "axis": "x", "mm": 40.0, "tol": "block", "places": 2, "prefix": "", "suffix": [], "role": "feature_size"},
+        {"id": "d-3", "key": "size/f-4", "kind": "linear", "view": "v-1", "axis": "x", "mm": 6.0, "tol": "block", "places": 2, "prefix": "", "suffix": [], "role": "feature_size"},
+        {"id": "d-4", "key": "size/f-5", "kind": "linear", "view": "v-1", "axis": "y", "mm": 35.0, "tol": "block", "places": 2, "prefix": "", "suffix": [], "role": "envelope"},
+        {"id": "d-5", "key": "size/f-6", "kind": "linear", "view": "v-1", "axis": "y", "mm": 12.0, "tol": "block", "places": 2, "prefix": "", "suffix": [], "role": "feature_size"},
+        {"id": "d-6", "key": "size/f-7", "kind": "linear", "view": "v-1", "axis": "y", "mm": 4.0, "tol": "block", "places": 2, "prefix": "", "suffix": [], "role": "feature_size"},
+        {"id": "d-7", "key": "size/f-8", "kind": "linear", "view": "v-2", "axis": "z", "mm": 50.0, "tol": "block", "places": 2, "prefix": "", "suffix": [], "role": "envelope"},
+        {"id": "d-8", "key": "depth/f-1", "kind": "leader_note", "view": "v-1", "axis": "z", "mm": 8.0, "tol": "block", "places": 2, "prefix": "", "suffix": ["↧ .31"], "role": "feature_size"},
+        {"id": "d-9", "key": "loc/f-4/x", "kind": "linear", "view": "v-1", "axis": "x", "mm": 72.0, "tol": "basic", "places": 3, "prefix": "", "suffix": [], "role": "feature_location"},
+        {"id": "d-10", "key": "loc/f-1/x", "kind": "linear", "view": "v-1", "axis": "x", "mm": 15.0, "tol": "basic", "places": 3, "prefix": "", "suffix": [], "role": "feature_location"},
+        {"id": "d-11", "key": "loc/f-9/y", "kind": "linear", "view": "v-1", "axis": "y", "mm": 20.0, "tol": "basic", "places": 3, "prefix": "", "suffix": [], "role": "feature_location"},
+        {"id": "d-12", "key": "datum/a", "kind": "datum_feature", "view": "v-1", "axis": "y", "mm": 0.0, "tol": "block", "places": 2, "prefix": "", "suffix": ["A"], "role": "form"},
+        {"id": "d-13", "key": "datum/b", "kind": "datum_feature", "view": "v-2", "axis": "z", "mm": 0.0, "tol": "block", "places": 2, "prefix": "", "suffix": ["B"], "role": "form"},
+        {"id": "d-14", "key": "datum/c", "kind": "datum_feature", "view": "v-1", "axis": "x", "mm": 0.0, "tol": "block", "places": 2, "prefix": "", "suffix": ["C"], "role": "form"}
+      ],
+      "datums": [
+        "A face 2: the largest planar face",
+        "B face 1: the largest planar face square to datum A",
+        "C face 9: the largest planar face square to datums A and B"
+      ],
+      "notes": [
+        "UNLESS OTHERWISE SPECIFIED, ALL SURFACES",
+        "REMOVE ALL BURRS. BREAK SHARP EDGES .005-.015",
+        "SURFACE FINISH 125 µin MAX.",
+        "DIMENSIONS APPLY AFTER FINISH."
+      ],
+      "title": {"number": "POCKET_TAB_BLOCK", "title": "POCKET_TAB_BLOCK", "part_number": "POCKET_TAB_BLOCK", "revision": "A", "model": "pocket_tab_block 9403FD49FC372A66"},
+      "coverage": [16, 0, 15, 15],
+      "graphs": [
+        "linear/x: complete, a tree",
+        "linear/y: complete, a tree",
+        "linear/z: complete, a tree"
+      ],
+      "bands": [
+        "±.010 x7"
+      ],
+      "checks": [
+        "warning R2.rounding d-2: d-2 (1.57) rounds the model's 1.574803 by 24 % of its ±.010 band; the model value lies inside the band",
+        "warning R2.rounding d-3: d-3 (.24) rounds the model's .236220 by 19 % of its ±.010 band; the model value lies inside the band",
+        "warning R2.rounding d-4: d-4 (1.38) rounds the model's 1.377953 by 10 % of its ±.010 band; the model value lies inside the band",
+        "warning R2.rounding d-5: d-5 (.47) rounds the model's .472441 by 12 % of its ±.010 band; the model value lies inside the band",
+        "warning R2.rounding d-6: d-6 (.16) rounds the model's .157480 by 13 % of its ±.010 band; the model value lies inside the band",
+        "information R3.roles R3.roles: 8 dimensions take their precision from their role (8 at ±.010); review them before CHECKED is signed",
+        "error R4.coincident d-6: d-6 (.16) meets 2 separate surfaces at Y .79 in v-1 with one extension line; give it a count (2X) or an extension line to each",
+        "error R4.coincident d-11: d-11 ([.7874]) meets 2 separate surfaces at Y .79 in v-1 with one extension line; give it a count (2X) or an extension line to each",
+        "information R6.signatures APPROVED: APPROVED is not signed",
+        "information R6.signatures CHECKED: CHECKED is not signed",
+        "error R6.title DRAWN: nobody is named as DRAWN, with the date",
+        "error R6.title finish: the title block's FINISH is empty",
+        "error R6.title material: the title block's MATERIAL is empty"
+      ]
+    },
+    "svg": {
+      "border": {"n": 85, "sum": 11438.17, "digest": "f0d5ad01e0786d36"},
+      "dimensions": {"n": 554, "sum": 78082.38, "digest": "5b69a14baa26cfa2"},
+      "notes": {"n": 15, "sum": 2207.51, "digest": "509ea9190ebc459f"},
+      "page": {"n": 10, "sum": 2133.6, "digest": "f99e23aad011247d"},
+      "stamp": {"n": 6, "sum": 460.93, "digest": "f0b5668866b0c02a"},
+      "title": {"n": 537, "sum": 114338.74, "digest": "2c7d72091d176d05"},
+      "visible": {"n": 280, "sum": 43000.31, "digest": "62fc688fff21c109"}
+    },
+    "pdf": {
+      "content": "0666936a64d53b7d",
+      "operators": {"BDC": 6, "BT": 84, "EMC": 6, "ET": 84, "G": 1, "J": 2, "S": 165, "Tf": 84, "Tj": 84, "Tm": 84, "c": 14, "d": 3, "f": 23, "g": 1, "h": 68, "j": 1, "l": 298, "m": 188, "w": 4},
+      "groups": [
+        "Visible",
+        "Dimensions",
+        "Notes",
+        "Title block",
+        "Stamp"
+      ],
+      "text": [
+        "1",
+        "1",
+        "2",
+        "2",
+        "3",
+        "3",
+        "4",
+        "4",
+        "A",
+        "A",
+        "B",
+        "B",
+        ".5906",
+        "1.57",
+        "2.8346",
+        ".24",
+        "3.15",
+        ".16",
+        ".47",
+        ".7874",
+        "1.38",
+        "1.97",
+        "A",
+        "B",
+        "C",
+        " .31",
+        ".020",
+        "A",
+        "B",
+        "C",
+        "NOTES:",
+        "1. UNLESS OTHERWISE SPECIFIED, ALL SURFACES",
+        "2. REMOVE ALL BURRS. BREAK SHARP EDGES .005-.015",
+        "3. SURFACE FINISH 125 µin MAX.",
+        "4. DIMENSIONS APPLY AFTER FINISH.",
+        "Example Engineering Co.",
+        "TITLE",
+        "POCKET_TAB_BLOCK",
+        "SIZE",
+        "B",
+        "CAGE",
+        "DWG NO",
+        "POCKET_TAB_BLOCK",
+        "REV",
+        "A",
+        "SCALE",
+        "2:1",
+        "CALC WT",
+        "SHEET",
+        "1 OF 1",
+        "STATUS",
+        "PRELIMINARY",
+        "MODEL / MODEL REV",
+        "pocket_tab_block 9403FD49FC372A66",
+        "MATERIAL",
+        "FINISH",
+        "UNLESS OTHERWISE SPECIFIED: DIMENSIONS ARE IN",
+        "INCHES",
+        "TOLERANCES: .X ±.030 .XX ±.010 .XXX ±.005",
+        "ANGLES ±0.5°",
+        "DIMENSIONING AND TOLERANCING PER ASME Y14.5-2018",
+        "DRAWN",
+        "NAME",
+        "DATE",
+        "CHECKED",
+        "NAME",
+        "DATE",
+        "APPROVED",
+        "NAME",
+        "DATE",
+        "DO NOT SCALE DRAWING",
+        "THIS DRAWING AND THE DESIGN IT SHOWS BELONG TO EXAMPLE ENGINEERING CO.. DO NOT",
+        "COPY OR DISCLOSE IT, OR USE IT FOR ANY PURPOSE OTHER THAN THE ONE FOR WHICH IT",
+        "WAS SUPPLIED, WITHOUT ITS WRITTEN PERMISSION.",
+        "REVISIONS",
+        "ZONE",
+        "REV",
+        "DESCRIPTION",
+        "DATE",
+        "APPROVED",
+        "A",
+        "INITIAL RELEASE",
+        "PRELIMINARY - NOT FOR MANUFACTURE",
+        "SolidSeas {version}, pocket_tab_block.SLDPRT (Default)"
+      ]
+    },
+    "dxf": {
+      "tags": "c5956b66c2f58612",
+      "count": 6076,
+      "entities": {"DIMENSION DIM": 10, "INSERT DIM": 4, "LINE BORDER": 8, "LINE DIM": 4, "LINE TITLE": 1, "LINE VISIBLE": 56, "LWPOLYLINE BORDER": 1, "LWPOLYLINE DIM": 1, "LWPOLYLINE TITLE": 37, "SPLINE DIM": 1, "SPLINE TITLE": 2, "TEXT BORDER": 12, "TEXT DIM": 1, "TEXT NOTES": 5, "TEXT STAMP": 1, "TEXT TITLE": 47},
+      "blocks": {"LINE 0": 46, "LWPOLYLINE 0": 7, "POINT DEFPOINTS": 30, "SOLID 0": 23, "SPLINE 0": 1, "TEXT 0": 17}
+    }
+  }
+}
