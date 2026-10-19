@@ -6389,11 +6389,11 @@ The service runs in the foreground until it is stopped, so a service manager
 starts it and keeps it running. Whatever starts it, run it as an account that
 can read the roots and nothing more, and keep the token file where only that
 account (and administrators) can read it. The test suite does not run the
-recipes below; both Windows ones were run as written on Windows 10 (a client
-listed a folder and fetched a preview with the token, a request without it was
-refused, and ending the task ended the service and its workers), and the
-systemd one has not been run yet. After setting one up, check the exposure as
-8.2 says.
+recipes below; each was run as written, the Windows ones on Windows 10 and the
+systemd one on Debian 13: a client listed a folder and fetched a preview with
+the token, a request without it was refused, and stopping the service ended its
+workers (systemd also started it again after it was killed). After setting one
+up, check the exposure as 8.2 says.
 
 **Windows, one workstation** (the user's own folders). A Scheduled Task that
 starts at log on, as the user, with `pythonw.exe` so no window opens. From a
