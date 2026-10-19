@@ -6388,9 +6388,12 @@ or by inspection, and gives the commands that repeat the checks.
 The service runs in the foreground until it is stopped, so a service manager
 starts it and keeps it running. Whatever starts it, run it as an account that
 can read the roots and nothing more, and keep the token file where only that
-account (and administrators) can read it. The recipes below are not run by the
-test suite (the task definitions were built, not registered, on Windows 10);
-after setting one up, check the exposure as 8.2 says.
+account (and administrators) can read it. The test suite does not run the
+recipes below; both Windows ones were run as written on Windows 10 (a client
+listed a folder and fetched a preview with the token, a request without it was
+refused, and ending the task ended the service and its workers), and the
+systemd one has not been run yet. After setting one up, check the exposure as
+8.2 says.
 
 **Windows, one workstation** (the user's own folders). A Scheduled Task that
 starts at log on, as the user, with `pythonw.exe` so no window opens. From a
@@ -6443,6 +6446,12 @@ $settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit ([TimeSpan]::Zero) 
 Register-ScheduledTask -TaskName "SolidSeas serve" -Action $action -Trigger $trigger `
   -Principal $principal -Settings $settings
 ```
+
+Install SolidSeas into that environment with `pip`, or with uv's
+`--link-mode=copy`: uv otherwise links its files on Windows from its cache in
+the installing user's profile, they keep that folder's access list, and LOCAL
+SERVICE cannot read them (the task ends with exit code 1 and a
+`PermissionError` on `solidseas\__main__.py`).
 
 The folder is new, owned by Administrators, and its access list is set before
 the token file exists, so the file never grants anyone but SYSTEM,
