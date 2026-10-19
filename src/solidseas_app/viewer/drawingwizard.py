@@ -1255,9 +1255,7 @@ class DrawingWizard(QWizard):
             self.dimensions_page,
             self.output_page,
         )
-        for page in self.pages:
-            page.setMinimumWidth(PAGE_WIDTH)
-            self.setPage(page.index, page)
+        self._add_pages()
 
         self.preview_status = _label(note=True)
         self.preview_progress = QProgressBar()
@@ -1293,6 +1291,14 @@ class DrawingWizard(QWizard):
         self.output_page.folder.setText(self.default_folder())
         self._apply_settings(first=True)
         self.start_probe(configuration)
+
+    def _add_pages(self) -> None:
+        """Put the six pages in the wizard. The Guided wizard (:mod:`.drawingguided`)
+        puts its own questions in their place and keeps these pages, unshown, as the
+        answers' store."""
+        for page in self.pages:
+            page.setMinimumWidth(PAGE_WIDTH)
+            self.setPage(page.index, page)
 
     # ------------------------------------------------------------------ settings
     def default_folder(self) -> str:
@@ -1530,14 +1536,19 @@ class DrawingWizard(QWizard):
         """``in`` or ``mm`` as clicked on page 1; None when nothing was clicked."""
         return self.part_page.chosen_unit()
 
+    def units_option(self) -> str:
+        """The drawing's ``units`` option: the unit clicked on page 1 for a part that
+        states none (when Drawing Settings draw parts in their own unit), else ``part``."""
+        if unit_question(self.probe, self.settings):
+            return self.chosen_unit() or "part"
+        return "part"
+
     def current_request(self) -> Request | None:
         """The request the pages make now, or None while page 1 is not complete."""
         if self.page_problems(PART):
             return None
         probe, s = self.probe, self.settings
-        units = "part"
-        if unit_question(probe, s):
-            units = self.chosen_unit() or "part"
+        units = self.units_option()
         ticked = self.part_page.ticked_bodies()
         selected = [b.name for b in probe.bodies if b.selected]
         bodies = None if ticked == selected else tuple(ticked)
@@ -1660,17 +1671,9 @@ class DrawingWizard(QWizard):
         """Why page ``index`` cannot go on, in words; empty when it can."""
         out: list[str] = []
         if index == PART:
-            if self.probe_error is not None:
-                out.append(f"the part could not be read: {self.probe_error}")
-            elif self.probe is None:
-                out.append("the part is being read")
-            elif self.probe.refused is not None:
-                out.append(f"SolidSeas cannot draw this part: {self.probe.refused}")
-            else:
-                if self.probe.bodies and not self.part_page.ticked_bodies():
-                    out.append("tick at least one body to draw")
-                if unit_question(self.probe, self.settings) and self.chosen_unit() is None:
-                    out.append("the part states no unit: click Inch or Millimetre")
+            out = self.part_problems()
+            if not out and unit_question(self.probe, self.settings) and self.chosen_unit() is None:
+                out.append("the part states no unit: click Inch or Millimetre")
         elif index == TITLE:
             revision = self.title_page.edits["revision"].text().strip().upper()
             if revision and not standards.is_revision(revision):
@@ -1691,6 +1694,19 @@ class DrawingWizard(QWizard):
             if self._writing:
                 out.append("the files are being written")
         return out
+
+    def part_problems(self) -> list[str]:
+        """Why the part cannot be drawn yet, the unit aside: it is being read, could not
+        be read or is refused, or no body is ticked."""
+        if self.probe_error is not None:
+            return [f"the part could not be read: {self.probe_error}"]
+        if self.probe is None:
+            return ["the part is being read"]
+        if self.probe.refused is not None:
+            return [f"SolidSeas cannot draw this part: {self.probe.refused}"]
+        if self.probe.bodies and not self.part_page.ticked_bodies():
+            return ["tick at least one body to draw"]
+        return []
 
     def validate_page(self, index: int) -> bool:
         if index == OUTPUT:

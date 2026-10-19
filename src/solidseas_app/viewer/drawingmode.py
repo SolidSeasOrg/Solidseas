@@ -8,8 +8,8 @@ page):
 
 * **Express** makes a simple drawing with no questions and opens it in the editor
   (:class:`ExpressRun`).
-* **Guided** walks through the drawing a step at a time. It is shown, off, as coming
-  soon.
+* **Guided** asks a few plain questions in turn, each saying why it matters, and opens
+  the drawing in the editor (:mod:`.drawingguided`).
 * **Expert** opens the New Drawing wizard (:mod:`.drawingwizard`) with every option.
 
 :class:`ExpressRun` does in a worker thread what the wizard does over its pages: reads
@@ -45,10 +45,10 @@ MODES = (EXPRESS, GUIDED, EXPERT)
 MODE_TITLES = {EXPRESS: "Express", GUIDED: "Guided", EXPERT: "Expert"}
 MODE_WORDS = {
     EXPRESS: "A simple drawing with the key sizes, straight to the editor",
-    GUIDED: "Walks you through the drawing a step at a time",
+    GUIDED: "A few plain questions, one at a time, then the editor",
     EXPERT: "Every option, in the New Drawing wizard",
 }
-AVAILABLE = (EXPRESS, EXPERT)  # Guided comes in a later release
+AVAILABLE = MODES  # every mode is offered
 REMEMBER_TEXT = "Remember my choice"
 REMEMBER_TIP = "Start this kind of drawing straight away from now on. Settings > Drawings changes it."
 MIN_WIDTH = 460  # pixels: each choice's words on one line or two
@@ -56,8 +56,8 @@ EXPRESS_BUSY = "An Express drawing is being made. Wait for it to open in the edi
 
 
 class ModeDialog(QDialog):
-    """How to start the drawing of ``name``: Express, Guided (off, coming soon) or
-    Expert, and whether to remember the choice. :attr:`chosen` is the mode clicked,
+    """How to start the drawing of ``name``: Express, Guided or Expert, and whether to
+    remember the choice. :attr:`chosen` is the mode clicked,
     None when cancelled; :attr:`remember` the tick."""
 
     def __init__(self, parent: QWidget | None, name: str) -> None:

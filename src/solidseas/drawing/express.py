@@ -25,7 +25,7 @@ from __future__ import annotations
 from .settings import DrawingSettings
 from .types import DrawingOptions
 
-MODES = ("express", "guided", "expert")  # as the viewer offers them; guided comes later
+MODES = ("express", "guided", "expert")  # as the viewer offers them
 
 
 def express_options(

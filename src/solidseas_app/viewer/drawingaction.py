@@ -41,9 +41,10 @@ Make Drawing entries while it is off (:attr:`DrawingController.enabled`).
 
 Each New Drawing and Make Drawing first chooses how the drawing starts
 (:mod:`.drawingmode`): Express, which makes a simple drawing of the key sizes with no
-questions and opens it in the editor, or Expert, the wizard. Guided is shown in the
-chooser as coming soon. The viewer's ``drawing_mode`` setting ("Remember my choice", or
-the Settings window's Drawings page) skips the chooser.
+questions and opens it in the editor; Guided (:mod:`.drawingguided`), a few plain
+questions in turn that make the drawing and open it in the editor; or Expert, the
+wizard. The viewer's ``drawing_mode`` setting ("Remember my choice", or the Settings
+window's Drawings page) skips the chooser.
 
 A drawing is made by the New Drawing wizard (:mod:`.drawingwizard`) and edited in the
 drawing editor (:mod:`.drawingeditor`), each imported when first wanted. The window has
@@ -112,6 +113,7 @@ DRAWING_SHOWN = (
 )
 ONE_WIZARD = "A New Drawing wizard is already open: finish it or close it first."
 NOT_HERE = "{what} is not in this viewer, so drawings cannot be {done} here."
+STARTS = ("express", "guided", "expert")  # how a drawing can start (drawingmode.MODES)
 
 
 def refusal(target: PrintTarget) -> tuple[str, str] | None:
@@ -214,6 +216,12 @@ def _wizard_class() -> Any:
     return DrawingWizard
 
 
+def _guided_class() -> Any:
+    from .drawingguided import GuidedWizard
+
+    return GuidedWizard
+
+
 def _editor_class() -> Any:
     from .drawingeditor import DrawingEditor
 
@@ -252,7 +260,8 @@ class DrawingController(QObject):
 
     Stand-ins: ``make_wizard`` (``DrawingWizard(parent, worker, part, *,
     configuration, settings, settings_path, folder)`` with its signal
-    ``drawing_written(path, open_editor)``), ``make_editor`` (``DrawingEditor(worker,
+    ``drawing_written(path, open_editor)``), ``make_guided`` (``GuidedWizard``, made
+    and connected the same way), ``make_editor`` (``DrawingEditor(worker,
     path, *, settings, settings_path, parent)``), ``make_settings_dialog``
     (``DrawingSettingsDialog(parent, *, path, page, on_saved)``) and ``make_worker``
     (``DrawingWorker(limits)``), each None for the real one, imported when first
@@ -270,9 +279,10 @@ class DrawingController(QObject):
         super().__init__(window)
         self.window = window
         self.worker: Any = None  # the window's drawing process, made on first use
-        self.wizard: Any = None  # the New Drawing wizard, while it is open
+        self.wizard: Any = None  # the New Drawing wizard, or the Guided one, while it is open
         self.editors: list[tuple[str, Any]] = []  # (the drawing's path as compared, its editor)
         self.make_wizard: Callable[..., Any] | None = None
+        self.make_guided: Callable[..., Any] | None = None
         self.make_editor: Callable[..., Any] | None = None
         self.make_settings_dialog: Callable[..., Any] | None = None
         self.make_worker: Callable[..., Any] | None = None
@@ -552,9 +562,9 @@ class DrawingController(QObject):
     def start(self, target: PrintTarget) -> dict[str, Any]:
         """Start a drawing of ``target``'s part: the one way every drawing starts, from
         the menu, the button, a right-click menu or the dry run. The mode is chosen first
-        (:meth:`mode_for`): Express makes the drawing and opens it in the editor, Expert
-        opens the New Drawing wizard. Drawing Settings opens first on first use. What it
-        did is :attr:`last`."""
+        (:meth:`mode_for`): Express makes the drawing and opens it in the editor, Guided
+        opens the Guided wizard, Expert the New Drawing wizard. Drawing Settings opens
+        first on first use. What it did is :attr:`last`."""
         why = refusal(target)
         if why is not None:
             return self._cannot(why[1])
@@ -574,21 +584,23 @@ class DrawingController(QObject):
             return self._done({"ok": False, "cancelled": True})
         if mode == "express":
             return self.start_express(target)
+        if mode == "guided":
+            return self.start_guided(target)
         return self.start_expert(target)
 
     def mode_for(self, target: PrintTarget) -> str | None:
-        """How the drawing of ``target`` starts: ``express`` or ``expert``, from the
-        viewer's ``drawing_mode`` setting, else as chosen in the chooser (None:
+        """How the drawing of ``target`` starts: ``express``, ``guided`` or ``expert``,
+        from the viewer's ``drawing_mode`` setting, else as chosen in the chooser (None:
         cancelled). "Remember my choice" saves the choice as the setting. The dry run
         always opens the wizard."""
         if self.dry_run:
             return "expert"
         settings = getattr(self.window, "settings", None)
         mode = getattr(settings, "drawing_mode", "ask")
-        if mode in ("express", "expert"):
+        if mode in STARTS:
             return mode
         chosen, remember = self.choose_mode(os.path.basename(target.source.path))
-        if chosen not in ("express", "expert"):
+        if chosen not in STARTS:
             return None
         if remember and settings is not None and callable(getattr(self.window, "apply_settings", None)):
             self.window.apply_settings(settings.but(drawing_mode=chosen))
@@ -647,6 +659,20 @@ class DrawingController(QObject):
             factory = self.make_wizard or _wizard_class()
         except ImportError:
             return self._cannot(NOT_HERE.format(what="The New Drawing wizard", done="made"))
+        return self._start_wizard(factory, target, "expert")
+
+    def start_guided(self, target: PrintTarget) -> dict[str, Any]:
+        """Open the Guided wizard on ``target``'s part: a few plain questions, then the
+        editor (:mod:`.drawingguided`)."""
+        try:
+            factory = self.make_guided or _guided_class()
+        except ImportError:
+            return self._cannot(NOT_HERE.format(what="The Guided drawing", done="made"))
+        return self._start_wizard(factory, target, "guided")
+
+    def _start_wizard(self, factory: Callable[..., Any], target: PrintTarget, mode: str) -> dict[str, Any]:
+        """Open the wizard ``factory`` makes on ``target``'s part, Drawing Settings first on
+        first use; the wizard's ``drawing_written`` opens the editor."""
         settings, _problems = self.load_settings()
         first_use = self._first_use(settings)
         if first_use is not None:
@@ -668,7 +694,7 @@ class DrawingController(QObject):
         return self._done(
             {
                 "ok": True,
-                "mode": "expert",
+                "mode": mode,
                 "part": part,
                 "configuration": target.configuration,
                 "folder": target.folder,

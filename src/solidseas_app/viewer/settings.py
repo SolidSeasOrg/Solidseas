@@ -53,7 +53,7 @@ THUMBNAIL_LABELS = {
     "extra_large": "Extra large (256 x 192)",
 }
 LIST_VIEWS = {"details": "Details", "icons": "Icons"}
-DRAWING_MODE_LABELS = {"ask": "Ask each time", "express": "Express", "expert": "Expert"}
+DRAWING_MODE_LABELS = {"ask": "Ask each time", "express": "Express", "guided": "Guided", "expert": "Expert"}
 _TRUE = ("true", "1", "yes", "on")
 _FALSE = ("false", "0", "no", "off")
 _GROUPED = re.compile(r"\d{1,3}(,\d{3})+")  # "1,000,000"
@@ -91,8 +91,9 @@ class Settings:
     # Drawings (File > New Drawing, Open Drawing, Make Drawing): experimental, on unless the
     # user switched them off; a file saved before this setting existed has them on.
     drawings: bool = True
-    # What the Drawing button starts: "ask" shows the choice of Express or Expert each time;
-    # "express" or "expert" starts that one, chosen with "Remember my choice" or here
+    # What the Drawing button starts: "ask" shows the choice of Express, Guided or Expert each
+    # time; "express", "guided" or "expert" starts that one, chosen with "Remember my choice"
+    # or here
     drawing_mode: str = "ask"
 
     def but(self, **changes: Any) -> "Settings":
@@ -108,7 +109,7 @@ _CHOICES: dict[str, tuple[str, ...]] = {
     "rotation_mode": tuple(ROTATION_MODES),
     "thumbnail_size": tuple(THUMBNAIL_SIZES),
     "list_view": tuple(LIST_VIEWS),
-    "drawing_mode": ("ask", "express", "expert"),
+    "drawing_mode": ("ask", "express", "guided", "expert"),
 }
 _RANGES: dict[str, tuple[int, int]] = {
     "triangle_cap": (MIN_TRIANGLE_CAP, MAX_TRIANGLE_CAP),

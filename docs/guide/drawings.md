@@ -45,14 +45,48 @@ When you press Drawing, SolidSeas asks how you would like to make it:
   Settings folder) and opens in the editor, where you can export the PDF and
   DXF, add dimensions, or fill in anything left empty. An assembly's Express
   drawing has its overall size, its views and its parts list with balloons.
-- **Guided** will walk you through the drawing a step at a time. It is shown as
-  coming soon.
+- **Guided**: a few plain questions, one at a time, each with a sentence on
+  why it matters. The preview beside the questions shows the drawing as your
+  answers shape it. See [Guided drawings](#guided-drawings) below.
 - **Expert** opens the New Drawing wizard below, with every option.
 
 Tick **Remember my choice** to skip the question next time. You can change it,
 or go back to being asked, under Settings > Drawings, "When Drawing is
 pressed". An Express drawing keeps being an Express drawing when you use
 Update from Model.
+
+## Guided drawings
+
+Guided asks, in this order:
+
+1. **What is the drawing for?** To show a customer or get a quote, you get the
+   overall size and the holes. To have it 3D printed, you get the same key
+   sizes with the tolerances of the printing process you pick from Drawing
+   Settings > Printing. To have it made from plain sizes, every feature is sized
+   and located with plus and minus tolerances. To have it machined in a shop,
+   you get the complete drawing, with datums and GD&T, checked to define the
+   part fully. The answer starts at your usual level from Drawing Settings.
+2. **Which views should the sheet show?** The front is always drawn. Tick the
+   top, the sides, the bottom, the back and the isometric (a 3D picture) as you
+   need them. They start as your Default Views.
+3. **Which unit should the sizes be in?** It starts at the unit the part is
+   modelled in, or the one Drawing Settings use for every drawing. A part that
+   does not say gets SolidSeas' guess, with the reason, when the guess is clear;
+   otherwise you choose.
+4. **How much should the drawing dimension?** The first answer chose this;
+   change it here if you need more or fewer sizes.
+5. **What should the title block say?** The same title block fields as the
+   wizard. Leave one empty to use the part's own value.
+6. **Ready to make the drawing.** What will be made, the title block as the
+   preview shows it, and where the files go, with a button to choose another
+   folder. A PDF is saved beside the drawing unless you untick it, and a DXF if
+   you tick it. **Finish** saves them and opens the drawing in the editor.
+
+An assembly is asked only about its views, unit and title block: its drawing
+has its views, a parts list and balloons. Guided leaves the rest (hidden lines,
+the sheet, the scale) to your Drawing Settings, and does not ask about tapped
+holes: a hole sized as a tap drill is drawn as a plain hole. Use Expert to call
+out its thread.
 
 ## The New Drawing wizard
 

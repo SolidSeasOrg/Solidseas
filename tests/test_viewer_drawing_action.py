@@ -176,6 +176,7 @@ class Viewer:
         self.window = MainWindow()
         self.window.show()
         self.wizards: list = []
+        self.wizard_class = Wizard  # the stand-in, for the Guided wizard too
         self.editors: list[Editor] = []
         self.dialogs: list[Dialog] = []
         self.workers: list[Worker] = []
@@ -779,7 +780,7 @@ class ExpressStandIn:
         self.started = True
 
 
-def test_the_chooser_offers_express_guided_and_expert_with_guided_coming_soon(app):
+def test_the_chooser_offers_express_guided_and_expert(app):
     from PySide6.QtWidgets import QLabel
 
     from solidseas_app.viewer import drawingmode as M
@@ -788,16 +789,18 @@ def test_the_chooser_offers_express_guided_and_expert_with_guided_coming_soon(ap
     dialog = M.ModeDialog(None, "plate.SLDPRT")
     try:
         assert list(dialog.buttons) == ["express", "guided", "expert"]
-        assert [b.text() for b in dialog.buttons.values()] == ["Express", "Guided (coming soon)", "Expert"]
-        assert dialog.buttons["express"].isEnabled() and dialog.buttons["expert"].isEnabled()
-        assert not dialog.buttons["guided"].isEnabled(), "Guided comes later"
+        assert [b.text() for b in dialog.buttons.values()] == ["Express", "Guided", "Expert"]
+        assert all(b.isEnabled() for b in dialog.buttons.values())
         assert dialog.buttons["express"].description() == (
             "A simple drawing with the key sizes, straight to the editor"
+        )
+        assert dialog.buttons["guided"].description() == (
+            "A few plain questions, one at a time, then the editor"
         )
         assert dialog.buttons["expert"].description().startswith("Every option")
         assert dialog.remember_box.text() == "Remember my choice" and not dialog.remember
         assert experimental.drawings_note() in [label.text() for label in dialog.findChildren(QLabel)]
-        dialog.choose("guided")  # not offered: nothing happens
+        dialog.choose("nothing")  # not a mode: nothing happens
         assert dialog.chosen is None
         dialog.remember_box.setChecked(True)
         dialog.buttons["express"].click()
@@ -864,7 +867,7 @@ def test_remember_my_choice_skips_the_chooser_and_the_setting_is_on_the_drawings
     try:
         combo = d.preferences.drawing_mode
         assert combo.isVisibleTo(d) and combo.currentData() == "expert"
-        assert [combo.itemData(i) for i in range(combo.count())] == ["ask", "express", "expert"]
+        assert [combo.itemData(i) for i in range(combo.count())] == ["ask", "express", "guided", "expert"]
         combo.setCurrentIndex(combo.findData("ask"))
         assert d.apply()
         assert v.window.settings.drawing_mode == "ask"
@@ -873,6 +876,32 @@ def test_remember_my_choice_skips_the_chooser_and_the_setting_is_on_the_drawings
     v.wizards[1].visible = False
     c.new_action.trigger()
     assert len(v.mode_asked) == 2, "asked again"
+
+
+def test_guided_opens_the_guided_wizard_and_can_be_remembered(viewer, models, tmp_path):
+    v = viewer()
+    c = v.controller
+    guided: list = []
+    c.make_guided = lambda *a, **k: guided.append(v.wizard_class(*a, **k)) or guided[-1]
+    v.open(models, PART)
+    v.mode_answers = [("guided", True)]
+    c.new_action.trigger()
+    (wizard,) = guided
+    assert not v.wizards and wizard.visible and c.last["ok"] and c.last["mode"] == "guided"
+    assert wizard.part == str(models / PART) and wizard.folder == str(models)
+    assert wizard.settings.company.name == "Example Engineering Co."
+    assert v.window.settings.drawing_mode == "guided"
+    # Pressed again while it is open: it is brought forward, and nothing is asked.
+    c.new_action.trigger()
+    assert len(guided) == 1 and c.last["busy"] and len(v.mode_asked) == 1
+    # What it writes opens in the editor, as the wizard's does.
+    path = str(tmp_path / "out" / "O02.ssdrw")
+    wizard.drawing_written.emit(path, True)
+    (editor,) = v.editors
+    assert editor.path == path
+    wizard.visible = False
+    c.new_action.trigger()
+    assert len(guided) == 2 and len(v.mode_asked) == 1, "remembered: no chooser"
 
 
 def test_switched_off_drawings_start_no_mode(viewer, models):

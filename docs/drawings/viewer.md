@@ -13,7 +13,7 @@ Everything here is provisional until the first release that makes drawings.
 
 | Entry | Where | Does |
 |---|---|---|
-| New Drawing... | File menu after 3D Print, Ctrl+D, and the Drawing button beside 3D Print on the toolbar | the choice of Express, Guided (coming soon) or Expert (DRAWINGS.md 10.4b), unless Settings > Drawings names one; Expert is the New Drawing wizard and Express a drawing made with no questions and opened in the editor, each of the part the details panel shows, in the configuration it shows, as 3D Print prints it |
+| New Drawing... | File menu after 3D Print, Ctrl+D, and the Drawing button beside 3D Print on the toolbar | the choice of Express, Guided or Expert (DRAWINGS.md 10.4b), unless Settings > Drawings names one; Expert is the New Drawing wizard, Guided the same choices asked as plain questions (`drawingguided.GuidedWizard`), and Express a drawing made with no questions and opened in the editor, each of the part the details panel shows, in the configuration it shows, as 3D Print prints it |
 | Make Drawing of NAME... | every right-click menu that offers 3D Print, right after each 3D Print entry | the wizard on what that 3D Print entry would print |
 | Open Drawing... | File menu | a `.ssdrw` chosen in a file dialog, in the drawing editor |
 | Drawing Settings... | Settings menu, after AI Settings | the dialog of `viewer/drawingsettings.py` (15.2) |
@@ -79,7 +79,7 @@ asks anything; the entry asks when chosen.
 | `new_action`, `open_action`, `settings_action` | the three window entries |
 | `start(target)` | the one way every drawing starts: the refusal said, one wizard at a time (pressed again, the open one comes forward), the first-use dialog, then `DrawingWizard(window, worker, part, configuration=, settings=, settings_path=, folder=)` shown; `folder` is the opened folder (`PrintTarget.folder`), which the folder rules of 12.6 need |
 | `new_drawing()`, `draw_resolved(resolve)` | New Drawing and a Make Drawing entry, through `start` |
-| `mode_for(target)`, `start_express(target)`, `start_expert(target)` | the mode (`choose_mode` is the chooser, which tests replace), an Express drawing (`make_express`, an `ExpressRun` by default) and the wizard |
+| `mode_for(target)`, `start_express(target)`, `start_guided(target)`, `start_expert(target)` | the mode (`choose_mode` is the chooser, which tests replace), an Express drawing (`make_express`, an `ExpressRun` by default), the Guided wizard (`make_guided`, a `GuidedWizard` by default, made with the wizard's arguments and held as the one wizard open) and the wizard |
 | `open_editor(path)` | `DrawingEditor(worker, path, settings=, settings_path=, parent=None)` shown, or the one already open on that file brought forward |
 | `open_drawing()` | Open Drawing: a plain `.ssdrw` (`drawing_file_problem`), then `open_editor` |
 | `edit_settings(page=None)` | Drawing Settings, saved to `settings_file()` |

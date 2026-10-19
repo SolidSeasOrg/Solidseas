@@ -1085,7 +1085,7 @@ setting already names one ("Remember my choice", or Settings > Drawings):
 | Mode | What it does |
 |---|---|
 | Express | Makes the drawing with no questions and opens it in the editor (`solidseas.drawing.express`) |
-| Guided | Shown as coming soon; it will walk a person through the choices |
+| Guided | Asks the wizard's main choices as plain questions, one at a time, then writes the drawing and opens it in the editor (`solidseas_app/viewer/drawingguided.py`) |
 | Expert | The New Drawing wizard of 15.3, unchanged |
 
 An Express drawing is the simplified level with `DrawingOptions.mode` set to
@@ -1119,6 +1119,31 @@ know the member keeps it as an unknown option and draws the simplified level;
 a value this SolidSeas does not know falls back to `expert` with a problem
 reported. Update from Model keeps the mode. An assembly's Express drawing is
 its usual drawing.
+
+A Guided drawing is the wizard of 15.3 with its own pages: `GuidedWizard` is a
+`DrawingWizard` that shows one question a page, each with a sentence on why it
+matters, and keeps the wizard's other pages, unshown, as the store of the
+answers, so the request, the preview beside the pages, first use and Finish are
+the wizard's. The questions, in order:
+
+| Question | What the answer sets |
+|---|---|
+| What is the drawing for? | the manufacturing type and the detail level: to show a customer or get a quote, machined and Simplified; to have it 3D printed, printed and Simplified, with the printing process chosen from Drawing Settings (off, with the reason, when Settings list none); to have it made from plain sizes, machined and Complex; to have it machined in a shop, machined and Fully defined. It starts at the purpose of Drawing Settings' default level (`defaults.detail`) |
+| Which views should the sheet show? | the projected views and the isometric, starting from Drawing Settings' Default Views for the manufacturing type; a change is the user's choice, kept when the purpose changes, as in the wizard |
+| Which unit should the sizes be in? | `units`: Inch or Millimetre, starting at Drawing Settings' fixed unit, else the unit the part states, else the guess when its evidence leans one way (`UnitGuess.decided`); an unclear guess waits for a click, and no preview is made before it. The unit the part or Settings give anyway is sent as `part` |
+| How much should the drawing dimension? | `detail`, as the first answer set it; the scheme is `plusminus` below Fully defined and Drawing Settings' scheme for the manufacturing type at Fully defined |
+| What should the title block say? | the wizard's own title block page |
+| Ready to make the drawing | nothing: it says what will be made (the answers, and the title block as the preview shows it), where the files go, with a button for another folder, and ticks for a PDF (on) and a DXF (off) beside the `.ssdrw`. Finish writes them under 12.6's rules and opens the drawing in the editor |
+
+An assembly is not asked what it is for or how much to dimension: its drawing
+has its views, its parts list and balloons, and its overall size for reference.
+Hidden lines, tangent edges, the front, the sheet and the scale are left to
+Drawing Settings and SolidSeas, as for Express. Guided does not ask the
+questions of the wizard's page 5: a hole whose size is a tap drill is drawn as
+a plain hole, since a thread is called out only once confirmed there, and a hole
+end that needs confirming is confirmed from the editor's checklist. A Guided
+drawing's options carry no mode: it is an ordinary drawing, and its file is the
+one the wizard would write for the same choices.
 
 ### 10.5 Tolerancing schemes
 

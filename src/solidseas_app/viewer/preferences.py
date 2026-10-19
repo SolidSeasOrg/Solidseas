@@ -127,7 +127,8 @@ DRAWINGS_TIP = (
 )
 DRAWING_MODE_TIP = (
     "What the Drawing button and Make Drawing start. Express goes straight to the editor with the key "
-    "sizes; Expert opens the New Drawing wizard with every option. Ask each time shows the choice."
+    "sizes; Guided asks a few plain questions first; Expert opens the New Drawing wizard with every "
+    "option. Ask each time shows the choice."
 )
 SESSION_NOTE = (
     "Off, the viewer also puts back Qt's record of the last folder its folder dialogs showed. "

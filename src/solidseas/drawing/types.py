@@ -37,7 +37,8 @@ DETAIL_LEVELS = ("simplified", "complex", "full")
 # How the drawing was started (docs/DRAWINGS.md, "Drawing modes"): every option chosen in
 # the wizard (expert), or straight to the editor with the key sizes (express). An express
 # drawing is a simplified one that also locates its holes and leaves out bosses, the
-# shop's general notes and every question.
+# shop's general notes and every question. The viewer's Guided mode chooses the wizard's
+# options through plain questions, so its drawings are expert ones.
 DRAWING_MODES = ("expert", "express")
 UNIT_CHOICES = ("part", "in", "mm")
 QUALITIES = ("normal", "draft", "fine")
