@@ -245,6 +245,7 @@ class _BodyCtx:
         "poly_edges",
         "samples",
         "open_lines",
+        "conics",
         "lo",
         "hi",
     )
@@ -259,6 +260,9 @@ class _BodyCtx:
         self.poly_edges: dict[tuple[int, int], int] = {}
         self.samples: dict[int, list] = {}  # a curve record's points, sampled once
         self.open_lines: list[tuple[int, Vec, Vec, Vec, Vec]] = []  # spun lines bounded at the end
+        # a circle's or ellipse's builder curve: its centre, axes and radii, for the box of
+        # the part of it an edge runs along
+        self.conics: dict[int, tuple[Vec, Vec, Vec, float, float]] = {}
         self.lo = [math.inf] * 3
         self.hi = [-math.inf] * 3
 
@@ -708,6 +712,31 @@ class Mapper:
         v = bc.vertices[int(ref)] = bc.b.vertex(q)
         return v
 
+    def _arc_extent(self, bc: _BodyCtx, conic, start: Any, end: Any, along: bool) -> None:
+        """Take the box of the arc of a circle or ellipse from vertex ``start`` to ``end``
+        (with the curve's sense when ``along``): its ends are vertices already, so the points
+        where it turns in x, y or z, those that lie on the arc; a whole one if it closes."""
+        o, x, y, ra, rb = conic
+        if start == end:
+            bc.extent(o, ((x, ra), (y, rb)))
+            return
+
+        def angle(q: Vec) -> float:
+            d = [q[i] - o[i] for i in range(3)]
+            along_x, along_y = sum(d[i] * x[i] for i in range(3)), sum(d[i] * y[i] for i in range(3))
+            return math.atan2(along_y / rb, along_x / ra)
+
+        a0 = angle(self._vertex_point(bc, start))
+        a1 = angle(self._vertex_point(bc, end))
+        if not along:
+            a0, a1 = a1, a0
+        sweep = (a1 - a0) % (2 * math.pi)
+        for i in range(3):
+            turn = math.atan2(rb * y[i], ra * x[i])  # where coordinate i of the curve turns
+            for t in (turn, turn + math.pi):
+                if (t - a0) % (2 * math.pi) <= sweep:
+                    bc.take(tuple(o[k] + ra * math.cos(t) * x[k] + rb * math.sin(t) * y[k] for k in range(3)))
+
     def _vertex_point(self, bc: _BodyCtx, ref: Any) -> Vec:
         p = self.g.rec(ref, "VERTEX_POINT").params
         return self.g.point(p[1] if len(p) >= 2 else None, bc.ctx.length_m)
@@ -726,6 +755,9 @@ class Mapper:
             v1 = self.vertex(bc, p[2])
             curve, reversed_ = self.edge_curve(bc, p[3], ends=(p[1], p[2]))
             along = (as_bool(p[4]) is not False) ^ reversed_
+            conic = bc.conics.get(curve)
+            if conic is not None:
+                self._arc_extent(bc, conic, p[1], p[2], along)
             e = bc.b.edge(curve, v0, v1, "+" if along else "-")
         except GeometryRefused as exc:
             got = Unsupported(exc.reason, "EDGE_CURVE", str(exc))
@@ -1019,10 +1051,11 @@ class Mapper:
             o, x, y, z = g.frame(p[1], s)
             ra = _num(p[2], "a radius") * s
             rb = ra if rec.has("CIRCLE") else _num(p[3], "a semi-axis") * s
-            bc.extent(o, ((x, ra), (y, rb)))
-            if rec.has("CIRCLE"):
-                return b.circle(o, z, x, ra)
-            return b.ellipse(o, z, x, ra, rb)
+            # no extent here: a revolved arc's whole circle reaches far past the part, so an
+            # edge takes the box of the part it runs along (edge)
+            c = b.circle(o, z, x, ra) if rec.has("CIRCLE") else b.ellipse(o, z, x, ra, rb)
+            bc.conics[c] = (o, x, y, ra, rb)
+            return c
         if any(n in t for n in BSPLINE_CURVES) or "B_SPLINE_CURVE" in t:
             degree, points, weights, knots, mults, _closed = self.bspline_curve(rec, s, 3)
             for q in points:  # the control polygon bounds the curve

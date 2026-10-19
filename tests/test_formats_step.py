@@ -631,6 +631,16 @@ def test_an_ogive_nose_is_drawn_to_its_volume_and_area(chord):
         assert obj.measures()["area_m2"] == pytest.approx((side + math.pi * rb * rb) * 1e-6, rel=rel)
 
 
+def test_a_revolved_arc_s_whole_circle_does_not_coarsen_the_default_mesh():
+    """The ogive's side is a revolution of a whole circle of radius 50 mm, off the axis;
+    the part is 20 x 20 x 30 mm. The default chord comes from the part's box, which took
+    that circle's whole extent and so meshed the nose three times coarser. An edge now
+    adds only the part of its circle it runs along."""
+    with _read(_part(lambda f: [W.ogive_brep(f)])) as doc:
+        (obj,) = doc.scene().objects
+        assert obj.measures()["volume_m3"] == pytest.approx(W.ogive_volume() * 1e-9, rel=1e-2)
+
+
 @pytest.mark.parametrize("composite", [False, True], ids=["edges", "composite"])
 @pytest.mark.parametrize("kind", ["hyperbola", "parabola"])
 def test_faces_bounded_by_hyperbolas_and_parabolas_are_drawn(kind, composite):

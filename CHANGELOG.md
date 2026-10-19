@@ -1571,6 +1571,11 @@ while the project takes shape.
   saying the views do not fit the largest sheet. With the sheet left on
   automatic, a larger sheet is picked as before.
 
+- **Smoother noses on STEP models.** A nose cone or other shape made by
+  revolving an arc is meshed as finely as the rest of the part. Its arc's whole
+  circle, which reaches far past the part, had made the part look larger to the
+  mesher, so the nose came out about three times coarser.
+
 - **Hole callouts keep their space in SVG.** A callout such as "6X Ø4.50
   THRU" no longer runs together as "6X Ø4.50THRU" when a drawing is shown as
   SVG.
