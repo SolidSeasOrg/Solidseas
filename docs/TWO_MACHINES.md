@@ -1,5 +1,10 @@
 # Two machines
 
+> **Retired on 2026-10-19.** The Windows PC no longer takes requests: the main
+> session now drives a Windows test machine directly over SSH, with no exchange
+> folder in between. This document and `scripts/exchange/` stay as the record of
+> how the two sessions worked, and in case a second session is needed again.
+
 SolidSeas is developed from two sessions on two machines. The main session runs
 on a Linux VM. A second session runs on the Windows PC, because some work needs
 SOLIDWORKS, the private corpus or Windows itself. They pass work to each other
