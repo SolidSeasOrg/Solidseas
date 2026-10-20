@@ -292,7 +292,8 @@ def test_an_ollama_built_outside_the_factory_checks_its_own_address(policy_reade
 
 def test_start_run_is_the_only_entry_to_automatic_mode():
     # The assistant's window and the MCP server start runs, only through start_run, whose
-    # checks make the RunStart an AutomaticRun needs; nothing else makes one.
+    # checks make the RunStart an AutomaticRun needs; nothing else makes one but reopened,
+    # for the Revert of a run left open, which starts nothing.
     callers, makers = [], []
     for path in sorted(SRC.rglob("*.py")):
         rel = path.relative_to(SRC).as_posix()

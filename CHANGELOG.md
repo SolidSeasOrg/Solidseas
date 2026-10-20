@@ -16,6 +16,21 @@ while the project takes shape.
 
 ### Added
 
+- **A run SolidSeas did not get to finish is offered again.** If SolidSeas
+  closed during an Automatic run, or before you chose Keep or Revert, the
+  assistant now shows that run the next time it opens: the part, your goal, the
+  plan with each step marked done, failed or not run, how far it got, and where
+  the safety copy is. You choose what happens to it. **Revert** takes the run's
+  steps off the part in SOLIDWORKS, newest first, as Revert after a run does,
+  but only when the part is open and still exactly as the run's last step left
+  it; otherwise it changes nothing and says what is different, so you can open
+  the safety copy instead. **Keep** leaves the part as it is and closes the
+  run. **Decide Later** does nothing and asks again the next time, until the
+  run's folder is removed 7 days after its last change, a date the offer gives.
+  Neither choice saves the part. A run another SolidSeas window or program is
+  still working on is never offered, and the MCP server leaves these runs to
+  the assistant window.
+
 - **Assemblies in a batch get their Parasolid file too.** `solidseas batch`
   used to write Parasolid files for parts only. It now writes each assembly in
   the folder as `solidseas parasolid` does, one `.x_b` file (and an `.x_t` file

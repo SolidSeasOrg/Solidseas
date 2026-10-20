@@ -56,6 +56,32 @@ the run's folder, beside its safety copy. SolidSeas removes a run's folder once
 the run has ended and nothing in the folder has changed for 7 days, the next
 time the assistant or its MCP server starts.
 
+## A run that did not finish
+
+If SolidSeas closed in the middle of an Automatic run, or before you chose
+**Keep** or **Revert**, the run is still open. The next time you open the
+assistant, a box at the top shows it: the part, your goal, each step of the
+plan and whether it was done, how far the run got, and where the safety copy
+is. If more than one run is open, they come one at a time, oldest first.
+Nothing happens to the run until you choose:
+
+- **Revert** takes the run's steps off the part in SOLIDWORKS, newest first,
+  the way Revert does after a run. The part has to be open in SOLIDWORKS and
+  still exactly as the run's last step left it. If you closed it, changed it,
+  or SolidSeas closed while a step was running and that step changed it,
+  Revert changes nothing and says what is different. The safety copy then
+  holds the part as it was before the run: open it in SOLIDWORKS as a separate
+  document.
+- **Keep** leaves the part as it is and closes the run.
+- **Decide Later** does nothing. The run is offered again the next time the
+  assistant opens, until SolidSeas removes its folder 7 days after its last
+  change; the box gives the date.
+
+Neither choice saves the part: save it in SOLIDWORKS when you are ready. A run
+that another SolidSeas window, or the MCP server, is still working on is never
+shown. The MCP server does not show or report these runs itself; they wait for
+the assistant window.
+
 Both boxes are greyed out, with "Set by your administrator", where your
 administrator has turned pictures off.
 

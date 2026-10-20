@@ -48,7 +48,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
-from solidseas.ai.context import PartSnapshot
+from solidseas.ai.context import Dimension, Edge, Face, Feature, PartSnapshot
 from solidseas.ai.http import Cancel
 from solidseas.ai.prompts import Angle, Handles, Plan, Profile, Step
 from solidseas.swapi.bridge import BridgeRequestError
@@ -126,6 +126,72 @@ def differences(a: PartSnapshot, b: PartSnapshot) -> list[str]:
     if a.equations != b.equations:
         out.append("equations")
     return out
+
+
+def _finite(x: Any) -> float | None:
+    return float(x) if type(x) in (int, float) and math.isfinite(x) else None
+
+
+def state_of(snap: PartSnapshot | None) -> dict[str, Any] | None:
+    """What :func:`differences` compares in ``snap``, as plain JSON for the journal, so
+    that a later start can check the part against the state a step left it in (a value
+    that cannot be read is null)."""
+    if snap is None:
+        return None
+    return {
+        "features": [[f.ref, f.name, f.type, f.suppressed] for f in snap.features],
+        "dimensions": [[d.ref, _finite(d.value)] for d in snap.dimensions],
+        "faces": [[f.ref, f.type] for f in snap.faces],
+        "edges": [[e.ref, e.type] for e in snap.edges],
+        "solid_bodies": snap.solid_bodies,
+        "volume": _finite(snap.volume),
+        "box": [list(snap.box_min), list(snap.box_max)] if snap.box_min and snap.box_max else None,
+        "configurations": list(snap.configurations),
+        "active_configuration": snap.active_configuration,
+        "custom_properties": dict(snap.custom_properties),
+        "configuration_properties": {k: dict(v) for k, v in snap.configuration_properties.items()},
+        "material": snap.material,
+        "equations": list(snap.equations),
+    }
+
+
+def snapshot_of_state(state: Any) -> PartSnapshot:
+    """The :class:`PartSnapshot` a journal's state stands for, holding what
+    :func:`differences` compares and nothing else. Raises ValueError when the state is not
+    one :func:`state_of` wrote."""
+    try:
+        box = state["box"]
+        properties = state["configuration_properties"]
+        snap = PartSnapshot(
+            features=tuple(
+                Feature(str(r), str(n), str(t), suppressed=s is True) for r, n, t, s in state["features"]
+            ),
+            dimensions=tuple(
+                Dimension(str(r), "", "", "linear", math.nan if v is None else float(v))
+                for r, v in state["dimensions"]
+            ),
+            faces=tuple(Face(str(r), str(t)) for r, t in state["faces"]),
+            edges=tuple(Edge(str(r), str(t)) for r, t in state["edges"]),
+            solid_bodies=int(state["solid_bodies"]),
+            volume=None if state["volume"] is None else float(state["volume"]),
+            box_min=None if box is None else tuple(float(c) for c in box[0]),
+            box_max=None if box is None else tuple(float(c) for c in box[1]),
+            configurations=tuple(str(c) for c in state["configurations"]),
+            active_configuration=state["active_configuration"],
+            custom_properties={str(k): str(v) for k, v in state["custom_properties"].items()},
+            configuration_properties={
+                str(c): {str(k): str(v) for k, v in group.items()} for c, group in properties.items()
+            },
+            material=state["material"],
+            equations=tuple(str(e) for e in state["equations"]),
+        )
+    except (KeyError, TypeError, ValueError, AttributeError) as exc:
+        raise ValueError(f"not a part state: {exc}") from None
+    if snap.active_configuration is not None and not isinstance(snap.active_configuration, str):
+        raise ValueError("not a part state: the active configuration")
+    if snap.material is not None and not isinstance(snap.material, str):
+        raise ValueError("not a part state: the material")
+    return snap
 
 
 # --------------------------------------------------------------------------- what a step may change
@@ -531,7 +597,13 @@ class AutomaticRun:
     session object (:class:`.live_sessions.BridgeSessions`); ``baseline`` the snapshot
     the plan's handles were checked against; ``on_event(kind, data)`` hears each step;
     ``look``, when the person asked for one, looks at the part after each step that passed
-    its checks (:data:`LookAfterStep`)."""
+    its checks (:data:`LookAfterStep`); ``goal``, the person's goal as it was sent, goes
+    into the journal, so that a run left open can be described on a later start.
+
+    The journal's first line also names the part (the SOLIDWORKS process, the document's
+    key, title and path) and holds its state before the run, and each ``step_done`` line
+    the state after the step (:func:`state_of`): what :mod:`.unfinished` checks the part
+    against before it reverts a run whose process ended before Keep or Revert."""
 
     def __init__(
         self,
@@ -546,26 +618,27 @@ class AutomaticRun:
         on_event: Callable[[str, dict], None] | None = None,
         clock: Callable[[], float] = time.monotonic,
         look: LookAfterStep | None = None,
+        goal: str | None = None,
     ) -> None:
-        self.live = live
-        self.session = session
-        self.document = document
-        self.start = start
-        self.baseline = baseline
+        self._attach(live, session, document, start, baseline, on_event, clock)
         self.step_soft_limit_s = step_soft_limit_s
-        self.on_event = on_event
         self.look = look
-        self.cancel = Cancel()  # Stop sets it: a look's call to the model ends at once
-        self.clock = clock
         self.deadline = clock() + deadline_s
-        self.journal = Journal(start.folder)
-        self.records: list[StepRecord] = []
-        self.outcome: RunOutcome | None = None
-        self.ended = False
-        self._stop = threading.Event()
-        self.journal.write(
-            "run_started", run_id=start.run_id, checkpoint=start.checkpoint, steps=len(start.plan.steps)
-        )
+        started: dict[str, Any] = {
+            "run_id": start.run_id,
+            "checkpoint": start.checkpoint,
+            "steps": len(start.plan.steps),
+            "document": {
+                "pid": session.pid,
+                "key": document.key,
+                "title": document.title,
+                "path": document.path,
+            },
+            "state": state_of(baseline),
+        }
+        if goal:
+            started["goal"] = goal
+        self.journal.write("run_started", **started)
         self.journal.write(
             "plan",
             vocabulary=start.plan.vocabulary,
@@ -574,6 +647,47 @@ class AutomaticRun:
                 {"index": s.index, "op": s.op, "args": _shown(s), "note": s.note} for s in start.plan.steps
             ],
         )
+
+    def _attach(self, live, session, document, start, baseline, on_event, clock) -> None:
+        self.live = live
+        self.session = session
+        self.document = document
+        self.start = start
+        self.baseline = baseline
+        self.step_soft_limit_s = STEP_SOFT_LIMIT_S
+        self.on_event = on_event
+        self.look: LookAfterStep | None = None
+        self.cancel = Cancel()  # Stop sets it: a look's call to the model ends at once
+        self.clock = clock
+        self.deadline = math.inf  # set by __init__; a recovered run carries nothing out
+        self.journal = Journal(start.folder)
+        self.records: list[StepRecord] = []
+        self.outcome: RunOutcome | None = None
+        self.ended = False
+        self._stop = threading.Event()
+
+    @classmethod
+    def recovered(
+        cls,
+        live: Any,
+        session: LiveSession,
+        document: LiveDocument,
+        start: RunStart,
+        *,
+        baseline: PartSnapshot,
+        records: list[StepRecord],
+        outcome: RunOutcome,
+        on_event: Callable[[str, dict], None] | None = None,
+    ) -> AutomaticRun:
+        """A run whose process ended before Keep or Revert, put back together from its
+        journal by :mod:`.unfinished`: it carries nothing out, and :meth:`revert` and
+        :meth:`keep` work on it as on the run that wrote the journal. Nothing is written
+        to the journal until one of them is."""
+        run = cls.__new__(cls)
+        run._attach(live, session, document, start, baseline, on_event, time.monotonic)
+        run.records = list(records)
+        run.outcome = outcome
+        return run
 
     # ----------------------------------------------------------------- driving it
     def stop(self) -> None:
@@ -711,6 +825,7 @@ class AutomaticRun:
             made=record.made,
             undo_recorded=result.get("undo_recorded"),
             volume=after.volume,
+            state=state_of(after),
         )
         self._emit("step_done", index=step.index, op=step.op)
         if self.look is not None and not self._stop.is_set():
@@ -854,6 +969,8 @@ __all__ = [
     "differences",
     "inverse_of",
     "plan_text",
+    "snapshot_of_state",
+    "state_of",
     "step_refs",
     "step_text",
     "verify",

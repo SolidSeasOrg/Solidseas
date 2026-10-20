@@ -20,7 +20,9 @@ What only the bridge can answer (3, 4, 6 and writing checkpoint 0) comes from a
 ``%LOCALAPPDATA%\\SolidSeas\\runs\\<run id>``; SolidSeas names it and the safety
 copy, ``checkpoint-<run id>.sldprt``, and nothing in either name comes from the
 model, the goal or the document. While the run is open (until Keep or Revert, or until
-the process that ran it ends) it holds a lock on ``run.lock`` in its folder.
+the process that ran it ends) it holds a lock on ``run.lock`` in its folder, and
+:meth:`RunHold.claim` takes that lock again for a run whose process ended before Keep or
+Revert, when the assistant window offers it (:mod:`.unfinished`).
 
 :func:`clean_old_runs` removes the folders of runs that ended and whose files have not
 changed for :data:`KEEP_DAYS` days; the assistant window and the MCP server call it when
@@ -205,6 +207,37 @@ class RunHold:
             return
         self._fd = fd
 
+    @classmethod
+    def claim(cls, folder: str) -> RunHold | None:
+        """Take hold of the folder of a run that ended, through the lock on its existing
+        ``run.lock``, the way an open run holds it: None when a run in this process or a
+        process anywhere holds it, or when there is no plain ``run.lock`` to lock. Nothing
+        in the folder is written, so its last change, and with it the day it is removed,
+        stays as it was."""
+        key = _key(folder)
+        with _open_here_lock:
+            if key in _open_here:
+                return None
+            _open_here.add(key)
+        hold = cls.__new__(cls)
+        hold.key, hold._fd = key, None
+        try:
+            fd = os.open(os.path.join(folder, LOCK_NAME), _FLAGS)
+        except OSError:
+            hold.release()
+            return None
+        try:
+            st = os.fstat(fd)
+            if _is_link(st) or not stat.S_ISREG(st.st_mode):
+                raise OSError("run.lock is not a plain file")
+            _lock(fd)
+        except OSError:
+            os.close(fd)
+            hold.release()
+            return None
+        hold._fd = fd
+        return hold
+
     def release(self) -> None:
         fd, self._fd = self._fd, None
         if fd is not None:
@@ -351,6 +384,16 @@ def clean_old_runs_later(root: str | None = None) -> threading.Thread:
     return t
 
 
+def reopened(
+    run_id: str, folder: str, checkpoint: str, plan: Plan, writer: WriterHold, hold: RunHold | None
+) -> RunStart:
+    """The :class:`RunStart` of a run whose process ended before Keep or Revert, for its
+    Revert from the journal (:mod:`.unfinished`): it starts nothing and writes nothing, and
+    holds the session (``writer``, taken by the caller) and the folder (``hold``, from
+    :meth:`RunHold.claim`) until the revert ends."""
+    return RunStart(run_id, folder, checkpoint, plan, writer, hold=hold)
+
+
 def new_run_id() -> str:
     return time.strftime("%Y%m%d-%H%M%S", time.gmtime()) + "-" + secrets.token_hex(4)
 
@@ -422,6 +465,7 @@ __all__ = [
     "clean_old_runs",
     "clean_old_runs_later",
     "confirmation",
+    "reopened",
     "runs_dir",
     "start_run",
 ]

@@ -31,7 +31,10 @@ with Automatic ticked, states a goal the model plans once and SolidSeas carries 
   policy can turn Automatic mode off; then the box is greyed with "Set by your
   administrator". When the window opens, the folders of runs that ended and have not
   changed for :data:`.automatic.KEEP_DAYS` days are removed on a thread of their own
-  (:func:`.automatic.clean_old_runs`).
+  (:func:`.automatic.clean_old_runs`), and then each run whose process ended before Keep
+  or Revert is offered, one at a time, in a box above the rest: what it was and how far
+  it got, with Revert, Keep and Decide Later (:mod:`.unfinished`). Nothing is done to
+  such a run until the person chooses.
 * **Pictures.** "Show the AI a picture of the part", off until ticked, sends a picture
   of the part as last saved with a draft or a plan (:mod:`.picture`). In Automatic mode,
   "Show it the part after each step", usable only while the first is ticked, has the
@@ -86,10 +89,11 @@ from solidseas.ai.usage import DEFAULT_RUN_TOKENS, RunBudget
 
 from . import picture
 from .aisettings import ADMIN, AIConfig, AISettingsStore
-from .automatic import KEEP_DAYS, RunRefused, clean_old_runs_later, confirmation, start_run
+from .automatic import KEEP_DAYS, RunRefused, clean_old_runs, confirmation, start_run
 from .run import AutomaticRun, RunOutcome, SessionTarget, plan_text
 from .runner import Runner, RunResult
 from .session import LiveDocument, LiveSession, NoSessions, SessionList, Sessions
+from .unfinished import UnfinishedRun, find_unfinished
 from .writer import WriterBusyError, take_writer
 
 TITLE = "SolidSeas Modeling Assistant"
@@ -152,13 +156,16 @@ class _Signals(QObject):
     run_event = Signal(str, object)  # (kind, data), from the run's thread
     run_ended = Signal(object)  # the RunOutcome, or why the run did not start
     reverted = Signal(object)  # revert's messages
+    unfinished = Signal(object)  # the runs whose process ended before Keep or Revert
+    offer_reverted = Signal(object, object)  # (the UnfinishedRun, its RevertResult or an error)
 
 
 class AssistantWindow(QWidget):
     """The window. ``ai`` says where the AI settings, keys and usage live (settings kept
     in memory when it is None); the provider is built from them through the factory unless
     ``provider`` is given (tests), and built again after the AI settings page saves.
-    ``sessions`` lists and reaches SOLIDWORKS; ``runner`` runs approved code."""
+    ``sessions`` lists and reaches SOLIDWORKS; ``runner`` runs approved code;
+    ``runs_folder`` replaces the runs folder (:func:`.automatic.runs_dir`), for tests."""
 
     closed = Signal()  # the window was closed
 
@@ -170,9 +177,11 @@ class AssistantWindow(QWidget):
         *,
         ai: AIConfig | None = None,
         always_confirm: bool = False,
+        runs_folder: str | None = None,
     ) -> None:
         super().__init__(None)  # never parented to, or owned by, a SOLIDWORKS window
         self.always_confirm = always_confirm
+        self.runs_folder = runs_folder
         self.setWindowTitle(TITLE)
         self.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint, True)
         self.ai = ai if ai is not None else AIConfig(AISettingsStore(None))
@@ -200,6 +209,9 @@ class AssistantWindow(QWidget):
         self._plan_goal: Any = None  # the goal as the plan's call sent it, for the looks after steps
         self._run: AutomaticRun | None = None
         self._starting = False
+        self._offers: list[UnfinishedRun] = []  # runs left open, the first one shown
+        self._offer_busy = False
+        self._closed = False
         self._build()
         self._wire()
         self._apply_provider()
@@ -208,7 +220,7 @@ class AssistantWindow(QWidget):
         self._busy_timer.timeout.connect(self._check_busy)
         self._busy_timer.start()
         self.refresh()
-        clean_old_runs_later()  # folders of runs that ended more than KEEP_DAYS days ago
+        self._thread(self._look_for_unfinished)
 
     # ----------------------------------------------------------------- building
     def _build(self) -> None:
@@ -327,6 +339,30 @@ class AssistantWindow(QWidget):
         pb.addLayout(plan_row)
         self.plan_box.hide()
 
+        self.offer_box = QGroupBox("A run that did not finish")
+        ob = QVBoxLayout(self.offer_box)
+        self.offer_count = _plain_label()
+        self.offer_text = QPlainTextEdit()
+        self.offer_text.setReadOnly(True)
+        self.offer_text.setMaximumHeight(220)
+        self.offer_note = _plain_label()
+        self.offer_revert = QPushButton("Revert")
+        self.offer_revert.setToolTip(
+            _tip("Take the run's steps off the part, newest first, if it is still as the run left it")
+        )
+        self.offer_keep = QPushButton("Keep")
+        self.offer_keep.setToolTip(_tip("Leave the part as it is and close the run"))
+        self.offer_later = QPushButton("Decide Later")
+        self.offer_later.setToolTip(_tip("Ask again the next time the assistant opens"))
+        offer_row = QHBoxLayout()
+        offer_row.addWidget(self.offer_note, 1)
+        for b in (self.offer_revert, self.offer_keep, self.offer_later):
+            offer_row.addWidget(b, 0, Qt.AlignmentFlag.AlignTop)
+        ob.addWidget(self.offer_count)
+        ob.addWidget(self.offer_text)
+        ob.addLayout(offer_row)
+        self.offer_box.hide()
+
         log_box = QGroupBox("Log")
         log = QVBoxLayout(log_box)
         self.log = QPlainTextEdit()
@@ -353,6 +389,7 @@ class AssistantWindow(QWidget):
         layout.addWidget(self.status)
         layout.addWidget(self.mode_label)
         layout.addWidget(self.unavailable)
+        layout.addWidget(self.offer_box)
         layout.addWidget(split, 1)
         self.resize(1100, 720)
 
@@ -390,6 +427,11 @@ class AssistantWindow(QWidget):
         self.plan_stop.clicked.connect(self.stop_plan)
         self.plan_keep.clicked.connect(self.keep_run)
         self.plan_revert.clicked.connect(self.revert_run)
+        s.unfinished.connect(self._unfinished_found)
+        s.offer_reverted.connect(self._offer_reverted)
+        self.offer_revert.clicked.connect(self.revert_unfinished)
+        self.offer_keep.clicked.connect(self.keep_unfinished)
+        self.offer_later.clicked.connect(self.decide_later)
 
     def _apply_provider(self) -> None:
         """Hide, disable or show the AI controls from what the factory served."""
@@ -879,7 +921,9 @@ class AssistantWindow(QWidget):
             check = SessionTarget(self.sessions, session, document)
             try:
                 start = self._sw_call(
-                    lambda: start_run(check, plan, confirmed=confirmed, always_confirm=always)
+                    lambda: start_run(
+                        check, plan, confirmed=confirmed, always_confirm=always, runs_folder=self.runs_folder
+                    )
                 )
             except RunRefused as exc:
                 self.sig.run_ended.emit(f"The run did not start: {exc}")
@@ -900,6 +944,7 @@ class AssistantWindow(QWidget):
                     baseline=check.snapshot,
                     on_event=lambda kind, data: self.sig.run_event.emit(kind, data),
                     look=look,
+                    goal=goal.text if goal is not None else None,
                 )
             except Exception as exc:
                 start.release()
@@ -993,6 +1038,132 @@ class AssistantWindow(QWidget):
             self.plan_note.setText("Reverted.")
         else:
             self.plan_note.setText("Revert did not finish; see the log.")
+
+    # ----------------------------------------------------------------- runs left open
+    def _look_for_unfinished(self) -> None:
+        """On a worker thread when the window opens: remove the folders of runs that ended a
+        week ago, then find the runs whose process ended before Keep or Revert."""
+        try:
+            clean_old_runs(self.runs_folder)
+        except Exception:  # the next start tries again
+            pass
+        try:
+            found = find_unfinished(self.runs_folder)
+        except Exception as exc:
+            found = []
+            self.sig.log.emit(f"Runs that did not finish could not be looked for: {exc}")
+        self.sig.unfinished.emit(found)
+
+    def _unfinished_found(self, found: list[UnfinishedRun]) -> None:
+        if self._closed:  # the window closed meanwhile: the runs are offered next time
+            for offer in found:
+                offer.release()
+            return
+        self._offers.extend(found)
+        if found:
+            n = len(found)
+            self.say(
+                f"{n} Automatic run{'s' if n != 1 else ''} did not finish: SolidSeas closed before Keep or "
+                "Revert. Choose what to do above."
+            )
+        self._show_offer()
+
+    @property
+    def offer(self) -> UnfinishedRun | None:
+        """The run left open that the window offers now."""
+        return self._offers[0] if self._offers else None
+
+    def _show_offer(self, note: str = "") -> None:
+        offer = self.offer
+        self.offer_box.setVisible(offer is not None)
+        if offer is None:
+            return
+        n = len(self._offers)
+        self.offer_count.setText(
+            f"{n} runs did not finish; this is the oldest." if n > 1 else "One run did not finish."
+        )
+        self.offer_text.setPlainText(offer.describe())
+        self.offer_note.setText(note)
+        for b in (self.offer_revert, self.offer_keep, self.offer_later):
+            b.setEnabled(not self._offer_busy)
+
+    def _next_offer(self) -> None:
+        if self._offers:
+            self._offers.pop(0)
+        self._show_offer()
+
+    def revert_unfinished(self) -> None:
+        """Revert for the run on offer, on a worker thread: its steps come off the part,
+        newest first, only if the part is still as the run left it."""
+        offer = self.offer
+        if offer is None or self._offer_busy:
+            return
+        self._offer_busy = True
+        for b in (self.offer_revert, self.offer_keep, self.offer_later):
+            b.setEnabled(False)
+        self.offer_note.setText("Checking the part...")
+        self.say(f"Reverting the run that did not finish on {offer.title}, newest step first...")
+
+        def work() -> None:
+            try:
+                result: Any = self._sw_call(offer.revert, self.sessions)
+            except Exception as exc:  # said, never raised into Qt; the run stays open
+                result = f"Revert failed: {type(exc).__name__}: {exc}"
+            self.sig.offer_reverted.emit(offer, result)
+
+        self._thread(work)
+
+    def _offer_reverted(self, offer: UnfinishedRun, result: Any) -> None:
+        self._offer_busy = False
+        refused = result if isinstance(result, str) else result.refused
+        if self._closed:
+            if refused is not None:
+                offer.release()
+            return
+        if refused is not None:
+            self.say(refused)
+            if offer is self.offer:
+                self._show_offer(refused)
+            return
+        for m in result.messages:
+            self.say(m)
+        if result.messages:
+            self.say("Revert did not finish; the run is closed. The messages above say where it stopped.")
+        else:
+            self.say(
+                f"Reverted: {offer.title} is as it was before the run. "
+                "Save it in SOLIDWORKS when you are ready."
+            )
+        if offer is self.offer:
+            self._next_offer()
+
+    def keep_unfinished(self) -> None:
+        """Keep for the run on offer: the part stays as it is, and the run is closed."""
+        offer = self.offer
+        if offer is None or self._offer_busy:
+            return
+        try:
+            offer.keep()
+        except OSError as exc:
+            self.say(f"The run could not be closed: {exc}")
+            self._next_offer()
+            return
+        self.say(
+            f"Kept: {offer.title} stays as it is. The run's folder stays for {KEEP_DAYS} days: {offer.folder}"
+        )
+        self._next_offer()
+
+    def decide_later(self) -> None:
+        """Decide Later for the run on offer: nothing is done, and it is offered again next time."""
+        offer = self.offer
+        if offer is None or self._offer_busy:
+            return
+        offer.release()
+        self.say(
+            f"Nothing was done to the run on {offer.title}. It is offered again the next time the assistant "
+            "opens, until its folder is removed."
+        )
+        self._next_offer()
 
     # ----------------------------------------------------------------- running
     def run(self) -> None:
@@ -1116,6 +1287,11 @@ class AssistantWindow(QWidget):
         self.code.setReadOnly(on)
 
     def closeEvent(self, event) -> None:  # noqa: N802 - Qt's name
+        self._closed = True
+        for offer in self._offers:
+            if not (self._offer_busy and offer is self.offer):  # a revert under way lets go when it ends
+                offer.release()  # offered again next time
+        self._offers = []
         self.stop_draft()
         if self.runner.running:
             self.runner.stop()

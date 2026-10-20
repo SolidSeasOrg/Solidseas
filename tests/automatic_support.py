@@ -1,7 +1,8 @@
 """A part held in memory, standing in for SOLIDWORKS in Automatic mode's tests
 (tests/test_assistant_run.py, tests/test_assistant_automatic.py): a 20 x 10 x 8 mm block,
-the plan steps the tests use, and :class:`FakeLive`, which the run's operations change as
-SOLIDWORKS would and which records what it was asked."""
+the plan steps the tests use, :class:`FakeLive`, which the run's operations change as
+SOLIDWORKS would and which records what it was asked, and :func:`left_open`, a run whose
+process ended before Keep or Revert (tests/test_assistant_unfinished.py)."""
 
 from __future__ import annotations
 
@@ -20,6 +21,8 @@ from solidseas.ai.context import (
     build_model_summary,
 )
 from solidseas.ai.prompts import parse_plan
+from solidseas_app.assistant.automatic import start_run
+from solidseas_app.assistant.run import AutomaticRun, SessionTarget
 from solidseas_app.assistant.session import LiveDocument, LiveSession, SessionList
 
 FRONT, TOP, RIGHT = "UFAx", "UFAy", "UFAz"
@@ -77,6 +80,7 @@ def plan_of(snap: PartSnapshot, *steps: dict):
 
 FILLET = {"op": "fillet", "args": {"edges": ["E1", "E2", "E3", "E4"], "radius": {"value": 1, "unit": "mm"}}}
 DEPTH = {"op": "set_dimension", "args": {"dimension": "D3", "value": {"value": 9, "unit": "mm"}}}
+GOAL = "Round the four vertical edges 1 mm and make it 9 mm deep"
 FINISH = {"op": "set_property", "args": {"name": "Finish", "value": "black", "scope": "file"}}
 
 
@@ -217,3 +221,16 @@ class WindowLive(FakeLive):
         with open(path, "wb") as f:
             f.write(b"safety copy")
         return {"path": path}
+
+
+def left_open(root, live: WindowLive, *steps, goal: str = GOAL) -> AutomaticRun:
+    """A run of ``steps`` on ``live``'s part in ``root`` that ended without Keep or Revert:
+    its hold and session are let go as the end of its process lets go of them, and nothing
+    more is written to its journal."""
+    target = SessionTarget(live, live.session, DOCUMENT)
+    start = start_run(target, plan_of(live.state, *steps), confirmed=True, runs_folder=str(root))
+    run = AutomaticRun(live, live.session, DOCUMENT, start, baseline=target.snapshot, goal=goal)
+    run.run()
+    start.release()
+    live.calls.clear()
+    return run

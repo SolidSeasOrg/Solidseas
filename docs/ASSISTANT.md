@@ -555,7 +555,16 @@ none of its code is used.
 - **Journal.** `journal.jsonl` in the run folder gets one line per event: run
   started, checkpoint written, the prompt sent, the plan, confirmation, step
   started with its inverse, step result, revert, stop and end. Each line is
-  flushed and synced to disk before the next action.
+  flushed and synced to disk before the next action. The run's first line
+  also names the part (the SOLIDWORKS process id, the document's key, title
+  and path), holds the goal as it was sent when the window started the run,
+  and holds the part's state before the run; each `step_done` line holds the
+  state after the step (`run.state_of`: the feature tree, dimension values,
+  face and edge references, bodies, volume, extents, configurations, custom
+  properties, material and equations, which is what `run.differences`
+  compares). A later start reads them to describe a run left open and to
+  check the part before reverting it (Crashes and recovery, below). The
+  journal stays on this PC and is never sent to a model.
 - **Revert** works from the newest step backwards. "Revert to before step k"
   applies the inverses of the last step down to step k, because later features
   can depend on earlier ones; a middle step cannot be reverted alone. "Revert
@@ -582,8 +591,10 @@ none of its code is used.
   `automatic.clean_old_runs` removes, on a thread of its own, each folder in
   the runs folder that no run holds and in which nothing changed for 7 days:
   the journal's last line, Keep or Revert, starts the 7 days. A run whose
-  process ended before Keep or Revert goes the same way, 7 days after its last
-  change, and so does the safety copy of a Review mode script. Only folders
+  process ended before Keep or Revert is offered when the assistant window
+  next opens (Crashes and recovery, below); until the person chooses Keep or
+  Revert it goes the same way, 7 days after its last change, and so does the
+  safety copy of a Review mode script. Only folders
   directly in the runs folder and named like a run id are looked at. A link or
   junction, a folder on another drive, a folder whose real path is not in the
   runs folder, and a folder holding anything but plain files are left alone.
@@ -664,10 +675,70 @@ of them arrive from another process's changes while the bridge was idle
 
 ### Crashes and recovery
 
-The journal is synced at every event and the SOLIDWORKS options are in a state
-file. On its next start, SolidSeas finds any run whose journal has no end
-record and offers its checkpoint and journal. On its next attach to that
-SOLIDWORKS session, the bridge restores the user's options from the state file.
+The journal is synced at every event. A run is left open when its process
+ends before the person chooses Keep or Revert: SolidSeas crashed or was ended,
+during the steps or after them. (Closing the window or ending an MCP chat
+keeps a finished run, so that does not leave one open.) Its journal then has
+no `kept` or `reverted` line, and the lock on `run.lock` went with the
+process.
+
+`solidseas_app/assistant/unfinished.py` finds and offers such runs:
+
+- **Finding them.** When the assistant window opens, a worker thread first
+  removes old run folders (`clean_old_runs`) and then calls
+  `find_unfinished`. It looks at the runs folder the way the clean does: only
+  folders directly in it, named like a run id, that are plain folders whose
+  real path is in it, with a plain `journal.jsonl`. It takes hold of each with
+  `RunHold.claim`, the lock on the folder's existing `run.lock`. A folder a run
+  still holds, in this process or another, cannot be claimed and is left
+  alone, untouched; so is one with no `run.lock` (a Review mode script's, or a
+  run's from before runs took a lock). A claimed folder whose journal does not
+  start with `run_started`, or has a `kept` or `reverted` line, is let go
+  again. The window keeps the hold until the person chooses or the window
+  closes, so a second window does not offer the same run and nothing removes
+  its folder meanwhile. Claiming writes nothing, so it does not move the day
+  the folder is removed.
+- **The offer.** A box at the top of the window shows the runs one at a time,
+  oldest first, as plain text from the journal: the part's title and path,
+  when the run started, the goal (or the plan's notes for a plan from a chat),
+  each step as the Plan panel shows it with what became of it (done and
+  checked, failed and taken back, reverted, running when SolidSeas closed, not
+  run), how far it got and how it ended, where checkpoint 0 is, what each
+  choice does, and the day the clean may remove the folder (7 days after its
+  last change). Nothing is done to the run until the person presses one of
+  three buttons.
+- **Revert** goes through `AutomaticRun.revert`, the same path as Revert after
+  a run, on a run put back together from the journal
+  (`AutomaticRun.recovered`): each done step's inverse, newest first, with the
+  check before each inverse and the comparison after it. Before that, and
+  without changing anything, it refuses and says why when: the journal has no
+  part states (a run from before they were journaled) or an inverse it cannot
+  apply; there is no bridge; the part is not open in SOLIDWORKS (the same
+  process and document key, or, for a part with a file, the same path in any
+  SOLIDWORKS); the session is held by another run (the one-writer mutex); or
+  the part's snapshot differs from the state after the run's last done step,
+  or before the run when no step was done. That last check is what makes it
+  safe after a crash in the middle of a step: if that step changed the part,
+  the part no longer matches and Revert refuses, pointing at checkpoint 0. A
+  refusal writes nothing, and the run stays on offer. A revert that starts
+  closes the run as `reverted`, as after a run, even if it stops part way, and
+  the log says where it stopped. With no step done and none running, Revert
+  has nothing to take off and only closes the run. Checkpoint 0 is never
+  copied over the part or loaded into it.
+- **Keep** writes `kept` to the journal (with `after_restart`), which starts
+  the folder's 7 days again, and changes nothing in SOLIDWORKS.
+- **Decide Later** lets go of the folder and writes nothing; the run is offered
+  again the next time the window opens, until the clean removes the folder.
+
+The MCP server does not look for these runs and does not report them in a tool
+result: a chat's model cannot see the person's screen, and the choice belongs
+to the person. It never claims or touches their folders; the window offers
+them when it next opens.
+
+The SOLIDWORKS options are not held during a step yet (What is built, below),
+so there are none to restore after a crash. The undo entry and the part's lock
+of a step that was running are in the bridge's own state file, and a bridge
+started after one that ended closes the entry and unlocks the part.
 
 ### Ending a run
 
@@ -702,6 +773,15 @@ feature's own inputs back needs `AccessSelections`, which rolls the part back
 until it is released: an extrude's extents are bounded by the profile placed in
 the frame the bridge used, and a fillet or chamfer must have consumed exactly
 the planned edges, which a neighbouring edge cannot fake.
+
+A run left open by a crash is offered when the window next opens, with Revert,
+Keep and Decide Later (Crashes and recovery, above): `unfinished.py`, on the
+part states and the part's identity the journal now keeps, and Revert through
+`AutomaticRun.revert`. It is tested against the part held in memory only; a
+recovered revert has not been measured in a real SOLIDWORKS, in particular
+whether persist references still match after SOLIDWORKS was restarted and the
+part reopened (if they do not, the state check refuses, and checkpoint 0 is the
+way back).
 
 The look after each step (above) is built on the bridge's existing copy, with
 SolidSeas' own drawing of it. SOLIDWORKS' own view through the bridge
@@ -1088,7 +1168,7 @@ writes the user's `AI.json`.
 
 | What | Where | Kept |
 |---|---|---|
-| Run folder: checkpoint 0, the copy after each step when the look after each step is on, `journal.jsonl` and `run.lock` | `%LOCALAPPDATA%\SolidSeas\runs\<run id>\` | Until Keep or Revert, then 7 days; removed when the assistant or the MCP server next starts |
+| Run folder: checkpoint 0, the copy after each step when the look after each step is on, `journal.jsonl` and `run.lock` | `%LOCALAPPDATA%\SolidSeas\runs\<run id>\` | Until Keep or Revert, then 7 days; removed when the assistant or the MCP server next starts. A run left open by a crash is offered by the assistant window until the person chooses, or until 7 days after its last change |
 | SOLIDWORKS options held during a run | `%LOCALAPPDATA%\SolidSeas\sw-options.json` | Until the options are restored |
 | Usage | `%LOCALAPPDATA%\SolidSeas\usage.json`, with `usage.json.lock` beside it | Monthly buckets, the last 24 months; a call's hold until it ends, at most 10 minutes |
 | AI settings: provider, model, Ollama address, budgets and limits, never a key | `%APPDATA%\SolidSeas\AI.json`, beside the viewer's `Viewer.ini` | Until changed on the AI settings page; roams with a roaming profile |
@@ -1139,6 +1219,15 @@ writes the user's `AI.json`.
   said and the run goes on; Stop cancels one in flight; the copy is written
   only under the names the bridge accepts, in the run folder; the prompt holds
   no summary, name or path; and the reply parser refuses any other shape.
+- A run left open: found and described from its journal; Revert takes its
+  steps off through the existing revert path when the part is as the last step
+  left it, and refuses, writing nothing, when the part changed, is not open, the
+  session is busy, a step was running when the process ended and changed the
+  part, or the journal has no part states; Keep writes `kept` and touches
+  nothing else; Decide Later writes nothing and the run is offered again; kept
+  and reverted runs, folders without `run.lock` and folders held by this
+  process or another are never offered; and the journaled state compares as the
+  snapshot it was taken from.
 
 ## Confirm before building
 

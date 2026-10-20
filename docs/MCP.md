@@ -102,7 +102,11 @@ drawing (the traced outlines, or the bin from above), made from outlines, never 
   as in Automatic mode, because each step is checked and comes off again.
 - **Nothing is saved.** A run leaves the part modified and unsaved; saving stays yours, in
   SOLIDWORKS. A run stays open for `keep_run` or `revert_run` until the next plan, which
-  keeps it, or until the chat ends, which keeps it too; nothing is reverted unasked.
+  keeps it, or until the chat ends, which keeps it too; nothing is reverted unasked. If
+  the server is ended before that (it crashed, or was closed without the chat ending), the
+  run stays open: the assistant window offers it the next time it opens, with Revert, Keep
+  and Decide Later. The server itself does not look for such runs or report them to the
+  chat.
 
 ## What leaves the machine
 

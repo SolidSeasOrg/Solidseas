@@ -4,6 +4,7 @@ Stop, Keep, Revert and the machine policy. No test reaches a network or SOLIDWOR
 
 from __future__ import annotations
 
+import dataclasses
 import json
 import os
 import threading
@@ -11,7 +12,7 @@ import time
 
 import pytest
 
-from automatic_support import DEPTH, FILLET, FINISH, WindowLive, block
+from automatic_support import DEPTH, FILLET, FINISH, GOAL, WindowLive, block, left_open
 from solidseas import policy
 from solidseas.ai.fake import ScriptedProvider
 from solidseas_app.assistant.run import differences
@@ -316,5 +317,83 @@ def test_opening_the_window_removes_run_folders_that_ended_a_week_ago(app):
         _wait(app, lambda: not os.path.exists(old_run))
         made = ["checkpoint-x-step-1.sldprt", "checkpoint-x.sldprt", "journal.jsonl"]
         assert sorted(os.listdir(new_run)) == made
+    finally:
+        w.close()
+
+
+# --------------------------------------------------------------------------- runs left open
+def _opened(app, live, runs):
+    """The window over ``live``'s part, with ``runs`` as its runs folder, once it has
+    looked for runs left open."""
+    from solidseas_app.assistant.window import AssistantWindow
+
+    w = AssistantWindow(ScriptedProvider(), live, runs_folder=str(runs))
+    w.show()
+    _wait(app, lambda: w._snapshot is not None and "did not finish" in _log(w))
+    return w
+
+
+def _last_event(run) -> str:
+    with open(os.path.join(run.start.folder, "journal.jsonl"), encoding="utf-8") as f:
+        return json.loads(f.read().splitlines()[-1])["event"]
+
+
+def test_the_window_offers_a_run_left_open_and_reverts_it(app, tmp_path):
+    live = WindowLive(block())
+    baseline = live.state
+    run = left_open(tmp_path, live, FILLET, DEPTH)
+    w = _opened(app, live, tmp_path)
+    try:
+        assert w.offer_box.isVisibleTo(w) and w.offer_count.text() == "One run did not finish."
+        text = w.offer_text.toPlainText()
+        assert f"Goal: {GOAL}" in text and "2 of 2 steps done and checked" in text
+        assert "Decide Later asks again the next time the assistant opens" in text
+        assert live.ops() == []  # offered, and nothing done
+        w.offer_revert.click()
+        _wait(app, lambda: "Reverted: block.SLDPRT is as it was before the run." in _log(w))
+        assert differences(baseline, live.state) == [] and live.ops() == ["set_dimension", "delete"]
+        assert not w.offer_box.isVisibleTo(w) and _last_event(run) == "reverted"
+    finally:
+        w.close()
+
+
+def test_a_changed_part_refuses_revert_and_the_offer_stays(app, tmp_path):
+    live = WindowLive(block())
+    run = left_open(tmp_path, live, FILLET)
+    live.state = dataclasses.replace(live.state, custom_properties={"Description": "changed"})
+    w = _opened(app, live, tmp_path)
+    try:
+        w.offer_revert.click()
+        _wait(app, lambda: w.offer_revert.isEnabled() and "changed after step 1" in w.offer_note.text())
+        assert "(custom properties)" in w.offer_note.text() and "Nothing was changed" in _log(w)
+        assert w.offer_box.isVisibleTo(w) and w.offer is not None and live.ops() == []
+        assert _last_event(run) == "run_ended"
+    finally:
+        w.close()
+
+
+def test_keep_and_decide_later_in_the_window(app, tmp_path):
+    live = WindowLive(block())
+    runs = {r.start.run_id: r for r in (left_open(tmp_path, live, FILLET), left_open(tmp_path, live, DEPTH))}
+    w = _opened(app, live, tmp_path)
+    try:
+        assert w.offer_count.text() == "2 runs did not finish; this is the oldest."
+        later = runs[w.offer.run_id]
+        w.offer_later.click()
+        assert "It is offered again the next time the assistant opens" in _log(w)
+        assert w.offer_count.text() == "One run did not finish."
+        kept = runs[w.offer.run_id]
+        w.offer_keep.click()
+        assert (
+            f"Kept: block.SLDPRT stays as it is. The run's folder stays for 7 days: {kept.start.folder}"
+            in _log(w)
+        )
+        assert not w.offer_box.isVisibleTo(w) and live.ops() == []
+        assert (_last_event(later), _last_event(kept)) == ("run_ended", "kept")
+    finally:
+        w.close()
+    w = _opened(app, live, tmp_path)  # the next start asks again about the one left for later
+    try:
+        assert w.offer.run_id == later.start.run_id and len(w._offers) == 1
     finally:
         w.close()
