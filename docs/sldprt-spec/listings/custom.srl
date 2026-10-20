@@ -1,8 +1,40 @@
-# docProps/custom.xml: file custom properties. A generated part has none, so only the
-# code page entries and the one fixed DocumentSummaryInformation flag are written. Constant.
+# docProps/custom.xml: file custom properties (section 15.1.4). The code page entries and the
+# one fixed DocumentSummaryInformation flag, then in UserDefinedProperties the name dictionary
+# (by name, 15.6.9) and one property element per file property (in the design's order).
+# With no properties the member is constant. Every ${...} is XML-escaped by the generator
+# (15.1.2); $p.xml_value and $p.xml_text are written as they are, already escaped (15.6.9).
+# Proved on o01, o02, o03, o07 and o12 (no properties) and o04 (three); the property elements
+# also on o14's five typed properties (15.1.4).
 @member docProps/custom.xml
 @section 15.1.4
-@text utf8 eol=crlf
+@text utf8 eol=crlf final=no
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/custom-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes"><propertySection xmlns="" name="DocumentSummaryInformation" fmtid="{D5CDD502-2E9C-101B-9397-08002B2CF9AE}"><property name="" pid="1" TypeID="0"><vt:i2>65001</vt:i2></property><property name="" pid="22" TypeID="0"><vt:bool>No</vt:bool></property><propertyNameDictionaryElement name="" pid="0"></propertyNameDictionaryElement></propertySection><propertySection xmlns="" name="UserDefinedProperties" fmtid="{D5CDD505-2E9C-101B-9397-08002B2CF9AE}"><property name="" pid="1" TypeID="0"><vt:i2>65001</vt:i2></property><propertyNameDictionaryElement name="" pid="0"></propertyNameDictionaryElement></propertySection></Properties>
+<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/custom-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes"><propertySection xmlns="" name="DocumentSummaryInformation" fmtid="{D5CDD502-2E9C-101B-9397-08002B2CF9AE}"><property name="" pid="1" TypeID="0"><vt:i2>65001</vt:i2></property><property name="" pid="22" TypeID="0"><vt:bool>No</vt:bool></property><propertyNameDictionaryElement name="" pid="0"></propertyNameDictionaryElement></propertySection><propertySection xmlns="" name="UserDefinedProperties" fmtid="{D5CDD505-2E9C-101B-9397-08002B2CF9AE}"><property name="" pid="1" TypeID="0"><vt:i2>65001</vt:i2></property><propertyNameDictionaryElement name="" pid="0"></propertyNameDictionaryElement>
+@endtext
+@for p in $props_by_name
+@text utf8 final=no
+<propertyNameDictionaryElement name="${p.name}" pid="${p.pid}"></propertyNameDictionaryElement>
+@endtext
+@endfor
+@for p in $props
+@if =$p.code==0
+@text utf8 final=no
+<property name="${p.name}" pid="${p.pid}" IsEquation="False" TypeID="${p.type_id}"><vt:${p.vt}>
+@endtext
+@else
+@text utf8 final=no
+<property name="${p.name}" pid="${p.pid}" TypeID="${p.type_id}"><vt:${p.vt}>
+@endtext
+@endif
+utf8 $p.xml_value                  # the stored value
+@text utf8 final=no
+</vt:${p.vt}><FPVals><vt:${p.vt}>
+@endtext
+utf8 $p.xml_text                   # the value as typed
+@text utf8 final=no
+</vt:${p.vt}></FPVals></property>
+@endtext
+@endfor
+@text utf8 eol=crlf
+</propertySection></Properties>
 @endtext

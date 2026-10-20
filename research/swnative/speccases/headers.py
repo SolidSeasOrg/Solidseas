@@ -169,7 +169,7 @@ def read_identity(fx: Fixture, slots: dict) -> None:
 
 
 # ------------------------------------------------------------------ cases
-PARTS = ("o01", "o02", "o03", "o07", "o12")
+PARTS = ("o01", "o02", "o03", "o04", "o07", "o12")
 MEMBERS = {
     HEADER2: "header2.srl", MODELHEADER: "config-0-modelheader.srl", CMGRHDR2: "cmgrhdr2.srl",
     CUSPROPS: "cusprops.srl", ANIMATOR: "animator.srl", LWDATA: "config-0-lwdata.srl",

@@ -234,7 +234,7 @@ def read_identity(fx: Fixture, slots: dict) -> dict:
     return extract(fx, slots, [("config-0.srl", CONFIG), ("config-0-resolvedfeatures.srl", FEATURES)])
 
 
-PARTS = ("o01", "o02", "o03", "o07", "o12")
+PARTS = ("o01", "o02", "o03", "o04", "o07", "o12")
 CASES = [Case(p, CONFIG, "config-0.srl", slots) for p in PARTS] + [
     Case(p, FEATURES, "config-0-resolvedfeatures.srl", slots, before="config-0.srl") for p in PARTS
 ]

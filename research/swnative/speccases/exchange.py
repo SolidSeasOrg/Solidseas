@@ -3,14 +3,13 @@
 Every case assembles its listing with the one slot dict of :mod:`.full`. The members
 hold no design value. Their identity slots (the records' GUIDs) and the free order of
 the table of contents are read from each fixture by :func:`read_identity`; the key
-hashes are derived from the GUIDs by the rule of section 15.3.3 and the database time
-from ``doc.unix`` (15.3.2), computed here, never read.
+hashes are derived from the GUIDs by the rule of section 15.3.3. The database time
+(15.3.2) is an identity slot of its own, read from the header like the GUIDs.
 """
 
 from __future__ import annotations
 
 import struct
-from datetime import UTC, datetime
 
 from . import Case, Fixture, slots
 
@@ -25,13 +24,6 @@ def key_hash(key: bytes) -> int:
     for b in key:
         h = (h * 33 + b) & 0xFFFFFFFF
     return h
-
-
-def calendar(unix: int) -> dict:
-    """Section 15.3.2: the calendar fields of ``doc.unix`` in UTC."""
-    t = datetime.fromtimestamp(unix, UTC)
-    return {"year": t.year, "month": t.month, "day": t.day,
-            "hour": t.hour, "minute": t.minute, "second": t.second}
 
 
 def _cells(data: bytes):
@@ -69,20 +61,28 @@ def _toc_order(fx: Fixture) -> list[str]:
     return out
 
 
+def _db_time(fx: Fixture) -> dict:
+    """The database creation time of the page 0 header (15.3.2), month counted from 0."""
+    d, t = struct.unpack_from(">HH", fx[EXCHANGE2], 11)
+    return {"year": 1980 + (d >> 9), "month": ((d >> 5) & 15) + 1, "day": d & 31,
+            "hour": t >> 11, "minute": (t >> 5) & 63, "second": (t & 31) * 2}
+
+
 def read_identity(fx: Fixture) -> dict:
-    """The identity slots (the five GUIDs) and the free slot ``exch.toc`` of fixture ``fx``."""
+    """The identity slots (the five GUIDs and the database time) and the free slot
+    ``exch.toc`` of fixture ``fx``."""
     out = _guids(fx)
     out["toc"] = _toc_order(fx)
+    out["time"] = _db_time(fx)
     return {"exch": out}
 
 
-def derive(exch: dict, unix: int) -> None:
-    """The derived slots of 15.3: the key hashes and the database time."""
+def derive(exch: dict) -> None:
+    """The derived slots of 15.3: the key hashes."""
     exch["hash"] = {k: key_hash(exch[k].encode("ascii")) for k in ("front", "top", "right", "doc", "config")}
-    exch["time"] = calendar(unix)
 
 
-PARTS = ("o01", "o02", "o03", "o07", "o12")
+PARTS = ("o01", "o02", "o03", "o04", "o07", "o12")
 
 CASES = [Case(p, EXCHANGE2, "3dexperience-exchange2.srl", slots) for p in PARTS] + [
     Case(p, CONFIGHEADER, "3dexperience-configheader.srl", slots) for p in PARTS

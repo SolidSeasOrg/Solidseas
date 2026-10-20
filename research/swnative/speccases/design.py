@@ -1,9 +1,10 @@
 """Section 15.6 on the analysis side: the fixtures as ``ParametricDocumentIR`` designs, and
 the rules that turn a design and its identity into the one slot dict.
 
-:func:`fixture_design` writes down what o01, o02, o03, o07 and o12 are, as the IR would
-hold them. :func:`design_slots` is the analysis side's own implementation of section
-15.6: every design and derived slot comes from the IR by its rules; only the identity
+:func:`fixture_design` writes down what o01, o02, o03, o04, o07 and o12 are, as the IR would
+hold them (o04 is o02 with three file custom properties). :func:`design_slots` is the
+analysis side's own implementation of section 15.6: every design and derived slot comes
+from the IR by its rules; only the identity
 and free slots (the paths of ``IDENTITY``, ``FEATURE_IDENTITY`` and ``BODY_IDENTITY``)
 come from ``identity``. The test hands it the values read from a fixture
 (:func:`.full.identity_of`) and compares every member with the fixture's, byte for byte.
@@ -16,7 +17,8 @@ import math
 import secrets
 import uuid
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
+from decimal import Decimal
 
 from solidseas.nativewrite import ir
 
@@ -30,7 +32,7 @@ IDENTITY = (
     "doc.name", "doc.unix", "doc.created", "doc.changed", "doc.stamp", "doc.stamp2", "doc.author",
     "tpl.unix", "tpl.unix2",
     "meta.created_iso", "meta.file_stem", "meta.company", "meta.total_time", "meta.utc_offset",
-    "exch.front", "exch.top", "exch.right", "exch.doc", "exch.config", "exch.toc",
+    "exch.front", "exch.top", "exch.right", "exch.doc", "exch.config", "exch.toc", "exch.time",
     "anim.guid", "lw.flag", "cmgr.created", "cmgr.texture",
     "bio.os.platform", "bio.os.major", "bio.os.minor", "bio.os.build", "bio.locale",
     *(f"bio.{g}.{k}" for g in ("made", "open", "save") for k in ("time", "tag", "x")),
@@ -89,12 +91,25 @@ def _rectangle(sid: str, name: str, x0: float, y0: float, x1: float, y1: float) 
     return ir.Sketch(sid, name, ir.Plane.named("xy"), pts, lines, cons)
 
 
+# The file custom properties each fixture was given (its kit instructions), as the IR holds them.
+FIXTURE_PROPERTIES: dict[str, list[ir.Property]] = {
+    "o04": [ir.Property("PartNo", "ORACLE-PN-123"), ir.Property("Description", "Oracle test box"),
+            ir.Property("Qty", 42, "number")],
+    # o14's five typed file properties; its configuration property and its two linked
+    # properties (Mass, Material) are outside what the generator writes (15.6.9).
+    "o14": [ir.Property("TextProp", "Plain text value"), ir.Property("DateProp", "2024-03-15", "date"),
+            ir.Property("NumberProp", 7, "number"), ir.Property("DoubleProp", 3.25, "number"),
+            ir.Property("YesNoProp", True, "yesno")],
+}
+
+
 def fixture_design(name: str) -> ir.Document:
-    """What fixture ``name`` (o01, o02, o03, o07 or o12) is, as a ParametricDocumentIR part."""
+    """What fixture ``name`` (o01, o02, o03, o04, o07 or o12) is, as a ParametricDocumentIR part."""
     boxes = {
         "o01": [],
         "o02": [((0.0, 0.0, 0.01, 0.02), 0.03)],
         "o03": [((0.0, 0.0, 0.01, 0.02), 0.03)],
+        "o04": [((0.0, 0.0, 0.01, 0.02), 0.03)],
         "o07": [((0.0, 0.0, 0.01, 0.02), 0.031)],
         "o12": [((0.0, 0.0, 0.01, 0.02), 0.03), ((0.03, 0.0, 0.04, 0.02), 0.01)],
     }[name[:3]]
@@ -102,7 +117,78 @@ def fixture_design(name: str) -> ir.Document:
     for k, (corners, depth) in enumerate(boxes):
         features.append(_rectangle(f"s{k + 1}", f"Sketch{k + 1}", *corners))
         features.append(ir.Extrude(f"e{k + 1}", f"Extrude{k + 1}", f"s{k + 1}", depth))
-    return ir.validate(ir.Document("box", features))
+    props = list(FIXTURE_PROPERTIES.get(name[:3], []))
+    return ir.validate(ir.Document("box", features, properties=props))
+
+
+# ------------------------------------------------------------------ 15.6.9: file custom properties
+_PROP_KINDS = {"text": (0, 30), "date": (1, 64), "number": (2, 3), "yesno": (3, 11)}  # code, TypeID
+I4 = (-(2**31), 2**31 - 1)
+
+
+def xml_escape_text(text: str) -> str:
+    """15.6.9: element text as SOLIDWORKS writes it: ``&``, ``<`` and ``>`` escaped, ``"`` kept."""
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def real_text(v: float) -> str:
+    """15.6.9: a real number as typed: the shortest decimal that reads back as ``v``, without
+    an exponent, with at least one digit after the point."""
+    text = repr(v)
+    if "e" in text or "E" in text:
+        text = format(Decimal(text), "f")
+    return text if "." in text else text + ".0"
+
+
+def property_refusal(p: ir.Property) -> str | None:
+    """15.6.9: why the generator does not write property ``p``, or None when it does."""
+    def bad(t: str) -> bool:
+        return any(ord(c) < 0x20 or 0xD800 <= ord(c) <= 0xDFFF or c in "\ufffe\uffff" for c in t)
+
+    stored = "a character a part cannot store (a control character such as a line break)"
+    if bad(p.name):
+        return f"property {p.name}: its name holds {stored}"
+    if p.type == "text":
+        if bad(p.value):
+            return f"property {p.name}: its text holds {stored}"
+        if "$prp" in p.value.lower() or ('"' in p.value and "@" in p.value):
+            return f"property {p.name}: SOLIDWORKS would read this text as a link to another value"
+    if p.type == "number" and isinstance(p.value, int) and not I4[0] <= p.value <= I4[1]:
+        return f"property {p.name}: the whole number {p.value} is outside the range a part stores"
+    if p.type == "date" and date.fromisoformat(p.value) < date(1601, 1, 1):
+        return f"property {p.name}: a date before 1601-01-01 cannot be stored"
+    return None
+
+
+def props_of(doc: ir.Document, utc_offset: int) -> list[dict]:
+    """The ``props`` items (15.6.9) of the properties the generator writes, in the design's order."""
+    items = []
+    for p in doc.properties:
+        if property_refusal(p):
+            continue
+        code, type_id = _PROP_KINDS[p.type]
+        if p.type == "text":
+            vt, text, value = "lpstr", p.value, p.value
+        elif p.type == "number" and isinstance(p.value, int):
+            vt, text = "i4", str(p.value)
+            value = text
+        elif p.type == "number":
+            vt, text, value = "r8", real_text(float(p.value)), f"{float(p.value):.6f}"
+        elif p.type == "date":
+            d = date.fromisoformat(p.value)
+            at = datetime(d.year, d.month, d.day, 12, tzinfo=UTC) - timedelta(minutes=utc_offset)
+            vt, text, value = "filetime", f"{d.month}/{d.day}/{d.year}", at.strftime("%Y-%m-%dT%H:%M:%SZ")
+        else:
+            vt = "bool"
+            text = value = "Yes" if p.value else "No"
+        items.append({"name": p.name, "pid": 3 + len(items), "code": code, "type_id": type_id, "vt": vt,
+                      "text": text, "xml_text": xml_escape_text(text), "xml_value": xml_escape_text(value)})
+    return items
+
+
+def props_by_name(items: list[dict]) -> list[dict]:
+    """15.6.9: the name dictionary's order, by name compared without case."""
+    return sorted(items, key=lambda q: (q["name"].lower(), q["name"]))
 
 
 # ------------------------------------------------------------------ 15.6.2: the features
@@ -235,7 +321,9 @@ def generator_identity(doc: ir.Document, ident: Identity) -> dict:
                  "company": "SolidSeas", "total_time": "0", "utc_offset": 0},
         "exch": {"front": ident.exch_front, "top": ident.exch_top, "right": ident.exch_right,
                  "doc": ident.exch_doc, "config": ident.exch_config,
-                 "toc": [ident.exch_front, ident.exch_top, ident.exch_right]},
+                 "toc": [ident.exch_front, ident.exch_top, ident.exch_right],
+                 "time": {"year": ident.when.year, "month": ident.when.month, "day": ident.when.day,
+                          "hour": ident.when.hour, "minute": ident.when.minute, "second": ident.when.second}},
         "anim": {"guid": ident.anim_guid},
         "lw": {"flag": 0},
         "cmgr": {"created": ft, "texture": TEXTURE},
@@ -330,6 +418,10 @@ def design_slots(doc: ir.Document, identity: dict) -> dict:
     s["hdr"] = {"centre": hcentre, "next_id": features[-1]["id"] + 1 if features else 26}
     s["fixed"]["id_base"] = s["doc"]["stamp"] - 11 - len(features)
 
+    # 15.6.9: the file custom properties
+    s["props"] = props_of(doc, s["meta"]["utc_offset"])
+    s["props_by_name"] = props_by_name(s["props"])
+
     # 15.6.4: the slots derived from identity values
     d = s["doc"]
     saved = datetime.fromtimestamp(d["unix"], UTC)
@@ -346,7 +438,5 @@ def design_slots(doc: ir.Document, identity: dict) -> dict:
                                 + [{"id": f["id"], "name": f["name"], "origin": False}
                                    for f in s["sketches"]], key=lambda k: str(k["id"])))
     x = s["exch"]
-    x["time"] = {"year": saved.year, "month": saved.month, "day": saved.day,
-                 "hour": saved.hour, "minute": saved.minute, "second": saved.second}
     x["hash"] = {k: _key_hash(x[k]) for k in ("front", "top", "right", "doc", "config")}
     return s

@@ -69,11 +69,11 @@ section 15.1.1. Sections, by subject:
 |---|---|---|
 | 15.0 | this file | conventions, the listing language, the slots every section shares |
 | 15.1 | `15.1-container-and-text.md` | the container, the XML and text members, the small fixed members |
-| 15.2 | `15.2-header-streams.md` | the binary header streams: `Header2`, the model header, the configuration manager, custom properties, the biography, the definition, the light-weight data, visual states, the animator |
+| 15.2 | `15.2-header-streams.md` | the binary header streams: `Header2`, the model header, the configuration manager, the custom-property store, the biography, the definition, the light-weight data, visual states, the animator |
 | 15.3 | `15.3-3dexperience.md` | the two 3DEXPERIENCE exchange members |
 | 15.4 | `15.4-config-archive.md` | `Contents/Config-0`: the document's settings archive |
 | 15.5 | `15.5-feature-stream.md` | `Contents/Config-0-ResolvedFeatures`: the feature tree |
-| 15.6 | `15.6-design-to-slots.md` | how a `ParametricDocumentIR` part becomes the slot values, and what the generator refuses |
+| 15.6 | `15.6-design-to-slots.md` | how a `ParametricDocumentIR` part becomes the slot values, its file custom properties included (15.6.9), and what the generator refuses |
 
 ### 15.0.2 Slots
 
@@ -108,6 +108,8 @@ for every slot, shared or not, and its tables name every slot a listing reads.
 | `doc.author` | identity | text | the saving account; the generator writes `SolidSeas` (15.0.6, 15.6.6) |
 | `tpl.unix`, `tpl.unix2` | identity | u32 each | the times SOLIDWORKS' part template carries on its own nodes (15.2.2.2, 15.6.6) |
 | `features` | design | list | the feature timeline after the template's records; one schema for every section, 15.6.2 |
+| `props` | design | list | the file custom properties, in the design's order; fields `name`, `pid`, `code`, `type_id`, `vt`, `text`, `xml_text`, `xml_value` (15.6.9) |
+| `props_by_name` | derived | list | the same items ordered by name without regard to case (15.6.9) |
 | `sketches` | derived | list | the sketch items of `features`, in timeline order (15.6.5) |
 | `bodies` | derived | list | the solid bodies, one per extrusion, in timeline order; schema 15.6.4 |
 | `model.solid` | derived | bool | the part has at least one extrusion (15.6.3) |
@@ -199,9 +201,14 @@ every byte agrees.
 
 The parts are SOLIDWORKS 2024 SP1 parts made through the published API from
 the installed part template (`docs/FORMAT.md`, where the evidence comes
-from): an empty part, boxes from a corner rectangle on the Front Plane
-extruded blind, the same box at another depth, and two boxes. A listing is
-claimed for exactly the parts it was proved on.
+from): an empty part (o01), boxes from a corner rectangle on the Front Plane
+extruded blind (o02, and o03, the same part saved again), the same box with
+three file custom properties (o04), the same box at another depth (o07), and
+two boxes (o12). Every listing is proved on these six parts, and the two
+property listings also on the five typed properties of o14, a part that holds
+more than the generator writes (15.1.4, 15.2.4). A listing is claimed for
+exactly the parts it was proved on. A claim marked "VERIFIED (5 parts)" in a
+section was made on o01, o02, o03, o07 and o12, before o04 was added.
 
 ### 15.0.6 Text this specification puts in a file
 
@@ -221,7 +228,7 @@ that value is accepted (VERIFIED) or not yet (HYPOTHESIS).
 | `plan(doc, *, identity=None, allow_partial=False) -> Plan` | what `write_part` would write: `slots` (the dict of every slot, section by section), `left_out` (each item of the design not written, in words for the person exporting), `names` (the design's feature names and the names they get in the part) |
 | `assemble(slots) -> dict[str, bytes]` | every member of section 15.0.1, by name, from a complete slot dict; `write_part` is `plan`, then `assemble`, then the container (15.1.1) |
 | `Identity` | the identity values of one file: `when` (a UTC `datetime`), `key_index` (15.1.1.1), the GUIDs `anim_guid`, `exch_front`, `exch_top`, `exch_right`, `exch_doc`, `exch_config`, and `file_stem`. Section 15.6.6 defines each and the default the generator makes when `identity` is `None` (the clock and a random source) |
-| `SPEC_CONSTANTS` | every run longer than 31 bytes of output that is the same whatever the design's values and the identity: the listings' constants together with the values section 15.6.6 fixes (such as `SolidSeas`) and values derived only from how many features and bodies there are. Computed by comparing assemblies of the same shape (an empty part, one box, two boxes) made with different sizes and different identities, and keeping the runs that agree, as `bytes`, for the clean-room test (`docs/CLEANROOM.md` section 4) |
+| `SPEC_CONSTANTS` | every run longer than 31 bytes of output that is the same whatever the design's values and the identity: the listings' constants together with the values section 15.6.6 fixes (such as `SolidSeas`) and values derived only from how many features, bodies and properties there are and of which types. Computed by comparing assemblies of the same shape made with different values and different identities, and keeping the runs that agree, as `bytes`, for the clean-room test (`docs/CLEANROOM.md` section 4). The shapes: an empty part, one box, two boxes, and one box with five file custom properties, one of each form of 15.6.9 in this order: a text, a whole number (an `int`), a real number (a `float`), a date and yes or no. In the two variants of the last shape every name and every value as typed has the same length and differs from the first character, except the yes or no property, which is true in both; the names start with ASCII letters, and in both variants they sort by `props_by_name` in the design's order, so the members line up byte for byte |
 | `NativeWriteUnsupported` | a `ValueError` with `items`, the list of what cannot be written |
 
 `assemble` takes the slot dict in the shape the sections define (one dict for
@@ -232,4 +239,4 @@ is held to the specification without its author seeing the part. The analysis
 side holds itself to the same: one slot dict per part assembles all 35 of its
 members, and the rules of 15.6 applied to the part written as an IR design, with
 only its identity and free values read from the part, give the same 35 members
-(VERIFIED, o01, o02, o03, o07, o12).
+(VERIFIED, o01, o02, o03, o04, o07, o12).

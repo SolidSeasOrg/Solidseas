@@ -8,11 +8,13 @@ implementation.
 """
 
 import re
+import struct
 from pathlib import Path
 
 import pytest
 
 from solidseas.formats.solidworks import open_document
+from solidseas.nativewrite import ir
 from swnative import listing as L
 from swnative import speccases as S
 from swnative.speccases import design as D
@@ -84,6 +86,87 @@ def test_the_generator_identity_gives_a_complete_slot_dict(part):
     assert results["ModelStamps"].data[4:] == bytes.fromhex({0: "6600000065000000", 1: "7800000069000000",
                                                               2: "8c0000006f000000"}[len(slots["bodies"])])
     assert b"SolidSeas" in results["docProps/core.xml"].data
+
+
+def _o14_slots() -> dict:
+    """o14's slot dict for the property members alone: one box, and its five typed file
+    properties by the rules of 15.6.9, with o14's own offset from UTC behind the date."""
+    from swnative.speccases import text as T
+
+    fx = S.fixture("o14")
+    offset = T.read_identity(fx)["meta"]["utc_offset"]
+    doc = ir.validate(ir.Document("box", properties=D.FIXTURE_PROPERTIES["o14"]))
+    props = D.props_of(doc, offset)
+    return {"features": D.features_of(D.fixture_design("o02")), "props": props,
+            "props_by_name": D.props_by_name(props)}
+
+
+def _loop_span(result: L.Result, listing: str) -> tuple[int, int]:
+    """The bytes the listing's ``@for p in $props`` block gave: from its first run to its last."""
+    lines = (LISTINGS / listing).read_text(encoding="utf-8").splitlines()
+    first = next(n for n, t in enumerate(lines, 1) if t.startswith("@for p in $props") and "by_name" not in t)
+    last = next(n for n, t in enumerate(lines, 1) if n > first and t.startswith("@endfor"))
+    runs = [r for r in result.runs if first < r.line < last]
+    return runs[0].offset, runs[-1].offset + runs[-1].size
+
+
+def test_cusprops_gives_o14s_typed_property_records():
+    """15.2.4 on o14, which also holds a material, two linked properties and a configuration
+    property (all outside the generator): its five typed properties are its first five
+    records, and the listing gives those records byte for byte. Only the two counts that
+    include the other three properties differ, the last index (7) and the list's length (7)."""
+    fx = S.fixture("o14")
+    result = L.assemble(LISTINGS / "cusprops.srl", _o14_slots())
+    got, want = result.data, fx["Contents/CusProps"]
+    start, end = _loop_span(result, "cusprops.srl")
+    assert got[start:end] == want[start:end]
+    assert got[:20] == want[:20] and got[24 : start - 2] == want[24 : start - 2]
+    assert struct.unpack_from("<i", want, 20)[0] == 7 and struct.unpack_from("<H", want, start - 2)[0] == 7
+
+
+def test_custom_xml_gives_o14s_typed_property_elements():
+    """15.1.4 on o14: each of its five typed properties' elements, and their name dictionary
+    entries in the order o14 holds them, are what the listing writes. o14 also holds two
+    linked properties, and wrote the five before its dictionary because they were already
+    saved once (15.1.4), so the member as a whole is not compared."""
+    fx = S.fixture("o14")
+    got = L.assemble(LISTINGS / "custom.srl", _o14_slots()).data.decode("utf-8")
+    want = fx["docProps/custom.xml"].decode("utf-8")
+    element = re.compile(r'<property name="[^"]+" pid="\d+".*?</property>')
+    written = element.findall(got)
+    assert len(written) == 5 and all(e in want for e in written)
+    entry = re.compile(r'<propertyNameDictionaryElement name="([^"]+)" pid="(\d+)">')
+    ours = entry.findall(got)
+    assert ours == [e for e in entry.findall(want) if e in ours]
+
+
+def test_the_property_rules_give_the_example_of_15_6_9():
+    """Section 15.6.9's example and refusals, by the analysis side's reading of its rules."""
+    P = ir.Property
+    doc = ir.validate(ir.Document("box", properties=[
+        P("PartNo", "BR-100 & <A>"), P("Qty", 12, "number"), P("Mass", 0.25, "number"),
+        P("Due", "2025-01-07", "date"), P("Released", False, "yesno")]))
+    props = D.props_of(doc, 0)
+    assert props == [
+        {"name": "PartNo", "pid": 3, "code": 0, "type_id": 30, "vt": "lpstr", "text": "BR-100 & <A>",
+         "xml_text": "BR-100 &amp; &lt;A&gt;", "xml_value": "BR-100 &amp; &lt;A&gt;"},
+        {"name": "Qty", "pid": 4, "code": 2, "type_id": 3, "vt": "i4", "text": "12", "xml_text": "12",
+         "xml_value": "12"},
+        {"name": "Mass", "pid": 5, "code": 2, "type_id": 3, "vt": "r8", "text": "0.25", "xml_text": "0.25",
+         "xml_value": "0.250000"},
+        {"name": "Due", "pid": 6, "code": 1, "type_id": 64, "vt": "filetime", "text": "1/7/2025",
+         "xml_text": "1/7/2025", "xml_value": "2025-01-07T12:00:00Z"},
+        {"name": "Released", "pid": 7, "code": 3, "type_id": 11, "vt": "bool", "text": "No", "xml_text": "No",
+         "xml_value": "No"},
+    ]
+    assert [q["name"] for q in D.props_by_name(props)] == ["Due", "Mass", "PartNo", "Qty", "Released"]
+    assert [D.real_text(v) for v in (3.25, 7.0, 1e-05, 1e16, -0.5)] == [
+        "3.25", "7.0", "0.00001", "10000000000000000.0", "-0.5"]
+    refused = [P("A", 'x "D1@Sketch1"'), P("B", "$prp:\"Qty\""), P("C", "two\nlines"), P("D\t", "x"),
+               P("E", 2**31, "number"), P("F", "1600-12-31", "date")]
+    assert all(D.property_refusal(q) for q in refused)
+    kept = [P("G", 'a 1/2" bolt'), P("H", "a@b"), P("I", -(2**31), "number"), P("J", "1601-01-01", "date")]
+    assert not any(D.property_refusal(q) for q in kept)
 
 
 def _listing_slot_refs() -> tuple[set[str], set[str]]:

@@ -1,18 +1,41 @@
-# Contents/CusProps: the custom-property store, with no properties (section 15.2.4).
-# One CArchive of its own. Proved on o01, o02, o03, o07 and o12.
+# Contents/CusProps: the custom-property store (section 15.2.4). One CArchive of its own.
+# Proved on o01, o02, o03, o07 and o12 (no properties) and o04 (three file properties); the
+# property records also on o14's five typed properties (15.2.4).
 @member Contents/CusProps
 @section 15.2.4
 @archive start 1
 class moCusPropMgr_c 1
-i32 -1                             # not decoded (2 in o04 to o06, which hold properties)
+i32 =len($props)-1                 # the index of the last property; -1 with none
 u32 1                              # not decoded, constant
 u32 1                              # the number of configurations (2 in o13)
 # One record per configuration
 u32 0                              # the configuration's id
 class moCusPropContainer_c 1
 class moFilePropContainer_c 1      # the file's properties
-u16 0                              #   none: a null object (a suObList of properties in o04)
-u16 0
+@if =len($props)>0
+class suObList 1                   #   a list of property lists
+u16 1                              #   holding one
+class moAdvCusPropList_c 1
+u16 =len($props)                   #   of the file's properties, in the design's order
+@for p in $props
+class moAdvCusProp_c 1
+u16 1                              # one value
+class moCusPropStringElem_c 1
+cstr $p.text                       # the value as typed (the expression)
+u32 $p_index                       # the property's number, from 0
+u32 9                              # not decoded, constant
+cstr $p.name
+u32 $p.code                        # the type: 0 text, 1 date, 2 number, 3 yes or no
+cstr $p.text                       # the expression again
+cstr $p.text                       # the evaluated value: the same text, nothing is linked
+i32 -1                             # not decoded, constant
+u32 1                              # 1 for a file property (2 for a configuration's, o14)
+u32 0                              # not decoded, constant
+@endfor
+@else
+u16 0                              #   none: a null object
+@endif
+u16 0                              # the configuration's own properties: none, a null object
 @if =len($features)>0
 class moCutListPropContainer_c 1   # the cut-list properties, once the part has a body
 rep 8 00                           #   none (not decoded further)

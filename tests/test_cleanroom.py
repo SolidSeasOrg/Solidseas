@@ -70,9 +70,10 @@ def _generate_sample():
 
 
 def _unlike_any_fixture(variant: int = 0):
-    """A design and an identity no fixture has: a box of sizes no fixture has, saved in 2031
-    with made-up GUIDs. ``variant`` 1 is the same shape with every value changed, so bytes
-    the two outputs share are the generator's constants and nothing else."""
+    """A design and an identity no fixture has: a box of sizes no fixture has, with file
+    custom properties no fixture has, saved in 2031 with made-up GUIDs. ``variant`` 1 is the
+    same shape with every value changed, so bytes the two outputs share are the generator's
+    constants and nothing else."""
     from datetime import UTC, datetime
 
     from solidseas.nativewrite import ir
@@ -88,7 +89,18 @@ def _unlike_any_fixture(variant: int = 0):
             ir.Constraint("k4", "vertical", curves=["l2"]),
             ir.Constraint("k5", "vertical", curves=["l4"])]
     sketch = ir.Sketch("s1", "Sketch1", ir.Plane.named("xy"), pts, lines, rels)
-    doc = ir.Document(name="Bracket blank", features=[sketch, ir.Extrude("e1", "Extrude1", "s1", d)])
+    # One file custom property of each form of spec 15.6.9, in the order of the SPEC_CONSTANTS
+    # shape (README 15.0.7): names and values of the same lengths that differ from the first
+    # character, the names sorting in this order in both variants, and yes in both. The reals
+    # also end in different digits: a shared last digit before the closing tags would be a
+    # 32-byte window o14's 3.25 has too.
+    P = ir.Property
+    props = ([P("Asset Code", "QX-77-1903"), P("Bins", 312, "number"), P("Cost", 18.375, "number"),
+              P("Due", "2031-02-14", "date"), P("Enabled", True, "yesno")],
+             [P("Fixed Mark", "RW-48-2265"), P("Gaps", 547, "number"), P("Hold", 26.124, "number"),
+              P("Ink", "2033-09-27", "date"), P("Jointed", True, "yesno")])[variant]
+    doc = ir.Document(name="Bracket blank", features=[sketch, ir.Extrude("e1", "Extrude1", "s1", d)],
+                      properties=props)
     guid = ("{:08x}-6d6e-4f70-8172-737475767778", "{:08x}-9a8b-4c7d-9e6f-a5b4c3d2e1f0")[variant]
     ident = gen.Identity(
         # Day and month names, hours and dates of the same lengths, so the members line up.

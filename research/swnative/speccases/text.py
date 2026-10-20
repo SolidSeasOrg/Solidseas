@@ -16,7 +16,7 @@ from datetime import UTC, datetime, timedelta
 
 from . import Case, Fixture, slots
 
-PARTS = ("o01", "o02", "o03", "o07", "o12")
+PARTS = ("o01", "o02", "o03", "o04", "o07", "o12")
 
 
 # ------------------------------------------------------------------ derived (15.1.2)

@@ -32,7 +32,7 @@ from . import exchange as E
 from . import headers as H
 from . import text as T
 
-PARTS = ("o01", "o02", "o03", "o07", "o12")
+PARTS = ("o01", "o02", "o03", "o04", "o07", "o12")
 
 # What each fixture is, in metres: the corners (x0, y0, x1, y1) of each corner rectangle on
 # the Front Plane and the blind depth of the extrusion that follows it.
@@ -40,9 +40,21 @@ DESIGNS: dict[str, list[tuple[tuple[float, float, float, float], float]]] = {
     "o01": [],
     "o02": [((0.0, 0.0, 0.01, 0.02), 0.03)],
     "o03": [((0.0, 0.0, 0.01, 0.02), 0.03)],
+    "o04": [((0.0, 0.0, 0.01, 0.02), 0.03)],
     "o07": [((0.0, 0.0, 0.01, 0.02), 0.031)],
     "o12": [((0.0, 0.0, 0.01, 0.02), 0.03), ((0.03, 0.0, 0.04, 0.02), 0.01)],
 }
+
+# The file custom properties each fixture was given, as (name, kind, the value as typed, the
+# value as stored): two texts and the whole number 42 in o04 (o02 plus properties).
+PROPERTIES: dict[str, list[tuple[str, str, str, str]]] = {
+    "o04": [("PartNo", "text", "ORACLE-PN-123", "ORACLE-PN-123"),
+            ("Description", "text", "Oracle test box", "Oracle test box"),
+            ("Qty", "integer", "42", "42")],
+}
+# 15.2.4 and 15.1.4: per kind, the CusProps type code, the TypeID and the vt element.
+_KINDS = {"text": (0, 30, "lpstr"), "date": (1, 64, "filetime"), "integer": (2, 3, "i4"),
+          "real": (2, 3, "r8"), "yesno": (3, 11, "bool")}
 
 
 # ------------------------------------------------------------------ 1. design and derived
@@ -74,7 +86,14 @@ def design_part(name: str) -> dict:
     lo = [min(b[0][k] for b in boxes) for k in range(3)] if solid else [0.0] * 3
     hi = [max(b[1][k] for b in boxes) for k in range(3)] if solid else [0.0] * 3
     centre = [(a + b) / 2 for a, b in zip(lo, hi, strict=True)]
+    props = []
+    for k, (pname, kind, typed, stored) in enumerate(PROPERTIES.get(name, [])):
+        code, type_id, vt = _KINDS[kind]
+        props.append({"name": pname, "pid": 3 + k, "code": code, "type_id": type_id, "vt": vt,
+                      "text": typed, "xml_text": typed, "xml_value": stored})
     return {
+        "props": props,
+        "props_by_name": sorted(props, key=lambda q: q["name"].lower()),
         "features": features,
         "sketches": [f for f in features if f["sketch"]],
         "bodies": bodies,
@@ -116,7 +135,7 @@ def _full(name: str) -> dict:
     doc["iso"] = datetime.fromtimestamp(doc["unix"], UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     doc["filetime"] = (doc["unix"] + 11644473600) * 10_000_000
     _merge(s["meta"], T.date_texts(doc["unix"], s["meta"]["created_iso"], s["meta"]["utc_offset"]))
-    E.derive(s["exch"], doc["unix"])
+    E.derive(s["exch"])
     return s
 
 
