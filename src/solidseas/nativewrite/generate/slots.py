@@ -1,10 +1,11 @@
 """Section 15.6: from a ``ParametricDocumentIR`` part and an :class:`Identity` to the slot dict.
 
 :func:`plan` follows 15.6.1 step by step: validate the IR, accept or refuse
-each item of the timeline (15.6.2), build ``features``, ``bodies`` and the
-model, plane and header slots (15.6.3, 15.6.4), take or make the identity
-values and fill every identity and free slot (15.6.6), then the slots derived
-from them (15.6.5).
+each item of the timeline (15.6.2) and each file custom property (15.6.9),
+build ``features``, ``bodies`` and the model, plane and header slots (15.6.3,
+15.6.4), take or make the identity values and fill every identity and free
+slot (15.6.6), then ``props`` and ``props_by_name`` (15.6.9) and the slots
+derived from the identity values (15.6.5).
 
 The slot dict is flat: each key is a slot's full dotted name as the
 specification's tables write it (``"doc.name"``, ``"planes.front"``,
@@ -18,7 +19,8 @@ import re
 import secrets
 import uuid
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
+from decimal import Decimal
 from typing import Any
 
 from ...errors import SolidSeasError
@@ -87,6 +89,18 @@ FRONT = ((0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (0.0, 1.0, 0.0))  # spec 15.6.2: the 
 UNIT = 2**32
 HASH_START = 5381  # spec 15.3.3: the key hash starts at 5381
 HASH_FACTOR = 33  # spec 15.3.3
+FIRST_PID = 3  # spec 15.6.9 pid: 3 + k
+MAX_PROPERTIES = 65534  # spec 15.6.9, 15.2.4: the list's length is a u16
+I4_RANGE = (-(2**31), 2**31 - 1)  # spec 15.6.9: a whole number is stored as a vt:i4
+FIRST_DATE = date(1601, 1, 1)  # spec 15.6.9: a date is stored as a FILETIME
+DATE_HOUR = 12  # spec 15.6.9: a date is stored at noon
+CONTROL_BELOW = 0x20  # spec 15.6.9: no character below U+0020
+SURROGATES = (0xD800, 0xDFFF)  # spec 15.6.9: no lone surrogate
+NONCHARACTERS = (0xFFFE, 0xFFFF)  # spec 15.6.9: neither U+FFFE nor U+FFFF
+PROPERTY_CODES = {"text": 0, "date": 1, "number": 2, "yesno": 3}  # spec 15.6.9 code
+PROPERTY_TYPE_IDS = {"text": 30, "date": 64, "number": 3, "yesno": 11}  # spec 15.6.9 type_id
+PROPERTY_VTS = {"text": "lpstr", "date": "filetime", "yesno": "bool"}  # spec 15.6.9 vt
+_LINK = re.compile(r"\$prp", re.IGNORECASE | re.ASCII)  # spec 15.6.9: $PRP in any case
 
 
 class NativeWriteUnsupported(SolidSeasError, ValueError):
@@ -367,6 +381,113 @@ def _accept(doc: ir.Document) -> tuple[list, list[str], list[str]]:
     return pairs, refused, left_out
 
 
+# ------------------------------------------------------------------ file custom properties (15.6.9)
+def _storable(text: str) -> bool:
+    """Whether XML can hold ``text`` as it is: none of the characters 15.6.9 refuses."""
+    for ch in text:
+        c = ord(ch)
+        if c < CONTROL_BELOW or SURROGATES[0] <= c <= SURROGATES[1] or c in NONCHARACTERS:
+            return False
+    return True
+
+
+def _property_problem(p: ir.Property) -> str | None:
+    """The reason a file custom property is refused, or None; the first condition of 15.6.9 it fails."""
+    text = p.value if p.type == "text" else ""
+    if not _storable(p.name) or not _storable(text):
+        return (
+            "its name (or text) holds a character a part cannot store "
+            "(a control character such as a line break)"
+        )
+    if _LINK.search(text) or ('"' in text and "@" in text):
+        return "SOLIDWORKS would read this text as a link to another value"
+    if p.type == "number" and isinstance(p.value, int) and not I4_RANGE[0] <= p.value <= I4_RANGE[1]:
+        return f"the whole number {p.value} is outside the range a part stores"
+    if p.type == "date" and date.fromisoformat(p.value) < FIRST_DATE:
+        return f"a date before {FIRST_DATE.isoformat()} cannot be stored"
+    return None
+
+
+def _accept_properties(doc: ir.Document) -> tuple[list[ir.Property], list[str], list[str]]:
+    """The accepted properties, the refusals, and what is left out (15.6.9, 15.6.7).
+
+    Only accepted properties count towards the limit of 65,534; the ones after it are
+    refused together, as one item for the design.
+    """
+    accepted: list[ir.Property] = []
+    refused: list[str] = []
+    left_out: list[str] = []
+    over = False
+    for p in doc.properties:
+        why = _property_problem(p)
+        if why is not None:
+            entry = f"property {p.name}: {why}"
+            refused.append(entry)
+            left_out.append(f"{entry}; the part does not carry this property")
+        elif len(accepted) < MAX_PROPERTIES:
+            accepted.append(p)
+        else:
+            over = True
+    if over:
+        # spec question: 15.6.7's suffix names "this property", which one item for the design does
+        # not have; the entry is the refusal's reason alone, as for any refused item.
+        entry = f"more than {MAX_PROPERTIES:,} file custom properties"
+        refused.append(entry)
+        left_out.append(entry)
+    return accepted, refused, left_out
+
+
+def _element_text(text: str) -> str:
+    """15.6.9's escaping for element text: ``&`` first, then ``<`` and ``>``; ``"`` stays."""
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def _real_text(v: float) -> str:
+    """A real number as typed (15.6.9): its repr, written out without an exponent, with a point."""
+    text = repr(v)
+    if "e" in text:
+        text = format(Decimal(text), "f")
+    return text if "." in text else text + ".0"
+
+
+def _property_item(k: int, p: ir.Property, utc_offset: int) -> dict[str, Any]:
+    """The k-th accepted property's item of ``props``, with exactly the fields of 15.6.9."""
+    v = p.value
+    vt = PROPERTY_VTS.get(p.type, "")
+    if p.type == "number" and isinstance(v, int):
+        text = stored = str(v)
+        vt = "i4"  # spec 15.6.9 vt: a whole number
+    elif p.type == "number":
+        text, stored = _real_text(float(v)), f"{v:.6f}"  # spec 15.6.9: C's %f, six decimals
+        vt = "r8"  # spec 15.6.9 vt: a real number
+    elif p.type == "date":
+        d = date.fromisoformat(v)
+        text = f"{d.month}/{d.day}/{d.year}"
+        noon = datetime(d.year, d.month, d.day, DATE_HOUR, tzinfo=UTC) - timedelta(minutes=utc_offset)
+        stored = _iso(noon)
+    elif p.type == "yesno":
+        text = stored = "Yes" if v else "No"
+    else:
+        text = stored = v
+    return {
+        "name": p.name,
+        "pid": FIRST_PID + k,
+        "code": PROPERTY_CODES[p.type],
+        "type_id": PROPERTY_TYPE_IDS[p.type],
+        "vt": vt,
+        "text": text,
+        "xml_text": _element_text(text),
+        "xml_value": _element_text(stored),
+    }
+
+
+def properties(accepted: list[ir.Property], utc_offset: int) -> tuple[list[dict], list[dict]]:
+    """``props`` and ``props_by_name`` (15.6.9): the items in the design's order, and by name
+    lower-cased, compared by code point, then by the name itself."""
+    props = [_property_item(k, p, utc_offset) for k, p in enumerate(accepted)]
+    return props, sorted(props, key=lambda item: (item["name"].lower(), item["name"]))
+
+
 # ------------------------------------------------------------------ geometry (15.6.3)
 def _sphere_merge(boxes: list[tuple[tuple, tuple]]) -> tuple[list[float], float, list[float]]:
     """The bounding sphere's centre and radius, and the centre Header2 computes (15.6.3)."""
@@ -449,9 +570,12 @@ def plan(doc: ir.Document, *, identity: Identity | None = None, allow_partial: b
     """The slot dict, what is left out and the feature names, by the steps of 15.6.1."""
     ir.validate(doc)  # step 1: an IRError passes through
     pairs, refused, left_out = _accept(doc)  # step 2
+    accepted, prop_refused, prop_left_out = _accept_properties(doc)  # step 3
+    refused += prop_refused
+    left_out += prop_left_out
     if refused and not allow_partial:
         raise NativeWriteUnsupported(refused)
-    if identity is None:  # step 4's values, made now so step 3 can use the times
+    if identity is None:  # step 5's values, made now so step 4 can use the times
         identity = Identity.new()
     if not 1 <= identity.key_index <= 999:
         raise ValueError(f"key_index {identity.key_index} is outside 1 to 999 (15.1.1.1)")
@@ -462,7 +586,7 @@ def plan(doc: ir.Document, *, identity: Identity | None = None, allow_partial: b
     unix = int(when.timestamp())
     filetime = (unix + FILETIME_EPOCH) * FILETIME_UNIT  # spec 15.6.5 doc.filetime
 
-    # Step 3: features, bodies, the model, the planes and the header (15.6.2 to 15.6.4).
+    # Step 4: features, bodies, the model, the planes and the header (15.6.2 to 15.6.4).
     features: list[dict] = []
     bodies: list[dict] = []
     names: dict[str, str] = {}
@@ -543,6 +667,7 @@ def plan(doc: ir.Document, *, identity: Identity | None = None, allow_partial: b
     centre = [(lo[a] + hi[a]) / 2 for a in range(3)]
     planes = _planes(solid, lo, hi, centre)
 
+    # The change stamps count extrusions only; file custom properties do not change them (15.6.6).
     stamp = 102 if n == 0 else 100 + 20 * n  # spec 15.6.6 doc.stamp
     stamp2 = 101 + n * (n + 3)  # spec 15.6.6 doc.stamp2
     sketches = [f for f in features if f["sketch"]]
@@ -576,7 +701,8 @@ def plan(doc: ir.Document, *, identity: Identity | None = None, allow_partial: b
     for key in FIXED_KEYS:
         s[f"fixed.{key}.time"] = filetime
 
-    # Step 4: identity and free slots (15.6.6).
+    # Step 5: identity and free slots (15.6.6).
+    saved = datetime.fromtimestamp(unix, UTC)
     s.update(
         {
             "meta.created_iso": _iso(when),
@@ -590,6 +716,15 @@ def plan(doc: ir.Document, *, identity: Identity | None = None, allow_partial: b
             "exch.doc": identity.exch_doc,
             "exch.config": identity.exch_config,
             "exch.toc": [identity.exch_front, identity.exch_top, identity.exch_right],
+            # spec 15.3.2, 15.6.6: an identity slot; the generator writes doc.unix's UTC fields
+            "exch.time": {
+                "year": saved.year,
+                "month": saved.month,
+                "day": saved.day,
+                "hour": saved.hour,
+                "minute": saved.minute,
+                "second": saved.second,
+            },
             "anim.guid": identity.anim_guid,
             "lw.flag": 0,
             "cmgr.created": filetime,
@@ -619,12 +754,13 @@ def plan(doc: ir.Document, *, identity: Identity | None = None, allow_partial: b
     s["def.view.r"] = [1 / s2, -1 / s6, 1 / s3, 0.0, 2 / s6, 1 / s3, -1 / s2, -1 / s6, 1 / s3]
     s["def.view.c"] = [0.0, 0.0, 0.0]
     s["def.view.zoom"] = 1.0
-    derive(s)  # step 5
+    s["props"], s["props_by_name"] = properties(accepted, s["meta.utc_offset"])  # step 6
+    derive(s)  # step 6
     return Plan(slots=s, left_out=left_out, names=names, identity=identity)
 
 
 def derive(s: dict[str, Any]) -> dict[str, Any]:
-    """Step 5: the slots of 15.6.5 that follow from the identity values and ``features``."""
+    """Step 6: the slots of 15.6.5 that follow from the identity values and ``features``."""
     unix = s["doc.unix"]
     saved = datetime.fromtimestamp(unix, UTC)
     offset = timedelta(minutes=s.get("meta.utc_offset", 0))
@@ -635,14 +771,6 @@ def derive(s: dict[str, Any]) -> dict[str, Any]:
     s["meta.long_date"] = _long_date(local)
     s["meta.created_text"] = f"{_long_date(created)} {_clock(created)}"
     s["meta.saved_text"] = f"{_long_date(local)} {_clock(local)}"
-    s["exch.time"] = {
-        "year": saved.year,
-        "month": saved.month,
-        "day": saved.day,
-        "hour": saved.hour,
-        "minute": saved.minute,
-        "second": saved.second,
-    }
     for key in ("front", "top", "right", "doc", "config"):
         s[f"exch.hash.{key}"] = key_hash(s[f"exch.{key}"])
     feats = s["features"]

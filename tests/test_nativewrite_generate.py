@@ -683,3 +683,375 @@ def test_the_compiled_listings_are_up_to_date():
     compiled = ROOT / "src" / "solidseas" / "nativewrite" / "generate" / "_listings.py"
     assert compiled.read_text(encoding="utf-8") == mod.render(ROOT), "run scripts/compile-sldprt-spec.py"
     assert [m for m, _s, _f in mod.member_table(ROOT)] == list(gen.MEMBERS)
+
+
+# ------------------------------------------------------------------ file custom properties (15.6.9)
+def example_properties():
+    """Section 15.6.9's example design: one box with five file custom properties."""
+    props = [
+        ir.Property("PartNo", "BR-100 & <A>"),
+        ir.Property("Qty", 12, "number"),
+        ir.Property("Mass", 0.25, "number"),
+        ir.Property("Due", "2025-01-07", "date"),
+        ir.Property("Released", False, "yesno"),
+    ]
+    return ir.Document("props", box(1, 0.0, 0.0, 0.01, 0.02, 0.03), properties=props)
+
+
+def test_the_example_of_15_6_9():
+    s = gen.plan(example_properties(), identity=IDENT).slots
+    assert s["props"] == [
+        {
+            "name": "PartNo",
+            "pid": 3,
+            "code": 0,
+            "type_id": 30,
+            "vt": "lpstr",
+            "text": "BR-100 & <A>",
+            "xml_text": "BR-100 &amp; &lt;A&gt;",
+            "xml_value": "BR-100 &amp; &lt;A&gt;",
+        },
+        {
+            "name": "Qty",
+            "pid": 4,
+            "code": 2,
+            "type_id": 3,
+            "vt": "i4",
+            "text": "12",
+            "xml_text": "12",
+            "xml_value": "12",
+        },
+        {
+            "name": "Mass",
+            "pid": 5,
+            "code": 2,
+            "type_id": 3,
+            "vt": "r8",
+            "text": "0.25",
+            "xml_text": "0.25",
+            "xml_value": "0.250000",
+        },
+        {
+            "name": "Due",
+            "pid": 6,
+            "code": 1,
+            "type_id": 64,
+            "vt": "filetime",
+            "text": "1/7/2025",
+            "xml_text": "1/7/2025",
+            "xml_value": "2025-01-07T12:00:00Z",
+        },
+        {
+            "name": "Released",
+            "pid": 7,
+            "code": 3,
+            "type_id": 11,
+            "vt": "bool",
+            "text": "No",
+            "xml_text": "No",
+            "xml_value": "No",
+        },
+    ]
+    assert [p["name"] for p in s["props_by_name"]] == ["Due", "Mass", "PartNo", "Qty", "Released"]
+    assert all(any(p is q for q in s["props"]) for p in s["props_by_name"])
+
+
+def test_no_properties_gives_empty_lists_and_the_constant_members():
+    for doc in (ir.Document("empty"), example_two_boxes()):
+        s = gen.plan(doc, identity=IDENT).slots
+        assert s["props"] == [] and s["props_by_name"] == []
+    m = gen.assemble(gen.plan(ir.Document("empty"), identity=IDENT).slots)
+    xml = m["docProps/custom.xml"].decode()
+    assert xml.count("<propertyNameDictionaryElement") == 2 and xml.count("<property ") == 3
+    empty_dictionary = '<propertyNameDictionaryElement name="" pid="0"></propertyNameDictionaryElement>'
+    assert xml.endswith(empty_dictionary + "</propertySection></Properties>\r\n")
+
+    # 15.2.4 with no properties: the head's i32 is -1, the file container a null object.
+    def cls(name):
+        return b"\xff\xff\x01\x00" + len(name).to_bytes(2, "little") + name.encode()
+
+    head = cls("moCusPropMgr_c") + struct.pack("<iIII", -1, 1, 1, 0)
+    head += cls("moCusPropContainer_c") + cls("moFilePropContainer_c") + b"\0\0" + b"\0\0"
+    assert m["Contents/CusProps"] == head + b"\0\0" + bytes(6)
+    one = gen.assemble(gen.plan(ir.Document("one", box(1, 0, 0, 0.01, 0.01, 0.01)), identity=IDENT).slots)
+    assert one["Contents/CusProps"] == head + cls("moCutListPropContainer_c") + bytes(8) + bytes(6)
+
+
+def test_properties_change_only_their_two_members_and_not_the_stamps():
+    doc = example_properties()
+    bare = dataclasses.replace(doc, properties=[])
+    with_props, without = gen.plan(doc, identity=IDENT).slots, gen.plan(bare, identity=IDENT).slots
+    for stamp in ("doc.stamp", "doc.stamp2"):
+        assert with_props[stamp] == without[stamp]
+    a, b = gen.assemble(with_props), gen.assemble(without)
+    assert {n for n in a if a[n] != b[n]} == {"Contents/CusProps", "docProps/custom.xml"}
+
+
+def test_exch_time_is_an_identity_slot():
+    p = gen.plan(ir.Document("empty"), identity=IDENT)
+    s = dict(p.slots)
+    assert s["exch.time"] == {"year": 2026, "month": 3, "day": 7, "hour": 9, "minute": 5, "second": 1}
+    later = {"year": 2026, "month": 3, "day": 7, "hour": 9, "minute": 5, "second": 2}
+    s["exch.time"] = later
+    from solidseas.nativewrite.generate.slots import derive
+
+    assert derive(s)["exch.time"] == later  # not derived again from doc.unix
+
+
+@pytest.mark.parametrize(
+    "value, vt, text, stored",
+    [
+        (42, "i4", "42", "42"),
+        (-7, "i4", "-7", "-7"),
+        (0, "i4", "0", "0"),
+        (2147483647, "i4", "2147483647", "2147483647"),
+        (3.25, "r8", "3.25", "3.250000"),
+        (7.0, "r8", "7.0", "7.000000"),
+        (0.00001, "r8", "0.00001", "0.000010"),
+        (1e16, "r8", "10000000000000000.0", "10000000000000000.000000"),
+        (-2.5e-7, "r8", "-0.00000025", "-0.000000"),
+        (2.675, "r8", "2.675", "2.675000"),
+    ],
+)
+def test_number_forms_of_15_6_9(value, vt, text, stored):
+    doc = ir.Document("n", properties=[ir.Property("N", value, "number")])
+    (item,) = gen.plan(doc, identity=IDENT).slots["props"]
+    assert (item["vt"], item["text"], item["xml_text"], item["xml_value"]) == (vt, text, text, stored)
+    assert (item["code"], item["type_id"]) == (2, 3)
+
+
+def test_text_date_and_yes_or_no_forms_of_15_6_9():
+    doc = ir.Document(
+        "t",
+        properties=[
+            ir.Property('Say "hi"', 'a "quote" & <tag>'),
+            ir.Property("Start", "1601-01-01", "date"),
+            ir.Property("Done", True, "yesno"),
+            ir.Property("Empty", ""),
+            ir.Property("Nameé", "Жé \U0001f600"),
+        ],
+    )
+    p = gen.plan(doc, identity=IDENT).slots["props"]
+    assert (p[0]["text"], p[0]["xml_text"], p[0]["xml_value"]) == (
+        'a "quote" & <tag>',
+        'a "quote" &amp; &lt;tag&gt;',
+        'a "quote" &amp; &lt;tag&gt;',
+    )
+    assert (p[1]["text"], p[1]["xml_value"]) == ("1/1/1601", "1601-01-01T12:00:00Z")
+    assert (p[2]["text"], p[2]["xml_value"], p[2]["vt"]) == ("Yes", "Yes", "bool")
+    assert p[3]["text"] == "" and p[4]["text"] == "Жé \U0001f600"
+    assert [x["pid"] for x in p] == [3, 4, 5, 6, 7]
+
+
+def test_props_by_name_ignores_case_then_compares_code_points():
+    names = ["beta", "Alpha", "gamma", "_under", "Zeta", "alpha2"]
+    doc = ir.Document("o", properties=[ir.Property(n, "x") for n in names])
+    s = gen.plan(doc, identity=IDENT).slots
+    # "_" (U+005F) comes before every lower-case letter
+    assert [p["name"] for p in s["props_by_name"]] == ["_under", "Alpha", "alpha2", "beta", "gamma", "Zeta"]
+    assert [p["name"] for p in s["props"]] == names
+
+
+def _property_refusal(props) -> list[str]:
+    with pytest.raises(gen.NativeWriteUnsupported) as e:
+        gen.plan(ir.Document("d", properties=props), identity=IDENT)
+    return e.value.items
+
+
+@pytest.mark.parametrize(
+    "prop, reason",
+    [
+        (ir.Property("Line\nbreak", "x"), "control"),
+        (ir.Property("Tab", "a\tb"), "control"),
+        (ir.Property("Odd", "a\ud800b"), "control"),
+        (ir.Property("Non", "￿"), "control"),
+        (ir.Property("Non￾", 3, "number"), "control"),
+        (ir.Property("Link", "$PRP:Description"), "link"),
+        (ir.Property("Link2", "see $prp:x"), "link"),
+        (ir.Property("Dim", '"D1@Sketch1"'), "link"),
+        (ir.Property("Big", 2147483648, "number"), "range"),
+        (ir.Property("Small", -2147483649, "number"), "range"),
+        (ir.Property("Old", "1600-12-31", "date"), "date"),
+    ],
+)
+def test_refused_properties(prop, reason):
+    expected = {
+        "control": "its name (or text) holds a character a part cannot store "
+        "(a control character such as a line break)",
+        "link": "SOLIDWORKS would read this text as a link to another value",
+        "range": f"the whole number {prop.value} is outside the range a part stores",
+        "date": "a date before 1601-01-01 cannot be stored",
+    }[reason]
+    assert _property_refusal([prop]) == [f"property {prop.name}: {expected}"]
+
+
+def test_accepted_edge_properties():
+    props = [
+        ir.Property("Quote", 'a "b"'),
+        ir.Property("At", "a@b"),
+        ir.Property("Dollar", "$PR P and $PRQ"),
+        ir.Property("Min", -2147483648, "number"),
+        ir.Property("Real", 1e12, "number"),
+        ir.Property("First", "1601-01-01", "date"),
+    ]
+    s = gen.plan(ir.Document("d", properties=props), identity=IDENT).slots
+    assert [p["name"] for p in s["props"]] == ["Quote", "At", "Dollar", "Min", "Real", "First"]
+
+
+def test_refused_properties_with_allow_partial_count_only_the_accepted():
+    props = [
+        ir.Property("A", "one"),
+        ir.Property("Bad", "x\ny"),
+        ir.Property("B", 2, "number"),
+        ir.Property("Linked", '"SW-Mass@part.SLDPRT"'),
+        ir.Property("C", True, "yesno"),
+    ]
+    tilted = rect_sketch("s", "Tilted", 0.0, 0.0, 0.01, 0.01)
+    tilted.points[1].y = 0.001
+    doc = ir.Document("d", [tilted, ir.Extrude("e", "E", "s", 0.01)], properties=props)
+    bad = (
+        "property Bad: its name (or text) holds a character a part cannot store "
+        "(a control character such as a line break)"
+    )
+    linked = "property Linked: SOLIDWORKS would read this text as a link to another value"
+    with pytest.raises(gen.NativeWriteUnsupported) as e:
+        gen.plan(doc, identity=IDENT)
+    assert e.value.items == ["Tilted: rectangle is not aligned with the sketch axes", bad, linked]
+    p = gen.plan(doc, identity=IDENT, allow_partial=True)
+    assert p.left_out == [
+        "Tilted: rectangle is not aligned with the sketch axes",
+        "E: left out because its sketch is not written",
+        f"{bad}; the part does not carry this property",
+        f"{linked}; the part does not carry this property",
+    ]
+    assert [(x["name"], x["pid"]) for x in p.slots["props"]] == [("A", 3), ("B", 4), ("C", 5)]
+    cus = gen.assemble(p.slots)["Contents/CusProps"]
+    assert struct.unpack_from("<i", cus, 6 + len("moCusPropMgr_c"))[0] == 2  # the last of three, from 0
+
+
+def test_more_than_65534_properties():
+    props = [ir.Property(f"P{i}", "v") for i in range(65535)]
+    props.insert(10, ir.Property("Bad", "a\x00"))
+    assert _property_refusal(props) == [
+        "property Bad: its name (or text) holds a character a part cannot store "
+        "(a control character such as a line break)",
+        "more than 65,534 file custom properties",
+    ]
+    p = gen.plan(ir.Document("d", properties=props), identity=IDENT, allow_partial=True)
+    assert len(p.slots["props"]) == 65534 and p.slots["props"][-1]["name"] == "P65533"
+    assert p.slots["props"][-1]["pid"] == 3 + 65533
+    assert p.left_out[-1] == "more than 65,534 file custom properties"
+    # Without the last one, 65,534 are accepted (Bad does not count): no limit refusal.
+    ok = gen.plan(ir.Document("d", properties=props[:-1]), identity=IDENT, allow_partial=True)
+    assert len(ok.slots["props"]) == 65534 and len(ok.left_out) == 1
+
+
+def _cus_record(k: int, name: str, text: str, code: int, first: bool) -> bytes:
+    """One property record of 15.2.4, its classes written in full or by reference (15.0.4).
+
+    Counting from 1, the head, the two containers, the list and the property list take
+    indices 1 to 10 (a class, then its object), so moAdvCusProp_c is class 11 and
+    moCusPropStringElem_c class 13.
+    """
+    if first:
+        head = b"\xff\xff\x01\x00\x0e\x00moAdvCusProp_c" + b"\x01\x00"
+        head += b"\xff\xff\x01\x00\x15\x00moCusPropStringElem_c"
+    else:
+        head = (0x8000 | 11).to_bytes(2, "little") + b"\x01\x00" + (0x8000 | 13).to_bytes(2, "little")
+    return (
+        head
+        + listing.cstring(text)
+        + struct.pack("<II", k, 9)
+        + listing.cstring(name)
+        + struct.pack("<I", code)
+        + listing.cstring(text) * 2
+        + struct.pack("<iII", -1, 1, 0)
+    )
+
+
+def test_a_written_part_carries_its_properties():
+    doc = example_properties()
+    doc.properties.insert(0, ir.Property('Note "x"', 'say "a" & b'))
+    blob = gen.write_part(doc, identity=IDENT)
+    part = container.read_document(blob)
+    p = gen.plan(doc, identity=IDENT)
+    members = gen.assemble(p.slots)
+    assert [m.name for m in part.members] == list(gen.MEMBERS)
+    for m in part.members:
+        assert m.data == members[m.name]
+
+    # docProps/custom.xml (15.1.4): the dictionary by name, then the elements in the design's order.
+    import xml.etree.ElementTree as ET
+
+    raw = part.data("docProps/custom.xml")
+    assert raw.endswith(b"</propertySection></Properties>\r\n")
+    assert raw.count(b"\n") == raw.count(b"\r\n") == 2
+    root = ET.fromstring(raw)
+    user = root.findall("propertySection")[1]
+    assert user.get("name") == "UserDefinedProperties"
+    dictionary = [(e.get("name"), e.get("pid")) for e in user.findall("propertyNameDictionaryElement")]
+    assert dictionary == [
+        ("", "0"),
+        ("Due", "7"),
+        ("Mass", "6"),
+        ('Note "x"', "3"),
+        ("PartNo", "4"),
+        ("Qty", "5"),
+        ("Released", "8"),
+    ]
+    vt = "{http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes}"
+    elements = user.findall("property")[1:]
+    got = []
+    for e in elements:
+        value, fp = e[0], e.find("FPVals")[0]
+        attrs = (e.get("name"), e.get("pid"), e.get("TypeID"), e.get("IsEquation"))
+        got.append((*attrs, value.tag, value.text, fp.text))
+    assert got == [
+        ('Note "x"', "3", "30", "False", vt + "lpstr", 'say "a" & b', 'say "a" & b'),
+        ("PartNo", "4", "30", "False", vt + "lpstr", "BR-100 & <A>", "BR-100 & <A>"),
+        ("Qty", "5", "3", None, vt + "i4", "12", "12"),
+        ("Mass", "6", "3", None, vt + "r8", "0.250000", "0.25"),
+        ("Due", "7", "64", None, vt + "filetime", "2025-01-07T12:00:00Z", "1/7/2025"),
+        ("Released", "8", "11", None, vt + "bool", "No", "No"),
+    ]
+    text = raw.decode()
+    assert 'name="Note &quot;x&quot;"' in text and '<vt:lpstr>say "a" &amp; b</vt:lpstr>' in text
+    children = list(user)
+    assert children.index(user.findall("propertyNameDictionaryElement")[-1]) < children.index(elements[0])
+
+    # Contents/CusProps (15.2.4): the head, the list, one record per property, then the rest.
+    def cls(name):
+        return b"\xff\xff\x01\x00" + len(name).to_bytes(2, "little") + name.encode()
+
+    want = cls("moCusPropMgr_c") + struct.pack("<iIII", 5, 1, 1, 0)
+    want += cls("moCusPropContainer_c") + cls("moFilePropContainer_c")
+    want += cls("suObList") + b"\x01\x00" + cls("moAdvCusPropList_c") + b"\x06\x00"
+    records = [
+        ('Note "x"', 'say "a" & b', 0),
+        ("PartNo", "BR-100 & <A>", 0),
+        ("Qty", "12", 2),
+        ("Mass", "0.25", 2),
+        ("Due", "1/7/2025", 1),
+        ("Released", "No", 3),
+    ]
+    for k, (name, value, code) in enumerate(records):
+        want += _cus_record(k, name, value, code, k == 0)
+    want += b"\0\0" + cls("moCutListPropContainer_c") + bytes(8) + bytes(6)
+    assert part.data("Contents/CusProps") == want
+
+
+def test_the_property_shape_of_spec_constants():
+    (doc_a, id_a), (doc_b, _id_b) = gen._shapes()[-1]
+    for doc in (doc_a, doc_b):
+        assert [p.type for p in doc.properties] == ["text", "number", "number", "date", "yesno"]
+        assert isinstance(doc.properties[1].value, int) and isinstance(doc.properties[2].value, float)
+        s = gen.plan(doc, identity=id_a).slots
+        assert [p["name"] for p in s["props_by_name"]] == [p["name"] for p in s["props"]]
+    for pa, pb in zip(doc_a.properties, doc_b.properties, strict=True):
+        assert len(pa.name) == len(pb.name) and pa.name[0] != pb.name[0] and pa.name[0].isascii()
+    a = gen.assemble(gen.plan(doc_a, identity=id_a).slots)
+    consts = gen.SPEC_CONSTANTS
+    # The property elements' fixed text lines up in the two variants and is kept as constant runs.
+    xml = a["docProps/custom.xml"]
+    tail = xml[xml.rindex(b"</vt:bool>") :]
+    assert any(tail in c for c in consts)

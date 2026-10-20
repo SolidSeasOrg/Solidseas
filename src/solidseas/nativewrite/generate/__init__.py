@@ -133,6 +133,12 @@ def _shapes() -> list[tuple[tuple[ir.Document, Identity], ...]]:
     15.6.8's sizes and once with other sizes, and each with its own identity. The two
     identities give texts of the same lengths (the same weekday and month name
     lengths, one-digit hours), so the members line up byte for byte.
+
+    The fourth shape is one box with five file custom properties, one of each form of
+    15.6.9 in order: a text, a whole number, a real number, a date and yes or no. In
+    the two variants each name and each value as typed has the same length and differs
+    from the first character on, the yes or no property is true in both, and the names
+    sort by ``props_by_name`` in the design's order.
     """
     from datetime import UTC, datetime
 
@@ -144,10 +150,20 @@ def _shapes() -> list[tuple[tuple[ir.Document, Identity], ...]]:
     second = ident(datetime(2018, 7, 27, 3, 45, 51, tzinfo=UTC), 4, "b", "shapeB")  # spec 15.0.7
     one_a, one_b = _box(1, 0.0, 0.0, 0.01, 0.02, 0.03), _box(1, 0.0, 0.0, 0.025, 0.05, 0.07)
     two_a, two_b = _box(2, 0.03, 0.0, 0.04, 0.02, 0.01), _box(2, 0.04, 0.005, 0.06, 0.03, 0.02)
+    forms = ("text", "number", "number", "date", "yesno")  # spec 15.0.7: one of each form of 15.6.9
+    names_a, names_b = ("Apex", "Bolt", "Core", "Dial", "Edge"), ("Knob", "Lens", "Mast", "Note", "Oval")
+    values_a = ("Steel", 42, 3.25, "2015-06-15", True)  # spec 15.0.7
+    values_b = ("Brass", 87, 6.81, "2018-07-27", True)  # spec 15.0.7
+    props_a = [ir.Property(*x) for x in zip(names_a, values_a, forms, strict=True)]
+    props_b = [ir.Property(*x) for x in zip(names_b, values_b, forms, strict=True)]
     return [
         ((ir.Document("empty"), first), (ir.Document("empty"), second)),
         ((ir.Document("one", one_a), first), (ir.Document("one", one_b), second)),
         ((ir.Document("two", one_a + two_a), first), (ir.Document("two", one_b + two_b), second)),
+        (
+            (ir.Document("props", one_a, properties=props_a), first),
+            (ir.Document("props", one_b, properties=props_b), second),
+        ),
     ]
 
 
@@ -164,7 +180,7 @@ def _agreeing_runs(a: bytes, b: bytes) -> list[bytes]:
 
 
 def _constant_runs() -> tuple[bytes, ...]:
-    """Every run of 32 or more bytes that is the same whatever the design's sizes and the identity.
+    """Every run of 32 or more bytes that is the same whatever the design's values and the identity.
 
     Section 15.0.7: assemble each shape in its variants and keep, member by member,
     the runs that agree at the same offsets. A member whose variants differ in length

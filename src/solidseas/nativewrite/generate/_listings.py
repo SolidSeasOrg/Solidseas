@@ -5500,23 +5500,45 @@ LISTINGS = {
         ('put', 'u32', (0,), '15.5.1 config-0-resolvedfeatures.srl:20'),  # spec 15.5.1 config-0-resolvedfeatures.srl:20
     ),  # spec 15.5 config-0-resolvedfeatures.srl
     'Contents/CusProps': (  # spec 15.2 cusprops.srl
-        ('archive', 'start', 1, '15.2.4 cusprops.srl:5'),  # spec 15.2.4 cusprops.srl:5
-        ('class', 'moCusPropMgr_c', 1, None, '15.2.4 cusprops.srl:6'),  # spec 15.2.4 cusprops.srl:6
-        ('put', 'i32', (-1,), '15.2.4 cusprops.srl:7'),  # spec 15.2.4 cusprops.srl:7
-        ('put', 'u32', (1,), '15.2.4 cusprops.srl:8'),  # spec 15.2.4 cusprops.srl:8
+        ('archive', 'start', 1, '15.2.4 cusprops.srl:6'),  # spec 15.2.4 cusprops.srl:6
+        ('class', 'moCusPropMgr_c', 1, None, '15.2.4 cusprops.srl:7'),  # spec 15.2.4 cusprops.srl:7
+        ('put', 'i32', (('=', 'len($props)-1'),), '15.2.4 cusprops.srl:8'),  # spec 15.2.4 cusprops.srl:8
         ('put', 'u32', (1,), '15.2.4 cusprops.srl:9'),  # spec 15.2.4 cusprops.srl:9
-        ('put', 'u32', (0,), '15.2.4 cusprops.srl:11'),  # spec 15.2.4 cusprops.srl:11
-        ('class', 'moCusPropContainer_c', 1, None, '15.2.4 cusprops.srl:12'),  # spec 15.2.4 cusprops.srl:12
-        ('class', 'moFilePropContainer_c', 1, None, '15.2.4 cusprops.srl:13'),  # spec 15.2.4 cusprops.srl:13
-        ('put', 'u16', (0,), '15.2.4 cusprops.srl:14'),  # spec 15.2.4 cusprops.srl:14
-        ('put', 'u16', (0,), '15.2.4 cusprops.srl:15'),  # spec 15.2.4 cusprops.srl:15
-        ('if', ('=', 'len($features)>0'), (  # spec 15.2.4 cusprops.srl:16
-            ('class', 'moCutListPropContainer_c', 1, None, '15.2.4 cusprops.srl:17'),  # spec 15.2.4 cusprops.srl:17
-            ('rep', 8, 0, '15.2.4 cusprops.srl:18'),  # spec 15.2.4 cusprops.srl:18
-        ), (  # spec 15.2.4 cusprops.srl:16
-            ('put', 'u16', (0,), '15.2.4 cusprops.srl:20'),  # spec 15.2.4 cusprops.srl:20
-        ), '15.2.4 cusprops.srl:16'),  # spec 15.2.4 cusprops.srl:16
-        ('rep', 6, 0, '15.2.4 cusprops.srl:22'),  # spec 15.2.4 cusprops.srl:22
+        ('put', 'u32', (1,), '15.2.4 cusprops.srl:10'),  # spec 15.2.4 cusprops.srl:10
+        ('put', 'u32', (0,), '15.2.4 cusprops.srl:12'),  # spec 15.2.4 cusprops.srl:12
+        ('class', 'moCusPropContainer_c', 1, None, '15.2.4 cusprops.srl:13'),  # spec 15.2.4 cusprops.srl:13
+        ('class', 'moFilePropContainer_c', 1, None, '15.2.4 cusprops.srl:14'),  # spec 15.2.4 cusprops.srl:14
+        ('if', ('=', 'len($props)>0'), (  # spec 15.2.4 cusprops.srl:15
+            ('class', 'suObList', 1, None, '15.2.4 cusprops.srl:16'),  # spec 15.2.4 cusprops.srl:16
+            ('put', 'u16', (1,), '15.2.4 cusprops.srl:17'),  # spec 15.2.4 cusprops.srl:17
+            ('class', 'moAdvCusPropList_c', 1, None, '15.2.4 cusprops.srl:18'),  # spec 15.2.4 cusprops.srl:18
+            ('put', 'u16', (('=', 'len($props)'),), '15.2.4 cusprops.srl:19'),  # spec 15.2.4 cusprops.srl:19
+            ('for', 'p', ('$', 'props'), False, (  # spec 15.2.4 cusprops.srl:20
+                ('class', 'moAdvCusProp_c', 1, None, '15.2.4 cusprops.srl:21'),  # spec 15.2.4 cusprops.srl:21
+                ('put', 'u16', (1,), '15.2.4 cusprops.srl:22'),  # spec 15.2.4 cusprops.srl:22
+                ('class', 'moCusPropStringElem_c', 1, None, '15.2.4 cusprops.srl:23'),  # spec 15.2.4 cusprops.srl:23
+                ('put', 'cstr', (('$', 'p.text'),), '15.2.4 cusprops.srl:24'),  # spec 15.2.4 cusprops.srl:24
+                ('put', 'u32', (('$', 'p_index'),), '15.2.4 cusprops.srl:25'),  # spec 15.2.4 cusprops.srl:25
+                ('put', 'u32', (9,), '15.2.4 cusprops.srl:26'),  # spec 15.2.4 cusprops.srl:26
+                ('put', 'cstr', (('$', 'p.name'),), '15.2.4 cusprops.srl:27'),  # spec 15.2.4 cusprops.srl:27
+                ('put', 'u32', (('$', 'p.code'),), '15.2.4 cusprops.srl:28'),  # spec 15.2.4 cusprops.srl:28
+                ('put', 'cstr', (('$', 'p.text'),), '15.2.4 cusprops.srl:29'),  # spec 15.2.4 cusprops.srl:29
+                ('put', 'cstr', (('$', 'p.text'),), '15.2.4 cusprops.srl:30'),  # spec 15.2.4 cusprops.srl:30
+                ('put', 'i32', (-1,), '15.2.4 cusprops.srl:31'),  # spec 15.2.4 cusprops.srl:31
+                ('put', 'u32', (1,), '15.2.4 cusprops.srl:32'),  # spec 15.2.4 cusprops.srl:32
+                ('put', 'u32', (0,), '15.2.4 cusprops.srl:33'),  # spec 15.2.4 cusprops.srl:33
+            ), '15.2.4 cusprops.srl:20'),  # spec 15.2.4 cusprops.srl:20
+        ), (  # spec 15.2.4 cusprops.srl:15
+            ('put', 'u16', (0,), '15.2.4 cusprops.srl:36'),  # spec 15.2.4 cusprops.srl:36
+        ), '15.2.4 cusprops.srl:15'),  # spec 15.2.4 cusprops.srl:15
+        ('put', 'u16', (0,), '15.2.4 cusprops.srl:38'),  # spec 15.2.4 cusprops.srl:38
+        ('if', ('=', 'len($features)>0'), (  # spec 15.2.4 cusprops.srl:39
+            ('class', 'moCutListPropContainer_c', 1, None, '15.2.4 cusprops.srl:40'),  # spec 15.2.4 cusprops.srl:40
+            ('rep', 8, 0, '15.2.4 cusprops.srl:41'),  # spec 15.2.4 cusprops.srl:41
+        ), (  # spec 15.2.4 cusprops.srl:39
+            ('put', 'u16', (0,), '15.2.4 cusprops.srl:43'),  # spec 15.2.4 cusprops.srl:43
+        ), '15.2.4 cusprops.srl:39'),  # spec 15.2.4 cusprops.srl:39
+        ('rep', 6, 0, '15.2.4 cusprops.srl:45'),  # spec 15.2.4 cusprops.srl:45
     ),  # spec 15.2 cusprops.srl
     'Contents/Definition': (  # spec 15.2 definition.srl
         ('put', 'u32', (7, 0, 50, 1, 1), '15.2.11.1 definition.srl:6'),  # spec 15.2.11.1 definition.srl:6
@@ -6637,10 +6659,37 @@ LISTINGS = {
         ), '15.1.4 core.srl:4'),  # spec 15.1.4 core.srl:4
     ),  # spec 15.1 core.srl
     'docProps/custom.xml': (  # spec 15.1 custom.srl
-        ('text', 'utf8', 'crlf', True, False, (  # spec 15.1.4 custom.srl:5
-            ('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',),  # spec 15.1.4 custom.srl:5
-            ('<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/custom-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes"><propertySection xmlns="" name="DocumentSummaryInformation" fmtid="{D5CDD502-2E9C-101B-9397-08002B2CF9AE}"><property name="" pid="1" TypeID="0"><vt:i2>65001</vt:i2></property><property name="" pid="22" TypeID="0"><vt:bool>No</vt:bool></property><propertyNameDictionaryElement name="" pid="0"></propertyNameDictionaryElement></propertySection><propertySection xmlns="" name="UserDefinedProperties" fmtid="{D5CDD505-2E9C-101B-9397-08002B2CF9AE}"><property name="" pid="1" TypeID="0"><vt:i2>65001</vt:i2></property><propertyNameDictionaryElement name="" pid="0"></propertyNameDictionaryElement></propertySection></Properties>',),  # spec 15.1.4 custom.srl:5
-        ), '15.1.4 custom.srl:5'),  # spec 15.1.4 custom.srl:5
+        ('text', 'utf8', 'crlf', False, False, (  # spec 15.1.4 custom.srl:10
+            ('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',),  # spec 15.1.4 custom.srl:10
+            ('<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/custom-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes"><propertySection xmlns="" name="DocumentSummaryInformation" fmtid="{D5CDD502-2E9C-101B-9397-08002B2CF9AE}"><property name="" pid="1" TypeID="0"><vt:i2>65001</vt:i2></property><property name="" pid="22" TypeID="0"><vt:bool>No</vt:bool></property><propertyNameDictionaryElement name="" pid="0"></propertyNameDictionaryElement></propertySection><propertySection xmlns="" name="UserDefinedProperties" fmtid="{D5CDD505-2E9C-101B-9397-08002B2CF9AE}"><property name="" pid="1" TypeID="0"><vt:i2>65001</vt:i2></property><propertyNameDictionaryElement name="" pid="0"></propertyNameDictionaryElement>',),  # spec 15.1.4 custom.srl:10
+        ), '15.1.4 custom.srl:10'),  # spec 15.1.4 custom.srl:10
+        ('for', 'p', ('$', 'props_by_name'), False, (  # spec 15.1.4 custom.srl:14
+            ('text', 'utf8', 'lf', False, False, (  # spec 15.1.4 custom.srl:15
+                ('<propertyNameDictionaryElement name="', ('$', 'p.name'), '" pid="', ('$', 'p.pid'), '"></propertyNameDictionaryElement>'),  # spec 15.1.4 custom.srl:15
+            ), '15.1.4 custom.srl:15'),  # spec 15.1.4 custom.srl:15
+        ), '15.1.4 custom.srl:14'),  # spec 15.1.4 custom.srl:14
+        ('for', 'p', ('$', 'props'), False, (  # spec 15.1.4 custom.srl:19
+            ('if', ('=', '$p.code==0'), (  # spec 15.1.4 custom.srl:20
+                ('text', 'utf8', 'lf', False, False, (  # spec 15.1.4 custom.srl:21
+                    ('<property name="', ('$', 'p.name'), '" pid="', ('$', 'p.pid'), '" IsEquation="False" TypeID="', ('$', 'p.type_id'), '"><vt:', ('$', 'p.vt'), '>'),  # spec 15.1.4 custom.srl:21
+                ), '15.1.4 custom.srl:21'),  # spec 15.1.4 custom.srl:21
+            ), (  # spec 15.1.4 custom.srl:20
+                ('text', 'utf8', 'lf', False, False, (  # spec 15.1.4 custom.srl:25
+                    ('<property name="', ('$', 'p.name'), '" pid="', ('$', 'p.pid'), '" TypeID="', ('$', 'p.type_id'), '"><vt:', ('$', 'p.vt'), '>'),  # spec 15.1.4 custom.srl:25
+                ), '15.1.4 custom.srl:25'),  # spec 15.1.4 custom.srl:25
+            ), '15.1.4 custom.srl:20'),  # spec 15.1.4 custom.srl:20
+            ('put', 'utf8', (('$', 'p.xml_value'),), '15.1.4 custom.srl:29'),  # spec 15.1.4 custom.srl:29
+            ('text', 'utf8', 'lf', False, False, (  # spec 15.1.4 custom.srl:30
+                ('</vt:', ('$', 'p.vt'), '><FPVals><vt:', ('$', 'p.vt'), '>'),  # spec 15.1.4 custom.srl:30
+            ), '15.1.4 custom.srl:30'),  # spec 15.1.4 custom.srl:30
+            ('put', 'utf8', (('$', 'p.xml_text'),), '15.1.4 custom.srl:33'),  # spec 15.1.4 custom.srl:33
+            ('text', 'utf8', 'lf', False, False, (  # spec 15.1.4 custom.srl:34
+                ('</vt:', ('$', 'p.vt'), '></FPVals></property>'),  # spec 15.1.4 custom.srl:34
+            ), '15.1.4 custom.srl:34'),  # spec 15.1.4 custom.srl:34
+        ), '15.1.4 custom.srl:19'),  # spec 15.1.4 custom.srl:19
+        ('text', 'utf8', 'crlf', True, False, (  # spec 15.1.4 custom.srl:38
+            ('</propertySection></Properties>',),  # spec 15.1.4 custom.srl:38
+        ), '15.1.4 custom.srl:38'),  # spec 15.1.4 custom.srl:38
     ),  # spec 15.1 custom.srl
     'swXmlContents/Features': (  # spec 15.1 features-xml.srl
         ('text', 'utf8', 'crlf', True, False, (  # spec 15.1.5 features-xml.srl:5
