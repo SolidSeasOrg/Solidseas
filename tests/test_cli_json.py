@@ -167,6 +167,7 @@ def test_every_command_is_covered():
     covered |= {"version", "schema", "components", "references", "bom", "paths", "serve"}
     covered |= {"export"}  # tests/test_export.py runs it
     covered |= {"convert"}  # tests/test_occt_backend.py runs it
+    covered |= {"sldprt"}  # tests/test_cli_sldprt.py runs it
     # tests/test_catalog_surfaces.py runs the catalog's
     covered |= {"index", "where-used", "search", "duplicates", "missing", "changes", "catalog", "catalogs"}
     covered |= {"clear-index"}

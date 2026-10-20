@@ -433,7 +433,7 @@ its bases, so existing `except` clauses catch exactly what they caught before.
 | `CatalogIncompatibleError` | `SolidSeasError` | `catalog_incompatible`: not a catalog, written by a newer SolidSeas, or damaged (`detail["rule"]` says which, 3.18); provisional |
 | `BusyError` | `SolidSeasError` | `busy`: another process or scan is updating the catalog (3.18); provisional |
 | `FormatNotSupportedError` | `SolidSeasError` | `format_not_supported`: a 3D format SolidSeas knows but cannot read (`detail["rule"]` `no_reader`), one it reads only through an extension that is not added or not on (`needs_extension`, 3.20.10), or a feature of one file that stops it being read (3.20); `detail["value"]` names the format or the feature; provisional |
-| `UnsupportedOperationError` | `SolidSeasError`, `NotImplementedError` | `not_implemented`: an operation for SOLIDWORKS documents asked of another 3D file (`detail["rule"]` `model_file`, `detail["value"]` its format id, 3.20); provisional |
+| `UnsupportedOperationError` | `SolidSeasError`, `NotImplementedError` | `not_implemented`: an operation for SOLIDWORKS documents asked of another 3D file (`detail["rule"]` `model_file`, `detail["value"]` its format id, 3.20), or a design that needs what a part written without SOLIDWORKS cannot hold yet (`detail["rule"]` `native_write`, `detail["value"]` how many items, 7.1); provisional |
 | `DrawingInvalidError` | `InvalidArgumentError` | `drawing_invalid`: a `.ssdrw` refused whole (not a SolidSeas drawing, not strict JSON, a newer schema, outside the bounds); `detail["rule"]` is `drawing_invalid` and `detail["value"]` names the check; `solidseas.drawing.document.DrawingFileError` derives from it (3.24); provisional |
 | `DrawingTooComplexError` | `SldLimitError` | `drawing_too_complex`: a part or drawing past a bound of `DrawingLimits`, `detail["limit"]` naming it (3.24); provisional |
 | `ModelNotFoundError` | `InvalidArgumentError` | `model_not_found`: a drawing's model is not where the drawing says, or only changed files were found (`detail["rule"]` `model_not_found`, 3.24); provisional |
@@ -4759,6 +4759,7 @@ renaming or retyping one, or changing its meaning, does. The API version is 1.
 | `catalog_changes` | 1 | built, provisional | `changes` | |
 | `model_summary` | 1 | built, provisional | `info` (a model file) | `/v1/document` (a model file) |
 | `drawing_result` | 1 | built, provisional | `drawing` (every action) | |
+| `sldprt_written` | 1 | built, provisional | `sldprt` | |
 
 `/v1/preview` is the one route that answers with an image instead of a kind.
 `model_summary` stands in for `document_summary` on `info` and `/v1/document`
@@ -5671,6 +5672,30 @@ are null or empty, never left out.
 | `settings` | For `settings`: the file read, whether it was there, every value as `Drawing.json` holds it, the fallbacks and what still waits for the user's answer |
 | `model_check` | For `check --model`: the file, whether it is verified (its SHA-256 is the drawing's), whether its geometry digest matches when the file differs, whether the drawing's MODEL reference names it, and the words |
 
+### 5.18 `sldprt_written` (v1, provisional)
+
+What `solidseas sldprt DESIGN --json` wrote: a SOLIDWORKS part made from a design
+without SOLIDWORKS (section 7.1).
+
+```json
+{"output": "D:\\Parts\\plate.SLDPRT", "bytes": 61440,
+ "design": {"name": "plate", "format": "solidcraft"},
+ "features": [{"id": "1", "name": "Sketch1", "part_name": "Sketch1"},
+              {"id": "2", "name": "Extrude1", "part_name": "Boss-Extrude1"}],
+ "left_out": ["Fillet1: fillets are not written yet"],
+ "unsupported": ["Fillet1: fillets are not written yet"],
+ "partial": true}
+```
+
+| Field | Meaning |
+|---|---|
+| `output`, `bytes` | The absolute path of the new part and its size |
+| `design` | The design's name, and its `format`: `solidcraft` for a SolidCraft file, `ir` for a SolidSeas IR file (an open set) |
+| `features` | The design's features the part holds, in timeline order: their `id` and `name` in the design, and `part_name`, the name the part gives them (`Sketch1`, `Boss-Extrude1`, as SOLIDWORKS names them) |
+| `left_out` | Everything of the design the part does not carry, in words, each naming the design's feature: a feature left out, a sketch dimension kept as geometry only, a relation not written, an expression written as its value |
+| `unsupported` | The items of `left_out` that were left out only because `--allow-partial` was given; without it the design would have been refused |
+| `partial` | True when `unsupported` is not empty; the command then exits 4 |
+
 ## 6. Reading the JSON in JavaScript and TypeScript
 
 `JSON.parse` turns every number into a double, which keeps an integer exactly
@@ -5725,7 +5750,8 @@ types; SolidSeas ships no TypeScript of its own. Section 10 shows a typed
 installing. Every command opens documents read-only. Commands that write
 refuse to write into the folder of a source file (or below it) unless given
 `--allow-source-dir`, never write a SOLIDWORKS file or over a source file, and
-never overwrite a file without `--force`. The folder check compares the folders
+never overwrite a file without `--force`. `sldprt` is the one command that
+writes a SOLIDWORKS file: always a new part, never in place of any file. The folder check compares the folders
 themselves as well as their paths, so another name for the same folder (an
 administrative share such as `\\localhost\C$\...`, a second share of it, a
 mount point) is refused too. An existing output that is a symbolic link or a
@@ -5749,6 +5775,7 @@ it.
 | `parasolid FILE -o DIR` | `--text`, `--raw` and `--local-bodies fallback` (default), `always` or `never` (a part), `--configuration NAME`, `--allow-partial`, `--other-configurations` and `--include-hidden` (an assembly), `--max-mb N`, `--force`, `--allow-source-dir` | `parasolid_result` |
 | `convert FILE --format iges\|brep\|step` | `-o FILE` (or a folder that exists; default: the document's name in the current folder), `--max-mb N`, `--force`, `--allow-source-dir`; needs the OCCT backend extension (3.20.10) | `file_written` (provisional) |
 | `export FILE --format 3mf\|stl\|step` | `-o FILE` (or a folder that exists; default: the document's name in the current folder), `--configuration NAME`, `--chord MM` (0.0001 to 10) and `--merge` (3MF and STL), `--sheets`, `--allow-partial`, `--exact-only` and `--include-hidden` (STEP), `--max-mb N`, `--force`, `--allow-source-dir` | `export_result` (provisional) |
+| `sldprt DESIGN` | `-o FILE` (or a folder that exists; default: the design's name with `.SLDPRT` in the current folder), `--allow-partial`, `--allow-source-dir`; never replaces a file, so no `--force` | `sldprt_written` (provisional) |
 | `list FOLDER` | `--formats solidworks\|all\|IDS` (default `solidworks`), `--recursive`, `--include properties,configurations`, `--preview none`, `meta` (default) or `inline`, `--max-depth N`, `--limit N`, `--max-examined N`, `--timeout SECONDS`, `--file-timeout SECONDS` (default 30), `--memory-mb N` (default 2048), `--in-process` | `listing` |
 | `batch FOLDER -o DIR` | `--no-recurse`, `--no-preview`, `--no-parasolid`, `--text`, `--configuration NAME`, `--allow-partial`, `--other-configurations` and `--include-hidden` (assemblies), `--max-mb N`, `--jobs N` (1 to 64, default 1), `--file-timeout SECONDS` (default 300), `--memory-mb N` (default 2048), `--in-process`, `--max-examined N`, `--force`, `--allow-source-dir` | `batch_summary` |
 | `serve` | `--root ID=DIR` (repeatable), `--library ID=DIR`, `--port N` (default 8765; 0 picks a free port), `--bind ADDRESS` (default 127.0.0.1), `--token-file PATH`, `--workers N`, `--allow-remote`, `--allowed-host NAME`, `--catalog`, `--catalog-rescan SECONDS` (default 300), `--formats solidworks\|all\|IDS` (default `solidworks`) | `serve_started`, one compact line when it is ready; then it serves until stopped (section 8) |
@@ -5951,6 +5978,27 @@ is left out, listed in `skipped`, and the export exits 4. A Parasolid transmit f
 another 3D file exits 1 with `not_implemented` (`detail.rule` `model_file`).
 The write guards are those above.
 
+`sldprt` writes a SOLIDWORKS part from a design, without SOLIDWORKS
+(provisional). DESIGN is a SolidCraft file (`.solidcraft`) or a SolidSeas IR
+file (`.json`, the `ParametricDocumentIR` of `solidseas.nativewrite.ir`). Today
+the part can hold corner rectangles on the Front Plane (the base plane `xy`),
+each extruded blind away from the plane, the first as the part's body and each
+later one as a body of its own; the depth stays editable in SOLIDWORKS. A design
+that needs anything else (a fillet, a cut, a sketch on another plane...) is
+refused: nothing is written, and it exits 1 with `not_implemented` (`detail.rule`
+`native_write`, `detail.value` how many items), the message listing every item.
+With `--allow-partial` those items, and whatever depends on them, are left out,
+the part is written, every item is listed in `left_out` and `unsupported`, and it
+exits 4. What a part never carries, such as the sketch's dimensions, which it
+keeps as geometry, is listed in `left_out` either way. `-o` names a new file
+ending in `.sldprt` or a folder that exists; anything else is refused
+(`output_refused`, rule `output_extension` or `output_folder`), and so is a file
+already there, whatever it is (rule `exists`). The folder rule of this section
+applies to the design's folder. A design that cannot be read exits 2
+(`invalid_argument`, `detail.parameter` `design`). The part is read back before
+it is written; it has not yet been opened in SOLIDWORKS, and the text output says
+so.
+
 `paths` is the path report of section 3.12: every path and user name the
 file, and each nested document in it, would reveal. It exits 4 when the report
 is incomplete (a stream over the scan cap, a part that could not be read or a
@@ -5988,7 +6036,7 @@ and a root that does not exist exits 1 (`not_found`).
 | 1 | Failed: the document could not be read, something asked for is absent, the service could not listen, or an internal error | `permission_denied`, `address_unavailable`, `not_found`, `configuration_not_found`, `stream_not_found`, `no_preview`, `not_in_catalog`, `nothing_to_export`, `not_representable`, `placeholder_file`, `unknown_format`, `format_not_supported`, `damaged_file`, `limit_exceeded`, `file_too_large`, `locked`, `internal`, `worker_crashed`, `not_implemented`, `busy`, `root_unavailable`, `timeout`, `drawing_invalid`, `drawing_too_complex`, `model_not_found` |
 | 2 | Usage: the arguments are wrong | `invalid_argument`, `unknown_parameter`, `duplicate_parameter` |
 | 3 | Refused by a safety rule | `path_refused`, `link_refused`, `feature_disabled`, `output_refused`, `bind_refused`, `token_file_refused`, `catalog_incompatible`, `drawing_released` |
-| 4 | Partial: a folder listing or batch run finished, and at least one item failed (for a batch, also a folder that could not be read, a walk cut short by its limits, or an assembly's Parasolid that left out components); a reference resolution whose folder index a limit cut short; an incomplete path report; an incomplete bill of materials; an export that left out instances of an assembly; an assembly's Parasolid that left out components (`--allow-partial`); a STEP export that left bodies out (`--allow-partial`); a catalog index run in which a file could not be read, or that a limit or a cancel stopped; or a `drawing check` that found an error-level check (with `--strict`, a warning too) or a model that is not the drawing's | |
+| 4 | Partial: a folder listing or batch run finished, and at least one item failed (for a batch, also a folder that could not be read, a walk cut short by its limits, or an assembly's Parasolid that left out components); a reference resolution whose folder index a limit cut short; an incomplete path report; an incomplete bill of materials; an export that left out instances of an assembly; an assembly's Parasolid that left out components (`--allow-partial`); a STEP export that left bodies out (`--allow-partial`); a native part that left features out (sldprt with `--allow-partial`); a catalog index run in which a file could not be read, or that a limit or a cancel stopped; or a `drawing check` that found an error-level check (with `--strict`, a warning too) or a model that is not the drawing's | |
 | 130 | Interrupted | `interrupted` |
 
 The exit for a failure comes from its error code, through
@@ -6037,6 +6085,7 @@ solidseas bom frame.SLDASM --type parts --column Material --format csv -o D:\Exp
 solidseas bom frame.SLDASM --configuration Lite --root jobs=D:\Jobs --json
 solidseas batch D:\Jobs\Example -o D:\Exports --jobs 4 --json
 solidseas export bracket.SLDPRT --format 3mf -o D:\Prints\bracket.3mf --json
+solidseas sldprt plate.solidcraft -o D:\Parts --allow-partial --json
 solidseas export frame.SLDASM --format stl --configuration Lite --chord 0.005 -o D:\Prints\frame.stl
 solidseas list D:\Incoming --recursive --file-timeout 10 --json
 solidseas schema listing
@@ -7077,6 +7126,8 @@ provisional item can change at any commit. It is:
   `preview --render` and `--stored`, and `--max-mb` on `info`, `preview` and
   `export`; `ServeConfig.formats`, `/v1/list`'s `formats` and `/v1/preview`'s
   `render`; and the warning codes of 3.5's model-file table and 3.20.
+- Native parts, while the generator is new: the `sldprt` command with its
+  options, the kind `sldprt_written` and the rule `native_write`.
 - SOLIDWORKS through SolidSeas' own instance (3.22), while the bridge is new:
   `solidseas.swapi` and its modules, `python -m solidseas.swapi` with its
   options, exit codes and `report.tsv`, and the operations, protocol and error

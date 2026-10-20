@@ -55,6 +55,11 @@ Commands that write files refuse to write into the folder that holds a source
 file, or any folder below it, unless ``--allow-source-dir`` is given; never
 write a file with a SOLIDWORKS extension or over a source file; and never
 overwrite an existing file unless ``--force`` is given.
+
+``sldprt`` (provisional) is the one exception to the SOLIDWORKS extension rule: it
+writes a new ``.sldprt`` made from a SolidCraft design or a SolidSeas IR file by the
+clean-room generator (``solidseas.nativewrite.generate``), reads it back first, and
+never replaces a file, so it has no ``--force``.
 """
 
 import argparse
@@ -343,7 +348,7 @@ def _human(exc: BaseException) -> str:
         return f"not found: {exc.filename or exc}"
     if isinstance(exc, LockedFileError):
         return f"the file is locked by another program: {exc}"
-    if isinstance(exc, (OutputRefusedError, InvalidArgumentError, NoPreviewError)):
+    if isinstance(exc, (OutputRefusedError, InvalidArgumentError, NoPreviewError, UnsupportedOperationError)):
         return str(exc)
     if isinstance(exc, KeyboardInterrupt):
         return "interrupted"
@@ -934,6 +939,189 @@ def cmd_convert(args: argparse.Namespace, doc: Document) -> int:
         result.path, result.bytes, mime=MIME_TYPES.get(fmt), source=result.backend
     )
     return _emit(args, "file_written", written)
+
+
+# --------------------------------------------------------------------------- native parts
+DESIGN_FORMATS = {".solidcraft": "solidcraft", ".json": "ir"}
+NATIVE_PART_NOTE = (
+    "SolidSeas made this part without SOLIDWORKS and checked it, but it has not been opened in "
+    "SOLIDWORKS yet: open it there before you rely on it."
+)
+
+
+def _sldprt_output(out: str | None, stem: str) -> str:
+    """``sldprt``'s output path, chosen as :func:`_export_output` chooses an export's: a
+    name ending in ``.sldprt``, or the design's name in a folder that exists."""
+    if out is None:
+        return os.path.join(os.getcwd(), stem + ".SLDPRT")
+    if os.path.isdir(out):
+        return os.path.join(out, stem + ".SLDPRT")
+    if out.endswith(("/", "\\")):
+        raise _refused(f"the folder {out} does not exist", "output_folder")
+    given = os.path.splitext(out)[1].lower()
+    if not given:
+        raise _refused(
+            f"-o names neither a folder that exists nor a file ending in .sldprt: {out}", "output_extension"
+        )
+    if given != ".sldprt":
+        raise _refused(f"a part must end in .sldprt, not {given}", "output_extension")
+    return out
+
+
+def check_new_part(out: str, design: str, *, allow_source_dir: bool) -> str:
+    """Return the path to write a native part at, or raise :class:`Refused`. The one
+    SOLIDWORKS file the command line writes is always a new one: nothing already there is
+    replaced, whatever it is, and the folder rules of :func:`check_output_file` apply."""
+    final = final_path(out)
+    if os.path.lexists(final):
+        raise _refused(f"{out} already exists; a part SolidSeas writes never replaces a file", "exists")
+    folder = os.path.dirname(final)
+    if not allow_source_dir and _is_within(folder, os.path.dirname(os.path.abspath(design))):
+        raise _refused(
+            f"refusing to write next to the source file ({out}); "
+            "choose another folder or pass --allow-source-dir",
+            "source_folder",
+        )
+    if not os.path.isdir(folder):
+        raise _refused(f"the folder {folder} does not exist", "output_folder")
+    return final
+
+
+def _read_design(path: str):
+    """A design as ``ParametricDocumentIR``: a ``.solidcraft`` file through its adapter, a
+    SolidSeas IR ``.json`` file as it is. Returns the document and its format."""
+    import zipfile
+
+    from .nativewrite import ir, solidcraft
+
+    fmt = DESIGN_FORMATS.get(os.path.splitext(path)[1].lower())
+    if fmt is None:
+        raise InvalidArgumentError(
+            f"a design is a .solidcraft file or a SolidSeas IR .json file: {path}",
+            detail={"parameter": "design"},
+        )
+    try:
+        if fmt == "solidcraft":
+            return solidcraft.read_ir(path), fmt
+        with open(path, "rb") as fh:
+            raw = fh.read(solidcraft.MAX_FILE_BYTES + 1)
+        if len(raw) > solidcraft.MAX_FILE_BYTES:
+            raise ir.IRError(f"the file is larger than {solidcraft.MAX_FILE_BYTES >> 20} MiB")
+        return ir.from_json(raw), fmt
+    except (ValueError, KeyError, zipfile.BadZipFile, RecursionError) as exc:
+        what = "SolidCraft design" if fmt == "solidcraft" else "SolidSeas IR document"
+        raise InvalidArgumentError(
+            f"{path} is not a {what} SolidSeas reads: {exc}", detail={"parameter": "design"}
+        ) from None
+
+
+def _part_identity(generate: Any, stem: str) -> Any:
+    """A new file's identity (section 15.6.6 of ``docs/sldprt-spec``), with the file name the
+    part is saved under."""
+    return generate.Identity.new(file_stem=stem)
+
+
+def _part_names(names: Any, features: Iterable[Any]) -> list[dict[str, str]]:
+    """The design's features the part holds, in timeline order, each with its name in the
+    part. ``plan.names`` maps a feature's id or name to that name, as a dict whose values
+    are the name (or end with it) or as entries that end with it."""
+    lookup: dict[str, str] = {}
+    entries = names.items() if isinstance(names, dict) else (names or ())
+    for entry in entries:
+        if not isinstance(entry, (tuple, list)) or len(entry) < 2:
+            continue
+        keys, value = list(entry[:-1]), entry[-1]
+        if isinstance(value, (tuple, list)) and value:
+            keys += list(value[:-1])
+            value = value[-1]
+        if isinstance(value, str):
+            for key in keys:
+                lookup.setdefault(str(key), value)
+    out = []
+    for f in features:
+        part_name = lookup.get(f.id) or lookup.get(f.name)
+        if part_name is not None:
+            out.append({"id": f.id, "name": f.name, "part_name": part_name})
+    return out
+
+
+def _check_part(data: bytes, name: str) -> None:
+    """Read the part back as any SOLIDWORKS part is read, before it is written."""
+    try:
+        with open_document(data, name=name) as part:
+            doc_type = part.doc_type
+    except Exception as exc:
+        raise RuntimeError(
+            f"the part made from the design could not be read back, so nothing was written: {exc}"
+        ) from exc
+    if doc_type != "part":
+        raise RuntimeError("the file made from the design does not read as a part, so nothing was written")
+
+
+def cmd_sldprt(args: argparse.Namespace) -> int:
+    """``solidseas sldprt DESIGN`` (provisional): a native ``.sldprt`` made from a design
+    by the clean-room generator (``solidseas.nativewrite.generate``), written as a new
+    file. A design that needs what the generator cannot write is refused with every
+    item listed, unless ``--allow-partial``: then they are left out, listed, and it exits 4."""
+    from .nativewrite.container import write_new_file
+
+    stem = os.path.splitext(os.path.basename(args.path))[0]
+    out = check_new_part(
+        _sldprt_output(args.output, stem), args.path, allow_source_dir=args.allow_source_dir
+    )
+    doc, fmt = _read_design(args.path)
+    try:
+        from .nativewrite import generate
+    except ModuleNotFoundError as exc:
+        if exc.name != "solidseas.nativewrite.generate":
+            raise
+        raise UnsupportedOperationError(
+            "this SolidSeas cannot write parts yet", detail={"rule": "native_write"}
+        ) from None
+    identity = _part_identity(generate, os.path.splitext(os.path.basename(out))[0])
+    unsupported: list[str] = []
+    try:
+        plan = generate.plan(doc, identity=identity)
+    except generate.NativeWriteUnsupported as exc:
+        unsupported = [str(item) for item in exc.items]
+        if not args.allow_partial:
+            listed = "".join(f"\n  {item}" for item in unsupported)
+            raise UnsupportedOperationError(
+                f"the design needs what SolidSeas cannot write in a part yet, so nothing was written:{listed}"
+                "\nadd --allow-partial to write the part without them",
+                detail={"rule": "native_write", "value": len(unsupported)},
+            ) from None
+        plan = generate.plan(doc, identity=identity, allow_partial=True)
+    data = generate.write_part(doc, identity=identity, allow_partial=bool(unsupported))
+    _check_part(data, os.path.basename(out))
+    try:
+        written = os.fspath(write_new_file(out, data))
+    except FileExistsError:
+        raise _refused(
+            f"{out} already exists; a part SolidSeas writes never replaces a file", "exists"
+        ) from None
+    features = _part_names(plan.names, doc.features)
+    left_out = [str(item) for item in plan.left_out]
+    if not args.json:
+        count = f"{len(features)} feature(s)" if features else "no features"
+        _say(f"wrote {written} ({len(data):,} bytes), a part with {count} from the design {doc.name}")
+        for f in features:
+            _say(f"  {f['part_name']}, from {f['name']}")
+        if left_out:
+            _say("left out of the part:")
+            for item in left_out:
+                _say(f"  {item}")
+        _say(NATIVE_PART_NOTE)
+    result = model.build_sldprt_written(
+        written,
+        len(data),
+        design_name=doc.name,
+        design_format=fmt,
+        features=features,
+        left_out=left_out,
+        unsupported=unsupported,
+    )
+    return _emit(args, "sldprt_written", result, EXIT_PARTIAL if unsupported else EXIT_OK)
 
 
 def _flags(node: dict[str, Any]) -> str:
@@ -2804,6 +2992,7 @@ COMMANDS: dict[str, Command] = {
         Command("parasolid", "parasolid_result", "file", cmd_parasolid),
         Command("export", "export_result", "file", cmd_export, True),
         Command("convert", "file_written", "file", cmd_convert, True),
+        Command("sldprt", "sldprt_written", "path", cmd_sldprt),
         Command("list", "listing", "folder", cmd_list),
         Command("batch", "batch_summary", "folder", cmd_batch),
         Command("index", "catalog_scan", "none", cmd_index),
@@ -3280,6 +3469,32 @@ def build_parser() -> argparse.ArgumentParser:
         "document's name with the format's extension (default: that name in the current folder)",
     )
     add_write_flags(sp)
+    sp = add(
+        "sldprt",
+        "write a SOLIDWORKS part from a SolidCraft design or a SolidSeas IR file, without SOLIDWORKS "
+        "(provisional)",
+        target="none",
+    )
+    sp.add_argument(
+        "path", metavar="DESIGN", help="a .solidcraft file or a SolidSeas IR .json file (never changed)"
+    )
+    sp.add_argument(
+        "-o",
+        "--output",
+        default=None,
+        help="a new file ending in .sldprt, or a folder that exists, for the design's name with .SLDPRT "
+        "(default: that name in the current folder); a file already there is never replaced",
+    )
+    sp.add_argument(
+        "--allow-partial",
+        action="store_true",
+        help="leave out what a part cannot hold yet, and list it (exit 4), rather than write nothing",
+    )
+    sp.add_argument(
+        "--allow-source-dir",
+        action="store_true",
+        help="allow writing into (or below) the folder that holds the design",
+    )
     sp = add(
         "list",
         "list the SOLIDWORKS documents in a folder, reading only what each entry needs",

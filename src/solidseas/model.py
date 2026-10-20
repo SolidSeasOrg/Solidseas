@@ -1782,6 +1782,34 @@ def build_export_result(result: Any) -> dict[str, Any]:
     )
 
 
+def build_sldprt_written(
+    output: str,
+    nbytes: int,
+    *,
+    design_name: str,
+    design_format: str,
+    features: Collection[dict[str, str]] = (),
+    left_out: Collection[str] = (),
+    unsupported: Collection[str] = (),
+) -> dict[str, Any]:
+    """``sldprt_written`` data (provisional): the native part ``solidseas sldprt`` wrote
+    from a design. ``features`` are the design's features the part holds, each with its
+    id and name in the design and its name in the part; ``left_out`` is everything of the
+    design the part does not carry, in words; ``unsupported`` the items among them that
+    were left out only because ``--allow-partial`` was given."""
+    return to_json_data(
+        {
+            "output": output,
+            "bytes": nbytes,
+            "design": {"name": design_name, "format": design_format},
+            "features": [{"id": f["id"], "name": f["name"], "part_name": f["part_name"]} for f in features],
+            "left_out": list(left_out),
+            "unsupported": list(unsupported),
+            "partial": bool(unsupported),
+        }
+    )
+
+
 def build_version() -> dict[str, Any]:
     """``version`` data: the package version, the API version and each kind's schema version."""
     return {
@@ -3130,6 +3158,22 @@ _EXPORT_SCHEMA = _obj(
         },
     }
 )
+_SLDPRT_WRITTEN_SCHEMA = _obj(
+    {
+        "output": _STR,
+        "bytes": _INT,
+        "design": _obj(
+            {
+                "name": _STR,
+                "format": {"type": "string", "description": "solidcraft or ir (an open set)"},
+            }
+        ),
+        "features": _arr(_obj({"id": _STR, "name": _STR, "part_name": _STR})),
+        "left_out": _arr(_STR),
+        "unsupported": _arr(_STR),
+        "partial": _BOOL,
+    }
+)
 _BATCH_SCHEMA = _obj(
     {
         "files": _INT,
@@ -3825,6 +3869,15 @@ KINDS: dict[str, KindSpec] = {
             None,
         ),
         _kind(
+            "sldprt_written",
+            "SolidSeas native part written",
+            _SLDPRT_WRITTEN_SCHEMA,
+            (),
+            build_sldprt_written,
+            ("sldprt",),
+            None,
+        ),
+        _kind(
             "batch_summary",
             "SolidSeas batch run",
             _BATCH_SCHEMA,
@@ -4019,6 +4072,7 @@ __all__ = [
     "build_references",
     "build_roots",
     "build_serve_started",
+    "build_sldprt_written",
     "build_streams",
     "build_version",
     "clean_text",

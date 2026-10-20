@@ -81,6 +81,32 @@ says how many components each assembly left out, and `report.jsonl` names them.
 Either way the run ends with exit code 4, so a script can tell. A file that is
 already in the output folder is never replaced unless you add `--force`.
 
+### SOLIDWORKS parts from a design
+
+`solidseas sldprt` writes a SOLIDWORKS part (`.SLDPRT`) from a SolidCraft design
+or a SolidSeas IR file, with no SOLIDWORKS needed (provisional):
+
+```bash
+solidseas sldprt D:\Designs\plate.solidcraft -o D:\Parts                  # D:\Parts\plate.SLDPRT
+solidseas sldprt D:\Designs\plate.solidcraft -o D:\Parts --allow-partial  # leave out what it cannot write
+```
+
+Today a part can hold corner rectangles on the Front Plane, each extruded blind
+away from it: the first makes the part's body and each later one a body of its
+own. The features get the names SOLIDWORKS gives them, such as `Sketch1` and
+`Boss-Extrude1`, and the command lists each one with its name in your design.
+The extrusion depth stays editable in SOLIDWORKS; the sketch's dimensions are
+not carried over, so the rectangle is kept as geometry.
+
+If the design needs anything else, such as a fillet, a cut or a sketch on
+another plane, nothing is written and the message lists every item. With
+`--allow-partial` the part is written without them, the command lists what was
+left out, and it ends with exit code 4 so a script can tell. A file that is
+already there is never replaced, and the part is not written next to the design
+unless you add `--allow-source-dir`. SolidSeas reads each part back before it
+writes it, but these parts have not yet been opened in SOLIDWORKS itself, so
+open an important one there before you rely on it.
+
 ## Other 3D formats
 
 SolidSeas also reads 3D files of other formats (provisional, API.md 3.20): STL,

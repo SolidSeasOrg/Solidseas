@@ -16,6 +16,19 @@ while the project takes shape.
 
 ### Added
 
+- **SOLIDWORKS parts from a design, without SOLIDWORKS.** `solidseas sldprt
+  DESIGN -o FOLDER` writes a new `.SLDPRT` from a SolidCraft design or a
+  SolidSeas design file (`.json`). Today it writes corner rectangles on the
+  Front Plane, each extruded blind, with the features named as SOLIDWORKS
+  names them and the extrusion depth editable in SOLIDWORKS; the command lists
+  each feature with its name in your design. A design that needs anything
+  else, such as a fillet, is refused with every such item listed, and nothing
+  is written. With `--allow-partial` the part is written without them, every
+  item left out is listed, and the command exits 4. It never replaces a file,
+  and `--json` prints the new `sldprt_written` result. SolidSeas reads each
+  part back before writing it, but these parts have not yet been opened in
+  SOLIDWORKS itself, so check an important one there before you rely on it.
+
 - **A run SolidSeas did not get to finish is offered again.** If SolidSeas
   closed during an Automatic run, or before you chose Keep or Revert, the
   assistant now shows that run the next time it opens: the part, your goal, the
