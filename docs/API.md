@@ -5682,6 +5682,8 @@ without SOLIDWORKS (section 7.1).
  "design": {"name": "plate", "format": "solidcraft"},
  "features": [{"id": "1", "name": "Sketch1", "part_name": "Sketch1"},
               {"id": "2", "name": "Extrude1", "part_name": "Boss-Extrude1"}],
+ "properties": [{"name": "PartNo", "type": "text", "value": "SS-1001"},
+                {"name": "Qty", "type": "number", "value": 4}],
  "left_out": ["Fillet1: fillets are not written yet"],
  "unsupported": ["Fillet1: fillets are not written yet"],
  "partial": true}
@@ -5692,6 +5694,7 @@ without SOLIDWORKS (section 7.1).
 | `output`, `bytes` | The absolute path of the new part and its size |
 | `design` | The design's name, and its `format`: `solidcraft` for a SolidCraft file, `ir` for a SolidSeas IR file (an open set) |
 | `features` | The design's features the part holds, in timeline order: their `id` and `name` in the design, and `part_name`, the name the part gives them (`Sketch1`, `Boss-Extrude1`, as SOLIDWORKS names them) |
+| `properties` | The file custom properties the part holds, in order, as SOLIDWORKS shows them on the Custom tab: `name`, `type` (`text`, `number`, `date` or `yesno`) and `value` (a string, a number, a `YYYY-MM-DD` date, or true or false). They come from the design and from `--property` |
 | `left_out` | Everything of the design the part does not carry, in words, each naming the design's feature: a feature left out, a sketch dimension kept as geometry only, a relation not written, an expression written as its value |
 | `unsupported` | The items of `left_out` that were left out only because `--allow-partial` was given; without it the design would have been refused |
 | `partial` | True when `unsupported` is not empty; the command then exits 4 |

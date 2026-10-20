@@ -1016,6 +1016,27 @@ def _read_design(path: str):
         ) from None
 
 
+def _with_properties(doc: Any, given: Iterable[str]) -> Any:
+    """``doc`` with each ``--property NAME=VALUE`` set as a text file property, replacing a
+    property of the same name (in any case) the design already has."""
+    from .nativewrite import ir
+
+    for text in given:
+        name, sep, value = text.partition("=")
+        name = name.strip()
+        if not sep or not name:
+            raise InvalidArgumentError(
+                f"--property takes NAME=VALUE, such as PartNo=SS-1001: {text}",
+                detail={"parameter": "property"},
+            )
+        doc.properties = [p for p in doc.properties if p.name.casefold() != name.casefold()]
+        doc.properties.append(ir.Property(name, value))
+    try:
+        return ir.validate(doc)
+    except ir.IRError as exc:
+        raise InvalidArgumentError(f"--property: {exc}", detail={"parameter": "property"}) from None
+
+
 def _part_identity(generate: Any, stem: str) -> Any:
     """A new file's identity (section 15.6.6 of ``docs/sldprt-spec``), with the file name the
     part is saved under."""
@@ -1071,6 +1092,7 @@ def cmd_sldprt(args: argparse.Namespace) -> int:
         _sldprt_output(args.output, stem), args.path, allow_source_dir=args.allow_source_dir
     )
     doc, fmt = _read_design(args.path)
+    doc = _with_properties(doc, args.property or ())
     try:
         from .nativewrite import generate
     except ModuleNotFoundError as exc:
@@ -1103,11 +1125,17 @@ def cmd_sldprt(args: argparse.Namespace) -> int:
         ) from None
     features = _part_names(plan.names, doc.features)
     left_out = [str(item) for item in plan.left_out]
+    written_props = {item["name"] for item in plan.slots.get("props", ())}  # docs/sldprt-spec 15.6.9
+    properties = [
+        {"name": p.name, "type": p.type, "value": p.value} for p in doc.properties if p.name in written_props
+    ]
     if not args.json:
         count = f"{len(features)} feature(s)" if features else "no features"
         _say(f"wrote {written} ({len(data):,} bytes), a part with {count} from the design {doc.name}")
         for f in features:
             _say(f"  {f['part_name']}, from {f['name']}")
+        if properties:
+            _say(f"file properties: {', '.join(p['name'] for p in properties)}")
         if left_out:
             _say("left out of the part:")
             for item in left_out:
@@ -1119,6 +1147,7 @@ def cmd_sldprt(args: argparse.Namespace) -> int:
         design_name=doc.name,
         design_format=fmt,
         features=features,
+        properties=properties,
         left_out=left_out,
         unsupported=unsupported,
     )
@@ -3490,6 +3519,13 @@ def build_parser() -> argparse.ArgumentParser:
         "--allow-partial",
         action="store_true",
         help="leave out what a part cannot hold yet, and list it (exit 4), rather than write nothing",
+    )
+    sp.add_argument(
+        "--property",
+        action="append",
+        metavar="NAME=VALUE",
+        help="give the part a text file property, such as PartNo=SS-1001, replacing one of that name "
+        "the design has (repeat for more)",
     )
     sp.add_argument(
         "--allow-source-dir",

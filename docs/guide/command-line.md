@@ -89,6 +89,7 @@ or a SolidSeas IR file, with no SOLIDWORKS needed (provisional):
 ```bash
 solidseas sldprt D:\Designs\plate.solidcraft -o D:\Parts                  # D:\Parts\plate.SLDPRT
 solidseas sldprt D:\Designs\plate.solidcraft -o D:\Parts --allow-partial  # leave out what it cannot write
+solidseas sldprt D:\Designs\plate.solidcraft -o D:\Parts --property PartNo=SS-1001 --property "Description=Mounting plate"
 ```
 
 Today a part can hold corner rectangles on the Front Plane, each extruded blind
@@ -97,6 +98,12 @@ own. The features get the names SOLIDWORKS gives them, such as `Sketch1` and
 `Boss-Extrude1`, and the command lists each one with its name in your design.
 The extrusion depth stays editable in SOLIDWORKS; the sketch's dimensions are
 not carried over, so the rectangle is kept as geometry.
+
+The part also gets the design's file properties, which SOLIDWORKS shows under
+File > Properties on the Custom tab: text, numbers, dates and yes or no values.
+Each `--property NAME=VALUE` adds a text property, or replaces the design's
+property of that name, so you can stamp a part number on the part as you write
+it.
 
 If the design needs anything else, such as a fillet, a cut or a sketch on
 another plane, nothing is written and the message lists every item. With

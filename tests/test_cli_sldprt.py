@@ -91,7 +91,7 @@ def test_an_ir_design_is_written_as_a_new_part(capsys, design, out):
     assert _is_part(target)
 
 
-def test_the_text_says_what_was_written_and_that_solidworks_has_not_opened_it(capsys, design, out):
+def test_the_text_says_what_was_written_and_where_parts_like_it_were_opened(capsys, design, out):
     needs_generator()
     code = cli.main(["sldprt", str(design), "-o", str(out)])
     text, err = capsys.readouterr()
@@ -99,10 +99,70 @@ def test_the_text_says_what_was_written_and_that_solidworks_has_not_opened_it(ca
     assert code == 0 and err == "" and target.is_file()
     assert text.startswith(f"wrote {target} (") and "a part with 2 feature(s) from the design box" in text
     assert "  Sketch1, from Base sketch\n" in text and "  Boss-Extrude1, from Base\n" in text
-    assert "left out" not in text
+    assert "left out" not in text and "file properties" not in text
     assert text.rstrip().endswith(cli.NATIVE_PART_NOTE)
     note = cli.NATIVE_PART_NOTE
     assert "without SOLIDWORKS" in note and "open in SOLIDWORKS 2024" in note
+
+
+def _part_properties(path: Path) -> list[tuple[str, str, object]]:
+    with open_document(str(path)) as doc:
+        props = doc.summary(include=("properties",))["properties"]
+    return [(p["name"], p["type"], p["value"]) for p in props]
+
+
+def test_the_design_and_property_options_give_the_part_its_file_properties(capsys, tmp_path, out):
+    needs_generator()
+    doc = box()
+    doc.properties = [ir.Property("PartNo", "draft"), ir.Property("Qty", 4, "number"),
+                      ir.Property("Released", "2026-10-20", "date"), ir.Property("Bought", True, "yesno")]
+    path = tmp_path / "box.json"
+    path.write_text(ir.to_json(doc), encoding="utf-8")
+    target = out / "box.SLDPRT"
+    code, env = run(capsys, str(path), "-o", str(target), "--allow-source-dir",
+                    "--property", "partno=SS-1001", "--property", "Description=Mounting plate, 4 holes")
+    data = check(env, "sldprt_written")
+    assert code == 0 and data["partial"] is False
+    assert data["properties"] == [
+        {"name": "Qty", "type": "number", "value": 4},
+        {"name": "Released", "type": "date", "value": "2026-10-20"},
+        {"name": "Bought", "type": "yesno", "value": True},
+        {"name": "partno", "type": "text", "value": "SS-1001"},
+        {"name": "Description", "type": "text", "value": "Mounting plate, 4 holes"},
+    ]
+    read = _part_properties(target)
+    assert [name for name, _, _ in read] == ["Qty", "Released", "Bought", "partno", "Description"]
+    assert read[0][2] == 4 and read[2][2] is True and read[3][2] == "SS-1001"
+
+
+def test_the_text_lists_the_file_properties(capsys, design, out):
+    needs_generator()
+    code = cli.main(["sldprt", str(design), "-o", str(out), "--property", "PartNo=SS-1001"])
+    text, _ = capsys.readouterr()
+    assert code == 0 and "file properties: PartNo\n" in text
+
+
+@pytest.mark.parametrize("given", ["PartNo", "=SS-1001", " =x", "Bad=line\nbreak"])
+def test_a_property_option_that_is_not_name_equals_value(capsys, design, out, given):
+    needs_generator()
+    code, env = run(capsys, str(design), "-o", str(out), "--property", given)
+    err = check(env, "error")
+    if "\n" in given:  # a value the part cannot hold is refused like any other item
+        assert code == 1 and err["detail"]["rule"] == "native_write" and "Bad" in err["reader_message"]
+    else:
+        assert code == 2 and err["code"] == "invalid_argument" and err["detail"]["parameter"] == "property"
+    assert list(out.iterdir()) == []
+
+
+def test_a_property_the_part_cannot_hold_is_left_out_when_asked(capsys, design, out):
+    needs_generator()
+    target = out / "box.SLDPRT"
+    code, env = run(capsys, str(design), "-o", str(target), "--allow-partial",
+                    "--property", "Mass=\"SW-Mass@box.SLDPRT\"", "--property", "PartNo=SS-1001")
+    data = check(env, "sldprt_written")
+    assert code == 4 and [p["name"] for p in data["properties"]] == ["PartNo"]
+    assert any("Mass" in item for item in data["unsupported"])
+    assert [name for name, _, _ in _part_properties(target)] == ["PartNo"]
 
 
 def test_without_o_the_part_goes_to_the_current_folder(capsys, design, out, monkeypatch):
@@ -256,6 +316,8 @@ def test_the_builder_matches_the_schema():
         design_name="plate",
         design_format="solidcraft",
         features=[{"id": "1", "name": "Sketch1", "part_name": "Sketch1"}],
+        properties=[{"name": "PartNo", "type": "text", "value": "SS-1001"},
+                    {"name": "Bought", "type": "yesno", "value": False}],
         left_out=["Fillet1: fillets are not written yet"],
         unsupported=["Fillet1: fillets are not written yet"],
     )

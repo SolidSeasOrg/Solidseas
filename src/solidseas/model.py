@@ -1789,12 +1789,14 @@ def build_sldprt_written(
     design_name: str,
     design_format: str,
     features: Collection[dict[str, str]] = (),
+    properties: Collection[dict[str, Any]] = (),
     left_out: Collection[str] = (),
     unsupported: Collection[str] = (),
 ) -> dict[str, Any]:
     """``sldprt_written`` data (provisional): the native part ``solidseas sldprt`` wrote
     from a design. ``features`` are the design's features the part holds, each with its
-    id and name in the design and its name in the part; ``left_out`` is everything of the
+    id and name in the design and its name in the part; ``properties`` the file custom
+    properties it holds, each with its name, type and value; ``left_out`` is everything of the
     design the part does not carry, in words; ``unsupported`` the items among them that
     were left out only because ``--allow-partial`` was given."""
     return to_json_data(
@@ -1803,6 +1805,7 @@ def build_sldprt_written(
             "bytes": nbytes,
             "design": {"name": design_name, "format": design_format},
             "features": [{"id": f["id"], "name": f["name"], "part_name": f["part_name"]} for f in features],
+            "properties": [{"name": p["name"], "type": p["type"], "value": p["value"]} for p in properties],
             "left_out": list(left_out),
             "unsupported": list(unsupported),
             "partial": bool(unsupported),
@@ -3169,6 +3172,15 @@ _SLDPRT_WRITTEN_SCHEMA = _obj(
             }
         ),
         "features": _arr(_obj({"id": _STR, "name": _STR, "part_name": _STR})),
+        "properties": _arr(
+            _obj(
+                {
+                    "name": _STR,
+                    "type": {"type": "string", "description": "text, number, date or yesno"},
+                    "value": {"type": ["string", "number", "boolean"]},
+                }
+            )
+        ),
         "left_out": _arr(_STR),
         "unsupported": _arr(_STR),
         "partial": _BOOL,
