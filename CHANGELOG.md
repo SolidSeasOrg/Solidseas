@@ -21,17 +21,19 @@ while the project takes shape.
   SolidSeas design file (`.json`). Today it writes corner rectangles on the
   Front Plane, each extruded blind, with the features named as SOLIDWORKS names
   them and the extrusion depth editable in SOLIDWORKS; the command lists each
-  feature with its name in your design. The part also gets the design's file
-  properties (text, numbers, dates and yes or no values), which SOLIDWORKS shows
-  on the Custom tab of File > Properties, and `--property NAME=VALUE` adds a
-  text property, such as a part number, as you write it. A design that needs
-  anything else, such as a fillet, is refused with every such item listed, and
-  nothing is written. With `--allow-partial` the part is written without them,
-  every item left out is listed, and the command exits 4. It never replaces a
-  file, and `--json` prints the new `sldprt_written` result. SolidSeas reads
-  each part back before writing it. Parts like these open in SOLIDWORKS 2024
-  with their feature tree and rebuild when you change a depth; other versions
-  have not been tried, so check an important one there before you rely on it.
+  feature with its name in your design. A part with one box can also have one
+  round hole cut through it, which has not been opened in SOLIDWORKS yet. The
+  part also gets the design's file properties (text, numbers, dates and yes or
+  no values), which SOLIDWORKS shows on the Custom tab of File > Properties, and
+  `--property NAME=VALUE` adds a text property, such as a part number, as you
+  write it. A design that needs anything else, such as a fillet, is refused with
+  every such item listed, and nothing is written. With `--allow-partial` the
+  part is written without them, every item left out is listed, and the command
+  exits 4. It never replaces a file, and `--json` prints the new
+  `sldprt_written` result. SolidSeas reads each part back before writing it.
+  Parts like these open in SOLIDWORKS 2024 with their feature tree and rebuild
+  when you change a depth; other versions have not been tried, so check an
+  important one there before you rely on it.
 
 - **A run SolidSeas did not get to finish is offered again.** If SolidSeas
   closed during an Automatic run, or before you chose Keep or Revert, the

@@ -99,14 +99,19 @@ own. The features get the names SOLIDWORKS gives them, such as `Sketch1` and
 The extrusion depth stays editable in SOLIDWORKS; the sketch's dimensions are
 not carried over, so the rectangle is kept as geometry.
 
+A part with a single box can also have one round hole: a circle on the Front
+Plane that lies inside the rectangle, cut through all in both directions. It
+appears as `Sketch2` and `Cut-Extrude1`. Parts with a hole have not been opened
+in SOLIDWORKS yet, and the command says so when it writes one.
+
 The part also gets the design's file properties, which SOLIDWORKS shows under
 File > Properties on the Custom tab: text, numbers, dates and yes or no values.
 Each `--property NAME=VALUE` adds a text property, or replaces the design's
 property of that name, so you can stamp a part number on the part as you write
 it.
 
-If the design needs anything else, such as a fillet, a cut or a sketch on
-another plane, nothing is written and the message lists every item. With
+If the design needs anything else, such as a fillet, a second hole or a sketch
+on another plane, nothing is written and the message lists every item. With
 `--allow-partial` the part is written without them, the command lists what was
 left out, and it ends with exit code 4 so a script can tell. A file that is
 already there is never replaced, and the part is not written next to the design

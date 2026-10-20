@@ -948,6 +948,10 @@ NATIVE_PART_NOTE = (
     "SOLIDWORKS 2024 and rebuild when you change a depth; open an important one there before "
     "you rely on it."
 )
+NATIVE_HOLE_NOTE = (
+    "SolidSeas made this part without SOLIDWORKS and checked it. Parts with a hole have not "
+    "been opened in SOLIDWORKS yet; open this one there before you rely on it."
+)
 
 
 def _sldprt_output(out: str | None, stem: str) -> str:
@@ -1140,7 +1144,8 @@ def cmd_sldprt(args: argparse.Namespace) -> int:
             _say("left out of the part:")
             for item in left_out:
                 _say(f"  {item}")
-        _say(NATIVE_PART_NOTE)
+        has_cut = any(f.get("cut") for f in plan.slots.get("features", ()))  # docs/sldprt-spec 15.6.2
+        _say(NATIVE_HOLE_NOTE if has_cut else NATIVE_PART_NOTE)
     result = model.build_sldprt_written(
         written,
         len(data),

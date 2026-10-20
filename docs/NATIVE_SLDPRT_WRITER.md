@@ -29,6 +29,7 @@ UNKNOWN. "Offline" below means checked by code with no SOLIDWORKS.
 | SolidCraft to IR to a native file | VERIFIED in SOLIDWORKS for one extruded rectangle (p1, p2: 40 x 30 x 10 mm, native, depth editable), through the seed (section 10) |
 | The archive's object numbering, which new records must follow | VERIFIED offline (section 4.6) |
 | Parts from the clean-room generator (section 15) | VERIFIED in SOLIDWORKS 2024 for three boxes: opens with its feature tree, rebuilds to an edited depth (section 6.2) |
+| A box with one round hole cut through all, from the generator | Written and read back offline; the cut's records proved on o10 and o11 but for the ring of faces (HYPOTHESIS, spec 15.5.13); not yet opened in SOLIDWORKS |
 | Authoring new sketches, relations, dimensions and features | Not started: needs each class's field layout (4.6.1) and dimensioned fixtures |
 
 On 2026-10-19 SOLIDWORKS 2024 SP1 (revision 32.1.0) opened all 17
@@ -185,10 +186,13 @@ feature stream then names a class defined earlier in one of the two streams:
 o01's `moRefPlane_c` and `moDefaultRefPlnData_c` for Top and Right Plane,
 o02's 15 `sgLineHandle` references, and so on. VERIFIED (13 streams in 12
 parts, `features.object_map`; `tests/test_nativewrite.py`). In o09 and o10
-the scan of `Config-0` comes out 8 short of the header: it counts three
-references inside the relation manager's data that are not references, or
-misses a class record. UNKNOWN which; imported bodies are not what the writer
-makes.
+the scan of `Config-0` comes out 8 short of the header. In o10 the cause is
+three u16s in the relation manager's data, between the `moRelMgr_c` and
+`moEnvFolder_c` records, that read as references to `moMaterial_c` and are
+not; skipping them gives the header's count, 109. VERIFIED
+(`research/swnative/speccases/cut.py`, `tests/test_sldprt_spec.py`). o09 has
+one more miscount, UNKNOWN; the writer needs neither, since imported bodies
+are not what it makes.
 
 So a writer that appends objects knows each new index: a class the archive
 has not defined yet is written as a new-class record, one it has as
@@ -603,8 +607,12 @@ disassembled, decompiled, debugged or hooked.
    dimensions as SOLIDWORKS sketch dimensions.
 2. The field layouts of the sketch and extrusion classes (4.6.1, 4.8), with
    o02 to o12 as the offline oracle, to author new features rather than
-   carry the seed's: first a second extrusion, then cut, revolve, hole,
-   fillet, chamfer and patterns, each through the check.
+   carry the seed's. Second and later extrusions and one round cut through
+   all are done (spec 15.5); next come revolve, hole, fillet, chamfer and
+   patterns, each through the check. Fixtures that would widen the cut: a
+   plain box with a hole and no fillets (settles the ring and the free
+   counters), a cut through all one way, a second cut, and a cut through two
+   bodies.
 3. Which of the counters, session times and face ids SOLIDWORKS checks
    against the rest of a part (4.8). Without a partition there are no face
    ids to match, and b3 and b4 show it accepts records whose bookkeeping

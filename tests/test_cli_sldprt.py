@@ -142,6 +142,22 @@ def test_the_text_lists_the_file_properties(capsys, design, out):
     assert code == 0 and "file properties: PartNo\n" in text
 
 
+def test_a_hole_through_the_box_is_written_and_said_to_be_unopened(capsys, tmp_path, out):
+    needs_generator()
+    doc = box()
+    circle = ir.Sketch("s2", "Hole sketch", ir.Plane.named("xy"), [ir.Point("c", 0.02, 0.015)],
+                       [ir.Curve("k1", "circle", ["c"], radius=0.005)])
+    doc.features += [circle, ir.Extrude("e2", "Hole", "s2", 0.0, operation="cut", direction="midplane",
+                                        end="through_all")]
+    path = tmp_path / "box.json"
+    path.write_text(ir.to_json(doc), encoding="utf-8")
+    code = cli.main(["sldprt", str(path), "-o", str(out), "--allow-source-dir"])
+    text, err = capsys.readouterr()
+    assert code == 0 and err == "" and _is_part(out / "box.SLDPRT")
+    assert "  Sketch2, from Hole sketch\n" in text and "  Cut-Extrude1, from Hole\n" in text
+    assert text.rstrip().endswith(cli.NATIVE_HOLE_NOTE) and "not been opened" in cli.NATIVE_HOLE_NOTE
+
+
 @pytest.mark.parametrize("given", ["PartNo", "=SS-1001", " =x", "Bad=line\nbreak"])
 def test_a_property_option_that_is_not_name_equals_value(capsys, design, out, given):
     needs_generator()
