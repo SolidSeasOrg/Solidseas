@@ -28,6 +28,8 @@ once; then the run waits for ``keep_run`` or ``revert_run``.
   SOLIDWORKS session is reached only when a tool asks for one.
 * **Plain data back.** Documents are named by ids the server makes up (``d1``); the run's
   folder and safety copy are named in its journal on this PC and nowhere in a reply.
+  When the server starts, the folders of runs that ended and have not changed for a week
+  are removed, as the window does (:func:`.automatic.clean_old_runs`).
 
 The same server has the Gridfinity tools (:mod:`solidseas_app.gridfinity.connector`): bins
 from photos of tools on a sheet of paper, made by the person's Tracefinity.
@@ -56,7 +58,7 @@ from solidseas.ai.prompts import VOCABULARY_VERSION, Plan, _vocabulary_text, par
 from ..extensions import BRIDGE
 from ..gridfinity import connector as gridfinity
 from .aisettings import ADMIN, AISettingsStore
-from .automatic import Gate, RunRefused, confirmation, start_run
+from .automatic import Gate, RunRefused, clean_old_runs_later, confirmation, start_run
 from .run import AutomaticRun, SessionTarget, differences, plan_text
 from .session import LiveDocument, LiveSession
 
@@ -981,6 +983,7 @@ def main(argv: list[str] | None = None) -> int:
     reader, writer = sys.stdin.buffer, sys.stdout.buffer
     sys.stdout = sys.stderr  # standard output carries protocol lines only: anything printed goes to stderr
     print(f"SolidSeas {__version__} MCP server on standard input and output", file=sys.stderr)
+    clean_old_runs_later()  # folders of runs that ended more than a week ago, as the window does
     McpServer(send_names=NAMES_FLAG in argv).serve(reader, writer)
     sys.stderr.flush()
     # A worker still waiting (a confirmation nobody answers, a call SOLIDWORKS never returns)

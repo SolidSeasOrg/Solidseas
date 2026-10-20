@@ -52,7 +52,9 @@ and asks the model whether the part looks the way that step should leave it.
 
 Each look is one more request to the AI, with a picture, so it counts against
 your budget, and each copy takes SOLIDWORKS a moment. The copies are kept in
-the run's folder, beside its safety copy.
+the run's folder, beside its safety copy. SolidSeas removes a run's folder once
+the run has ended and nothing in the folder has changed for 7 days, the next
+time the assistant or its MCP server starts.
 
 Both boxes are greyed out, with "Set by your administrator", where your
 administrator has turned pictures off.

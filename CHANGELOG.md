@@ -1632,6 +1632,16 @@ while the project takes shape.
 
 ### Fixed
 
+- **Old run folders are cleared away.** The assistant said a kept run's folder
+  stays for 7 days, but nothing ever removed it, and with the look after each
+  step on, every step added another copy of the part. Now, when the assistant
+  or its MCP server starts, it removes the folder of each run that ended and in
+  which nothing changed for 7 days, safety copy, step copies and journal
+  included. A run still open, in this window or in another program, keeps its
+  folder however old it is, and SolidSeas removes nothing outside its runs
+  folder and never follows a link or junction there. A safety copy you have
+  open in SOLIDWORKS keeps its folder until the next time.
+
 - **A sheet too small for the drawing says so.** When you choose a sheet size
   and the views with their dimensions fit it at no scale, the drawing now says
   to choose a larger sheet and offers Sheet and Scale as a fix, instead of

@@ -576,7 +576,20 @@ none of its code is used.
   (`UndoPostNotify`) stops the run, and the snapshots are re-checked before any
   revert is offered.
 - **Retention.** The run folder is kept until the user chooses Keep or Revert,
-  then for a retention period set in settings, 7 days by default.
+  then for 7 days (`automatic.KEEP_DAYS`). While a run is open it holds a lock
+  on `run.lock` in its folder, which the system lets go of when the process
+  ends. When the assistant window or the MCP server starts,
+  `automatic.clean_old_runs` removes, on a thread of its own, each folder in
+  the runs folder that no run holds and in which nothing changed for 7 days:
+  the journal's last line, Keep or Revert, starts the 7 days. A run whose
+  process ended before Keep or Revert goes the same way, 7 days after its last
+  change, and so does the safety copy of a Review mode script. Only folders
+  directly in the runs folder and named like a run id are looked at. A link or
+  junction, a folder on another drive, a folder whose real path is not in the
+  runs folder, and a folder holding anything but plain files are left alone.
+  Each file is removed by name, the safety copies first, and then the empty
+  folder; nothing is removed through a link. A copy open in SOLIDWORKS cannot
+  be removed, so that folder stays whole until the next start.
 
 ### Stop, limits and timeouts
 
@@ -1075,7 +1088,7 @@ writes the user's `AI.json`.
 
 | What | Where | Kept |
 |---|---|---|
-| Run folder: checkpoint 0, the copy after each step when the look after each step is on, and `journal.jsonl` | `%LOCALAPPDATA%\SolidSeas\runs\<run id>\` | Until Keep or Revert, then the retention period (7 days by default) |
+| Run folder: checkpoint 0, the copy after each step when the look after each step is on, `journal.jsonl` and `run.lock` | `%LOCALAPPDATA%\SolidSeas\runs\<run id>\` | Until Keep or Revert, then 7 days; removed when the assistant or the MCP server next starts |
 | SOLIDWORKS options held during a run | `%LOCALAPPDATA%\SolidSeas\sw-options.json` | Until the options are restored |
 | Usage | `%LOCALAPPDATA%\SolidSeas\usage.json`, with `usage.json.lock` beside it | Monthly buckets, the last 24 months; a call's hold until it ends, at most 10 minutes |
 | AI settings: provider, model, Ollama address, budgets and limits, never a key | `%APPDATA%\SolidSeas\AI.json`, beside the viewer's `Viewer.ini` | Until changed on the AI settings page; roams with a roaming profile |

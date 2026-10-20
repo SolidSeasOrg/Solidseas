@@ -29,7 +29,9 @@ with Automatic ticked, states a goal the model plans once and SolidSeas carries 
   worker thread, each checked and journaled; Stop ends it between steps. Afterwards Keep
   keeps the part as it is and Revert takes the steps off, newest first. The machine
   policy can turn Automatic mode off; then the box is greyed with "Set by your
-  administrator".
+  administrator". When the window opens, the folders of runs that ended and have not
+  changed for :data:`.automatic.KEEP_DAYS` days are removed on a thread of their own
+  (:func:`.automatic.clean_old_runs`).
 * **Pictures.** "Show the AI a picture of the part", off until ticked, sends a picture
   of the part as last saved with a draft or a plan (:mod:`.picture`). In Automatic mode,
   "Show it the part after each step", usable only while the first is ticked, has the
@@ -84,7 +86,7 @@ from solidseas.ai.usage import DEFAULT_RUN_TOKENS, RunBudget
 
 from . import picture
 from .aisettings import ADMIN, AIConfig, AISettingsStore
-from .automatic import RunRefused, confirmation, start_run
+from .automatic import KEEP_DAYS, RunRefused, clean_old_runs_later, confirmation, start_run
 from .run import AutomaticRun, RunOutcome, SessionTarget, plan_text
 from .runner import Runner, RunResult
 from .session import LiveDocument, LiveSession, NoSessions, SessionList, Sessions
@@ -206,6 +208,7 @@ class AssistantWindow(QWidget):
         self._busy_timer.timeout.connect(self._check_busy)
         self._busy_timer.start()
         self.refresh()
+        clean_old_runs_later()  # folders of runs that ended more than KEEP_DAYS days ago
 
     # ----------------------------------------------------------------- building
     def _build(self) -> None:
@@ -966,7 +969,7 @@ class AssistantWindow(QWidget):
         run.keep()
         self.plan_keep.setEnabled(False)
         self.plan_revert.setEnabled(False)
-        self.plan_note.setText(f"Kept. The run's folder stays for 7 days: {run.start.folder}")
+        self.plan_note.setText(f"Kept. The run's folder stays for {KEEP_DAYS} days: {run.start.folder}")
         self.say("Kept: the part stays as the run left it. Save it in SOLIDWORKS when you are ready.")
 
     def revert_run(self) -> None:

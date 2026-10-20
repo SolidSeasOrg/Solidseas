@@ -116,7 +116,8 @@ def test_a_plan_that_overwrites_what_you_have_waits_for_run_plan(app):
         _wait(app, lambda: w.plan_keep.isEnabled())
         assert [c[1] for c in live.calls if c[0] == "operation"] == ["set_dimension", "set_property"]
         w.keep_run()
-        assert not w._run.start.writer.held and "Kept" in w.plan_note.text()
+        assert not w._run.start.writer.held
+        assert w.plan_note.text() == f"Kept. The run's folder stays for 7 days: {w._run.start.folder}"
         assert live.state.custom_properties["Finish"] == "black"
     finally:
         w.close()
@@ -292,5 +293,28 @@ def test_the_machine_policy_greys_out_the_look_after_each_step(app, policy_reade
     try:
         assert not w.step_pictures.isEnabled() and not w.step_pictures.isChecked()
         assert picture.ADMIN_OFF in w.step_pictures.toolTip()
+    finally:
+        w.close()
+
+
+def test_opening_the_window_removes_run_folders_that_ended_a_week_ago(app):
+    from solidseas_app.assistant.automatic import KEEP_DAYS, runs_dir
+
+    old_run = os.path.join(runs_dir(), "20261001-120000-0badf00d")
+    new_run = os.path.join(runs_dir(), "20261001-120000-0000beef")
+    old = time.time() - (KEEP_DAYS + 1) * 24 * 3600
+    for folder in (old_run, new_run):
+        os.makedirs(folder)
+        for name in ("checkpoint-x.sldprt", "checkpoint-x-step-1.sldprt", "journal.jsonl"):
+            with open(os.path.join(folder, name), "wb") as f:
+                f.write(b"x")
+            if folder == old_run:
+                os.utime(os.path.join(folder, name), (old, old))
+    os.utime(old_run, (old, old))
+    w = _window(app, ScriptedProvider(), WindowLive(block()))
+    try:
+        _wait(app, lambda: not os.path.exists(old_run))
+        made = ["checkpoint-x-step-1.sldprt", "checkpoint-x.sldprt", "journal.jsonl"]
+        assert sorted(os.listdir(new_run)) == made
     finally:
         w.close()
