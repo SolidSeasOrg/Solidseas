@@ -69,6 +69,40 @@ def _generate_sample():
     return gen, doc
 
 
+def _unlike_any_fixture(variant: int = 0):
+    """A design and an identity no fixture has: a box of sizes no fixture has, saved in 2031
+    with made-up GUIDs. ``variant`` 1 is the same shape with every value changed, so bytes
+    the two outputs share are the generator's constants and nothing else."""
+    from datetime import UTC, datetime
+
+    from solidseas.nativewrite import ir
+
+    gen = importlib.import_module("solidseas.nativewrite.generate")
+    w, h, d = ((0.0373, 0.0217, 0.0139), (0.0291, 0.0446, 0.0287))[variant]
+    pts = [ir.Point(f"p{k}", x, y) for k, (x, y) in enumerate(
+        [(0.0, 0.0), (w, 0.0), (w, h), (0.0, h)], 1)]
+    lines = [ir.Curve(f"l{k}", "line", [f"p{k}", f"p{k % 4 + 1}"]) for k in range(1, 5)]
+    rels = [ir.Constraint("k1", "coincident", ["origin", "p1"]),
+            ir.Constraint("k2", "horizontal", curves=["l1"]),
+            ir.Constraint("k3", "horizontal", curves=["l3"]),
+            ir.Constraint("k4", "vertical", curves=["l2"]),
+            ir.Constraint("k5", "vertical", curves=["l4"])]
+    sketch = ir.Sketch("s1", "Sketch1", ir.Plane.named("xy"), pts, lines, rels)
+    doc = ir.Document(name="Bracket blank", features=[sketch, ir.Extrude("e1", "Extrude1", "s1", d)])
+    guid = ("{:08x}-6d6e-4f70-8172-737475767778", "{:08x}-9a8b-4c7d-9e6f-a5b4c3d2e1f0")[variant]
+    ident = gen.Identity(
+        # Day and month names, hours and dates of the same lengths, so the members line up.
+        when=(datetime(2031, 3, 7, 9, 41, 13, tzinfo=UTC),
+              datetime(2033, 4, 8, 17, 5, 58, tzinfo=UTC))[variant],
+        key_index=(613, 288)[variant],
+        anim_guid="{" + guid.format(0xA1B2C3D4 + variant).upper() + "}",
+        exch_front=guid.format(0xF1 + variant), exch_top=guid.format(0xE2 + variant),
+        exch_right=guid.format(0xD3 + variant), exch_doc=guid.format(0xC4 + variant),
+        exch_config=guid.format(0xB5 + variant),
+    )
+    return gen, doc, ident
+
+
 def _members(blob: bytes) -> dict[str, bytes]:
     from solidseas.formats.solidworks.container import open_container
 
@@ -95,7 +129,7 @@ def _fixture_windows() -> set[bytes]:
 @pytest.mark.skipif(not GENERATE.exists(), reason="the generator is not written yet")
 def test_generation_opens_no_file():
     gen, doc = _generate_sample()
-    gen.write_part(doc)  # warm up: imports and caches load now, before the hook
+    gen.write_part(doc, allow_partial=True)  # warm up: imports and caches load now, before the hook
     opened: list[str] = []
 
     def hook(event, args):
@@ -104,18 +138,25 @@ def test_generation_opens_no_file():
 
     sys.addaudithook(hook)
     before = len(opened)
-    gen.write_part(doc)
+    gen.write_part(doc, allow_partial=True)
     assert opened[before:] == []
 
 
 @pytest.mark.skipif(not GENERATE.exists(), reason="the generator is not written yet")
 def test_the_output_shares_no_long_run_with_a_solidworks_made_file():
-    gen, doc = _generate_sample()
+    gen, doc, ident = _unlike_any_fixture(0)
+    _, doc2, ident2 = _unlike_any_fixture(1)
     spec_constants = set(getattr(gen, "SPEC_CONSTANTS", ()))
     windows = _fixture_windows()
-    for name, data in _members(gen.write_part(doc)).items():
+    other = _members(gen.write_part(doc2, identity=ident2))
+    for name, data in _members(gen.write_part(doc, identity=ident)).items():
+        assert len(other[name]) == len(data), f"{name} changed length with the values"
         for i in range(0, max(0, len(data) - RUN + 1)):
             w = data[i : i + RUN]
+            # A window that differs between the two outputs holds a value of the design or of
+            # the identity; it matching a fixture is the value being the same, not a copy.
+            if w != other[name][i : i + RUN]:
+                continue
             if w in windows and not any(w in c for c in spec_constants):
                 pytest.fail(f"{name} at {i} repeats {RUN} bytes of a SOLIDWORKS-made fixture: {w.hex()}")
 
@@ -125,7 +166,11 @@ def test_the_output_carries_no_personal_information():
     from solidseas.formats.solidworks import open_document
 
     gen, doc = _generate_sample()
-    with open_document(gen.write_part(doc)) as d:
+    with open_document(gen.write_part(doc, allow_partial=True)) as d:
         report = d.path_report()
-    assert report.paths == () and report.accounts == ()
-    assert all(not f.value or f.value == "SolidSeas" for f in report.identity_fields)
+    assert report.paths == () and report.hosts == ()
+    assert {a.name for a in report.accounts} <= {"SolidSeas"}  # author fields may name SolidSeas (section 5)
+    # The file name at save is the design's own name (15.6.6); every other identity field
+    # is empty or names SolidSeas.
+    allowed = {"SolidSeas", doc.name, doc.name + ".sldprt", doc.name + ".SLDPRT"}
+    assert all(not f.value or f.value in allowed for f in report.identity_fields)

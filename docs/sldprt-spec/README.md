@@ -221,7 +221,7 @@ that value is accepted (VERIFIED) or not yet (HYPOTHESIS).
 | `plan(doc, *, identity=None, allow_partial=False) -> Plan` | what `write_part` would write: `slots` (the dict of every slot, section by section), `left_out` (each item of the design not written, in words for the person exporting), `names` (the design's feature names and the names they get in the part) |
 | `assemble(slots) -> dict[str, bytes]` | every member of section 15.0.1, by name, from a complete slot dict; `write_part` is `plan`, then `assemble`, then the container (15.1.1) |
 | `Identity` | the identity values of one file: `when` (a UTC `datetime`), `key_index` (15.1.1.1), the GUIDs `anim_guid`, `exch_front`, `exch_top`, `exch_right`, `exch_doc`, `exch_config`, and `file_stem`. Section 15.6.6 defines each and the default the generator makes when `identity` is `None` (the clock and a random source) |
-| `SPEC_CONSTANTS` | every constant run longer than 31 bytes the listings give, as `bytes`, for the clean-room test (`docs/CLEANROOM.md` section 4) |
+| `SPEC_CONSTANTS` | every run longer than 31 bytes of output that is the same whatever the design's values and the identity: the listings' constants together with the values section 15.6.6 fixes (such as `SolidSeas`) and values derived only from how many features and bodies there are. Computed by comparing assemblies of the same shape (an empty part, one box, two boxes) made with different sizes and different identities, and keeping the runs that agree, as `bytes`, for the clean-room test (`docs/CLEANROOM.md` section 4) |
 | `NativeWriteUnsupported` | a `ValueError` with `items`, the list of what cannot be written |
 
 `assemble` takes the slot dict in the shape the sections define (one dict for
