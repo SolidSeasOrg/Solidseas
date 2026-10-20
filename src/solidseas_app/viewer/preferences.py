@@ -109,8 +109,10 @@ ALL_FORMATS_TIP = (
 )
 UNREADABLE_TEXT = "List files SolidSeas cannot read yet"
 UNREADABLE_TIP = (
-    "Files of 3D formats SolidSeas recognises but cannot read yet (IGES, Inventor, Solid Edge...) are "
-    "listed, greyed, and never opened. An NX .prt is not listed: other programs use that extension too."
+    "Files of 3D formats SolidSeas recognises but cannot read yet (Inventor, Solid Edge, VRML...) are "
+    "listed, greyed, and never opened. An NX .prt is not listed: other programs use that extension too. "
+    "IGES and BREP files are listed either way while the OCCT backend extension is off, saying what opens "
+    "them."
 )
 THUMBNAIL_NOTE = "Thumbnails are made at this size when a folder is listed; press F5 to redo them."
 AS_IS_PREF_TEXT = "Open 3MF and STL files as they are"

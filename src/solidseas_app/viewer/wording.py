@@ -148,6 +148,13 @@ _MODEL_LONG = {
     "know what it is.",
     "limit_exceeded": "The file goes past a safety limit SolidSeas keeps while reading {fmt} files.",
 }
+# The OCCT backend is on, but its program would not start (solidseas.convert.occt).
+HELPER_DID_NOT_START = "The OCCT backend could not start"
+HELPER_NOT_STARTED = (
+    "The OCCT backend extension is on, but its program could not start, so the file was not opened. "
+    "Select the file again. If it still does not open, remove the extension in Tools > Extensions and "
+    "add its package again."
+)
 # Why a format or a feature of a file is not read (FormatNotSupportedError's rule).
 _NOT_SUPPORTED = {
     "no_reader": "SolidSeas recognises this as {article} {value} file, but cannot read that format yet.",
@@ -188,6 +195,9 @@ def not_supported_text(error: dict[str, Any] | None, fmt: str | None = None) -> 
     ``format_not_supported`` error."""
     detail = (error or {}).get("detail") or {}
     rule, value = detail.get("rule"), str(detail.get("value") or "")
+    said = str((error or {}).get("reader_message") or (error or {}).get("message") or "")
+    if rule == "needs_extension" and said.startswith(HELPER_DID_NOT_START):
+        return HELPER_NOT_STARTED
     if rule in ("no_reader", "needs_extension"):
         from solidseas.formats import registry
 
@@ -277,13 +287,16 @@ def status_short(entry: dict[str, Any]) -> str:
     if status == "placeholder":
         return "Cloud placeholder"
     if status == "unsupported":
-        return "Needs the OCCT backend" if _needs_backend(entry) else "Format not read yet"
+        return "Needs the OCCT backend" if needs_extension(entry) else "Format not read yet"
     return _words(status).capitalize()
 
 
-def _needs_backend(entry: dict[str, Any]) -> bool:
-    """Whether an entry the listing did not read is of a format a conversion backend reads
-    (IGES and BREP, through the OCCT backend extension)."""
+def needs_extension(entry: dict[str, Any]) -> bool:
+    """Whether an entry the listing did not read is of a format an extension opens (IGES and
+    BREP, through the OCCT backend extension): it is listed whatever View > Show > Files
+    SolidSeas Cannot Read says, so the list shows what to add."""
+    if entry.get("status") != "unsupported":
+        return False
     from solidseas.formats import registry
 
     fid = (entry.get("model") or {}).get("format") or entry.get("detected")
@@ -327,12 +340,12 @@ def unread_text(entry: dict[str, Any], path: str | None = None) -> str:
         text = "This is not a regular file (a pipe, socket or device), so it was never opened."
     elif status == "skipped" and reason == "max_depth":
         text = "This folder is deeper than the listing goes, so it was not listed."
-    elif status == "unsupported" and _needs_backend(entry):
+    elif status == "unsupported" and needs_extension(entry):
         text = (
             f"SolidSeas opens {_backend_format_name(entry)} files with the OCCT backend extension, which "
-            "is not on. Add its package in Tools > Extensions if it is not there, switch it on, and open "
-            "the folder again. Until then the file is listed so you can see it is here, and it was not "
-            "opened. Turn off View > Show > Files SolidSeas Cannot Read to hide such files."
+            "is not on. Add its package in Tools > Extensions if it is not there and switch it on: the "
+            "folder is then read again, and the file opens. Until then it is listed so you can see it is "
+            "here and what it needs, and it was not opened."
         )
     elif status == "unsupported":
         fmt = (entry.get("model") or {}).get("format_name") or entry.get("detected") or "this"

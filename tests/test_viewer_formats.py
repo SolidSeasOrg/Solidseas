@@ -531,8 +531,11 @@ def test_what_cannot_be_read_is_said_plainly():
 def test_messages_name_the_right_menu_and_what_was_searched():
     from solidseas_app.viewer import navigate
 
-    entry = {"path": "a.igs", "type": "file", "status": "unsupported", "detected": "iges"}
+    entry = {"path": "a.wrl", "type": "file", "status": "unsupported", "detected": "vrml"}
     assert "View > Show > Files SolidSeas Cannot Read" in wording.unread_text(entry)
+    # an IGES file is listed whatever that setting says, so its text names only what it needs
+    iges = {"path": "a.igs", "type": "file", "status": "unsupported", "detected": "iges"}
+    assert "Files SolidSeas Cannot Read" not in wording.unread_text(iges)
     renamed = {"path": "b.SLDPRT", "type": "file", "status": "not_solidworks", "detected": "step"}
     step = wording.unread_text(renamed)
     assert "View > Show > All 3D Files" in step and "SOLIDWORKS documents only" not in step
@@ -709,16 +712,22 @@ def test_every_format_is_listed_with_its_type_and_filtered(app, window, sample_f
         and rows["pair.AD_ASM"].display[1] == "Alibre assembly"
     )
     assert rows["sheet.igs"].entry["status"] == "unsupported"
+    # The IGES file is listed, greyed, while the OCCT backend extension is off, with Files
+    # SolidSeas Cannot Read off too: its row, the quick filter and the status bar say what
+    # opens it.
     shown = {w.proxy.mapToSource(w.proxy.index(i, 0)).row() for i in range(w.proxy.rowCount())}
-    assert w.model.find("sheet.igs") not in shown  # hidden until asked for
-    # The quick filter offers a button for every format listed, in its order, and none for
-    # the IGES file while it is hidden.
+    assert w.model.find("sheet.igs") in shown and not w.settings.show_unreadable
+    assert rows["sheet.igs"].display[2] == "Needs the OCCT backend"
+    assert "1 IGES file needs the OCCT backend extension (Tools > Extensions)" in w.status_label.text()
+    assert "cannot read" not in w.status_label.text()
+    # The quick filter offers a button for every format listed, in its order.
     bar = w.quick
     readable = ["step", "stl", "3mf", "x_t", "x_b", "sab", "obj", "ply", "off", "gltf", "glb", "amf"]
-    assert bar.keys() == [*readable, "ad_prt", "ad_asm"]
-    w.change_settings(show_unreadable=True)
+    assert bar.keys() == [*readable, "ad_prt", "ad_asm", "iges"]
+    assert w.proxy.rowCount() == len(samples.EXPECTED) + 1
+    assert "with the OCCT backend extension (Tools > Extensions)" in bar.tooltip_text("iges")
+    w.change_settings(show_unreadable=True)  # nothing more to show here
     assert w.proxy.rowCount() == len(samples.EXPECTED) + 1 and bar.keys()[-1] == "iges"
-    assert "SolidSeas cannot read this format yet" in bar.tooltip_text("iges")
     assert bar.tooltip_text("x_t").startswith("Parasolid text (X_T, XMT_TXT)\n1 file in the folder shown")
     # It is the one filter by type: a family is several buttons on at once.
     bar.set_selected({"ad_prt", "ad_asm"})
@@ -727,8 +736,10 @@ def test_every_format_is_listed_with_its_type_and_filtered(app, window, sample_f
     assert w.proxy.rowCount() == 8  # STL, OBJ, PLY, OFF, glTF, GLB, AMF, 3MF
     bar.set_selected({"iges"})
     assert w.proxy.rowCount() == 1
-    w.change_settings(show_unreadable=False)  # its only file hidden: the type goes off, and its button
-    assert "iges" not in bar.keys() and not bar.selected() and w.proxy.rowCount() == len(samples.EXPECTED)
+    w.change_settings(show_unreadable=False)  # an IGES file stays listed, and its type on
+    assert bar.selected() == {"iges"} and w.proxy.rowCount() == 1
+    bar.set_selected(())
+    assert w.proxy.rowCount() == len(samples.EXPECTED) + 1
     assert not hasattr(w, "type_combo")
     assert "3D files read" in w.status_label.text()
     # The thumbnails: stored ones with the listing, the others drawn in the worker pool and cached.
@@ -745,20 +756,25 @@ def test_every_format_is_listed_with_its_type_and_filtered(app, window, sample_f
     assert _state(sample_folder) == before
 
 
+VRML = b"#VRML V2.0 utf8\nShape {}\n"  # a format SolidSeas lists but cannot read
+
+
 @needs_qt
 def test_the_folder_tree_counts_files_it_cannot_read_only_while_they_are_listed(app, window, tmp_path):
     """The folder tree's counts, and the columns fitted to the rows, leave out the files of
     formats SolidSeas cannot read while Files SolidSeas Cannot Read hides them, as they do
-    hidden lock files."""
+    hidden lock files. An IGES file, which the OCCT backend extension opens, is always
+    listed and counted."""
     from solidseas_app.viewer.documents import STATUS
 
     every = tmp_path / "every"
     samples.write_samples(str(every))
     folder = tmp_path / "samples"
     (folder / "sub").mkdir(parents=True)
-    for name in ("box.stl", "bracket.step", "sheet.igs"):  # none of them read with a warning
+    for name in ("box.stl", "bracket.step"):  # neither read with a warning
         (folder / name).write_bytes((every / name).read_bytes())
-    (folder / "sub" / "sheet.igs").write_bytes((every / "sheet.igs").read_bytes())
+    (folder / "scene.wrl").write_bytes(VRML)
+    (folder / "sub" / "scene.wrl").write_bytes(VRML)
     w = window
     read = 2
     info = _open(app, w, folder)
@@ -775,6 +791,14 @@ def test_the_folder_tree_counts_files_it_cannot_read_only_while_they_are_listed(
     w.change_settings(show_unreadable=False)
     assert root.text(0) == f"samples ({read})" and sub.text(0) == "sub (0)"
     assert header.isSectionHidden(STATUS)
+    # an IGES file is listed and counted with the setting off, and its Status shown
+    (folder / "sub" / "sheet.igs").write_bytes((every / "sheet.igs").read_bytes())
+    w.reindex()
+    _wait(app, lambda: w._listing is None)
+    root, sub = w._folders[""], w._folders["sub"]
+    assert root.text(0) == f"samples ({read} of {read + 1})" and sub.text(0) == "sub (0 of 1)"
+    assert not header.isSectionHidden(STATUS)
+    assert "2 files of formats SolidSeas cannot read (hidden)" in w.status_label.text()
 
 
 @needs_qt
@@ -821,10 +845,11 @@ def test_each_format_shows_the_details_that_fit_it(app, window, sample_folder):
 
 
 @needs_qt
-def test_opening_a_model_file_lists_its_format_first(app, window, sample_folder):
+def test_opening_a_model_file_lists_its_format_first(app, window, sample_folder, tmp_path):
     """A file of another format opened by name (File > Open File..., a file dropped on the
     window, the command line) is listed and selected even with All 3D Files off; one of a
-    format SolidSeas cannot read is listed, with Files SolidSeas Cannot Read, to say why."""
+    format SolidSeas cannot read is listed, with Files SolidSeas Cannot Read, to say why. An
+    IGES file is listed without that setting, and says what opens it."""
     w = window
     w.change_settings(show_all_formats=False)
     w.open_path(str(sample_folder / "pair.step"))
@@ -833,8 +858,13 @@ def test_opening_a_model_file_lists_its_format_first(app, window, sample_folder)
     assert w.details.title.text() == "pair.step"
     w.open_path(str(sample_folder / "sheet.igs"))
     _wait(app, lambda: w.listing_info is not None and w.details.title.text() == "sheet.igs")
-    assert w.settings.show_unreadable
+    assert not w.settings.show_unreadable
     assert "OCCT backend extension" in w.details.pages["Overview"].message_text
+    (tmp_path / "scene.wrl").write_bytes(VRML)
+    w.open_path(str(tmp_path / "scene.wrl"))
+    _wait(app, lambda: w.listing_info is not None and w.details.title.text() == "scene.wrl")
+    assert w.settings.show_unreadable
+    assert "cannot read that format yet" in w.details.pages["Overview"].message_text
 
 
 @needs_qt

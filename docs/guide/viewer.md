@@ -90,11 +90,11 @@ The buttons come in this order:
    parts and assemblies. ACIS text (SAT) has a grey button beside SAB's:
    SolidSeas does not read those files yet, and lists them as not read.
 3. Grey, as the list shows their files, the formats it lists but cannot read
-   yet (with View > Show > Files SolidSeas Cannot Read on): IGES (`.igs` and
-   `.iges` share a button) and BREP, which SolidSeas reads once the OCCT backend
-   extension is on (their buttons then take the colour of the formats it
-   reads), Alibre Design drawings and packages, Inventor, Solid Edge, Fusion and
-   eDrawings files by their kind, 3D XML and VRML.
+   yet: IGES (`.igs` and `.iges` share a button) and BREP, listed while the OCCT
+   backend extension is off and read once it is on (their buttons then take the
+   colour of the formats it reads), and, with View > Show > Files SolidSeas
+   Cannot Read on, Alibre Design drawings and packages, Inventor, Solid Edge,
+   Fusion and eDrawings files by their kind, 3D XML and VRML.
 4. Any other type, in alphabetical order, on a grey badge that shows its
    extension (on two lines when it has five or six letters, and its first six
    when it has more; the tooltip names it in full).
@@ -115,7 +115,8 @@ How the buttons behave:
   would show with the other filters as they are, and how many of those could
   not be read (a file that could not be read counts under the type its name
   says; so does one whose geometry turned out unreadable), or that SolidSeas
-  cannot read the format yet.
+  cannot read the format yet, or, for IGES and BREP, that the OCCT backend
+  extension opens them (Tools > Extensions).
 - Tab reaches each button and Space turns it on or off; each has an accessible
   name for screen readers.
 - When the pane is too narrow for the row, it wraps onto another line rather
@@ -130,7 +131,8 @@ How the buttons behave:
   types the folder lacks, so the types that are on stay on.
 - A type that is on always has its button. Hiding the lock files (View > Show
   SOLIDWORKS Lock Files), or the files SolidSeas cannot read (View > Show >
-  Files SolidSeas Cannot Read), turns off a type that only they had, as opening
+  Files SolidSeas Cannot Read, which leaves IGES and BREP files listed), turns
+  off a type that only they had, as opening
   a folder without it does; a type whose files are all hidden has no button.
 - Opening a file, or a component's file from an assembly, turns its type on
   when the quick filter would hide it, and Back puts the buttons back as they

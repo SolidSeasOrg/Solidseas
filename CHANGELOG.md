@@ -1694,6 +1694,27 @@ while the project takes shape.
 
 ### Fixed
 
+- **Switching the OCCT backend extension on or off takes effect at once.**
+  Before, switching it on while the viewer was open was not enough: IGES and
+  BREP files were listed as readable but would not open, and the message said
+  the extension was not added or not switched on, although it was, until the
+  viewer was started again. Now the viewer follows the Extensions page as soon
+  as you switch the extension on or off, or add or remove its package: the
+  folder shown is read again, and its IGES and BREP files open, or say what
+  they need, without a restart. A folder's saved index no longer outlives the
+  switch either: a folder read with the extension off is read again once it is
+  on, and the other way round, instead of keeping its old rows until you chose
+  Re-index. If the extension is on but its program cannot start, the message
+  now says that, rather than asking you to switch it on.
+- **IGES and BREP files say what they need, even with Files SolidSeas Cannot
+  Read off.** While the OCCT backend extension is off, these files used to be
+  hidden with the formats SolidSeas cannot read at all, counted only as files
+  of formats SolidSeas cannot read (hidden). They are now always listed,
+  greyed, with Needs the OCCT backend in their Status column; their Overview
+  and the quick filter's button point to Tools > Extensions, and the status bar
+  counts them by format (1 IGES file needs the OCCT backend extension). Files
+  of formats SolidSeas cannot read at all, such as Inventor or VRML, are still
+  hidden unless View > Show > Files SolidSeas Cannot Read is on.
 - **Old run folders are cleared away.** The assistant said a kept run's folder
   stays for 7 days, but nothing ever removed it, and with the look after each
   step on, every step added another copy of the part. Now, when the assistant

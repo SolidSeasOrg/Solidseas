@@ -44,10 +44,14 @@ of these formats.
 SolidSeas reads IGES files, and the BREP files of Open CASCADE, through the OCCT
 backend extension. It is a package you add once: get it from the releases page
 (Tools > Extensions > Get extensions), choose Add from file, and switch it on.
-Until then these files are listed greyed, with View > Show > Files SolidSeas
-Cannot Read on, and their Overview says what they need. Once it is on, open the
-folder again and they read like STEP files: the 3D view, thumbnails, Export for
-3D Printing, 3D Print and the index all take them.
+Until then these files are listed greyed, whether or not View > Show > Files
+SolidSeas Cannot Read is on: their Status says Needs the OCCT backend, their
+Overview says what to add, and the status bar counts them. Once you switch it
+on, the folder shown is read again and they read like STEP files: the 3D view,
+thumbnails, Export for 3D Printing, 3D Print and the index all take them. There
+is no need to restart the viewer. Switching the extension off works the same
+way, and a folder's saved index is kept for each choice, so the list always
+matches the switch.
 
 The extension uses Open CASCADE Technology, the open-source geometry kernel, in
 a program of its own beside the viewer. Each file goes to it as a copy, never
@@ -74,8 +78,9 @@ Extensions page and in its licenses folder, and says where their source is.
 
 Inventor, Solid Edge, Fusion, 3D XML, eDrawings, VRML and Alibre Design
 drawings and packages are recognised but not read yet: View > Show > Files
-SolidSeas Cannot Read lists them, greyed, without opening them. So are IGES and
-BREP files while the OCCT backend extension is not on. ACIS text
+SolidSeas Cannot Read lists them, greyed, without opening them. IGES and BREP
+files are listed greyed while the OCCT backend extension is not on, with that
+setting on or off, since adding the extension opens them. ACIS text
 (`.sat`) is listed as not read too. An NX `.prt` is not listed at all, since
 other programs use that extension too.
 

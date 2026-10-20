@@ -10,7 +10,8 @@ the program that wrote it in Saved with (``AP214``, ``binary``), and until its
 thumbnail is there a badge in its format's family colour: meshes teal, exchange
 formats purple, other programs' own formats brown; a file of a format SolidSeas
 lists but cannot read a grey one. :class:`DocumentFilter` hides those unreadable
-files unless asked, and filters by type with the quick filter's types
+files unless asked, except an IGES or BREP file while the OCCT backend extension is
+off: it is listed, greyed, its Status saying what it needs. It filters by type with the quick filter's types
 (:mod:`.quickfilter`, :mod:`.filetypes`).
 """
 
@@ -36,7 +37,7 @@ from solidseas.formats import registry
 
 from . import filetypes
 from .reading import doc_type_of, release_text, size_text, time_text
-from .wording import status_short, tip
+from .wording import needs_extension, status_short, tip
 from .workers import THUMB_HEIGHT, THUMB_WIDTH
 
 # Status sits next to Type: it is what says why a row is red or grey.
@@ -425,7 +426,7 @@ class DocumentFilter(QSortFilterProxyModel):
     whose paths the index found for it, :meth:`set_also`), of the quick filter's types
     when it has any on (:meth:`set_types`): each filter narrows what the others show.
     SOLIDWORKS lock files, and files of formats SolidSeas cannot read, are hidden unless
-    asked for (:meth:`listed`)."""
+    asked for (:meth:`listed`); a file of a format an extension opens is not."""
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
@@ -485,7 +486,8 @@ class DocumentFilter(QSortFilterProxyModel):
             self.invalidateFilter()
 
     def set_unreadable(self, shown: bool) -> None:
-        """Show the files of formats SolidSeas lists but cannot read (status ``unsupported``)."""
+        """Show the files of formats SolidSeas lists but cannot read (status ``unsupported``);
+        those of a format an extension opens are shown either way."""
         self._set("_unreadable", bool(shown))
 
     @property
@@ -509,11 +511,12 @@ class DocumentFilter(QSortFilterProxyModel):
     def listed(self, row: "Row") -> bool:
         """Whether ``row`` is listed at all, whatever the folder, the text and the type
         filters: what a setting hides (lock files, and files of formats SolidSeas cannot
-        read) is not. The quick filter offers the types of these rows, so it never offers
+        read, but for those an extension would open, which say what to add) is not. The
+        quick filter offers the types of these rows, so it never offers
         a type whose files are all hidden."""
         if not self._lock_files and is_lock_file(row.entry):
             return False
-        return self._unreadable or row.entry["status"] != "unsupported"
+        return self._unreadable or row.entry["status"] != "unsupported" or needs_extension(row.entry)
 
     def accepts(self, row: "Row", *, types: bool = True) -> bool:
         """Whether ``row`` passes the filters; with ``types`` false, every filter but the

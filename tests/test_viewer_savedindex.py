@@ -1,6 +1,7 @@
 """Each folder's index kept between runs (``solidseas_app.viewer.savedindex``)."""
 
 import os
+import sqlite3
 
 from solidseas_app.viewer import savedindex as SI
 
@@ -28,6 +29,30 @@ def test_a_saved_index_comes_back_in_order_with_its_age(tmp_path):
     assert [n for n in os.listdir(root) if n.startswith(".index-")] == []
     SI.forget(folder, "all", (128, 96), root=root)
     assert SI.load(folder, "all", (128, 96), root=root) is None
+
+
+def test_an_index_is_kept_for_the_extension_formats_that_were_readable(tmp_path):
+    """A folder read while the OCCT backend was on (IGES and BREP readable) is not shown once
+    it is off, nor the other way round; a list of SOLIDWORKS documents alone is not
+    affected, and with no extension format on an index keeps the name it had before."""
+    root = str(tmp_path / "idx")
+    folder = str(tmp_path / "Jobs")
+    on = ("iges", "occt_brep")
+    SI.save(folder, "all", (128, 96), ROWS[:2], read_at=1000.0, root=root, extensions=())
+    SI.save(folder, "all", (128, 96), ROWS[:3], read_at=2000.0, root=root, extensions=on)
+    assert SI.load(folder, "all", (128, 96), root=root, extensions=()).rows == 2
+    assert SI.load(folder, "all", (128, 96), root=root, extensions=on).rows == 3
+    assert SI.load(folder, "all", (128, 96), root=root, extensions=("iges",)) is None
+    assert SI.load(folder, "all", (128, 96), root=root).rows == 2, "none is on in the tests"
+    # an index saved before extensions read formats (no such entry) is good while none is on
+    path = SI.index_path(folder, "all", (128, 96), root=root, extensions=())
+    con = sqlite3.connect(path)
+    con.execute("DELETE FROM meta WHERE key = 'extensions'")
+    con.commit()
+    con.close()
+    assert SI.load(folder, "all", (128, 96), root=root, extensions=()).rows == 2
+    SI.save(folder, "solidworks", (128, 96), ROWS[:4], root=root, extensions=on)
+    assert SI.load(folder, "solidworks", (128, 96), root=root, extensions=()).rows == 4
 
 
 def test_a_damaged_index_is_none_never_an_empty_folder(tmp_path):

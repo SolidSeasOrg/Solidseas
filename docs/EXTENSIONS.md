@@ -232,9 +232,16 @@ and Open CASCADE's notices (beads SolidSeas-3he, SolidSeas-7r8 and SolidSeas-e2z
   no worker start a process; while the OCCT package is added and switched on, its model
   pool lets each worker start one (`WorkerPool(helpers_per_worker=1)`): the helper, which
   runs in its own Job Object inside the pool's, under the pool's memory cap too. The pool
-  decides this when it starts, so without the package its workers still start nothing,
-  and switching the package on reaches IGES and BREP files when the viewer next starts. The 3D view's and the export's processes
-  have no such limit. The other pools (the REST service's, the catalog's, `solidseas
+  decides this when it starts, so without the package its workers still start nothing.
+  A change on the Extensions page reaches the running viewer at once
+  (`MainWindow.extensions_changed`): the backend is asked again, and when a pool started
+  now would decide otherwise the running one is ended (`ModelPool.restart`) and the next
+  file read starts one that decides again; a read caught on the old workers runs once
+  more on the new ones. The window then reads the opened folder again when the formats it
+  can read have changed. The saved folder index is kept per set of readable extension
+  formats (`savedindex.extension_formats`), so a folder read with the backend on is not
+  shown from its index once it is off, nor the other way round. The 3D view's and the
+  export's processes have no such limit. The other pools (the REST service's, the catalog's, `solidseas
   list`) are left as they were, so on Windows they read an IGES or BREP file's head but
   not its geometry.
 - **The front** is the registry's `backend` field: `iges` and `occt_brep` are readable
@@ -242,7 +249,11 @@ and Open CASCADE's notices (beads SolidSeas-3he, SolidSeas-7r8 and SolidSeas-e2z
   whose head is read in pure Python and whose geometry is the backend's STEP model read by
   SolidSeas' own STEP reader. Off, they are listed as `unsupported`, and the viewer, the
   command line and the error (`format_not_supported`, rule `needs_extension`) say what to
-  add. `solidseas convert` writes IGES, BREP and STEP through it.
+  add. The viewer lists them even while View > Show > Files SolidSeas Cannot Read hides
+  the formats SolidSeas cannot read at all, since one switch opens them: greyed, their
+  Status saying they need the OCCT backend, their Overview and the quick filter naming
+  Tools > Extensions, and the status bar counting them. A helper that is on but would not
+  start is said as that, not as an extension switched off. `solidseas convert` writes IGES, BREP and STEP through it.
 - **Not built yet:** STEP cross-checks through the helper, an IGES reader of SolidSeas' own,
   and Convert in the viewer.
 

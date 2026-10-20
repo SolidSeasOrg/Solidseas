@@ -20,7 +20,8 @@ onto more lines rather than widen the list's pane. It is the list's one filter b
 type: a family of formats (the meshes, say) is several buttons on at once.
 
 The row offers the types of the rows listed (lock files, and the files of formats
-SolidSeas cannot read, only when View > Show lists them:
+SolidSeas cannot read, only when View > Show lists them, but IGES and BREP files
+always, as the list shows them while the OCCT backend extension is off:
 :meth:`.DocumentFilter.listed`), and a type that is on always has its button, so the
 list says why it is filtered. While a folder is being listed, Reload included, the
 row keeps the buttons it had, so it neither jumps nor loses the keyboard focus. When
@@ -43,7 +44,7 @@ from PySide6.QtWidgets import QAbstractButton, QLayout, QSizePolicy, QWidget
 
 from . import filetypes
 from .filetypes import FileType
-from .wording import plural, tip
+from .wording import needs_extension, plural, tip
 
 GLYPH = 20  # the glyph's side, in logical pixels
 BUTTON = 26  # the button's side: the glyph, a frame and room for the focus ring between them
@@ -437,7 +438,9 @@ class QuickFilterBar(QWidget):
             line += " that matches the filter" if n == 1 else " that match the filter"
         unsupported = sum(1 for r in rows if r.entry["status"] == "unsupported")
         unread = sum(1 for r in rows if r.entry["status"] == "error" or getattr(r, "unusable", False))
-        if unsupported and unsupported == n:
+        if unsupported and unsupported == n and all(needs_extension(r.entry) for r in rows):
+            line += "; SolidSeas opens them with the OCCT backend extension (Tools > Extensions)"
+        elif unsupported and unsupported == n:
             line += "; SolidSeas cannot read this format yet"
         elif unsupported:
             line += f"; {unsupported:,} of a format SolidSeas cannot read yet"

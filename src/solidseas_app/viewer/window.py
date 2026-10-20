@@ -44,11 +44,15 @@ Where Used tab and the name filter read that index (:mod:`.whereused`).
 Every 3D file SolidSeas knows is listed with SOLIDWORKS documents (View > Show > All
 3D Files, on by default): STEP, Parasolid, STL, 3MF, OBJ, PLY, OFF, glTF, AMF, ACIS
 and Alibre Design files are read, and a file of a format SolidSeas only recognises
-(IGES, Inventor...) is listed only with View > Show > Files SolidSeas Cannot Read. A
-file of another format is never read in the window's process (a compound file wearing
-a SOLIDWORKS extension is a SOLIDWORKS document to the listing, read in the window's
-threads as every SOLIDWORKS document is): the listing's entries, the details
-panel's sections and the thumbnails drawn for files that store no image
+(Inventor, VRML...) is listed only with View > Show > Files SolidSeas Cannot Read. IGES
+and BREP files are read while the OCCT backend extension is on, and listed while it is
+off, greyed, saying what they need. The Extensions page's changes reach the window at
+once (:meth:`MainWindow.extensions_changed`): the worker processes are started again
+when what they may start changes, and the folder is read again when what SolidSeas can
+read changes. A file of another format is never read in the window's process (a
+compound file wearing a SOLIDWORKS extension is a SOLIDWORKS document to the listing,
+read in the window's threads as every SOLIDWORKS document is): the listing's entries,
+the details panel's sections and the thumbnails drawn for files that store no image
 (:mod:`.thumbnailer`) come from the window's own worker processes
 (:mod:`.modelpool`), the 3D view from the mesh process and 3D Print and Export for
 3D Printing from the export's process, all of which answer in JSON, PNG images
@@ -162,7 +166,16 @@ from .stepaction import StepController
 from .thumbnailer import Thumbnailer
 from .viewmath import FREE, MOUSE_STYLES, ROTATION_MODES, SOLIDWORKS, STANDARD, TURNTABLE
 from .whereused import WhereUsedController
-from .wording import error_message, plural, refusal_text, rule_text, sentence, tip, unread_text
+from .wording import (
+    error_message,
+    needs_extension,
+    plural,
+    refusal_text,
+    rule_text,
+    sentence,
+    tip,
+    unread_text,
+)
 from .workers import Job, listing_work, preview_image
 
 TITLE = f"SolidSeas Viewer (preview {__version__})"
@@ -363,12 +376,13 @@ def splitter_state_ok(state: bytes) -> bool:
 def _folder_kind(entry: dict[str, Any]) -> int:
     """Which of a folder's counts a listed entry adds to: 0 a document read, 1 any other
     entry, 2 a SOLIDWORKS lock file, 3 a file of a format SolidSeas cannot read. The last
-    two are counted only while their settings list them (:meth:`.DocumentFilter.listed`)."""
+    two are counted only while their settings list them (:meth:`.DocumentFilter.listed`);
+    a file of a format an extension opens is always listed, so it is 1."""
     if is_document(entry):
         return 0
     if is_lock_file(entry):
         return 2
-    return 3 if entry["status"] == "unsupported" else 1
+    return 3 if entry["status"] == "unsupported" and not needs_extension(entry) else 1
 
 
 # What Export BOM writes: the format's key for reading.export_bom, and its name in the dialog.
@@ -475,6 +489,10 @@ class MainWindow(QMainWindow):
         self.settings_window: Any = None  # the Settings window, while it is open
         self._staged: list | None = None  # a re-index's rows, until it is read
         self._index_read_at: float | None = None  # when the shown index was read
+        # The extension formats (savedindex.extension_formats) readable when the listing
+        # running, and the one shown, were read: what a switch changed is read again.
+        self._listing_extensions: tuple[str, ...] = ()
+        self._shown_extensions: tuple[str, ...] = ()
 
         self.folder: str | None = None
         self.listing_pool = QThreadPool(self)
@@ -940,8 +958,8 @@ class MainWindow(QMainWindow):
         self.act_all_formats.toggled.connect(lambda on: self.change_settings(show_all_formats=on))
         self.act_unreadable = QAction("Files SolidSeas &Cannot Read", self, checkable=True)
         self.act_unreadable.setStatusTip(
-            "Also list the files of 3D formats SolidSeas recognises but cannot read yet, such as IGES and "
-            "Inventor files, so you can see they are there"
+            "Also list the files of 3D formats SolidSeas recognises but cannot read yet, such as Inventor "
+            "and VRML files, so you can see they are there"
         )
         self.act_unreadable.toggled.connect(lambda on: self.change_settings(show_unreadable=on))
         self.act_print_as_is = QAction(AS_IS_TEXT, self, checkable=True)
@@ -1205,8 +1223,9 @@ class MainWindow(QMainWindow):
     def open_path(self, path: str) -> None:
         """A folder opens as it is; a file opens its folder and selects it. A file of another
         format than SOLIDWORKS turns View > Show > All 3D Files on first when it is off (and
-        Files SolidSeas Cannot Read for one of a format SolidSeas cannot read, to say why),
-        so it is listed to be selected."""
+        Files SolidSeas Cannot Read for one of a format SolidSeas cannot read, to say why;
+        an IGES or BREP file is listed without it, saying what it needs), so it is listed to
+        be selected."""
         path = os.path.abspath(path)
         if os.path.isfile(path):
             from solidseas.formats import registry
@@ -1215,7 +1234,7 @@ class MainWindow(QMainWindow):
             changes: dict[str, bool] = {}
             if spec is not None and spec.id != registry.SOLIDWORKS:
                 changes["show_all_formats"] = True
-                if not registry.readable(spec.id):
+                if not registry.readable(spec.id) and spec.backend is None:
                     changes["show_unreadable"] = True
             if changes:
                 self._listing_follows = True  # the folder is listed below: once, with them
@@ -1284,6 +1303,7 @@ class MainWindow(QMainWindow):
         if not (self.settings.keep_index and result.get("ok") and not result.get("cancelled")):
             return
         folder, formats, size = self.folder, self._formats(), self.settings.thumbnail_pixels
+        extensions = self._shown_extensions  # what was readable when the folder was read
         rows = [(r.entry, r.thumb) for r in self.model.rows]
         counts, reason = result.get("counts") or {}, result.get("truncated_reason")
         read_at = self._index_read_at  # when the folder was read, not when the save ends
@@ -1292,7 +1312,16 @@ class MainWindow(QMainWindow):
             from .savedindex import save
 
             try:
-                save(folder, formats, size, rows, counts=counts, truncated_reason=reason, read_at=read_at)
+                save(
+                    folder,
+                    formats,
+                    size,
+                    rows,
+                    counts=counts,
+                    truncated_reason=reason,
+                    read_at=read_at,
+                    extensions=extensions,
+                )
             except (OSError, ValueError, Exception):  # a cache that cannot be written: listed next time
                 pass
 
@@ -1375,9 +1404,12 @@ class MainWindow(QMainWindow):
         self.index_bar.hide()
         saved = None
         if self.settings.keep_index:
-            from .savedindex import load
+            from .savedindex import extension_formats, load
 
-            saved = load(folder, self._formats(), self.settings.thumbnail_pixels)
+            extensions = extension_formats()
+            saved = load(folder, self._formats(), self.settings.thumbnail_pixels, extensions=extensions)
+            if saved is not None:
+                self._shown_extensions = extensions
         if saved is not None:
             self._show_saved(saved)
             hours = self.settings.reindex_after_hours
@@ -1412,7 +1444,12 @@ class MainWindow(QMainWindow):
     def _start_listing(self, folder: str, *, staged: bool = False) -> None:
         """Read the folder (the listing); ``staged``: into a buffer, the list shown staying
         until the new one is read (a re-index)."""
+        from .savedindex import extension_formats
+
         self._staged = [] if staged else None
+        self._listing_extensions = extension_formats()
+        if not staged:  # its rows are the list from the first batch on
+            self._shown_extensions = self._listing_extensions
         if staged:
             if not self.index_bar.isHidden():  # its words change; the list never moves for it
                 self._show_index_age(self._index_read_at, reindexing=True)
@@ -1499,6 +1536,7 @@ class MainWindow(QMainWindow):
             self._swap_rows(staged)
         self.index_bar.hide()
         self._index_read_at = time.time()
+        self._shown_extensions = self._listing_extensions
         self._finish_listing(result)
         self._save_index(result)
 
@@ -1574,9 +1612,20 @@ class MainWindow(QMainWindow):
             other.append(plural(c["placeholder"], "cloud placeholder") + " not downloaded")
         if c.get("not_solidworks"):
             other.append(plural(c["not_solidworks"], "file") + " not from SOLIDWORKS")
-        if c.get("unsupported"):
+        # IGES and BREP files while the OCCT backend is off: listed, and the status bar says
+        # what opens them
+        needs = Counter(r.format or "" for r in rows if needs_extension(r.entry))
+        n_needs = sum(needs.values())
+        if n_needs:
+            names = " and ".join(
+                registry.FORMATS[f].name if f in registry.FORMATS else "other" for f in sorted(needs)
+            )
+            files = "file needs" if n_needs == 1 else "files need"
+            other.append(f"{n_needs:,} {names} {files} the OCCT backend extension (Tools > Extensions)")
+        unreadable = (c.get("unsupported") or 0) - n_needs
+        if unreadable > 0:
             other.append(
-                plural(c["unsupported"], "file")
+                plural(unreadable, "file")
                 + " of formats SolidSeas cannot read"
                 + ("" if self.proxy.unreadable else " (hidden)")
             )
@@ -2802,8 +2851,42 @@ class MainWindow(QMainWindow):
         from .extensionsdialog import ExtensionsDialog
 
         dialog = ExtensionsDialog(self)
+        dialog.changed.connect(self.extensions_changed)
         dialog.exec()
         dialog.deleteLater()
+
+    def extensions_changed(self) -> None:
+        """The Extensions page switched an extension on or off, or added or removed a
+        package. What that changes for IGES and BREP files reaches this window now, not at
+        its next start: what the OCCT backend answered is asked again, the worker processes
+        that read other formats are started again when what they may start has changed
+        (:meth:`.ModelPool.stale`; without the package they still start nothing), and the
+        folder is read again when the formats SolidSeas can read have changed, so its rows
+        and its saved index follow the switch."""
+        from solidseas.convert import backends
+
+        from .savedindex import extension_formats
+
+        for backend in backends().values():
+            forget = getattr(backend, "forget", None)
+            if forget is not None:
+                forget()
+        if self._closing:
+            return
+        if not self.models.running or self.models.stale():
+            # a read on the old workers runs again on the new ones; with none running, a
+            # pool that would not start under the old switch is tried again at once
+            self.models.restart()
+        if self.folder is None or self._formats() == "solidworks":  # no IGES or BREP rows to change
+            return
+        now = extension_formats()
+        if self._listing is not None:
+            if now != self._listing_extensions:  # read under the old switch: read it again
+                current = self._entry.get("path") if isinstance(self._entry, dict) else None
+                self.open_folder(self.folder, select=self._pending_select or current)
+            return
+        if now != self._shown_extensions:
+            self.reindex()
 
     def edit_bom(self) -> None:
         """Open the BOM editor (:mod:`.bomeditor`) on the BOMs the BOM tab has read, in the

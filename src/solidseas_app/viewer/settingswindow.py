@@ -215,7 +215,9 @@ class SettingsWindow(QDialog):
     def _make_extensions(self) -> Any:
         from .extensionsdialog import ExtensionsDialog
 
-        return ExtensionsDialog(self)
+        dialog = ExtensionsDialog(self)
+        dialog.changed.connect(self.window_.extensions_changed)  # IGES and BREP follow at once
+        return dialog
 
     def _add(self, title: str, widget: QWidget) -> int:
         index = self.stack.addWidget(widget)

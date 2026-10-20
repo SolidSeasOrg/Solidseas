@@ -14,7 +14,10 @@ never a pickle.
 :class:`ModelPool` starts the pool the first time a file of another format is
 read, in the thread that asks (starting two workers takes a second or two), and
 closes it with the window. A listing of SOLIDWORKS documents alone never starts
-it. Nothing here imports Qt.
+it. Whether its workers may start the OCCT helper is decided when it starts
+(:func:`_helpers`), so when the Extensions page switches the OCCT backend on or off
+the window asks :meth:`ModelPool.stale` and :meth:`ModelPool.restart`s it: the next
+file read starts a pool that decides again. Nothing here imports Qt.
 """
 
 import threading
@@ -33,8 +36,8 @@ RETRY_AFTER_S = 30.0  # a pool that would not start is tried again after this lo
 
 def _helpers() -> int:
     """Processes each worker may start: one while the OCCT backend can run (its helper
-    reads IGES and BREP), else none. Decided when the pool starts, so switching the OCCT
-    package on reaches IGES and BREP files when the viewer next starts."""
+    reads IGES and BREP), else none. Decided when a pool starts; a switch changed later
+    reaches the workers through :meth:`ModelPool.restart`."""
     try:
         from solidseas.convert import backend
 
@@ -45,8 +48,9 @@ def _helpers() -> int:
 
 class ModelPool:
     """A :class:`~solidseas.workers.WorkerPool` started on first use (see the module notes).
-    :meth:`call` is safe from any thread; :meth:`close` ends the workers, and a call
-    after it raises :class:`~solidseas.errors.WorkerCrashedError`."""
+    :meth:`call` is safe from any thread; :meth:`restart` ends the workers and lets the
+    next call start new ones; :meth:`close` ends them for good, and a call after it raises
+    :class:`~solidseas.errors.WorkerCrashedError`."""
 
     def __init__(self, *, workers: int = WORKERS, memory_mb: int = MEMORY_MB, timeout_s: float = TIMEOUT_S):
         self.workers, self.memory_mb, self.timeout_s = workers, memory_mb, timeout_s
@@ -54,6 +58,7 @@ class ModelPool:
         self._pool: Any = None
         self._closed = False
         self._failed: tuple[float, BaseException] | None = None
+        self.helpers: int | None = None  # what the running pool's workers may start
         self.started = 0  # pools started, for tests and the self-test's report
 
     @property
@@ -87,11 +92,22 @@ class ModelPool:
                     self._failed = (time.monotonic(), exc)
                     raise
                 self._failed = None
+                self.helpers = getattr(self._pool, "helpers_per_worker", 0)
                 self.started += 1
             return self._pool
 
     def call(self, job: str, params: dict[str, Any], *, timeout: float | None = None):
-        """Run ``job`` with ``params`` in a worker (:meth:`solidseas.workers.WorkerPool.call`)."""
+        """Run ``job`` with ``params`` in a worker (:meth:`solidseas.workers.WorkerPool.call`).
+        A job whose pool was restarted under it runs once more on the new pool, so a switch
+        changed meanwhile costs it time, not its result."""
+        pool = self._get()
+        try:
+            return pool.call(job, params, timeout=timeout)
+        except WorkerCrashedError:
+            with self._lock:
+                replaced = not self._closed and self._pool is not pool
+            if not replaced:
+                raise
         return self._get().call(job, params, timeout=timeout)
 
     def alive(self) -> int:
@@ -103,6 +119,28 @@ class ModelPool:
             if self._pool is None:
                 return []
             return [w["pid"] for w in self._pool.worker_info() if w.get("pid")]
+
+    def stale(self) -> bool:
+        """Whether a pool runs whose workers may start another number of processes than a
+        pool started now would: the OCCT backend was switched on or off since it started."""
+        with self._lock:
+            running, helpers = self._pool is not None, self.helpers
+        return running and helpers != _helpers()
+
+    def restart(self) -> bool:
+        """End the running workers, if any, so the next call starts a new pool, which
+        decides again what its workers may start (:func:`_helpers`). Unlike :meth:`close`
+        the pool stays usable: a call waiting on an old worker runs again on the new pool
+        (:meth:`call`). Returns whether a pool was running."""
+        with self._lock:
+            if self._closed:
+                return False
+            pool, self._pool = self._pool, None
+            self._failed = None
+            self.helpers = None
+        if pool is not None:
+            pool.close()
+        return pool is not None
 
     def close(self) -> None:
         """End the workers; no call starts them again."""
