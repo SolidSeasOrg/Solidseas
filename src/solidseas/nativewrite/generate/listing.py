@@ -28,6 +28,14 @@ specification, ``"<section> <file>:<line>"``:
 
 A value is a literal (``int``, ``float`` or ``str``), ``("$", path)`` for a
 slot or ``("=", text)`` for an expression.
+
+Paths follow README 15.0.2. A dotted path names a slot, a field of it, or an item
+of a list by its position from 0 (``$f.corners.0``, ``$f.ring.4.face``). Inside
+``@for x in $LIST`` the path ``$x`` is the current item, which is the value itself
+when the list holds numbers or texts (``@for i in $b.from`` ... ``u32 $i``), and
+``$x_index`` its position in the iteration. A ``@use`` argument is text put in
+place of its parameter, so an argument that names an item, ``E=f.ring.0``, gives
+``$f.ring.0.end`` where the block says ``$%E.end``.
 """
 
 import ast
@@ -667,6 +675,19 @@ class _Runner:
         self.marked = False
 
     # values ---------------------------------------------------------
+    def slot_path(self, path: str) -> str:
+        """``path`` with a leading loop variable replaced by the slot path of its list.
+
+        A loop over a field of another loop's item (``@for i in $b.from`` inside ``@for b
+        in $bodies``) then traces back to the slot it reads, ``bodies.from``.
+        """
+        parts = path.split(".")
+        for i in range(len(parts), 0, -1):
+            key = ".".join(parts[:i])
+            if key in self.origin:
+                return ".".join([self.origin[key], *parts[i:]])
+        return path
+
     def lookup(self, path: str, loc: str) -> Any:
         parts = path.split(".")
         for i in range(len(parts), 0, -1):
@@ -823,7 +844,7 @@ class _Runner:
         saved = {k: self.locals[k] for k in (var, index_name) if k in self.locals}
         saved_origin = self.origin.get(var)
         if isinstance(listnode, tuple) and listnode[0] == "$":
-            self.origin[var] = self.origin.get(listnode[1], listnode[1])
+            self.origin[var] = self.slot_path(listnode[1])
         order = list(reversed(items)) if backwards else list(items)
         for i, item in enumerate(order):
             self.locals[var] = item

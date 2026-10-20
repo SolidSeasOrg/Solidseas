@@ -76,7 +76,7 @@ def _rand_low_bytes() -> bytes:
     out = bytearray()
     for _ in range(16 * KEY_INDICES[-1] + 16):
         state = (state * RAND_MUL + RAND_ADD) % 2**32
-        out.append(((state >> 16) & RAND_MASK) & 0xFF)
+        out.append(((state >> 16) & RAND_MASK) & 0xFF)  # spec 15.1.1.1: the low byte of each output
     return bytes(out)
 
 
@@ -126,15 +126,27 @@ def _box(n: int, x0: float, y0: float, x1: float, y1: float, depth: float) -> li
     return [sk, ir.Extrude(f"e{n}", f"Extrude{n}", sk.id, depth)]
 
 
+def _hole(n: int, cx: float, cy: float, r: float) -> list:
+    """A circle on the Front Plane cut through all in both directions (15.6.2)."""
+    centre = ir.Point(f"c{n}", cx, cy)
+    circle = ir.Curve(f"k{n}", "circle", [centre.id], radius=r)
+    sk = ir.Sketch(f"s{n}", f"Sketch{n}", ir.Plane.named("xy"), [centre], [circle])
+    cut = ir.Extrude(f"e{n}", f"Cut{n}", sk.id, 0.0, operation="cut", end="through_all", direction="midplane")
+    return [sk, cut]
+
+
 def _shapes() -> list[tuple[tuple[ir.Document, Identity], ...]]:
     """The shapes SPEC_CONSTANTS is measured on, each in two variants.
 
-    An empty part, one box and two boxes (15.6.8's examples), each made once with
-    15.6.8's sizes and once with other sizes, and each with its own identity. The two
-    identities give texts of the same lengths (the same weekday and month name
-    lengths, one-digit hours), so the members line up byte for byte.
+    An empty part, one box, two boxes and one box with a hole (15.6.8's examples), each
+    made once with 15.6.8's sizes and once with other sizes, and each with its own
+    identity. The two identities give texts of the same lengths (the same weekday and
+    month name lengths, one-digit hours), so the members line up byte for byte. The
+    hole is a circle inside the box's rectangle, cut through all in both directions; in
+    the two variants its centre and radius differ and the box's depth is written with
+    the same number of digits, so its members line up too.
 
-    The fourth shape is one box with five file custom properties, one of each form of
+    The last shape is one box with five file custom properties, one of each form of
     15.6.9 in order: a text, a whole number, a real number, a date and yes or no. In
     the two variants each name and each value as typed has the same length and differs
     from the first character on, the yes or no property is true in both, and the names
@@ -150,6 +162,8 @@ def _shapes() -> list[tuple[tuple[ir.Document, Identity], ...]]:
     second = ident(datetime(2018, 7, 27, 3, 45, 51, tzinfo=UTC), 4, "b", "shapeB")  # spec 15.0.7
     one_a, one_b = _box(1, 0.0, 0.0, 0.01, 0.02, 0.03), _box(1, 0.0, 0.0, 0.025, 0.05, 0.07)
     two_a, two_b = _box(2, 0.03, 0.0, 0.04, 0.02, 0.01), _box(2, 0.04, 0.005, 0.06, 0.03, 0.02)
+    hole_a = _hole(2, 0.005, 0.01, 0.0025)  # spec 15.6.8: the box with a hole's circle
+    hole_b = _hole(2, 0.0125, 0.03, 0.004)  # spec 15.0.7: another circle inside one_b's rectangle
     forms = ("text", "number", "number", "date", "yesno")  # spec 15.0.7: one of each form of 15.6.9
     names_a, names_b = ("Apex", "Bolt", "Core", "Dial", "Edge"), ("Knob", "Lens", "Mast", "Note", "Oval")
     values_a = ("Steel", 42, 3.25, "2015-06-15", True)  # spec 15.0.7
@@ -160,6 +174,7 @@ def _shapes() -> list[tuple[tuple[ir.Document, Identity], ...]]:
         ((ir.Document("empty"), first), (ir.Document("empty"), second)),
         ((ir.Document("one", one_a), first), (ir.Document("one", one_b), second)),
         ((ir.Document("two", one_a + two_a), first), (ir.Document("two", one_b + two_b), second)),
+        ((ir.Document("hole", one_a + hole_a), first), (ir.Document("hole", one_b + hole_b), second)),
         (
             (ir.Document("props", one_a, properties=props_a), first),
             (ir.Document("props", one_b, properties=props_b), second),

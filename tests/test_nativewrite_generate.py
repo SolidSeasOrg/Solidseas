@@ -136,6 +136,59 @@ def test_for_and_for_reversed():
     assert bytes_of("@for g in $t\nutf8 $g\n@endfor", {"t": ["a", "b"]}) == b"ab"
 
 
+def test_bare_loop_items_and_list_index_paths():
+    # README 15.0.2: a list of numbers gives $i the item itself, here inside another loop.
+    bodies = [{"id": 101, "from": []}, {"id": 102, "from": [101, 7]}]
+    text = "@for b in $bodies\nu8 =len($b.from)\n@for i in $b.from\nu32 $i\nu8 $i_index\n@endfor\n@endfor"
+    want = b"\x00" + b"\x02" + (101).to_bytes(4, "little") + b"\x00" + (7).to_bytes(4, "little") + b"\x01"
+    assert bytes_of(text, {"bodies": bodies}) == want
+    # A path may index a list by position, in a slot and in a loop variable alike.
+    f = {"ring": [{"face": 4}, {"face": 1}, {"face": 3}, {"face": 0}, {"face": 9}], "corners": [0.5, 1.5]}
+    assert bytes_of("u8 $f.ring.4.face $f.ring.0.face", {"f": f}) == b"\x09\x04"
+    assert (
+        bytes_of("@for f in $fs\nf64 $f.corners.1\nu8 $f.ring.2.face\n@endfor", {"fs": [f]})
+        == struct.pack("<d", 1.5) + b"\x03"
+    )
+    with pytest.raises(ListingError):
+        bytes_of("u8 $f.ring.5.face", {"f": f})
+
+
+def test_use_arguments_that_name_list_items():
+    # README 15.0.3: an argument is text put in place of its parameter, so E=f.ring.0 makes
+    # $%E.end read $f.ring.0.end, in an @if as in a line.
+    text = """@define face E
+@if $%E.end
+u8 1 $%E.face
+@else
+u8 0 $%E.face
+@endif
+@end
+@for f in $features
+@use face E=f.ring.0
+@use face E=f.ring.1
+@endfor
+"""
+    ring = [{"end": False, "face": 4}, {"end": True, "face": 1}]
+    assert bytes_of(text, {"features": [{"ring": ring}]}) == b"\x00\x04\x01\x01"
+    loop = parse_text(text).ops[0]
+    assert loop[0] == "for" and loop[4][0][:2] == ("if", ("$", "f.ring.0.end"))
+
+
+def test_a_nested_loop_traces_its_items_to_the_slot():
+    # The tracker sees $i of "@for i in $b.from" as a value of the slot bodies.from.
+    ops = parse_text("@for b in $bodies\nu32 $b.id\n@for i in $b.from\nu32 $i\n@endfor\n@endfor").ops
+    seen: list[str] = []
+
+    def tracker(path):
+        seen.append(path)
+        return path == "bodies.from"
+
+    r = run(ops, {"bodies": [{"id": 102, "from": [101]}]}, tracker=tracker)
+    # The two lists, then the id, and the item of the inner loop under its slot's name.
+    assert seen == ["bodies", "bodies.id", "bodies.from", "bodies.from"]
+    assert r.mask == bytes(4) + b"\x01" * 4
+
+
 def test_sized_blocks_in_a_row():
     text = "@sized u32 first\nu16 1 2\n@endsized\n@sized u16 second\nu8 9\n@endsized\nu8 $first $second"
     assert bytes_of(text) == (4).to_bytes(4, "little") + b"\x01\0\x02\0" + b"\x01\0\x09" + b"\x04\x01"
@@ -473,9 +526,10 @@ def test_allow_partial_leaves_out_refused_items_and_their_dependents():
         "Pushed: left out because its sketch is not written",
         "Round: fillets are not written yet",
     ]
-    # The written pair is the first of the part: Sketch1 and Boss-Extrude1, off the origin.
+    # The written pair is the first of the part: Sketch1 and Boss-Extrude1, off the origin. The
+    # gap after a sketch follows its place, not the origin (15.5.4): the first sketch leaves 6.
     assert [f["name"] for f in p.slots["features"]] == ["Sketch1", "Boss-Extrude1"]
-    assert p.slots["features"][1]["id"] == 33 and p.names["MyExtrude2"] == "Boss-Extrude1"
+    assert p.slots["features"][1]["id"] == 32 and p.names["MyExtrude2"] == "Boss-Extrude1"
 
 
 def test_left_out_entries_of_15_6_7():
@@ -1055,3 +1109,354 @@ def test_the_property_shape_of_spec_constants():
     xml = a["docProps/custom.xml"]
     tail = xml[xml.rindex(b"</vt:bool>") :]
     assert any(tail in c for c in consts)
+
+
+# ------------------------------------------------------------------ a box with a hole (15.6.2, 15.5.13)
+def circle_sketch(sid, name, cx, cy, r, *, plane=None, extra=None):
+    centre = ir.Point(f"{sid}c", cx, cy)
+    sk = ir.Sketch(
+        sid, name, plane or ir.Plane.named("xy"), [centre], [ir.Curve(f"{sid}k", "circle", [centre.id], r)]
+    )
+    if extra:
+        extra(sk)
+    return sk
+
+
+def hole(n, cx, cy, r, *, sketch=None, **kw):
+    sk = sketch or circle_sketch(f"s{n}", f"MyCircle{n}", cx, cy, r)
+    cut_kw = {"operation": "cut", "end": "through_all", "direction": "midplane"}
+    cut_kw.update(
+        {k: v for k, v in kw.items() if k in ("operation", "direction", "end", "profile", "suppressed")}
+    )
+    return [sk, ir.Extrude(f"e{n}", f"MyCut{n}", sk.id, kw.get("depth", 0.0), **cut_kw)]
+
+
+def example_hole():
+    """Section 15.6.8's second example: the box of o12's first pair with a hole through it."""
+    return ir.Document("hole", box(1, 0.0, 0.0, 0.01, 0.02, 0.03) + hole(2, 0.005, 0.01, 0.0025))
+
+
+def test_the_box_with_a_hole_of_15_6_8():
+    p = gen.plan(example_hole(), identity=IDENT)
+    s = p.slots
+    unix, filetime = s["doc.unix"], s["doc.filetime"]
+    sk1, box1, circle, cut = s["features"]
+    assert (sk1["name"], sk1["id"], sk1["circle"], sk1["log_modified"], sk1["at_origin"]) == (
+        "Sketch1",
+        26,
+        False,
+        True,
+        True,
+    )
+    assert (box1["name"], box1["id"], box1["cut"], box1["log_modified"]) == (
+        "Boss-Extrude1",
+        32,
+        False,
+        False,
+    )
+    assert circle == {
+        "name": "Sketch2",
+        "sketch": True,
+        "circle": True,
+        "log_modified": False,
+        "id": 33,
+        "at_origin": False,
+        "centre": [0.005, 0.01],
+        "radius": 0.0025,
+        "start": [0.005 + 0.0025, 0.01],
+        "created": unix,
+        "modified": unix,
+        "time": filetime,
+        "cache_memo": 0.0,
+        "regen": 102,
+    }
+    ring = [(False, 4), (True, 1), (False, 3), (True, 0), (False, 1)]
+    assert cut == {
+        "name": "Cut-Extrude1",
+        "sketch": False,
+        "cut": True,
+        "log_modified": False,
+        "id": 40,
+        "sketch_name": "Sketch2",
+        "sketch_id": 33,
+        "first": False,
+        "merge": False,
+        "centre": [0.005, 0.01, 0.015],
+        "diagonal": math.sqrt(0.01 * 0.01 + 0.02 * 0.02 + 0.03 * 0.03),
+        "body_id": 102,
+        "body_label": "body2",
+        "target_id": 101,
+        "target_label": "body1",
+        "target_uid": 32,
+        "target_created": unix,
+        "ring": [{"end": e, "uid": 32, "created": unix, "face": n} for e, n in ring],
+        "created": unix,
+        "time": filetime,
+        "cache_memo": 0.0,
+        "counter_marks": 14,
+        "counter_face1": 0,
+        "counter_face2": 0,
+        "counter_end": 0,
+    }
+    # The hole's items carry none of a box's own fields (15.6.2).
+    assert not {"corners", "depth", "depth_text", "cache_text", "counter_favorite"} & (set(circle) | set(cut))
+    fields = ("id", "name", "label", "feature", "last", "changed", "live", "from", "into", "regen", "time")
+    assert [tuple(b[k] for k in fields) for b in s["bodies"]] == [
+        (101, "Boss-Extrude1", "body1", 32, 32, [], False, [], [102], 1151, filetime),
+        (102, "Cut-Extrude1", "body2", 40, 40, [], True, [101], [], 1153, filetime),
+    ]
+    assert s["live_bodies"] == [s["bodies"][1]] and s["body_links"] == [{"new": 102, "old": 101}]
+    assert s["builds"] == [{"feature": 40, "time": filetime}, {"feature": 32, "time": filetime}]
+    assert s["model.min"] == [0.0, 0.0, 0.0] and s["model.max"] == [0.01, 0.02, 0.03]
+    assert s["model.solid"] and s["model.origin_refs"] == 1 and s["hdr.next_id"] == 41
+    assert (s["doc.stamp"], s["doc.stamp2"], s["fixed.id_base"]) == (140, 111, 125)
+    # The cut leaves the model box, the sphere and the planes as the box alone has them.
+    alone = gen.plan(ir.Document("hole", box(1, 0.0, 0.0, 0.01, 0.02, 0.03)), identity=IDENT).slots
+    for key in ("model.centre", "model.sphere", "hdr.centre", "planes.front", "planes.top", "planes.right"):
+        assert s[key] == alone[key]
+    assert [x["id"] for x in s["meta.kw_extrusions"]] == [32, 40]
+    assert [x["id"] for x in s["meta.kw_sketches"]] == [26, 33, 5]
+    assert s["sketches"] == [sk1, circle]
+    assert p.names == {
+        "s1": "Sketch1",
+        "MySketch1": "Sketch1",
+        "e1": "Boss-Extrude1",
+        "MyExtrude1": "Boss-Extrude1",
+        "s2": "Sketch2",
+        "MyCircle2": "Sketch2",
+        "e2": "Cut-Extrude1",
+        "MyCut2": "Cut-Extrude1",
+    }
+    assert p.left_out == []
+
+
+def test_boxes_carry_the_new_fields_and_their_bodies_are_live():
+    s = gen.plan(example_two_boxes(), identity=IDENT).slots
+    f = s["features"]
+    assert [(x.get("circle"), x.get("cut"), x["log_modified"]) for x in f] == [
+        (False, None, True),
+        (None, False, False),
+        (False, None, True),
+        (None, False, False),
+    ]
+    for b in s["bodies"]:
+        assert (b["last"], b["changed"], b["live"], b["from"], b["into"]) == (b["feature"], [], True, [], [])
+    assert s["live_bodies"] == s["bodies"] and s["body_links"] == []
+    # o12's order: 40 then 32 (remainders 6 and 15 modulo 17).
+    assert [b["feature"] for b in s["builds"]] == [40, 32]
+    empty = gen.plan(ir.Document("empty"), identity=IDENT).slots
+    assert (empty["live_bodies"], empty["body_links"], empty["builds"]) == ([], [], [])
+
+
+def test_creation_numbers_follow_the_sketch_place():
+    # 15.5.4: the first sketch leaves 6, a later one 7, whether or not it starts on the origin.
+    doc = ir.Document(
+        "d",
+        box(1, 0.01, 0.01, 0.02, 0.02, 0.01)
+        + box(2, 0.0, 0.0, 0.005, 0.005, 0.01)
+        + box(3, 0.03, 0, 0.04, 0.01, 0.01),
+    )
+    s = gen.plan(doc, identity=IDENT).slots
+    assert [x["id"] for x in s["features"]] == [26, 32, 33, 40, 41, 48]
+    assert [x["at_origin"] for x in s["sketches"]] == [False, True, False]
+    # 15.2.7.5: by node id modulo 17 (32 is 15, 40 is 6, 48 is 14).
+    assert [b["feature"] for b in s["builds"]] == [40, 48, 32]
+
+
+def test_builds_with_the_same_remainder_put_the_later_first():
+    from solidseas.nativewrite.generate.slots import body_slots
+
+    bodies = [
+        {"id": 101, "feature": 32, "changed": [34], "live": False, "from": [], "time": 1},
+        {"id": 102, "feature": 49, "changed": [], "live": True, "from": [101], "time": 2},
+    ]
+    live, links, builds = body_slots(bodies)
+    assert live == [bodies[1]] and links == [{"new": 102, "old": 101}]
+    # 32 and 49 both leave 15; 34 leaves 0. The later of 32 and 49 in the list comes first.
+    assert builds == [{"feature": 34, "time": 1}, {"feature": 49, "time": 2}, {"feature": 32, "time": 1}]
+
+
+def test_refused_circle_sketches():
+    def refuse(sk):
+        return _refusal(box(1, 0, 0, 0.02, 0.02, 0.01) + hole(2, 0, 0, 0, sketch=sk))[0]
+
+    off = ir.Plane((0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (0.0, 0.0, -1.0), "xz")
+    assert refuse(circle_sketch("s2", "C", 0.01, 0.01, 0.002, plane=off)) == (
+        "C: sketch on a plane other than the Front Plane"
+    )
+    sk = circle_sketch("s2", "C", 0.01, 0.01, 0.002)
+    sk.suppressed = True
+    assert refuse(sk) == "C: suppressed sketch"
+
+    def second_circle(sk):
+        sk.curves.append(ir.Curve("k2", "circle", [sk.points[0].id], 0.001))
+
+    several = "C: a sketch with more than one circle is not written yet"
+    assert refuse(circle_sketch("s2", "C", 0.01, 0.01, 0.002, extra=second_circle)) == several
+    sk = circle_sketch("s2", "C", 0.01, 0.01, 0.002)
+    sk.curves[0].construction = True
+    assert refuse(sk) == several
+    # A circle among lines is no hole's sketch: it is read as a rectangle's.
+    mixed = rect_sketch("s2", "C", 0.0, 0.0, 0.01, 0.01)
+    mixed.curves.append(ir.Curve("k", "circle", ["s2a"], 0.001))
+    assert refuse(mixed) == "C: sketch is not a single corner rectangle"
+    alone = box(1, 0, 0, 0.02, 0.02, 0.01) + [circle_sketch("s2", "C", 0.01, 0.01, 0.002)]
+    assert _refusal(alone) == ["C: sketch not followed by its extrusion"]
+
+
+def test_a_degenerate_circle_is_refused():
+    # The IR's validation already refuses a radius that is not positive; the rule stands
+    # behind it for a circle that comes in another way.
+    from solidseas.nativewrite.generate.slots import _circle
+
+    sk = circle_sketch("s", "C", 0.01, 0.01, 0.002)
+    sk.curves[0].radius = 0.0
+    assert _circle(sk) == (None, "degenerate circle")
+
+
+def test_refused_cuts():
+    one = box(1, 0, 0, 0.02, 0.02, 0.01)
+    assert _refusal(
+        one + hole(2, 0.01, 0.01, 0.002, operation="new_body", end="blind", depth=0.01, direction="forward")
+    ) == ["MyCut2: a circle is written only as the profile of a cut"]
+    both = "MyCut2: only a cut through all in both directions is written"
+    assert _refusal(one + hole(2, 0.01, 0.01, 0.002, direction="forward")) == [both]
+    assert _refusal(one + hole(2, 0.01, 0.01, 0.002, end="blind", depth=0.01)) == [both]
+    last = "a cut is written only as the last feature of a part with one box"
+    assert _refusal(hole(1, 0.01, 0.01, 0.002)) == [f"MyCut1: {last}"]
+    two = one + box(3, 0.03, 0, 0.04, 0.01, 0.01)
+    assert _refusal(two + hole(2, 0.01, 0.01, 0.002)) == [f"MyCut2: {last}"]
+    after = one + hole(2, 0.01, 0.01, 0.002) + box(3, 0.03, 0, 0.04, 0.01, 0.01)
+    assert _refusal(after) == [f"MyCut2: {last}"]
+    outside = "MyCut2: the circle is not inside the box's rectangle"
+    for cx, cy, r in ((0.019, 0.01, 0.002), (0.01, 0.002, 0.002), (0.03, 0.03, 0.001), (0.01, 0.01, 0.01)):
+        assert _refusal(one + hole(2, cx, cy, r)) == [outside]
+    assert _refusal(one + hole(2, 0.01, 0.01, 0.002, profile=[["s2k"], ["s2k"]])) == [
+        "MyCut2: profile is not the whole circle"
+    ]
+    assert _refusal(one + hole(2, 0.01, 0.01, 0.002, suppressed=True)) == ["MyCut2: suppressed extrusion"]
+    # The whole circle as its profile, and a centre on the origin's corner of the box, are accepted.
+    ok = gen.plan(ir.Document("d", one + hole(2, 0.01, 0.01, 0.002, profile=[["s2k"]])), identity=IDENT)
+    assert [f["name"] for f in ok.slots["features"]][-1] == "Cut-Extrude1"
+
+
+def test_a_refused_cut_with_allow_partial_leaves_the_box():
+    features = box(1, 0, 0, 0.02, 0.02, 0.01) + hole(2, 0.01, 0.01, 0.002, direction="forward")
+    p = gen.plan(ir.Document("d", features), identity=IDENT, allow_partial=True)
+    assert p.left_out == [
+        "MyCut2: only a cut through all in both directions is written",
+        "MyCircle2: left out with MyCut2, which is not written",
+    ]
+    s = p.slots
+    assert [f["name"] for f in s["features"]] == ["Sketch1", "Boss-Extrude1"]
+    assert [b["live"] for b in s["bodies"]] == [True] and s["body_links"] == []
+    assert (s["doc.stamp"], s["doc.stamp2"]) == (120, 105)
+
+
+def test_left_out_entries_of_a_circle_sketch():
+    def extra(sk):
+        sk.points.append(ir.Point("spare", 0.0, 0.0))
+        sk.constraints.append(ir.Constraint("fix", "coincident", points=["origin", "spare"]))
+        sk.dimensions.append(ir.Dimension("dr", "radius", 0.002, curves=["s2k"], parameter="r"))
+        sk.dimensions.append(ir.Dimension("dd", "diameter", 0.004, curves=["s2k"]))
+
+    sk = circle_sketch("s2", "Bore", 0.01, 0.01, 0.002, extra=extra)
+    params = [ir.Parameter("r", 0.002, expression="size / 2"), ir.Parameter("d", 0.01, expression="depth")]
+    features = box(1, 0, 0, 0.02, 0.02, 0.01) + hole(2, 0, 0, 0, sketch=sk)
+    features[-1].depth_parameter = "d"  # a cut through all reads no depth: nothing is reported
+    p = gen.plan(ir.Document("d", features, params), identity=IDENT)
+    kept = "is kept as geometry only; the circle has no driving dimensions in the part"
+    assert p.left_out == [
+        f"Bore: dimension r (radius, 2 mm) {kept}; its expression size / 2 is not kept",
+        f"Bore: dimension dd (diameter, 4 mm) {kept}",
+        "Bore: relation coincident on origin, spare is not written; the circle keeps its centre and radius",
+        "Bore: point spare is not written",
+    ]
+
+
+def test_a_box_with_a_hole_writes_and_its_members_have_the_lengths_of_the_spec():
+    doc = example_hole()
+    blob = gen.write_part(doc, identity=IDENT)
+    part = container.read_document(blob)
+    s = gen.plan(doc, identity=IDENT).slots
+    m = gen.assemble(s)
+    assert [x.name for x in part.members] == list(gen.MEMBERS)
+    for x in part.members:
+        assert x.data == m[x.name]
+    one = gen.assemble(
+        gen.plan(ir.Document("hole", box(1, 0.0, 0.0, 0.01, 0.02, 0.03)), identity=IDENT).slots
+    )
+    two = gen.assemble(gen.plan(dataclasses.replace(example_two_boxes(), name="hole"), identity=IDENT).slots)
+
+    # The stamps count the cut as an extrusion (15.6.6).
+    assert m["ModelStamps"] == struct.pack("<III", s["doc.created"], 140, 111)
+    assert m["_DL_VERSION_17000/DLUpdateStamp"] == struct.pack("<IH", 140, 0)
+    # SwDocContentMgrInfo (15.1.6) lists the one body still in the part, named after the cut,
+    # one UTF-16 unit shorter than Boss-Extrude1.
+    info = m["SwDocContentMgr/SwDocContentMgrInfo"]
+    assert len(info) == len(one["SwDocContentMgr/SwDocContentMgrInfo"]) - 2
+    assert struct.pack("<II", 1, 102) + listing.cstring("Cut-Extrude1") in info
+    assert listing.cstring("Boss-Extrude1") not in info
+    # Header2 (15.2.2.2): the circle is logged created only, so one Modified stamp fewer than
+    # two boxes (a class reference, u16, u32, u32 and the CString "Modified": 32 bytes), and
+    # the last node's name is one unit shorter.
+    modified = 2 + 2 + 4 + 4 + len(listing.cstring("Modified"))
+    assert len(m["Header2"]) == len(two["Header2"]) - modified - 2
+    assert m["Header2"] == m["Contents/Config-0-ModelHeader"]
+    # CMgr (15.2.7.4, 15.2.7.5) against one box: a second body in the body list (8), a link in
+    # both link lists (8 each), a second linked node (34) with 101 into 102 and 102 from 101,
+    # each listed twice at 6 bytes an id (24), a second build (12) and a second id at the end (8).
+    assert len(m["Contents/CMgr"]) == len(one["Contents/CMgr"]) + 8 + 8 * 2 + 34 + 24 + 12 + 8
+    builds = struct.pack("<I", 2) + b"".join(
+        struct.pack("<III", feature, s["doc.filetime"] // 2**32, s["doc.filetime"] % 2**32)
+        for feature in (40, 32)
+    )
+    assert builds in m["Contents/CMgr"]
+    # Config-0 (15.4.6) holds two bodies like two boxes, newest first: body 102 live, made and
+    # last built by 40, then body 101, used up, by 32.
+    c0 = m["Contents/Config-0"]
+    assert len(c0) == len(two["Contents/Config-0"])
+    assert c0.index(struct.pack("<IIII", 102, 0, 40, 40)) < c0.index(struct.pack("<IIII", 101, 1, 32, 32))
+    # KeyWords (15.1.5): the cut's element closes itself, and the circle is listed as a sketch.
+    cut_kw = (
+        '<Extrusion id="40" Name="Cut-Extrude1" Dissectable="true" '
+        'DissectableChildren="33" DissectableRoot="true"/>'
+    )
+    circle_kw = '<Sketch id="33" Name="Sketch2" Dissectable="true"/>'
+    text = m["swXmlContents/KeyWords"][1:].decode()
+    assert cut_kw in text and circle_kw in text
+    assert len(m["swXmlContents/KeyWords"]) == len(one["swXmlContents/KeyWords"]) + len(cut_kw) + len(
+        circle_kw
+    )
+    # VisualStates (15.2.6.3): a display record per sketch, a circle's like a rectangle's.
+    assert len(m["ThirdPtyStore/VisualStates"]) == len(two["ThirdPtyStore/VisualStates"])
+    # The feature stream (15.5): 17 + 4 top-level features; the circle's centre and start point
+    # (15.5.12); the box twice in the extrusion's records (15.5.8) and twice in the cut's
+    # (15.5.13), whose box is the box's own centre and diagonal.
+    fs = m["Contents/Config-0-ResolvedFeatures"]
+    assert fs[4:6] == (21).to_bytes(2, "little")
+    assert struct.pack("<H", 30) + struct.pack("<dd", 0.005, 0.01) in fs
+    assert struct.pack("<H", 30) + struct.pack("<dd", 0.005 + 0.0025, 0.01) in fs
+    assert fs.count(struct.pack("<I4d", 1, 0.005, 0.01, 0.015, s["features"][1]["diagonal"])) == 4
+    for name in ("moICE_c", "sgArcHandle", "moFromSktEnt3IntSurfIdRep_c", "moEndSpec_c", "moFromEndSpec_c"):
+        assert name.encode() in fs
+    # The members a cut does not touch are those of two boxes, byte for byte or in length.
+    for name in ("Contents/CMgrHdr2", "Contents/Config-0-LWDATA", "Contents/Definition", "docProps/core.xml"):
+        assert len(m[name]) == len(two[name])
+
+
+def test_the_hole_shape_of_spec_constants():
+    hole_shapes = [pair for pair in gen._shapes() if pair[0][0].name == "hole"]
+    assert len(hole_shapes) == 1
+    (doc_a, id_a), (doc_b, id_b) = hole_shapes[0]
+    for doc, ident in ((doc_a, id_a), (doc_b, id_b)):
+        s = gen.plan(doc, identity=ident).slots
+        assert [f["name"] for f in s["features"]] == ["Sketch1", "Boss-Extrude1", "Sketch2", "Cut-Extrude1"]
+    a, b = gen.plan(doc_a, identity=id_a).slots, gen.plan(doc_b, identity=id_b).slots
+    assert a["features"][2]["centre"] != b["features"][2]["centre"]
+    assert a["features"][2]["radius"] != b["features"][2]["radius"]
+    assert {n: len(v) for n, v in gen.assemble(a).items()} == {n: len(v) for n, v in gen.assemble(b).items()}
+    # The cut's end conditions are the same in every part: a constant run (15.5.13).
+    fs = gen.assemble(a)["Contents/Config-0-ResolvedFeatures"]
+    end = fs[fs.index(b"moEndSpec_c") :]
+    assert any(end[:40] in c for c in gen.SPEC_CONSTANTS)

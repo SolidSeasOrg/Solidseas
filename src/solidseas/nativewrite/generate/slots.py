@@ -33,8 +33,8 @@ from .. import ir
 # spec 15.6.7: a plain number: an optional sign, digits with at most one point, at most one unit
 _PLAIN_NUMBER = re.compile(r"[+-]?(?=\.?\d)\d*\.?\d*(mm|cm|m|in|deg|\u00b0)?")
 FIRST_ID = 26  # spec 15.6.2: the creation numbers count on from 26
-GAP_AT_ORIGIN = 6  # spec 15.6.2: a sketch on the origin takes the counter and adds 6
-GAP_OFF_ORIGIN = 7  # spec 15.6.2: off the origin, 7
+GAP_FIRST_SKETCH = 6  # spec 15.6.2, 15.5.4: the part's first sketch takes the counter and adds 6
+GAP_LATER_SKETCH = 7  # spec 15.6.2, 15.5.4: a later sketch, 7
 FIRST_BODY = 101  # spec 15.6.2, 15.6.4: body ids from 101
 EMPTY_PLANE_HALF = (0.08899, 0.05500000000000001)  # spec 15.6.3: the template's rectangle
 PLANE_MARGIN = 0.1  # spec 15.6.3: half side e/2 + e/2*0.1
@@ -68,6 +68,12 @@ ORIGIN_REGEN = 102  # spec 15.6.6 fixed.origin.regen
 SKETCH_REGEN = 103  # spec 15.6.2 regen
 BODY_REGEN = 1151  # spec 15.6.4 regen: 1151 + 2k
 COUNTER_MARKS = 7  # spec 15.6.2 counter_marks
+CIRCLE_REGEN = 102  # spec 15.6.2 regen of a circle, 15.5.9
+CUT_COUNTER_MARKS = 14  # spec 15.6.2 counter_marks of a cut, 15.5.9
+CUT_NAME = "Cut-Extrude1"  # spec 15.6.2 name of a hole's cut
+# spec 15.6.2 ring, 15.5.13: (end, face) of side 4, end face 1, side 3, end face 0, side 1
+RING = ((False, 4), (True, 1), (False, 3), (True, 0), (False, 1))
+BUILD_BUCKETS = 17  # spec 15.6.5 builds, 15.2.7.5: a hash table of 17 buckets
 OS_VERSION = (2, 10, 0, 0)  # spec 15.6.6 bio.os.platform, major, minor, build
 LOCALE = 1033  # spec 15.6.6 bio.locale
 WEEKDAYS = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
@@ -172,6 +178,24 @@ class _Rect:
     origin_corner: str | None  # a corner (not the minimum) that lies on the origin
 
 
+@dataclass
+class _Circle:
+    curve: str  # the circle's curve id
+    centre_id: str  # its centre point's id (``origin`` for the sketch origin)
+    centre: tuple[float, float]  # cx, cy
+    radius: float
+
+
+@dataclass
+class _Pair:
+    """One accepted pair of the timeline: a box (a rectangle and its extrusion) or the hole."""
+
+    sketch: ir.Sketch
+    extrude: ir.Extrude
+    rect: _Rect | None = None
+    circle: _Circle | None = None
+
+
 def _number(v: float) -> str:
     """A number rounded to 8 decimals, trailing zeros and a trailing point removed (15.6.2)."""
     return f"{round(v, 8):.8f}".rstrip("0").rstrip(".")
@@ -186,11 +210,27 @@ def _kept_expression(expression: str | None) -> bool:
     return bool(expression) and not _PLAIN_NUMBER.fullmatch(expression.replace(" ", ""))
 
 
+def _on_front_plane(s: ir.Sketch) -> bool:
+    """Whether the sketch lies on the base plane ``xy``, SOLIDWORKS' Front Plane (15.6.2)."""
+    return tuple(map(tuple, (s.plane.origin, s.plane.x_dir, s.plane.y_dir))) == FRONT and (
+        s.plane.offset in (None, 0.0) and s.plane.face_point is None
+    )
+
+
+def _is_circle_sketch(s: ir.Sketch) -> bool:
+    """Whether the sketch is read as a hole's (15.6.2): its curves are circles, and there is one.
+
+    The specification calls the hole's sketch the one whose one curve is a circle, and
+    refuses a sketch of several circles with its own reason; a sketch whose every curve is
+    a circle is therefore read against the circle's table, and every other sketch against
+    the rectangle's.
+    """
+    return bool(s.curves) and all(c.kind == "circle" for c in s.curves)
+
+
 def _rectangle(s: ir.Sketch) -> tuple[_Rect | None, str | None]:
     """The sketch's corner rectangle, or the reason it is refused."""
-    if tuple(map(tuple, (s.plane.origin, s.plane.x_dir, s.plane.y_dir))) != FRONT or (
-        s.plane.offset not in (None, 0.0) or s.plane.face_point is not None
-    ):
+    if not _on_front_plane(s):
         return None, "sketch on a plane other than the Front Plane"
     if s.suppressed:
         return None, "suppressed sketch"
@@ -241,8 +281,26 @@ def _rectangle(s: ir.Sketch) -> tuple[_Rect | None, str | None]:
     return rect, None
 
 
+def _circle(s: ir.Sketch) -> tuple[_Circle | None, str | None]:
+    """The hole's circle, or the reason its sketch is refused (15.6.2's circle sketch table)."""
+    if not _on_front_plane(s):
+        return None, "sketch on a plane other than the Front Plane"
+    if s.suppressed:
+        return None, "suppressed sketch"
+    if len(s.curves) != 1 or s.curves[0].kind != "circle" or s.curves[0].construction:
+        return None, "a sketch with more than one circle is not written yet"
+    c = s.curves[0]
+    r = c.radius
+    if r is None or not math.isfinite(r) or not r > 0:
+        return None, "degenerate circle"
+    xy = {p.id: (p.x, p.y) for p in s.points}
+    xy[ir.ORIGIN] = (0.0, 0.0)
+    centre = c.points[0]
+    return _Circle(c.id, centre, (float(xy[centre][0]), float(xy[centre][1])), float(r)), None
+
+
 def _extrusion_problem(e: ir.Extrude, rect: _Rect, k: int) -> str | None:
-    """The reason the k-th extrusion, which follows its sketch at once, is refused, or None.
+    """The reason the k-th box's extrusion, which follows its sketch at once, is refused, or None.
 
     A blind depth is positive and finite already: ``ir.validate`` requires it (15.6.2).
     """
@@ -261,6 +319,29 @@ def _extrusion_problem(e: ir.Extrude, rect: _Rect, k: int) -> str | None:
     return None
 
 
+def _cut_problem(e: ir.Extrude, circle: _Circle, boxes: list[_Rect], last: bool) -> str | None:
+    """The reason the hole's cut, which follows its circle at once, is refused, or None.
+
+    ``boxes`` are the boxes accepted before it and ``last`` says whether the cut is the
+    last item of the timeline. The conditions are 15.6.2's cut table, in its order.
+    """
+    if e.operation != "cut":
+        return "a circle is written only as the profile of a cut"
+    if e.end != "through_all" or e.direction != "midplane":
+        return "only a cut through all in both directions is written"
+    if len(boxes) != 1 or not last:
+        return "a cut is written only as the last feature of a part with one box"
+    x0, y0, x1, y1 = boxes[0].corners
+    (cx, cy), r = circle.centre, circle.radius
+    if not (x0 < cx - r and cx + r < x1 and y0 < cy - r and cy + r < y1):
+        return "the circle is not inside the box's rectangle"
+    if e.profile is not None and (len(e.profile) != 1 or list(e.profile[0]) != [circle.curve]):
+        return "profile is not the whole circle"
+    if e.suppressed:
+        return "suppressed extrusion"
+    return None
+
+
 _KIND_REFUSALS = {
     ir.Revolve: "revolves are not written yet",
     ir.Fillet: "fillets are not written yet",
@@ -271,8 +352,8 @@ _KIND_REFUSALS = {
 }
 
 
-def _sketch_notes(s: ir.Sketch, rect: _Rect, params: dict[str, ir.Parameter]) -> list[str]:
-    """15.6.7: what of an accepted sketch the part does not carry."""
+def _dimension_notes(s: ir.Sketch, params: dict[str, ir.Parameter], shape: str) -> list[str]:
+    """15.6.7: one entry per sketch dimension, kept as geometry only; ``shape`` is what the part has."""
     notes = []
     for d in s.dimensions:
         if d.kind in ir.ANGLE_DIMENSIONS:
@@ -282,11 +363,17 @@ def _sketch_notes(s: ir.Sketch, rect: _Rect, params: dict[str, ir.Parameter]) ->
         p = params.get(d.parameter or "")
         entry = (
             f"{s.name}: dimension {p.name if p is not None else d.id} ({d.kind}, {value}) is kept as "
-            "geometry only; the rectangle has no driving dimensions in the part"
+            f"geometry only; the {shape} has no driving dimensions in the part"
         )
         if p is not None and _kept_expression(p.expression):
             entry += f"; its expression {p.expression} is not kept"
         notes.append(entry)
+    return notes
+
+
+def _sketch_notes(s: ir.Sketch, rect: _Rect, params: dict[str, ir.Parameter]) -> list[str]:
+    """15.6.7: what of an accepted rectangle's sketch the part does not carry."""
+    notes = _dimension_notes(s, params, "rectangle")
     corners = set(rect.corner_ids)
     for c in s.constraints:
         if c.kind in ("horizontal", "vertical") and not c.points and set(c.curves) <= rect.lines:
@@ -311,8 +398,26 @@ def _sketch_notes(s: ir.Sketch, rect: _Rect, params: dict[str, ir.Parameter]) ->
     return notes
 
 
-def _accept(doc: ir.Document) -> tuple[list, list[str], list[str]]:
-    """The accepted pairs (sketch, extrusion, rectangle), the refusals, and what is left out.
+def _circle_notes(s: ir.Sketch, circle: _Circle, params: dict[str, ir.Parameter]) -> list[str]:
+    """15.6.7: what of an accepted circle's sketch the part does not carry.
+
+    The part writes no relation of a circle sketch, so every constraint is reported, and
+    every point but the centre.
+    """
+    notes = _dimension_notes(s, params, "circle")
+    for c in s.constraints:
+        notes.append(
+            f"{s.name}: relation {c.kind} on {', '.join([*c.points, *c.curves])} is not written; "
+            "the circle keeps its centre and radius"
+        )
+    for p in s.points:
+        if p.id != circle.centre_id:
+            notes.append(f"{s.name}: point {p.id} is not written")
+    return notes
+
+
+def _accept(doc: ir.Document) -> tuple[list[_Pair], list[str], list[str]]:
+    """The accepted pairs, the refusals, and what is left out.
 
     ``left_out`` is in timeline order and holds the refusals too, as 15.6.7 lists them
     when ``allow_partial`` is given.
@@ -323,7 +428,8 @@ def _accept(doc: ir.Document) -> tuple[list, list[str], list[str]]:
     for f in items:
         if isinstance(f, (ir.Extrude, ir.Revolve)):
             users.setdefault(f.sketch, []).append(f)
-    pairs: list = []
+    pairs: list[_Pair] = []
+    boxes: list[_Rect] = []
     refused: list[str] = []
     left_out: list[str] = []
     dropped: set[str] = set()
@@ -338,7 +444,12 @@ def _accept(doc: ir.Document) -> tuple[list, list[str], list[str]]:
         nxt = items[i + 1] if i + 1 < len(items) else None
         i += 1
         if isinstance(f, ir.Sketch):
-            rect, why = _rectangle(f)
+            hole = _is_circle_sketch(f)
+            rect, circle, why = None, None, None
+            if hole:
+                circle, why = _circle(f)
+            else:
+                rect, why = _rectangle(f)
             mine = users.get(f.id, [])
             if why is None and not (len(mine) == 1 and mine[0] is nxt and isinstance(nxt, ir.Extrude)):
                 why = "sketch not followed by its extrusion"
@@ -346,7 +457,10 @@ def _accept(doc: ir.Document) -> tuple[list, list[str], list[str]]:
                 _refuse(f"{f.name}: {why}")
                 dropped.add(f.id)
                 continue
-            problem = _extrusion_problem(nxt, rect, len(pairs))
+            if hole:
+                problem = _cut_problem(nxt, circle, boxes, i + 1 == len(items))
+            else:
+                problem = _extrusion_problem(nxt, rect, len(boxes))
             i += 1
             if problem is not None:
                 _refuse(f"{nxt.name}: {problem}")
@@ -355,7 +469,13 @@ def _accept(doc: ir.Document) -> tuple[list, list[str], list[str]]:
                 # is refused cannot be written either; it is reported as left out with it.
                 left_out.append(f"{f.name}: left out with {nxt.name}, which is not written")
                 continue
-            pairs.append((f, nxt, rect))
+            if hole:
+                pairs.append(_Pair(f, nxt, circle=circle))
+                # spec 15.6.7: a cut through all reads no depth, so its depth gives no entry.
+                left_out.extend(_circle_notes(f, circle, params))
+                continue
+            pairs.append(_Pair(f, nxt, rect=rect))
+            boxes.append(rect)
             left_out.extend(_sketch_notes(f, rect, params))
             p = params.get(nxt.depth_parameter or "")
             if p is not None and _kept_expression(p.expression):
@@ -363,7 +483,7 @@ def _accept(doc: ir.Document) -> tuple[list, list[str], list[str]]:
                     f"{nxt.name}: depth {_mm(nxt.depth)} mm is written as a number; "
                     f"the expression {p.expression} is not kept"
                 )
-            if len(pairs) == 1 and nxt.operation == "join":
+            if len(boxes) == 1 and nxt.operation == "join":
                 left_out.append(f"{nxt.name}: written as a new body (there is nothing to join)")
         elif isinstance(f, ir.Extrude):
             if f.sketch in dropped:
@@ -565,6 +685,60 @@ def _utc(when: datetime) -> datetime:
     return when.astimezone(UTC)
 
 
+# ------------------------------------------------------------------ the hole's cut (15.6.2)
+def _cut_item(uid: int, circle: dict, box: dict, boxes: int, unix: int, filetime: int) -> dict[str, Any]:
+    """The features item of the hole's cut, by 15.6.2's second table.
+
+    ``uid`` is its creation number, ``circle`` its sketch's item, ``box`` the box's
+    extrusion item (the body it cuts) and ``boxes`` the number of boxes before it.
+    """
+    return {
+        "name": CUT_NAME,
+        "sketch": False,
+        "cut": True,
+        "log_modified": False,  # spec 15.6.2: no extrusion is logged modified
+        "id": uid,
+        "sketch_name": circle["name"],
+        "sketch_id": circle["id"],
+        "first": False,
+        "merge": False,
+        # The hole lies inside the box and leaves its box as it was (15.5.13).
+        "centre": list(box["centre"]),
+        "diagonal": box["diagonal"],
+        "body_id": FIRST_BODY + boxes,
+        "body_label": f"body{boxes + 1}",
+        "target_id": box["body_id"],
+        "target_label": box["body_label"],
+        "target_uid": box["id"],
+        "target_created": box["created"],
+        "ring": [
+            {"end": end, "uid": box["id"], "created": box["created"], "face": face} for end, face in RING
+        ],
+        "created": unix,
+        "time": filetime,
+        "cache_memo": 0.0,
+        "counter_marks": CUT_COUNTER_MARKS,
+        "counter_face1": 0,
+        "counter_face2": 0,
+        "counter_end": 0,
+    }
+
+
+def body_slots(bodies: list[dict]) -> tuple[list[dict], list[dict], list[dict]]:
+    """``live_bodies``, ``body_links`` and ``builds`` from ``bodies`` (15.6.5).
+
+    ``builds`` holds, per body, the feature that made it and then each feature that
+    changed it, all with the body's ``time``, in the order of a hash table of 17 buckets
+    keyed by the feature's node id: by the id modulo 17, and of two with the same
+    remainder the one later in the list first (15.2.7.5).
+    """
+    live = [b for b in bodies if b["live"]]
+    links = [{"new": b["id"], "old": old} for b in bodies for old in b["from"]]
+    built = [{"feature": f, "time": b["time"]} for b in bodies for f in (b["feature"], *b["changed"])]
+    order = sorted(range(len(built)), key=lambda i: (built[i]["feature"] % BUILD_BUCKETS, -i))
+    return live, links, [built[i] for i in order]
+
+
 # ------------------------------------------------------------------ plan (15.6.1)
 def plan(doc: ir.Document, *, identity: Identity | None = None, allow_partial: bool = False) -> Plan:
     """The slot dict, what is left out and the feature names, by the steps of 15.6.1."""
@@ -591,57 +765,83 @@ def plan(doc: ir.Document, *, identity: Identity | None = None, allow_partial: b
     bodies: list[dict] = []
     names: dict[str, str] = {}
     counter = FIRST_ID
-    for k, (sk, ex, rect) in enumerate(pairs):
-        x0, y0, x1, y1 = rect.corners
-        at_origin = x0 == 0.0 and y0 == 0.0
-        sname, ename = f"Sketch{k + 1}", f"Boss-Extrude{k + 1}"
+    box_items: list[dict] = []  # the boxes' extrusion items, in timeline order
+    for k, pair in enumerate(pairs):
+        sk, ex = pair.sketch, pair.extrude
+        sname = f"Sketch{k + 1}"
         sketch = {
             "name": sname,
             "sketch": True,
+            "circle": pair.circle is not None,
+            "log_modified": pair.circle is None,  # spec 15.6.2, 15.2.2.2: a rectangle's sketch only
             "id": counter,
-            "corners": [x0, y0, x1, y1],
-            "at_origin": at_origin,
+            "at_origin": False,
             "created": unix,
             "modified": unix,
             "time": filetime,
             "cache_memo": 0.0,
             "regen": SKETCH_REGEN,
         }
-        counter += GAP_AT_ORIGIN if at_origin else GAP_OFF_ORIGIN
-        depth = float(ex.depth)
-        extrusion = {
-            "name": ename,
-            "sketch": False,
-            "id": counter,
-            "corners": [x0, y0, x1, y1],
-            "sketch_name": sname,
-            "sketch_id": sketch["id"],
-            "depth": depth,
-            "depth_text": _mm(depth),
-            "first": k == 0,
-            "merge": k == 0,
-            "centre": [(x0 + x1) / 2, (y0 + y1) / 2, depth / 2],
-            "diagonal": math.sqrt(_sq(x1 - x0) + _sq(y1 - y0) + _sq(depth)),
-            "body_id": FIRST_BODY + k,
-            "body_label": f"body{k + 1}",
-            "created": unix,
-            "time": filetime,
-            "cache_memo": 0.0,
-            "cache_text": x1 * 0.2,  # spec 15.6.2 cache_text
-            "counter_marks": COUNTER_MARKS,
-            "counter_favorite": 0,
-            "counter_face1": 0,
-            "counter_face2": 0,
-        }
+        counter += GAP_FIRST_SKETCH if k == 0 else GAP_LATER_SKETCH
+        if pair.circle is not None:
+            (cx, cy), r = pair.circle.centre, pair.circle.radius
+            sketch.update({"centre": [cx, cy], "radius": r, "start": [cx + r, cy], "regen": CIRCLE_REGEN})
+            extrusion = _cut_item(counter, sketch, box_items[0], len(box_items), unix, filetime)
+            ename = extrusion["name"]
+            target = bodies[0]
+            target["live"] = False
+            target["into"] = [extrusion["body_id"]]
+            made_from = [target["id"]]
+        else:
+            x0, y0, x1, y1 = pair.rect.corners
+            n = len(box_items)
+            sketch["corners"] = [x0, y0, x1, y1]
+            sketch["at_origin"] = x0 == 0.0 and y0 == 0.0
+            ename = f"Boss-Extrude{n + 1}"
+            depth = float(ex.depth)
+            extrusion = {
+                "name": ename,
+                "sketch": False,
+                "cut": False,
+                "log_modified": False,  # spec 15.6.2: no extrusion is logged modified
+                "id": counter,
+                "corners": [x0, y0, x1, y1],
+                "sketch_name": sname,
+                "sketch_id": sketch["id"],
+                "depth": depth,
+                "depth_text": _mm(depth),
+                "first": n == 0,
+                "merge": n == 0,
+                "centre": [(x0 + x1) / 2, (y0 + y1) / 2, depth / 2],
+                "diagonal": math.sqrt(_sq(x1 - x0) + _sq(y1 - y0) + _sq(depth)),
+                "body_id": FIRST_BODY + n,
+                "body_label": f"body{n + 1}",
+                "created": unix,
+                "time": filetime,
+                "cache_memo": 0.0,
+                "cache_text": x1 * 0.2,  # spec 15.6.2 cache_text
+                "counter_marks": COUNTER_MARKS,
+                "counter_favorite": 0,
+                "counter_face1": 0,
+                "counter_face2": 0,
+            }
+            box_items.append(extrusion)
+            made_from = []
         counter += 1
         features += [sketch, extrusion]
+        b = len(bodies)
         bodies.append(
             {
-                "id": FIRST_BODY + k,
+                "id": FIRST_BODY + b,
                 "name": ename,
-                "label": f"body{k + 1}",
+                "label": f"body{b + 1}",
                 "feature": extrusion["id"],
-                "regen": BODY_REGEN + 2 * k,
+                "last": extrusion["id"],  # spec 15.6.4: nothing written changes a body after it is made
+                "changed": [],
+                "live": True,
+                "from": made_from,
+                "into": [],
+                "regen": BODY_REGEN + 2 * b,
                 "time": filetime,
             }
         )
@@ -649,12 +849,13 @@ def plan(doc: ir.Document, *, identity: Identity | None = None, allow_partial: b
             names[f.id] = part_name
             names[f.name] = part_name
 
+    # Every extrusion counts towards the stamps, a cut included (15.6.6); only boxes give
+    # the model its box, its sphere and its planes (15.6.3).
     n = len(bodies)
-    solid = n > 0
+    solid = bool(box_items)
     boxes = [
         ((f["corners"][0], f["corners"][1], 0.0), (f["corners"][2], f["corners"][3], f["depth"]))
-        for f in features
-        if not f["sketch"]
+        for f in box_items
     ]
     if solid:
         lo = [min(b[0][a] for b in boxes) for a in range(3)]
@@ -667,7 +868,8 @@ def plan(doc: ir.Document, *, identity: Identity | None = None, allow_partial: b
     centre = [(lo[a] + hi[a]) / 2 for a in range(3)]
     planes = _planes(solid, lo, hi, centre)
 
-    # The change stamps count extrusions only; file custom properties do not change them (15.6.6).
+    # The change stamps count extrusions only, a cut among them; file custom properties do not
+    # change them (15.6.6).
     stamp = 102 if n == 0 else 100 + 20 * n  # spec 15.6.6 doc.stamp
     stamp2 = 101 + n * (n + 3)  # spec 15.6.6 doc.stamp2
     sketches = [f for f in features if f["sketch"]]
@@ -760,7 +962,7 @@ def plan(doc: ir.Document, *, identity: Identity | None = None, allow_partial: b
 
 
 def derive(s: dict[str, Any]) -> dict[str, Any]:
-    """Step 6: the slots of 15.6.5 that follow from the identity values and ``features``."""
+    """Step 6: the slots of 15.6.5 that follow from the identity values, ``features`` and ``bodies``."""
     unix = s["doc.unix"]
     saved = datetime.fromtimestamp(unix, UTC)
     offset = timedelta(minutes=s.get("meta.utc_offset", 0))
@@ -773,6 +975,7 @@ def derive(s: dict[str, Any]) -> dict[str, Any]:
     s["meta.saved_text"] = f"{_long_date(local)} {_clock(local)}"
     for key in ("front", "top", "right", "doc", "config"):
         s[f"exch.hash.{key}"] = key_hash(s[f"exch.{key}"])
+    s["live_bodies"], s["body_links"], s["builds"] = body_slots(s["bodies"])
     feats = s["features"]
     s["meta.kw_extrusions"] = sorted((f for f in feats if not f["sketch"]), key=lambda f: str(f["id"]))
     origin = {"id": 5, "name": "Origin", "origin": True}  # spec 15.6.5 meta.kw_sketches

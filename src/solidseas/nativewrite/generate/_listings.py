@@ -499,42 +499,42 @@ LISTINGS = {
         ('rep', 3949, 0, '15.3.4 3dexperience-configheader.srl:69'),  # spec 15.3.4 3dexperience-configheader.srl:69
     ),  # spec 15.3 3dexperience-configheader.srl
     'Contents/CMgr': (  # spec 15.2 cmgr.srl
-        ('archive', 'start', 1, '15.2.7.1 cmgr.srl:31'),  # spec 15.2.7.1 cmgr.srl:31
-        ('class', 'moConfigurationMgr_c', 1, None, '15.2.7.1 cmgr.srl:32'),  # spec 15.2.7.1 cmgr.srl:32
-        ('put', 'u16', (0,), '15.2.7.1 cmgr.srl:33'),  # spec 15.2.7.1 cmgr.srl:33
-        ('hex', '0000000000000040', '15.2.7.1 cmgr.srl:34'),  # spec 15.2.7.1 cmgr.srl:34
-        ('put', 'i32', (-1,), '15.2.7.1 cmgr.srl:35'),  # spec 15.2.7.1 cmgr.srl:35
-        ('put', 'u32', (0,), '15.2.7.1 cmgr.srl:36'),  # spec 15.2.7.1 cmgr.srl:36
-        ('put', 'cstr', ('',), '15.2.7.1 cmgr.srl:37'),  # spec 15.2.7.1 cmgr.srl:37
-        ('rep', 14, 0, '15.2.7.1 cmgr.srl:38'),  # spec 15.2.7.1 cmgr.srl:38
-        ('put', 'u32', (101,), '15.2.7.1 cmgr.srl:8'),  # spec 15.2.7.1 cmgr.srl:8
-        ('rep', 13, 0, '15.2.7.1 cmgr.srl:9'),  # spec 15.2.7.1 cmgr.srl:9
-        ('put', 'u32', (17000,), '15.2.7.1 cmgr.srl:10'),  # spec 15.2.7.1 cmgr.srl:10
-        ('rep', 8, 0, '15.2.7.1 cmgr.srl:11'),  # spec 15.2.7.1 cmgr.srl:11
-        ('put', 'u32', (2024016,), '15.2.7.1 cmgr.srl:12'),  # spec 15.2.7.1 cmgr.srl:12
-        ('put', 'u16', (0,), '15.2.7.1 cmgr.srl:13'),  # spec 15.2.7.1 cmgr.srl:13
-        ('put', 'cstr', ('',), '15.2.7.1 cmgr.srl:14'),  # spec 15.2.7.1 cmgr.srl:14
-        ('put', 'u8', (0,), '15.2.7.1 cmgr.srl:15'),  # spec 15.2.7.1 cmgr.srl:15
-        ('put', 'u16', (65535, 0), '15.2.7.1 cmgr.srl:16'),  # spec 15.2.7.1 cmgr.srl:16
-        ('put', 'u8', (3,), '15.2.7.1 cmgr.srl:17'),  # spec 15.2.7.1 cmgr.srl:17
-        ('put', 'i32', (-1, -1), '15.2.7.1 cmgr.srl:18'),  # spec 15.2.7.1 cmgr.srl:18
-        ('put', 'f32', (-1.0,), '15.2.7.1 cmgr.srl:19'),  # spec 15.2.7.1 cmgr.srl:19
-        ('rep', 14, 0, '15.2.7.1 cmgr.srl:20'),  # spec 15.2.7.1 cmgr.srl:20
-        ('put', 'u32', (1,), '15.2.7.1 cmgr.srl:21'),  # spec 15.2.7.1 cmgr.srl:21
-        ('rep', 6, 0, '15.2.7.1 cmgr.srl:22'),  # spec 15.2.7.1 cmgr.srl:22
-        ('put', 'i32', (-1,), '15.2.7.1 cmgr.srl:23'),  # spec 15.2.7.1 cmgr.srl:23
-        ('put', 'u32', (('=', '$cmgr.created//4294967296'),), '15.2.7.1 cmgr.srl:24'),  # spec 15.2.7.1 cmgr.srl:24
-        ('put', 'u32', (('=', '$cmgr.created%4294967296'),), '15.2.7.1 cmgr.srl:25'),  # spec 15.2.7.1 cmgr.srl:25
-        ('put', 'u16', (2,), '15.2.7.1 cmgr.srl:26'),  # spec 15.2.7.1 cmgr.srl:26
-        ('put', 'u32', (350108,), '15.2.7.1 cmgr.srl:27'),  # spec 15.2.7.1 cmgr.srl:27
-        ('put', 'u32', (1,), '15.2.7.1 cmgr.srl:28'),  # spec 15.2.7.1 cmgr.srl:28
-        ('class', 'moPartConfiguration_c', 1, None, '15.2.7.3 cmgr.srl:42'),  # spec 15.2.7.3 cmgr.srl:42
-        ('class', 'moNodeName_c', 1, None, '15.2.7.3 cmgr.srl:43'),  # spec 15.2.7.3 cmgr.srl:43
-        ('put', 'cstr', ('Default',), '15.2.7.3 cmgr.srl:44'),  # spec 15.2.7.3 cmgr.srl:44
-        ('hex', '0000000000000040', '15.2.7.3 cmgr.srl:45'),  # spec 15.2.7.3 cmgr.srl:45
-        ('hex', '0000000000020000', '15.2.7.3 cmgr.srl:46'),  # spec 15.2.7.3 cmgr.srl:46
-        ('put', 'cstr', ('',), '15.2.7.3 cmgr.srl:47'),  # spec 15.2.7.3 cmgr.srl:47
-        ('put', 'u32', (0,), '15.2.7.3 cmgr.srl:48'),  # spec 15.2.7.3 cmgr.srl:48
+        ('archive', 'start', 1, '15.2.7.1 cmgr.srl:50'),  # spec 15.2.7.1 cmgr.srl:50
+        ('class', 'moConfigurationMgr_c', 1, None, '15.2.7.1 cmgr.srl:51'),  # spec 15.2.7.1 cmgr.srl:51
+        ('put', 'u16', (0,), '15.2.7.1 cmgr.srl:52'),  # spec 15.2.7.1 cmgr.srl:52
+        ('hex', '0000000000000040', '15.2.7.1 cmgr.srl:53'),  # spec 15.2.7.1 cmgr.srl:53
+        ('put', 'i32', (-1,), '15.2.7.1 cmgr.srl:54'),  # spec 15.2.7.1 cmgr.srl:54
+        ('put', 'u32', (0,), '15.2.7.1 cmgr.srl:55'),  # spec 15.2.7.1 cmgr.srl:55
+        ('put', 'cstr', ('',), '15.2.7.1 cmgr.srl:56'),  # spec 15.2.7.1 cmgr.srl:56
+        ('rep', 14, 0, '15.2.7.1 cmgr.srl:57'),  # spec 15.2.7.1 cmgr.srl:57
+        ('put', 'u32', (101,), '15.2.7.1 cmgr.srl:9'),  # spec 15.2.7.1 cmgr.srl:9
+        ('rep', 13, 0, '15.2.7.1 cmgr.srl:10'),  # spec 15.2.7.1 cmgr.srl:10
+        ('put', 'u32', (17000,), '15.2.7.1 cmgr.srl:11'),  # spec 15.2.7.1 cmgr.srl:11
+        ('rep', 8, 0, '15.2.7.1 cmgr.srl:12'),  # spec 15.2.7.1 cmgr.srl:12
+        ('put', 'u32', (2024016,), '15.2.7.1 cmgr.srl:13'),  # spec 15.2.7.1 cmgr.srl:13
+        ('put', 'u16', (0,), '15.2.7.1 cmgr.srl:14'),  # spec 15.2.7.1 cmgr.srl:14
+        ('put', 'cstr', ('',), '15.2.7.1 cmgr.srl:15'),  # spec 15.2.7.1 cmgr.srl:15
+        ('put', 'u8', (0,), '15.2.7.1 cmgr.srl:16'),  # spec 15.2.7.1 cmgr.srl:16
+        ('put', 'u16', (65535, 0), '15.2.7.1 cmgr.srl:17'),  # spec 15.2.7.1 cmgr.srl:17
+        ('put', 'u8', (3,), '15.2.7.1 cmgr.srl:18'),  # spec 15.2.7.1 cmgr.srl:18
+        ('put', 'i32', (-1, -1), '15.2.7.1 cmgr.srl:19'),  # spec 15.2.7.1 cmgr.srl:19
+        ('put', 'f32', (-1.0,), '15.2.7.1 cmgr.srl:20'),  # spec 15.2.7.1 cmgr.srl:20
+        ('rep', 14, 0, '15.2.7.1 cmgr.srl:21'),  # spec 15.2.7.1 cmgr.srl:21
+        ('put', 'u32', (1,), '15.2.7.1 cmgr.srl:22'),  # spec 15.2.7.1 cmgr.srl:22
+        ('rep', 6, 0, '15.2.7.1 cmgr.srl:23'),  # spec 15.2.7.1 cmgr.srl:23
+        ('put', 'i32', (-1,), '15.2.7.1 cmgr.srl:24'),  # spec 15.2.7.1 cmgr.srl:24
+        ('put', 'u32', (('=', '$cmgr.created//4294967296'),), '15.2.7.1 cmgr.srl:25'),  # spec 15.2.7.1 cmgr.srl:25
+        ('put', 'u32', (('=', '$cmgr.created%4294967296'),), '15.2.7.1 cmgr.srl:26'),  # spec 15.2.7.1 cmgr.srl:26
+        ('put', 'u16', (2,), '15.2.7.1 cmgr.srl:27'),  # spec 15.2.7.1 cmgr.srl:27
+        ('put', 'u32', (350108,), '15.2.7.1 cmgr.srl:28'),  # spec 15.2.7.1 cmgr.srl:28
+        ('put', 'u32', (1,), '15.2.7.1 cmgr.srl:29'),  # spec 15.2.7.1 cmgr.srl:29
+        ('class', 'moPartConfiguration_c', 1, None, '15.2.7.3 cmgr.srl:61'),  # spec 15.2.7.3 cmgr.srl:61
+        ('class', 'moNodeName_c', 1, None, '15.2.7.3 cmgr.srl:62'),  # spec 15.2.7.3 cmgr.srl:62
+        ('put', 'cstr', ('Default',), '15.2.7.3 cmgr.srl:63'),  # spec 15.2.7.3 cmgr.srl:63
+        ('hex', '0000000000000040', '15.2.7.3 cmgr.srl:64'),  # spec 15.2.7.3 cmgr.srl:64
+        ('hex', '0000000000020000', '15.2.7.3 cmgr.srl:65'),  # spec 15.2.7.3 cmgr.srl:65
+        ('put', 'cstr', ('',), '15.2.7.3 cmgr.srl:66'),  # spec 15.2.7.3 cmgr.srl:66
+        ('put', 'u32', (0,), '15.2.7.3 cmgr.srl:67'),  # spec 15.2.7.3 cmgr.srl:67
         ('class', 'moVisualProperties_c', 1, None, '15.2.9 visual-properties.srl:5'),  # spec 15.2.9 visual-properties.srl:5
         ('put', 'u32', (15651274,), '15.2.9 visual-properties.srl:6'),  # spec 15.2.9 visual-properties.srl:6
         ('put', 'u32', (0, 0), '15.2.9 visual-properties.srl:7'),  # spec 15.2.9 visual-properties.srl:7
@@ -572,140 +572,172 @@ LISTINGS = {
         ('put', 'u32', (0, 1), '15.2.9 visual-properties.srl:39'),  # spec 15.2.9 visual-properties.srl:39
         ('put', 'i32', (-1,), '15.2.9 visual-properties.srl:40'),  # spec 15.2.9 visual-properties.srl:40
         ('rep', 12, 0, '15.2.9 visual-properties.srl:41'),  # spec 15.2.9 visual-properties.srl:41
-        ('rep', 8, 0, '15.2.7.3 cmgr.srl:50'),  # spec 15.2.7.3 cmgr.srl:50
-        ('put', 'u32', (101,), '15.2.7.1 cmgr.srl:8'),  # spec 15.2.7.1 cmgr.srl:8
-        ('rep', 13, 0, '15.2.7.1 cmgr.srl:9'),  # spec 15.2.7.1 cmgr.srl:9
-        ('put', 'u32', (17000,), '15.2.7.1 cmgr.srl:10'),  # spec 15.2.7.1 cmgr.srl:10
-        ('rep', 8, 0, '15.2.7.1 cmgr.srl:11'),  # spec 15.2.7.1 cmgr.srl:11
-        ('put', 'u32', (2024016,), '15.2.7.1 cmgr.srl:12'),  # spec 15.2.7.1 cmgr.srl:12
-        ('put', 'u16', (0,), '15.2.7.1 cmgr.srl:13'),  # spec 15.2.7.1 cmgr.srl:13
-        ('put', 'cstr', ('',), '15.2.7.1 cmgr.srl:14'),  # spec 15.2.7.1 cmgr.srl:14
-        ('put', 'u8', (0,), '15.2.7.1 cmgr.srl:15'),  # spec 15.2.7.1 cmgr.srl:15
-        ('put', 'u16', (65535, 0), '15.2.7.1 cmgr.srl:16'),  # spec 15.2.7.1 cmgr.srl:16
-        ('put', 'u8', (3,), '15.2.7.1 cmgr.srl:17'),  # spec 15.2.7.1 cmgr.srl:17
-        ('put', 'i32', (-1, -1), '15.2.7.1 cmgr.srl:18'),  # spec 15.2.7.1 cmgr.srl:18
-        ('put', 'f32', (-1.0,), '15.2.7.1 cmgr.srl:19'),  # spec 15.2.7.1 cmgr.srl:19
-        ('rep', 14, 0, '15.2.7.1 cmgr.srl:20'),  # spec 15.2.7.1 cmgr.srl:20
-        ('put', 'u32', (1,), '15.2.7.1 cmgr.srl:21'),  # spec 15.2.7.1 cmgr.srl:21
-        ('rep', 6, 0, '15.2.7.1 cmgr.srl:22'),  # spec 15.2.7.1 cmgr.srl:22
-        ('put', 'i32', (-1,), '15.2.7.1 cmgr.srl:23'),  # spec 15.2.7.1 cmgr.srl:23
-        ('put', 'u32', (('=', '$cmgr.created//4294967296'),), '15.2.7.1 cmgr.srl:24'),  # spec 15.2.7.1 cmgr.srl:24
-        ('put', 'u32', (('=', '$cmgr.created%4294967296'),), '15.2.7.1 cmgr.srl:25'),  # spec 15.2.7.1 cmgr.srl:25
-        ('put', 'u16', (2,), '15.2.7.1 cmgr.srl:26'),  # spec 15.2.7.1 cmgr.srl:26
-        ('put', 'u32', (350108,), '15.2.7.1 cmgr.srl:27'),  # spec 15.2.7.1 cmgr.srl:27
-        ('put', 'u32', (1,), '15.2.7.1 cmgr.srl:28'),  # spec 15.2.7.1 cmgr.srl:28
-        ('put', 'cstr', ('',), '15.2.7.3 cmgr.srl:52'),  # spec 15.2.7.3 cmgr.srl:52
-        ('put', 'i32', (-1,), '15.2.7.3 cmgr.srl:53'),  # spec 15.2.7.3 cmgr.srl:53
-        ('put', 'u32', (2151678336,), '15.2.7.3 cmgr.srl:54'),  # spec 15.2.7.3 cmgr.srl:54
-        ('put', 'cstr', ('',), '15.2.7.3 cmgr.srl:55'),  # spec 15.2.7.3 cmgr.srl:55
-        ('put', 'u32', (('=', '$hdr.next_id-1'),), '15.2.7.3 cmgr.srl:56'),  # spec 15.2.7.3 cmgr.srl:56
-        ('put', 'u32', (('$', 'doc.stamp'),), '15.2.7.3 cmgr.srl:57'),  # spec 15.2.7.3 cmgr.srl:57
-        ('rep', 100, 0, '15.2.7.3 cmgr.srl:58'),  # spec 15.2.7.3 cmgr.srl:58
-        ('put', 'u32', (1,), '15.2.7.3 cmgr.srl:59'),  # spec 15.2.7.3 cmgr.srl:59
-        ('rep', 40, 0, '15.2.7.3 cmgr.srl:60'),  # spec 15.2.7.3 cmgr.srl:60
-        ('put', 'cstr', ('',), '15.2.7.3 cmgr.srl:61'),  # spec 15.2.7.3 cmgr.srl:61
-        ('put', 'cstr', ('',), '15.2.7.3 cmgr.srl:62'),  # spec 15.2.7.3 cmgr.srl:62
-        ('rep', 28, 0, '15.2.7.3 cmgr.srl:63'),  # spec 15.2.7.3 cmgr.srl:63
-        ('put', 'f64', (1.0, 0.0, 0.0), '15.2.7.3 cmgr.srl:64'),  # spec 15.2.7.3 cmgr.srl:64
-        ('put', 'f64', (0.0, 1.0, 0.0), '15.2.7.3 cmgr.srl:65'),  # spec 15.2.7.3 cmgr.srl:65
-        ('put', 'f64', (0.0, 0.0, 1.0), '15.2.7.3 cmgr.srl:66'),  # spec 15.2.7.3 cmgr.srl:66
-        ('put', 'u32', (1,), '15.2.7.3 cmgr.srl:67'),  # spec 15.2.7.3 cmgr.srl:67
-        ('put', 'u16', (0,), '15.2.7.3 cmgr.srl:68'),  # spec 15.2.7.3 cmgr.srl:68
-        ('put', 'u32', (631170000,), '15.2.7.3 cmgr.srl:69'),  # spec 15.2.7.3 cmgr.srl:69
-        ('put', 'u32', (0,), '15.2.7.3 cmgr.srl:70'),  # spec 15.2.7.3 cmgr.srl:70
-        ('put', 'u32', (('=', 'len($bodies)'),), '15.2.7.4 cmgr.srl:74'),  # spec 15.2.7.4 cmgr.srl:74
-        ('put', 'u32', (0,), '15.2.7.4 cmgr.srl:75'),  # spec 15.2.7.4 cmgr.srl:75
-        ('put', 'u32', (17000,), '15.2.7.4 cmgr.srl:76'),  # spec 15.2.7.4 cmgr.srl:76
-        ('put', 'u32', (1,), '15.2.7.4 cmgr.srl:77'),  # spec 15.2.7.4 cmgr.srl:77
-        ('rep', 6, 0, '15.2.7.4 cmgr.srl:78'),  # spec 15.2.7.4 cmgr.srl:78
-        ('put', 'u32', (1,), '15.2.7.4 cmgr.srl:79'),  # spec 15.2.7.4 cmgr.srl:79
-        ('rep', 8, 0, '15.2.7.4 cmgr.srl:80'),  # spec 15.2.7.4 cmgr.srl:80
-        ('put', 'u32', (1,), '15.2.7.4 cmgr.srl:81'),  # spec 15.2.7.4 cmgr.srl:81
-        ('put', 'f32', (-1.0, -1.0), '15.2.7.4 cmgr.srl:82'),  # spec 15.2.7.4 cmgr.srl:82
-        ('rep', 8, 0, '15.2.7.4 cmgr.srl:83'),  # spec 15.2.7.4 cmgr.srl:83
-        ('put', 'u32', (1,), '15.2.7.4 cmgr.srl:84'),  # spec 15.2.7.4 cmgr.srl:84
-        ('rep', 28, 0, '15.2.7.4 cmgr.srl:85'),  # spec 15.2.7.4 cmgr.srl:85
-        ('put', 'u32', (1,), '15.2.7.4 cmgr.srl:86'),  # spec 15.2.7.4 cmgr.srl:86
-        ('rep', 4, 0, '15.2.7.4 cmgr.srl:87'),  # spec 15.2.7.4 cmgr.srl:87
-        ('put', 'i32', (-1,), '15.2.7.4 cmgr.srl:88'),  # spec 15.2.7.4 cmgr.srl:88
-        ('put', 'u32', (1,), '15.2.7.4 cmgr.srl:89'),  # spec 15.2.7.4 cmgr.srl:89
-        ('rep', 12, 0, '15.2.7.4 cmgr.srl:90'),  # spec 15.2.7.4 cmgr.srl:90
-        ('put', 'u32', (('=', 'len($bodies)'),), '15.2.7.4 cmgr.srl:91'),  # spec 15.2.7.4 cmgr.srl:91
-        ('for', 'b', ('$', 'bodies'), False, (  # spec 15.2.7.4 cmgr.srl:92
-            ('put', 'u32', (('$', 'b.id'),), '15.2.7.4 cmgr.srl:93'),  # spec 15.2.7.4 cmgr.srl:93
-            ('put', 'u32', (0,), '15.2.7.4 cmgr.srl:94'),  # spec 15.2.7.4 cmgr.srl:94
-        ), '15.2.7.4 cmgr.srl:92'),  # spec 15.2.7.4 cmgr.srl:92
-        ('rep', 40, 0, '15.2.7.4 cmgr.srl:96'),  # spec 15.2.7.4 cmgr.srl:96
-        ('put', 'u32', (('=', 'len($bodies)'),), '15.2.7.4 cmgr.srl:97'),  # spec 15.2.7.4 cmgr.srl:97
-        ('for', 'b', ('$', 'bodies'), False, (  # spec 15.2.7.4 cmgr.srl:98
-            ('put', 'u32', (('$', 'b.id'),), '15.2.7.4 cmgr.srl:99'),  # spec 15.2.7.4 cmgr.srl:99
-            ('class', 'moLinkedAtomIdNode_c', 1, None, '15.2.7.4 cmgr.srl:100'),  # spec 15.2.7.4 cmgr.srl:100
-            ('put', 'u32', (('$', 'b.id'),), '15.2.7.4 cmgr.srl:101'),  # spec 15.2.7.4 cmgr.srl:101
-            ('put', 'u16', (1,), '15.2.7.4 cmgr.srl:102'),  # spec 15.2.7.4 cmgr.srl:102
-            ('put', 'u32', (('$', 'b.feature'),), '15.2.7.4 cmgr.srl:103'),  # spec 15.2.7.4 cmgr.srl:103
-            ('rep', 18, 0, '15.2.7.4 cmgr.srl:104'),  # spec 15.2.7.4 cmgr.srl:104
-        ), '15.2.7.4 cmgr.srl:98'),  # spec 15.2.7.4 cmgr.srl:98
-        ('rep', 16, 0, '15.2.7.4 cmgr.srl:106'),  # spec 15.2.7.4 cmgr.srl:106
-        ('put', 'u32', (2,), '15.2.7.4 cmgr.srl:107'),  # spec 15.2.7.4 cmgr.srl:107
-        ('rep', 14, 0, '15.2.7.4 cmgr.srl:108'),  # spec 15.2.7.4 cmgr.srl:108
+        ('rep', 8, 0, '15.2.7.3 cmgr.srl:69'),  # spec 15.2.7.3 cmgr.srl:69
+        ('put', 'u32', (101,), '15.2.7.1 cmgr.srl:9'),  # spec 15.2.7.1 cmgr.srl:9
+        ('rep', 13, 0, '15.2.7.1 cmgr.srl:10'),  # spec 15.2.7.1 cmgr.srl:10
+        ('put', 'u32', (17000,), '15.2.7.1 cmgr.srl:11'),  # spec 15.2.7.1 cmgr.srl:11
+        ('rep', 8, 0, '15.2.7.1 cmgr.srl:12'),  # spec 15.2.7.1 cmgr.srl:12
+        ('put', 'u32', (2024016,), '15.2.7.1 cmgr.srl:13'),  # spec 15.2.7.1 cmgr.srl:13
+        ('put', 'u16', (0,), '15.2.7.1 cmgr.srl:14'),  # spec 15.2.7.1 cmgr.srl:14
+        ('put', 'cstr', ('',), '15.2.7.1 cmgr.srl:15'),  # spec 15.2.7.1 cmgr.srl:15
+        ('put', 'u8', (0,), '15.2.7.1 cmgr.srl:16'),  # spec 15.2.7.1 cmgr.srl:16
+        ('put', 'u16', (65535, 0), '15.2.7.1 cmgr.srl:17'),  # spec 15.2.7.1 cmgr.srl:17
+        ('put', 'u8', (3,), '15.2.7.1 cmgr.srl:18'),  # spec 15.2.7.1 cmgr.srl:18
+        ('put', 'i32', (-1, -1), '15.2.7.1 cmgr.srl:19'),  # spec 15.2.7.1 cmgr.srl:19
+        ('put', 'f32', (-1.0,), '15.2.7.1 cmgr.srl:20'),  # spec 15.2.7.1 cmgr.srl:20
+        ('rep', 14, 0, '15.2.7.1 cmgr.srl:21'),  # spec 15.2.7.1 cmgr.srl:21
+        ('put', 'u32', (1,), '15.2.7.1 cmgr.srl:22'),  # spec 15.2.7.1 cmgr.srl:22
+        ('rep', 6, 0, '15.2.7.1 cmgr.srl:23'),  # spec 15.2.7.1 cmgr.srl:23
+        ('put', 'i32', (-1,), '15.2.7.1 cmgr.srl:24'),  # spec 15.2.7.1 cmgr.srl:24
+        ('put', 'u32', (('=', '$cmgr.created//4294967296'),), '15.2.7.1 cmgr.srl:25'),  # spec 15.2.7.1 cmgr.srl:25
+        ('put', 'u32', (('=', '$cmgr.created%4294967296'),), '15.2.7.1 cmgr.srl:26'),  # spec 15.2.7.1 cmgr.srl:26
+        ('put', 'u16', (2,), '15.2.7.1 cmgr.srl:27'),  # spec 15.2.7.1 cmgr.srl:27
+        ('put', 'u32', (350108,), '15.2.7.1 cmgr.srl:28'),  # spec 15.2.7.1 cmgr.srl:28
+        ('put', 'u32', (1,), '15.2.7.1 cmgr.srl:29'),  # spec 15.2.7.1 cmgr.srl:29
+        ('put', 'cstr', ('',), '15.2.7.3 cmgr.srl:71'),  # spec 15.2.7.3 cmgr.srl:71
+        ('put', 'i32', (-1,), '15.2.7.3 cmgr.srl:72'),  # spec 15.2.7.3 cmgr.srl:72
+        ('put', 'u32', (2151678336,), '15.2.7.3 cmgr.srl:73'),  # spec 15.2.7.3 cmgr.srl:73
+        ('put', 'cstr', ('',), '15.2.7.3 cmgr.srl:74'),  # spec 15.2.7.3 cmgr.srl:74
+        ('put', 'u32', (('=', '$hdr.next_id-1'),), '15.2.7.3 cmgr.srl:75'),  # spec 15.2.7.3 cmgr.srl:75
+        ('put', 'u32', (('$', 'doc.stamp'),), '15.2.7.3 cmgr.srl:76'),  # spec 15.2.7.3 cmgr.srl:76
+        ('rep', 100, 0, '15.2.7.3 cmgr.srl:77'),  # spec 15.2.7.3 cmgr.srl:77
+        ('put', 'u32', (1,), '15.2.7.3 cmgr.srl:78'),  # spec 15.2.7.3 cmgr.srl:78
+        ('rep', 40, 0, '15.2.7.3 cmgr.srl:79'),  # spec 15.2.7.3 cmgr.srl:79
+        ('put', 'cstr', ('',), '15.2.7.3 cmgr.srl:80'),  # spec 15.2.7.3 cmgr.srl:80
+        ('put', 'cstr', ('',), '15.2.7.3 cmgr.srl:81'),  # spec 15.2.7.3 cmgr.srl:81
+        ('rep', 28, 0, '15.2.7.3 cmgr.srl:82'),  # spec 15.2.7.3 cmgr.srl:82
+        ('put', 'f64', (1.0, 0.0, 0.0), '15.2.7.3 cmgr.srl:83'),  # spec 15.2.7.3 cmgr.srl:83
+        ('put', 'f64', (0.0, 1.0, 0.0), '15.2.7.3 cmgr.srl:84'),  # spec 15.2.7.3 cmgr.srl:84
+        ('put', 'f64', (0.0, 0.0, 1.0), '15.2.7.3 cmgr.srl:85'),  # spec 15.2.7.3 cmgr.srl:85
+        ('put', 'u32', (1,), '15.2.7.3 cmgr.srl:86'),  # spec 15.2.7.3 cmgr.srl:86
+        ('put', 'u16', (0,), '15.2.7.3 cmgr.srl:87'),  # spec 15.2.7.3 cmgr.srl:87
+        ('put', 'u32', (631170000,), '15.2.7.3 cmgr.srl:88'),  # spec 15.2.7.3 cmgr.srl:88
+        ('put', 'u32', (0,), '15.2.7.3 cmgr.srl:89'),  # spec 15.2.7.3 cmgr.srl:89
+        ('put', 'u32', (('=', 'len($live_bodies)'),), '15.2.7.4 cmgr.srl:94'),  # spec 15.2.7.4 cmgr.srl:94
+        ('put', 'u32', (0,), '15.2.7.4 cmgr.srl:95'),  # spec 15.2.7.4 cmgr.srl:95
+        ('put', 'u32', (17000,), '15.2.7.4 cmgr.srl:96'),  # spec 15.2.7.4 cmgr.srl:96
+        ('put', 'u32', (1,), '15.2.7.4 cmgr.srl:97'),  # spec 15.2.7.4 cmgr.srl:97
+        ('rep', 6, 0, '15.2.7.4 cmgr.srl:98'),  # spec 15.2.7.4 cmgr.srl:98
+        ('put', 'u32', (1,), '15.2.7.4 cmgr.srl:99'),  # spec 15.2.7.4 cmgr.srl:99
+        ('rep', 8, 0, '15.2.7.4 cmgr.srl:100'),  # spec 15.2.7.4 cmgr.srl:100
+        ('put', 'u32', (1,), '15.2.7.4 cmgr.srl:101'),  # spec 15.2.7.4 cmgr.srl:101
+        ('put', 'f32', (-1.0, -1.0), '15.2.7.4 cmgr.srl:102'),  # spec 15.2.7.4 cmgr.srl:102
+        ('rep', 8, 0, '15.2.7.4 cmgr.srl:103'),  # spec 15.2.7.4 cmgr.srl:103
+        ('put', 'u32', (1,), '15.2.7.4 cmgr.srl:104'),  # spec 15.2.7.4 cmgr.srl:104
+        ('rep', 28, 0, '15.2.7.4 cmgr.srl:105'),  # spec 15.2.7.4 cmgr.srl:105
+        ('put', 'u32', (1,), '15.2.7.4 cmgr.srl:106'),  # spec 15.2.7.4 cmgr.srl:106
+        ('rep', 4, 0, '15.2.7.4 cmgr.srl:107'),  # spec 15.2.7.4 cmgr.srl:107
+        ('put', 'i32', (-1,), '15.2.7.4 cmgr.srl:108'),  # spec 15.2.7.4 cmgr.srl:108
         ('put', 'u32', (1,), '15.2.7.4 cmgr.srl:109'),  # spec 15.2.7.4 cmgr.srl:109
-        ('put', 'i32', (-1,), '15.2.7.4 cmgr.srl:110'),  # spec 15.2.7.4 cmgr.srl:110
-        ('rep', 44, 0, '15.2.7.4 cmgr.srl:111'),  # spec 15.2.7.4 cmgr.srl:111
-        ('put', 'f64', (-1.0,), '15.2.7.4 cmgr.srl:112'),  # spec 15.2.7.4 cmgr.srl:112
-        ('rep', 18, 0, '15.2.7.4 cmgr.srl:113'),  # spec 15.2.7.4 cmgr.srl:113
-        ('put', 'i32', (-1,), '15.2.7.4 cmgr.srl:114'),  # spec 15.2.7.4 cmgr.srl:114
-        ('put', 'u32', (('=', 'len($bodies)'),), '15.2.7.4 cmgr.srl:115'),  # spec 15.2.7.4 cmgr.srl:115
-        ('for', 'b', ('$', 'bodies'), True, (  # spec 15.2.7.4 cmgr.srl:116
-            ('put', 'u32', (('$', 'b.id'),), '15.2.7.4 cmgr.srl:117'),  # spec 15.2.7.4 cmgr.srl:117
-            ('put', 'u32', (0,), '15.2.7.4 cmgr.srl:118'),  # spec 15.2.7.4 cmgr.srl:118
-        ), '15.2.7.4 cmgr.srl:116'),  # spec 15.2.7.4 cmgr.srl:116
-        ('rep', 8, 0, '15.2.7.4 cmgr.srl:120'),  # spec 15.2.7.4 cmgr.srl:120
-        ('put', 'i32', (-1, -1), '15.2.7.4 cmgr.srl:121'),  # spec 15.2.7.4 cmgr.srl:121
-        ('rep', 8, 0, '15.2.7.4 cmgr.srl:122'),  # spec 15.2.7.4 cmgr.srl:122
-        ('put', 'u16', (4,), '15.2.7.4 cmgr.srl:123'),  # spec 15.2.7.4 cmgr.srl:123
-        ('put', 'u32', (1,), '15.2.7.4 cmgr.srl:124'),  # spec 15.2.7.4 cmgr.srl:124
-        ('put', 'u16', (1, 4), '15.2.7.4 cmgr.srl:125'),  # spec 15.2.7.4 cmgr.srl:125
-        ('if', ('=', 'len($features)>0'), (  # spec 15.2.7.5 cmgr.srl:128
-            ('put', 'u32', (1,), '15.2.7.5 cmgr.srl:129'),  # spec 15.2.7.5 cmgr.srl:129
-            ('class', 'moExtObject_c', 1, None, '15.2.7.5 cmgr.srl:130'),  # spec 15.2.7.5 cmgr.srl:130
-            ('class', 'moCStringHandle_c', 1, None, '15.2.7.5 cmgr.srl:131'),  # spec 15.2.7.5 cmgr.srl:131
-            ('put', 'cstr', ('',), '15.2.7.5 cmgr.srl:132'),  # spec 15.2.7.5 cmgr.srl:132
-            ('class', 'moCStringHandle_c', 1, None, '15.2.7.5 cmgr.srl:133'),  # spec 15.2.7.5 cmgr.srl:133
-            ('put', 'cstr', (('$', 'doc.name'),), '15.2.7.5 cmgr.srl:134'),  # spec 15.2.7.5 cmgr.srl:134
-            ('hex', '020000', '15.2.7.5 cmgr.srl:135'),  # spec 15.2.7.5 cmgr.srl:135
-            ('put', 'u32', (('$', 'doc.created'),), '15.2.7.5 cmgr.srl:136'),  # spec 15.2.7.5 cmgr.srl:136
-            ('put', 'cstr', ('',), '15.2.7.5 cmgr.srl:137'),  # spec 15.2.7.5 cmgr.srl:137
-            ('put', 'cstr', ('',), '15.2.7.5 cmgr.srl:138'),  # spec 15.2.7.5 cmgr.srl:138
-            ('put', 'cstr', ('',), '15.2.7.5 cmgr.srl:139'),  # spec 15.2.7.5 cmgr.srl:139
-            ('rep', 18, 0, '15.2.7.5 cmgr.srl:140'),  # spec 15.2.7.5 cmgr.srl:140
-            ('put', 'cstr', ('Default',), '15.2.7.5 cmgr.srl:141'),  # spec 15.2.7.5 cmgr.srl:141
-            ('rep', 16, 0, '15.2.7.5 cmgr.srl:142'),  # spec 15.2.7.5 cmgr.srl:142
-        ), (  # spec 15.2.7.5 cmgr.srl:128
-            ('put', 'u32', (0,), '15.2.7.5 cmgr.srl:144'),  # spec 15.2.7.5 cmgr.srl:144
-        ), '15.2.7.5 cmgr.srl:128'),  # spec 15.2.7.5 cmgr.srl:128
-        ('rep', 4, 0, '15.2.7.5 cmgr.srl:146'),  # spec 15.2.7.5 cmgr.srl:146
-        ('put', 'cstr', ('',), '15.2.7.5 cmgr.srl:147'),  # spec 15.2.7.5 cmgr.srl:147
-        ('rep', 4, 0, '15.2.7.5 cmgr.srl:148'),  # spec 15.2.7.5 cmgr.srl:148
-        ('class', 'suObList', 1, None, '15.2.7.5 cmgr.srl:149'),  # spec 15.2.7.5 cmgr.srl:149
-        ('put', 'u16', (0,), '15.2.7.5 cmgr.srl:150'),  # spec 15.2.7.5 cmgr.srl:150
-        ('put', 'u32', (('=', 'len($bodies)'),), '15.2.7.5 cmgr.srl:151'),  # spec 15.2.7.5 cmgr.srl:151
-        ('for', 'b', ('$', 'bodies'), True, (  # spec 15.2.7.5 cmgr.srl:152
-            ('put', 'u32', (('$', 'b.feature'),), '15.2.7.5 cmgr.srl:153'),  # spec 15.2.7.5 cmgr.srl:153
-            ('put', 'u32', (('=', '$b.time//4294967296'),), '15.2.7.5 cmgr.srl:154'),  # spec 15.2.7.5 cmgr.srl:154
-            ('put', 'u32', (('=', '$b.time%4294967296'),), '15.2.7.5 cmgr.srl:155'),  # spec 15.2.7.5 cmgr.srl:155
-        ), '15.2.7.5 cmgr.srl:152'),  # spec 15.2.7.5 cmgr.srl:152
-        ('rep', 8, 0, '15.2.7.5 cmgr.srl:157'),  # spec 15.2.7.5 cmgr.srl:157
-        ('put', 'u32', (1,), '15.2.7.5 cmgr.srl:158'),  # spec 15.2.7.5 cmgr.srl:158
-        ('rep', 8, 0, '15.2.7.5 cmgr.srl:159'),  # spec 15.2.7.5 cmgr.srl:159
-        ('class', 'suObList', 1, None, '15.2.7.5 cmgr.srl:160'),  # spec 15.2.7.5 cmgr.srl:160
-        ('put', 'u16', (0,), '15.2.7.5 cmgr.srl:161'),  # spec 15.2.7.5 cmgr.srl:161
-        ('rep', 26, 0, '15.2.7.5 cmgr.srl:162'),  # spec 15.2.7.5 cmgr.srl:162
-        ('put', 'u32', (2,), '15.2.7.5 cmgr.srl:163'),  # spec 15.2.7.5 cmgr.srl:163
-        ('rep', 4, 0, '15.2.7.5 cmgr.srl:164'),  # spec 15.2.7.5 cmgr.srl:164
-        ('put', 'cstr', ('',), '15.2.7.5 cmgr.srl:165'),  # spec 15.2.7.5 cmgr.srl:165
-        ('rep', 12, 0, '15.2.7.5 cmgr.srl:166'),  # spec 15.2.7.5 cmgr.srl:166
-        ('put', 'i32', (-1,), '15.2.7.5 cmgr.srl:167'),  # spec 15.2.7.5 cmgr.srl:167
-        ('rep', 4, 0, '15.2.7.5 cmgr.srl:168'),  # spec 15.2.7.5 cmgr.srl:168
+        ('rep', 12, 0, '15.2.7.4 cmgr.srl:110'),  # spec 15.2.7.4 cmgr.srl:110
+        ('put', 'u32', (('=', 'len($bodies)'),), '15.2.7.4 cmgr.srl:111'),  # spec 15.2.7.4 cmgr.srl:111
+        ('for', 'b', ('$', 'bodies'), False, (  # spec 15.2.7.4 cmgr.srl:112
+            ('put', 'u32', (('$', 'b.id'),), '15.2.7.4 cmgr.srl:113'),  # spec 15.2.7.4 cmgr.srl:113
+            ('put', 'u32', (0,), '15.2.7.4 cmgr.srl:114'),  # spec 15.2.7.4 cmgr.srl:114
+        ), '15.2.7.4 cmgr.srl:112'),  # spec 15.2.7.4 cmgr.srl:112
+        ('put', 'u32', (0,), '15.2.7.4 cmgr.srl:116'),  # spec 15.2.7.4 cmgr.srl:116
+        ('put', 'u32', (('=', 'len($body_links)'),), '15.2.7.1 cmgr.srl:44'),  # spec 15.2.7.1 cmgr.srl:44
+        ('for', 'k', ('$', 'body_links'), False, (  # spec 15.2.7.1 cmgr.srl:45
+            ('put', 'u32', (('$', 'k.new'), ('$', 'k.old')), '15.2.7.1 cmgr.srl:46'),  # spec 15.2.7.1 cmgr.srl:46
+        ), '15.2.7.1 cmgr.srl:45'),  # spec 15.2.7.1 cmgr.srl:45
+        ('rep', 32, 0, '15.2.7.4 cmgr.srl:118'),  # spec 15.2.7.4 cmgr.srl:118
+        ('put', 'u32', (('=', 'len($bodies)'),), '15.2.7.4 cmgr.srl:119'),  # spec 15.2.7.4 cmgr.srl:119
+        ('for', 'b', ('$', 'bodies'), False, (  # spec 15.2.7.4 cmgr.srl:120
+            ('put', 'u32', (('$', 'b.id'),), '15.2.7.4 cmgr.srl:121'),  # spec 15.2.7.4 cmgr.srl:121
+            ('class', 'moLinkedAtomIdNode_c', 1, None, '15.2.7.4 cmgr.srl:122'),  # spec 15.2.7.4 cmgr.srl:122
+            ('put', 'u32', (('$', 'b.id'),), '15.2.7.4 cmgr.srl:123'),  # spec 15.2.7.4 cmgr.srl:123
+            ('put', 'u16', (1,), '15.2.7.4 cmgr.srl:124'),  # spec 15.2.7.4 cmgr.srl:124
+            ('put', 'u32', (('$', 'b.feature'),), '15.2.7.4 cmgr.srl:125'),  # spec 15.2.7.4 cmgr.srl:125
+            ('put', 'u16', (('=', 'len($b.changed)'),), '15.2.7.4 cmgr.srl:126'),  # spec 15.2.7.4 cmgr.srl:126
+            ('for', 'c', ('$', 'b.changed'), False, (  # spec 15.2.7.4 cmgr.srl:127
+                ('put', 'u32', (('$', 'c'),), '15.2.7.4 cmgr.srl:128'),  # spec 15.2.7.4 cmgr.srl:128
+            ), '15.2.7.4 cmgr.srl:127'),  # spec 15.2.7.4 cmgr.srl:127
+            ('put', 'u32', (('=', 'len($b.from)'),), '15.2.7.1 cmgr.srl:34'),  # spec 15.2.7.1 cmgr.srl:34
+            ('for', 'i', ('$', 'b.from'), False, (  # spec 15.2.7.1 cmgr.srl:35
+                ('put', 'u32', (('$', 'i'),), '15.2.7.1 cmgr.srl:36'),  # spec 15.2.7.1 cmgr.srl:36
+                ('put', 'u16', (0,), '15.2.7.1 cmgr.srl:37'),  # spec 15.2.7.1 cmgr.srl:37
+            ), '15.2.7.1 cmgr.srl:35'),  # spec 15.2.7.1 cmgr.srl:35
+            ('put', 'u32', (('=', 'len($b.into)'),), '15.2.7.1 cmgr.srl:34'),  # spec 15.2.7.1 cmgr.srl:34
+            ('for', 'i', ('$', 'b.into'), False, (  # spec 15.2.7.1 cmgr.srl:35
+                ('put', 'u32', (('$', 'i'),), '15.2.7.1 cmgr.srl:36'),  # spec 15.2.7.1 cmgr.srl:36
+                ('put', 'u16', (0,), '15.2.7.1 cmgr.srl:37'),  # spec 15.2.7.1 cmgr.srl:37
+            ), '15.2.7.1 cmgr.srl:35'),  # spec 15.2.7.1 cmgr.srl:35
+            ('put', 'u32', (('=', 'len($b.from)'),), '15.2.7.1 cmgr.srl:34'),  # spec 15.2.7.1 cmgr.srl:34
+            ('for', 'i', ('$', 'b.from'), False, (  # spec 15.2.7.1 cmgr.srl:35
+                ('put', 'u32', (('$', 'i'),), '15.2.7.1 cmgr.srl:36'),  # spec 15.2.7.1 cmgr.srl:36
+                ('put', 'u16', (0,), '15.2.7.1 cmgr.srl:37'),  # spec 15.2.7.1 cmgr.srl:37
+            ), '15.2.7.1 cmgr.srl:35'),  # spec 15.2.7.1 cmgr.srl:35
+            ('put', 'u32', (('=', 'len($b.into)'),), '15.2.7.1 cmgr.srl:34'),  # spec 15.2.7.1 cmgr.srl:34
+            ('for', 'i', ('$', 'b.into'), False, (  # spec 15.2.7.1 cmgr.srl:35
+                ('put', 'u32', (('$', 'i'),), '15.2.7.1 cmgr.srl:36'),  # spec 15.2.7.1 cmgr.srl:36
+                ('put', 'u16', (0,), '15.2.7.1 cmgr.srl:37'),  # spec 15.2.7.1 cmgr.srl:37
+            ), '15.2.7.1 cmgr.srl:35'),  # spec 15.2.7.1 cmgr.srl:35
+        ), '15.2.7.4 cmgr.srl:120'),  # spec 15.2.7.4 cmgr.srl:120
+        ('rep', 12, 0, '15.2.7.4 cmgr.srl:135'),  # spec 15.2.7.4 cmgr.srl:135
+        ('put', 'u32', (('=', 'len($body_links)'),), '15.2.7.1 cmgr.srl:44'),  # spec 15.2.7.1 cmgr.srl:44
+        ('for', 'k', ('$', 'body_links'), False, (  # spec 15.2.7.1 cmgr.srl:45
+            ('put', 'u32', (('$', 'k.new'), ('$', 'k.old')), '15.2.7.1 cmgr.srl:46'),  # spec 15.2.7.1 cmgr.srl:46
+        ), '15.2.7.1 cmgr.srl:45'),  # spec 15.2.7.1 cmgr.srl:45
+        ('put', 'u32', (2,), '15.2.7.4 cmgr.srl:137'),  # spec 15.2.7.4 cmgr.srl:137
+        ('rep', 14, 0, '15.2.7.4 cmgr.srl:138'),  # spec 15.2.7.4 cmgr.srl:138
+        ('put', 'u32', (1,), '15.2.7.4 cmgr.srl:139'),  # spec 15.2.7.4 cmgr.srl:139
+        ('put', 'i32', (-1,), '15.2.7.4 cmgr.srl:140'),  # spec 15.2.7.4 cmgr.srl:140
+        ('rep', 44, 0, '15.2.7.4 cmgr.srl:141'),  # spec 15.2.7.4 cmgr.srl:141
+        ('put', 'f64', (-1.0,), '15.2.7.4 cmgr.srl:142'),  # spec 15.2.7.4 cmgr.srl:142
+        ('rep', 18, 0, '15.2.7.4 cmgr.srl:143'),  # spec 15.2.7.4 cmgr.srl:143
+        ('put', 'i32', (-1,), '15.2.7.4 cmgr.srl:144'),  # spec 15.2.7.4 cmgr.srl:144
+        ('put', 'u32', (('=', 'len($bodies)'),), '15.2.7.4 cmgr.srl:145'),  # spec 15.2.7.4 cmgr.srl:145
+        ('for', 'b', ('$', 'bodies'), True, (  # spec 15.2.7.4 cmgr.srl:146
+            ('put', 'u32', (('$', 'b.id'),), '15.2.7.4 cmgr.srl:147'),  # spec 15.2.7.4 cmgr.srl:147
+            ('put', 'u32', (0,), '15.2.7.4 cmgr.srl:148'),  # spec 15.2.7.4 cmgr.srl:148
+        ), '15.2.7.4 cmgr.srl:146'),  # spec 15.2.7.4 cmgr.srl:146
+        ('rep', 8, 0, '15.2.7.4 cmgr.srl:150'),  # spec 15.2.7.4 cmgr.srl:150
+        ('put', 'i32', (-1, -1), '15.2.7.4 cmgr.srl:151'),  # spec 15.2.7.4 cmgr.srl:151
+        ('rep', 8, 0, '15.2.7.4 cmgr.srl:152'),  # spec 15.2.7.4 cmgr.srl:152
+        ('put', 'u16', (4,), '15.2.7.4 cmgr.srl:153'),  # spec 15.2.7.4 cmgr.srl:153
+        ('put', 'u32', (1,), '15.2.7.4 cmgr.srl:154'),  # spec 15.2.7.4 cmgr.srl:154
+        ('put', 'u16', (1, 4), '15.2.7.4 cmgr.srl:155'),  # spec 15.2.7.4 cmgr.srl:155
+        ('if', ('=', 'len($features)>0'), (  # spec 15.2.7.5 cmgr.srl:158
+            ('put', 'u32', (1,), '15.2.7.5 cmgr.srl:159'),  # spec 15.2.7.5 cmgr.srl:159
+            ('class', 'moExtObject_c', 1, None, '15.2.7.5 cmgr.srl:160'),  # spec 15.2.7.5 cmgr.srl:160
+            ('class', 'moCStringHandle_c', 1, None, '15.2.7.5 cmgr.srl:161'),  # spec 15.2.7.5 cmgr.srl:161
+            ('put', 'cstr', ('',), '15.2.7.5 cmgr.srl:162'),  # spec 15.2.7.5 cmgr.srl:162
+            ('class', 'moCStringHandle_c', 1, None, '15.2.7.5 cmgr.srl:163'),  # spec 15.2.7.5 cmgr.srl:163
+            ('put', 'cstr', (('$', 'doc.name'),), '15.2.7.5 cmgr.srl:164'),  # spec 15.2.7.5 cmgr.srl:164
+            ('hex', '020000', '15.2.7.5 cmgr.srl:165'),  # spec 15.2.7.5 cmgr.srl:165
+            ('put', 'u32', (('$', 'doc.created'),), '15.2.7.5 cmgr.srl:166'),  # spec 15.2.7.5 cmgr.srl:166
+            ('put', 'cstr', ('',), '15.2.7.5 cmgr.srl:167'),  # spec 15.2.7.5 cmgr.srl:167
+            ('put', 'cstr', ('',), '15.2.7.5 cmgr.srl:168'),  # spec 15.2.7.5 cmgr.srl:168
+            ('put', 'cstr', ('',), '15.2.7.5 cmgr.srl:169'),  # spec 15.2.7.5 cmgr.srl:169
+            ('rep', 18, 0, '15.2.7.5 cmgr.srl:170'),  # spec 15.2.7.5 cmgr.srl:170
+            ('put', 'cstr', ('Default',), '15.2.7.5 cmgr.srl:171'),  # spec 15.2.7.5 cmgr.srl:171
+            ('rep', 16, 0, '15.2.7.5 cmgr.srl:172'),  # spec 15.2.7.5 cmgr.srl:172
+        ), (  # spec 15.2.7.5 cmgr.srl:158
+            ('put', 'u32', (0,), '15.2.7.5 cmgr.srl:174'),  # spec 15.2.7.5 cmgr.srl:174
+        ), '15.2.7.5 cmgr.srl:158'),  # spec 15.2.7.5 cmgr.srl:158
+        ('rep', 4, 0, '15.2.7.5 cmgr.srl:176'),  # spec 15.2.7.5 cmgr.srl:176
+        ('put', 'cstr', ('',), '15.2.7.5 cmgr.srl:177'),  # spec 15.2.7.5 cmgr.srl:177
+        ('rep', 4, 0, '15.2.7.5 cmgr.srl:178'),  # spec 15.2.7.5 cmgr.srl:178
+        ('class', 'suObList', 1, None, '15.2.7.5 cmgr.srl:179'),  # spec 15.2.7.5 cmgr.srl:179
+        ('put', 'u16', (0,), '15.2.7.5 cmgr.srl:180'),  # spec 15.2.7.5 cmgr.srl:180
+        ('put', 'u32', (('=', 'len($builds)'),), '15.2.7.5 cmgr.srl:181'),  # spec 15.2.7.5 cmgr.srl:181
+        ('for', 'b', ('$', 'builds'), False, (  # spec 15.2.7.5 cmgr.srl:182
+            ('put', 'u32', (('$', 'b.feature'),), '15.2.7.5 cmgr.srl:183'),  # spec 15.2.7.5 cmgr.srl:183
+            ('put', 'u32', (('=', '$b.time//4294967296'),), '15.2.7.5 cmgr.srl:184'),  # spec 15.2.7.5 cmgr.srl:184
+            ('put', 'u32', (('=', '$b.time%4294967296'),), '15.2.7.5 cmgr.srl:185'),  # spec 15.2.7.5 cmgr.srl:185
+        ), '15.2.7.5 cmgr.srl:182'),  # spec 15.2.7.5 cmgr.srl:182
+        ('rep', 8, 0, '15.2.7.5 cmgr.srl:187'),  # spec 15.2.7.5 cmgr.srl:187
+        ('put', 'u32', (1,), '15.2.7.5 cmgr.srl:188'),  # spec 15.2.7.5 cmgr.srl:188
+        ('rep', 8, 0, '15.2.7.5 cmgr.srl:189'),  # spec 15.2.7.5 cmgr.srl:189
+        ('class', 'suObList', 1, None, '15.2.7.5 cmgr.srl:190'),  # spec 15.2.7.5 cmgr.srl:190
+        ('put', 'u16', (0,), '15.2.7.5 cmgr.srl:191'),  # spec 15.2.7.5 cmgr.srl:191
+        ('rep', 26, 0, '15.2.7.5 cmgr.srl:192'),  # spec 15.2.7.5 cmgr.srl:192
+        ('put', 'u32', (2,), '15.2.7.5 cmgr.srl:193'),  # spec 15.2.7.5 cmgr.srl:193
+        ('rep', 4, 0, '15.2.7.5 cmgr.srl:194'),  # spec 15.2.7.5 cmgr.srl:194
+        ('put', 'cstr', ('',), '15.2.7.5 cmgr.srl:195'),  # spec 15.2.7.5 cmgr.srl:195
+        ('rep', 12, 0, '15.2.7.5 cmgr.srl:196'),  # spec 15.2.7.5 cmgr.srl:196
+        ('put', 'i32', (-1,), '15.2.7.5 cmgr.srl:197'),  # spec 15.2.7.5 cmgr.srl:197
+        ('rep', 4, 0, '15.2.7.5 cmgr.srl:198'),  # spec 15.2.7.5 cmgr.srl:198
     ),  # spec 15.2 cmgr.srl
     'Contents/CMgrHdr2': (  # spec 15.2 cmgrhdr2.srl
         ('archive', 'start', 1, '15.2.3.1 cmgrhdr2.srl:5'),  # spec 15.2.3.1 cmgrhdr2.srl:5
@@ -984,27 +1016,28 @@ LISTINGS = {
                 ('put', 'u32', (0,), '15.4.6 config-0.srl:232'),  # spec 15.4.6 config-0.srl:232
                 ('put', 'cstr', ('',), '15.4.6 config-0.srl:233'),  # spec 15.4.6 config-0.srl:233
                 ('rep', 12, 0, '15.4.6 config-0.srl:234'),  # spec 15.4.6 config-0.srl:234
-                ('put', 'u32', (('$', 'b.id'), 0), '15.4.6 config-0.srl:235'),  # spec 15.4.6 config-0.srl:235
-                ('put', 'u32', (('$', 'b.feature'), ('$', 'b.feature')), '15.4.6 config-0.srl:236'),  # spec 15.4.6 config-0.srl:236
-                ('rep', 12, 0, '15.4.6 config-0.srl:237'),  # spec 15.4.6 config-0.srl:237
-                ('put', 'u32', (1,), '15.4.6 config-0.srl:238'),  # spec 15.4.6 config-0.srl:238
-                ('put', 'i32', (-1,), '15.4.6 config-0.srl:239'),  # spec 15.4.6 config-0.srl:239
-                ('put', 'u32', (('$', 'b.regen'), 1, ('$', 'b.regen'), 6), '15.4.6 config-0.srl:240'),  # spec 15.4.6 config-0.srl:240
+                ('put', 'u32', (('$', 'b.id'),), '15.4.6 config-0.srl:235'),  # spec 15.4.6 config-0.srl:235
+                ('put', 'u32', (('=', 'int(not($b.live))'),), '15.4.6 config-0.srl:236'),  # spec 15.4.6 config-0.srl:236
+                ('put', 'u32', (('$', 'b.last'), ('$', 'b.feature')), '15.4.6 config-0.srl:237'),  # spec 15.4.6 config-0.srl:237
+                ('rep', 12, 0, '15.4.6 config-0.srl:238'),  # spec 15.4.6 config-0.srl:238
+                ('put', 'u32', (1,), '15.4.6 config-0.srl:239'),  # spec 15.4.6 config-0.srl:239
+                ('put', 'i32', (-1,), '15.4.6 config-0.srl:240'),  # spec 15.4.6 config-0.srl:240
+                ('put', 'u32', (('$', 'b.regen'), 1, ('$', 'b.regen'), 6), '15.4.6 config-0.srl:241'),  # spec 15.4.6 config-0.srl:241
             ), '15.4.6 config-0.srl:227'),  # spec 15.4.6 config-0.srl:227
-            ('if', ('$', 'model.solid'), (  # spec 15.4.6 config-0.srl:242
-                ('put', 'u32', (17000, 10001), '15.4.6 config-0.srl:243'),  # spec 15.4.6 config-0.srl:243
-                ('hex', '01', '15.4.6 config-0.srl:244'),  # spec 15.4.6 config-0.srl:244
-                ('rep', 2, 0, '15.4.6 config-0.srl:245'),  # spec 15.4.6 config-0.srl:245
-                ('put', 'u32', (2560288, 5120), '15.4.6 config-0.srl:246'),  # spec 15.4.6 config-0.srl:246
-                ('rep', 5, 0, '15.4.6 config-0.srl:247'),  # spec 15.4.6 config-0.srl:247
-                ('put', 'i32', (-1,), '15.4.6 config-0.srl:248'),  # spec 15.4.6 config-0.srl:248
-                ('put', 'u32', (1,), '15.4.6 config-0.srl:249'),  # spec 15.4.6 config-0.srl:249
-                ('put', 'i32', (-1,), '15.4.6 config-0.srl:250'),  # spec 15.4.6 config-0.srl:250
-                ('put', 'u32', (0, 0), '15.4.6 config-0.srl:251'),  # spec 15.4.6 config-0.srl:251
-            ), (  # spec 15.4.6 config-0.srl:242
-                ('put', 'u32', (17000, 10000), '15.4.6 config-0.srl:253'),  # spec 15.4.6 config-0.srl:253
-                ('hex', '00000010', '15.4.6 config-0.srl:254'),  # spec 15.4.6 config-0.srl:254
-            ), '15.4.6 config-0.srl:242'),  # spec 15.4.6 config-0.srl:242
+            ('if', ('$', 'model.solid'), (  # spec 15.4.6 config-0.srl:243
+                ('put', 'u32', (17000, 10001), '15.4.6 config-0.srl:244'),  # spec 15.4.6 config-0.srl:244
+                ('hex', '01', '15.4.6 config-0.srl:245'),  # spec 15.4.6 config-0.srl:245
+                ('rep', 2, 0, '15.4.6 config-0.srl:246'),  # spec 15.4.6 config-0.srl:246
+                ('put', 'u32', (2560288, 5120), '15.4.6 config-0.srl:247'),  # spec 15.4.6 config-0.srl:247
+                ('rep', 5, 0, '15.4.6 config-0.srl:248'),  # spec 15.4.6 config-0.srl:248
+                ('put', 'i32', (-1,), '15.4.6 config-0.srl:249'),  # spec 15.4.6 config-0.srl:249
+                ('put', 'u32', (1,), '15.4.6 config-0.srl:250'),  # spec 15.4.6 config-0.srl:250
+                ('put', 'i32', (-1,), '15.4.6 config-0.srl:251'),  # spec 15.4.6 config-0.srl:251
+                ('put', 'u32', (0, 0), '15.4.6 config-0.srl:252'),  # spec 15.4.6 config-0.srl:252
+            ), (  # spec 15.4.6 config-0.srl:243
+                ('put', 'u32', (17000, 10000), '15.4.6 config-0.srl:254'),  # spec 15.4.6 config-0.srl:254
+                ('hex', '00000010', '15.4.6 config-0.srl:255'),  # spec 15.4.6 config-0.srl:255
+            ), '15.4.6 config-0.srl:243'),  # spec 15.4.6 config-0.srl:243
             ('class', 'moRelMgr_c', 1, None, '15.4.7 config-0-settings.srl:4'),  # spec 15.4.7 config-0-settings.srl:4
             ('put', 'u32', (0,), '15.4.7 config-0-settings.srl:5'),  # spec 15.4.7 config-0-settings.srl:5
             ('put', 'cstr', ('',), '15.4.7 config-0-settings.srl:6'),  # spec 15.4.7 config-0-settings.srl:6
@@ -2881,15 +2914,15 @@ LISTINGS = {
             ('put', 'u32', (0, 9), '15.4.8 config-0-views.srl:188'),  # spec 15.4.8 config-0-views.srl:188
             ('rep', 33, 0, '15.4.8 config-0-views.srl:189'),  # spec 15.4.8 config-0-views.srl:189
             ('put', 'u32', (50, 108), '15.4.8 config-0-views.srl:190'),  # spec 15.4.8 config-0-views.srl:190
-            ('class', 'moFeatColorTab_c', 0, None, '15.4.9 config-0.srl:265'),  # spec 15.4.9 config-0.srl:265
-            ('rep', 6, 0, '15.4.9 config-0.srl:266'),  # spec 15.4.9 config-0.srl:266
-            ('put', 'u32', (10, 0, 0), '15.4.9 config-0.srl:267'),  # spec 15.4.9 config-0.srl:267
-            ('class', 'moSketchBlockMgr_c', 1, 'sketch_blocks', '15.4.9 config-0.srl:268'),  # spec 15.4.9 config-0.srl:268
-            ('rep', 2, 0, '15.4.9 config-0.srl:269'),  # spec 15.4.9 config-0.srl:269
+            ('class', 'moFeatColorTab_c', 0, None, '15.4.9 config-0.srl:266'),  # spec 15.4.9 config-0.srl:266
+            ('rep', 6, 0, '15.4.9 config-0.srl:267'),  # spec 15.4.9 config-0.srl:267
+            ('put', 'u32', (10, 0, 0), '15.4.9 config-0.srl:268'),  # spec 15.4.9 config-0.srl:268
+            ('class', 'moSketchBlockMgr_c', 1, 'sketch_blocks', '15.4.9 config-0.srl:269'),  # spec 15.4.9 config-0.srl:269
+            ('rep', 2, 0, '15.4.9 config-0.srl:270'),  # spec 15.4.9 config-0.srl:270
             ('put', 'u32', (0, 1073741824, 4294967295, 0), '15.4.2 config-0-macros.srl:11'),  # spec 15.4.2 config-0-macros.srl:11
             ('put', 'cstr', ('',), '15.4.2 config-0-macros.srl:12'),  # spec 15.4.2 config-0-macros.srl:12
             ('rep', 6, 0, '15.4.2 config-0-macros.srl:13'),  # spec 15.4.2 config-0-macros.srl:13
-            ('put', 'u16', (0,), '15.4.9 config-0.srl:271'),  # spec 15.4.9 config-0.srl:271
+            ('put', 'u16', (0,), '15.4.9 config-0.srl:272'),  # spec 15.4.9 config-0.srl:272
             ('rep', 12, 0, '15.4.2 config-0-macros.srl:27'),  # spec 15.4.2 config-0-macros.srl:27
             ('put', 'u32', (101, 0), '15.4.2 config-0-macros.srl:28'),  # spec 15.4.2 config-0-macros.srl:28
             ('put', 'u8', (0,), '15.4.2 config-0-macros.srl:29'),  # spec 15.4.2 config-0-macros.srl:29
@@ -2912,95 +2945,95 @@ LISTINGS = {
             ('put', 'u32', (('=', '$config0.sketch_blocks_time//4294967296'), ('=', '$config0.sketch_blocks_time%4294967296')), '15.4.2 config-0-macros.srl:46'),  # spec 15.4.2 config-0-macros.srl:46
             ('put', 'u16', (2,), '15.4.2 config-0-macros.srl:47'),  # spec 15.4.2 config-0-macros.srl:47
             ('put', 'u32', (350108,), '15.4.2 config-0-macros.srl:48'),  # spec 15.4.2 config-0-macros.srl:48
-            ('put', 'u32', (1,), '15.4.9 config-0.srl:273'),  # spec 15.4.9 config-0.srl:273
-            ('hex', '690CB15972524B4BA83A09510F', '15.4.9 config-0.srl:274'),  # spec 15.4.9 config-0.srl:274
-            ('put', 'u32', (13113814,), '15.4.9 config-0.srl:275'),  # spec 15.4.9 config-0.srl:275
-            ('rep', 3, 0, '15.4.9 config-0.srl:276'),  # spec 15.4.9 config-0.srl:276
-            ('objref', 'sketch_blocks', '15.4.9 config-0.srl:277'),  # spec 15.4.9 config-0.srl:277
-            ('put', 'u32', (0, 0), '15.4.9 config-0.srl:278'),  # spec 15.4.9 config-0.srl:278
-            ('class', 'suObList', 1, None, '15.4.9 config-0.srl:280'),  # spec 15.4.9 config-0.srl:280
-            ('put', 'u16', (('=', 'int($model.solid)'),), '15.4.9 config-0.srl:281'),  # spec 15.4.9 config-0.srl:281
-            ('if', ('$', 'model.solid'), (  # spec 15.4.9 config-0.srl:282
-                ('class', 'moAnnotationView_c', 1, None, '15.4.9 config-0.srl:283'),  # spec 15.4.9 config-0.srl:283
-                ('put', 'cstr', ('*Top',), '15.4.9 config-0.srl:284'),  # spec 15.4.9 config-0.srl:284
-                ('put', 'u32', (1,), '15.4.9 config-0.srl:285'),  # spec 15.4.9 config-0.srl:285
-                ('put', 'u8', (0,), '15.4.9 config-0.srl:286'),  # spec 15.4.9 config-0.srl:286
-                ('put', 'f32', (1.875,), '15.4.9 config-0.srl:287'),  # spec 15.4.9 config-0.srl:287
-                ('rep', 32, 0, '15.4.9 config-0.srl:288'),  # spec 15.4.9 config-0.srl:288
-                ('put', 'f64', (1.0,), '15.4.9 config-0.srl:289'),  # spec 15.4.9 config-0.srl:289
-                ('rep', 7, 0, '15.4.9 config-0.srl:290'),  # spec 15.4.9 config-0.srl:290
-                ('put', 'u32', (128,), '15.4.9 config-0.srl:291'),  # spec 15.4.9 config-0.srl:291
-                ('put', 'u8', (0,), '15.4.9 config-0.srl:292'),  # spec 15.4.9 config-0.srl:292
-                ('put', 'f32', (-1.875,), '15.4.9 config-0.srl:293'),  # spec 15.4.9 config-0.srl:293
-                ('rep', 7, 0, '15.4.9 config-0.srl:294'),  # spec 15.4.9 config-0.srl:294
-                ('put', 'u32', (128,), '15.4.9 config-0.srl:295'),  # spec 15.4.9 config-0.srl:295
-                ('rep', 21, 0, '15.4.9 config-0.srl:296'),  # spec 15.4.9 config-0.srl:296
-                ('put', 'f64', (1.0,), '15.4.9 config-0.srl:297'),  # spec 15.4.9 config-0.srl:297
-                ('rep', 26, 0, '15.4.9 config-0.srl:298'),  # spec 15.4.9 config-0.srl:298
-                ('put', 'f64', (1.0,), '15.4.9 config-0.srl:299'),  # spec 15.4.9 config-0.srl:299
-                ('rep', 3, 0, '15.4.9 config-0.srl:300'),  # spec 15.4.9 config-0.srl:300
-                ('put', 'i32', (-1,), '15.4.9 config-0.srl:301'),  # spec 15.4.9 config-0.srl:301
-                ('put', 'f64', (-1.0,), '15.4.9 config-0.srl:302'),  # spec 15.4.9 config-0.srl:302
-                ('put', 'u32', (0, 200), '15.4.9 config-0.srl:303'),  # spec 15.4.9 config-0.srl:303
-                ('rep', 58, 0, '15.4.9 config-0.srl:304'),  # spec 15.4.9 config-0.srl:304
-                ('put', 'u32', (1,), '15.4.9 config-0.srl:305'),  # spec 15.4.9 config-0.srl:305
-                ('put', 'i32', (-65536,), '15.4.9 config-0.srl:306'),  # spec 15.4.9 config-0.srl:306
-                ('put', 'u32', (65535,), '15.4.9 config-0.srl:307'),  # spec 15.4.9 config-0.srl:307
-                ('put', 'i32', (-65536, -1), '15.4.9 config-0.srl:308'),  # spec 15.4.9 config-0.srl:308
-                ('hex', 'FFFF', '15.4.9 config-0.srl:309'),  # spec 15.4.9 config-0.srl:309
-            ), (  # spec 15.4.9 config-0.srl:282
-            ), '15.4.9 config-0.srl:282'),  # spec 15.4.9 config-0.srl:282
-            ('put', 'u32', (('=', '199+int($model.solid)'), 199, 1, 199), '15.4.9 config-0.srl:311'),  # spec 15.4.9 config-0.srl:311
-            ('rep', 30, 0, '15.4.9 config-0.srl:312'),  # spec 15.4.9 config-0.srl:312
-            ('if', ('$', 'model.solid'), (  # spec 15.4.9 config-0.srl:313
-                ('class', 'moPMarkRecord_c', 1, None, '15.4.9 config-0.srl:314'),  # spec 15.4.9 config-0.srl:314
-                ('put', 'u32', (3,), '15.4.9 config-0.srl:315'),  # spec 15.4.9 config-0.srl:315
-            ), (  # spec 15.4.9 config-0.srl:313
-                ('put', 'u16', (0,), '15.4.9 config-0.srl:317'),  # spec 15.4.9 config-0.srl:317
-            ), '15.4.9 config-0.srl:313'),  # spec 15.4.9 config-0.srl:313
-            ('put', 'u32', (1,), '15.4.9 config-0.srl:319'),  # spec 15.4.9 config-0.srl:319
-            ('rep', 12, 0, '15.4.9 config-0.srl:320'),  # spec 15.4.9 config-0.srl:320
-            ('put', 'u32', (20, 0, 20), '15.4.9 config-0.srl:321'),  # spec 15.4.9 config-0.srl:321
-            ('rep', 16, 0, '15.4.9 config-0.srl:322'),  # spec 15.4.9 config-0.srl:322
-            ('class', 'suObList', 1, None, '15.4.9 config-0.srl:323'),  # spec 15.4.9 config-0.srl:323
-            ('rep', 6, 0, '15.4.9 config-0.srl:324'),  # spec 15.4.9 config-0.srl:324
-            ('put', 'cstr', ('',), '15.4.9 config-0.srl:325'),  # spec 15.4.9 config-0.srl:325
+            ('put', 'u32', (1,), '15.4.9 config-0.srl:274'),  # spec 15.4.9 config-0.srl:274
+            ('hex', '690CB15972524B4BA83A09510F', '15.4.9 config-0.srl:275'),  # spec 15.4.9 config-0.srl:275
+            ('put', 'u32', (13113814,), '15.4.9 config-0.srl:276'),  # spec 15.4.9 config-0.srl:276
+            ('rep', 3, 0, '15.4.9 config-0.srl:277'),  # spec 15.4.9 config-0.srl:277
+            ('objref', 'sketch_blocks', '15.4.9 config-0.srl:278'),  # spec 15.4.9 config-0.srl:278
+            ('put', 'u32', (0, 0), '15.4.9 config-0.srl:279'),  # spec 15.4.9 config-0.srl:279
+            ('class', 'suObList', 1, None, '15.4.9 config-0.srl:281'),  # spec 15.4.9 config-0.srl:281
+            ('put', 'u16', (('=', 'int($model.solid)'),), '15.4.9 config-0.srl:282'),  # spec 15.4.9 config-0.srl:282
+            ('if', ('$', 'model.solid'), (  # spec 15.4.9 config-0.srl:283
+                ('class', 'moAnnotationView_c', 1, None, '15.4.9 config-0.srl:284'),  # spec 15.4.9 config-0.srl:284
+                ('put', 'cstr', ('*Top',), '15.4.9 config-0.srl:285'),  # spec 15.4.9 config-0.srl:285
+                ('put', 'u32', (1,), '15.4.9 config-0.srl:286'),  # spec 15.4.9 config-0.srl:286
+                ('put', 'u8', (0,), '15.4.9 config-0.srl:287'),  # spec 15.4.9 config-0.srl:287
+                ('put', 'f32', (1.875,), '15.4.9 config-0.srl:288'),  # spec 15.4.9 config-0.srl:288
+                ('rep', 32, 0, '15.4.9 config-0.srl:289'),  # spec 15.4.9 config-0.srl:289
+                ('put', 'f64', (1.0,), '15.4.9 config-0.srl:290'),  # spec 15.4.9 config-0.srl:290
+                ('rep', 7, 0, '15.4.9 config-0.srl:291'),  # spec 15.4.9 config-0.srl:291
+                ('put', 'u32', (128,), '15.4.9 config-0.srl:292'),  # spec 15.4.9 config-0.srl:292
+                ('put', 'u8', (0,), '15.4.9 config-0.srl:293'),  # spec 15.4.9 config-0.srl:293
+                ('put', 'f32', (-1.875,), '15.4.9 config-0.srl:294'),  # spec 15.4.9 config-0.srl:294
+                ('rep', 7, 0, '15.4.9 config-0.srl:295'),  # spec 15.4.9 config-0.srl:295
+                ('put', 'u32', (128,), '15.4.9 config-0.srl:296'),  # spec 15.4.9 config-0.srl:296
+                ('rep', 21, 0, '15.4.9 config-0.srl:297'),  # spec 15.4.9 config-0.srl:297
+                ('put', 'f64', (1.0,), '15.4.9 config-0.srl:298'),  # spec 15.4.9 config-0.srl:298
+                ('rep', 26, 0, '15.4.9 config-0.srl:299'),  # spec 15.4.9 config-0.srl:299
+                ('put', 'f64', (1.0,), '15.4.9 config-0.srl:300'),  # spec 15.4.9 config-0.srl:300
+                ('rep', 3, 0, '15.4.9 config-0.srl:301'),  # spec 15.4.9 config-0.srl:301
+                ('put', 'i32', (-1,), '15.4.9 config-0.srl:302'),  # spec 15.4.9 config-0.srl:302
+                ('put', 'f64', (-1.0,), '15.4.9 config-0.srl:303'),  # spec 15.4.9 config-0.srl:303
+                ('put', 'u32', (0, 200), '15.4.9 config-0.srl:304'),  # spec 15.4.9 config-0.srl:304
+                ('rep', 58, 0, '15.4.9 config-0.srl:305'),  # spec 15.4.9 config-0.srl:305
+                ('put', 'u32', (1,), '15.4.9 config-0.srl:306'),  # spec 15.4.9 config-0.srl:306
+                ('put', 'i32', (-65536,), '15.4.9 config-0.srl:307'),  # spec 15.4.9 config-0.srl:307
+                ('put', 'u32', (65535,), '15.4.9 config-0.srl:308'),  # spec 15.4.9 config-0.srl:308
+                ('put', 'i32', (-65536, -1), '15.4.9 config-0.srl:309'),  # spec 15.4.9 config-0.srl:309
+                ('hex', 'FFFF', '15.4.9 config-0.srl:310'),  # spec 15.4.9 config-0.srl:310
+            ), (  # spec 15.4.9 config-0.srl:283
+            ), '15.4.9 config-0.srl:283'),  # spec 15.4.9 config-0.srl:283
+            ('put', 'u32', (('=', '199+int($model.solid)'), 199, 1, 199), '15.4.9 config-0.srl:312'),  # spec 15.4.9 config-0.srl:312
+            ('rep', 30, 0, '15.4.9 config-0.srl:313'),  # spec 15.4.9 config-0.srl:313
+            ('if', ('$', 'model.solid'), (  # spec 15.4.9 config-0.srl:314
+                ('class', 'moPMarkRecord_c', 1, None, '15.4.9 config-0.srl:315'),  # spec 15.4.9 config-0.srl:315
+                ('put', 'u32', (3,), '15.4.9 config-0.srl:316'),  # spec 15.4.9 config-0.srl:316
+            ), (  # spec 15.4.9 config-0.srl:314
+                ('put', 'u16', (0,), '15.4.9 config-0.srl:318'),  # spec 15.4.9 config-0.srl:318
+            ), '15.4.9 config-0.srl:314'),  # spec 15.4.9 config-0.srl:314
+            ('put', 'u32', (1,), '15.4.9 config-0.srl:320'),  # spec 15.4.9 config-0.srl:320
+            ('rep', 12, 0, '15.4.9 config-0.srl:321'),  # spec 15.4.9 config-0.srl:321
+            ('put', 'u32', (20, 0, 20), '15.4.9 config-0.srl:322'),  # spec 15.4.9 config-0.srl:322
+            ('rep', 16, 0, '15.4.9 config-0.srl:323'),  # spec 15.4.9 config-0.srl:323
+            ('class', 'suObList', 1, None, '15.4.9 config-0.srl:324'),  # spec 15.4.9 config-0.srl:324
+            ('rep', 6, 0, '15.4.9 config-0.srl:325'),  # spec 15.4.9 config-0.srl:325
             ('put', 'cstr', ('',), '15.4.9 config-0.srl:326'),  # spec 15.4.9 config-0.srl:326
-            ('class', 'moCThreadRefMgr_c', 1, None, '15.4.9 config-0.srl:327'),  # spec 15.4.9 config-0.srl:327
-            ('rep', 23, 0, '15.4.9 config-0.srl:330'),  # spec 15.4.9 config-0.srl:330
-            ('if', ('$', 'config0.mass_block'), (  # spec 15.4.9 config-0.srl:331
-                ('put', 'u32', (1, 1, ('=', 'len($bodies)')), '15.4.9 config-0.srl:332'),  # spec 15.4.9 config-0.srl:332
-                ('for', 'b', ('$', 'bodies'), False, (  # spec 15.4.9 config-0.srl:333
-                    ('put', 'u32', (('$', 'b.id'), ('=', '$doc.stamp2-2*(len($bodies)-1-$b_index)')), '15.4.9 config-0.srl:334'),  # spec 15.4.9 config-0.srl:334
-                    ('put', 'f64', (1.0,), '15.4.9 config-0.srl:335'),  # spec 15.4.9 config-0.srl:335
-                ), '15.4.9 config-0.srl:333'),  # spec 15.4.9 config-0.srl:333
-                ('put', 'f64', (('$', 'config0.mass.0'), ('$', 'config0.mass.1'), ('$', 'config0.mass.2')), '15.4.9 config-0.srl:337'),  # spec 15.4.9 config-0.srl:337
-                ('put', 'f64', (('$', 'config0.mass.3'), ('$', 'config0.mass.4'), ('$', 'config0.mass.5')), '15.4.9 config-0.srl:338'),  # spec 15.4.9 config-0.srl:338
-                ('put', 'f64', (('$', 'config0.mass.6'), ('$', 'config0.mass.7'), ('$', 'config0.mass.8')), '15.4.9 config-0.srl:339'),  # spec 15.4.9 config-0.srl:339
-                ('put', 'f64', (('$', 'config0.mass.9'), ('$', 'config0.mass.10'), ('$', 'config0.mass.11')), '15.4.9 config-0.srl:340'),  # spec 15.4.9 config-0.srl:340
-                ('put', 'u32', (1,), '15.4.9 config-0.srl:341'),  # spec 15.4.9 config-0.srl:341
-                ('rep', 16, 0, '15.4.9 config-0.srl:342'),  # spec 15.4.9 config-0.srl:342
-                ('put', 'f64', (0.995,), '15.4.9 config-0.srl:343'),  # spec 15.4.9 config-0.srl:343
-                ('rep', 16, 0, '15.4.9 config-0.srl:344'),  # spec 15.4.9 config-0.srl:344
-                ('put', 'cstr', ('',), '15.4.9 config-0.srl:345'),  # spec 15.4.9 config-0.srl:345
+            ('put', 'cstr', ('',), '15.4.9 config-0.srl:327'),  # spec 15.4.9 config-0.srl:327
+            ('class', 'moCThreadRefMgr_c', 1, None, '15.4.9 config-0.srl:328'),  # spec 15.4.9 config-0.srl:328
+            ('rep', 23, 0, '15.4.9 config-0.srl:331'),  # spec 15.4.9 config-0.srl:331
+            ('if', ('$', 'config0.mass_block'), (  # spec 15.4.9 config-0.srl:332
+                ('put', 'u32', (1, 1, ('=', 'len($live_bodies)')), '15.4.9 config-0.srl:333'),  # spec 15.4.9 config-0.srl:333
+                ('for', 'b', ('$', 'live_bodies'), False, (  # spec 15.4.9 config-0.srl:334
+                    ('put', 'u32', (('$', 'b.id'), ('=', '$doc.stamp2-2*(len($live_bodies)-1-$b_index)')), '15.4.9 config-0.srl:335'),  # spec 15.4.9 config-0.srl:335
+                    ('put', 'f64', (1.0,), '15.4.9 config-0.srl:336'),  # spec 15.4.9 config-0.srl:336
+                ), '15.4.9 config-0.srl:334'),  # spec 15.4.9 config-0.srl:334
+                ('put', 'f64', (('$', 'config0.mass.0'), ('$', 'config0.mass.1'), ('$', 'config0.mass.2')), '15.4.9 config-0.srl:338'),  # spec 15.4.9 config-0.srl:338
+                ('put', 'f64', (('$', 'config0.mass.3'), ('$', 'config0.mass.4'), ('$', 'config0.mass.5')), '15.4.9 config-0.srl:339'),  # spec 15.4.9 config-0.srl:339
+                ('put', 'f64', (('$', 'config0.mass.6'), ('$', 'config0.mass.7'), ('$', 'config0.mass.8')), '15.4.9 config-0.srl:340'),  # spec 15.4.9 config-0.srl:340
+                ('put', 'f64', (('$', 'config0.mass.9'), ('$', 'config0.mass.10'), ('$', 'config0.mass.11')), '15.4.9 config-0.srl:341'),  # spec 15.4.9 config-0.srl:341
+                ('put', 'u32', (1,), '15.4.9 config-0.srl:342'),  # spec 15.4.9 config-0.srl:342
+                ('rep', 16, 0, '15.4.9 config-0.srl:343'),  # spec 15.4.9 config-0.srl:343
+                ('put', 'f64', (0.995,), '15.4.9 config-0.srl:344'),  # spec 15.4.9 config-0.srl:344
+                ('rep', 16, 0, '15.4.9 config-0.srl:345'),  # spec 15.4.9 config-0.srl:345
                 ('put', 'cstr', ('',), '15.4.9 config-0.srl:346'),  # spec 15.4.9 config-0.srl:346
-                ('rep', 28, 0, '15.4.9 config-0.srl:347'),  # spec 15.4.9 config-0.srl:347
-                ('put', 'f64', (1.0,), '15.4.9 config-0.srl:348'),  # spec 15.4.9 config-0.srl:348
-                ('rep', 24, 0, '15.4.9 config-0.srl:349'),  # spec 15.4.9 config-0.srl:349
-                ('put', 'f64', (1.0,), '15.4.9 config-0.srl:350'),  # spec 15.4.9 config-0.srl:350
-                ('rep', 24, 0, '15.4.9 config-0.srl:351'),  # spec 15.4.9 config-0.srl:351
-                ('put', 'f64', (1.0,), '15.4.9 config-0.srl:352'),  # spec 15.4.9 config-0.srl:352
-                ('put', 'u32', (1,), '15.4.9 config-0.srl:353'),  # spec 15.4.9 config-0.srl:353
-                ('rep', 6, 0, '15.4.9 config-0.srl:354'),  # spec 15.4.9 config-0.srl:354
-            ), (  # spec 15.4.9 config-0.srl:331
-                ('put', 'u32', (0, 0, 0), '15.4.9 config-0.srl:356'),  # spec 15.4.9 config-0.srl:356
-            ), '15.4.9 config-0.srl:331'),  # spec 15.4.9 config-0.srl:331
-            ('class', 'moPrtExplViewManager_c', 1, None, '15.4.9 config-0.srl:358'),  # spec 15.4.9 config-0.srl:358
-            ('rep', 2, 0, '15.4.9 config-0.srl:359'),  # spec 15.4.9 config-0.srl:359
+                ('put', 'cstr', ('',), '15.4.9 config-0.srl:347'),  # spec 15.4.9 config-0.srl:347
+                ('rep', 28, 0, '15.4.9 config-0.srl:348'),  # spec 15.4.9 config-0.srl:348
+                ('put', 'f64', (1.0,), '15.4.9 config-0.srl:349'),  # spec 15.4.9 config-0.srl:349
+                ('rep', 24, 0, '15.4.9 config-0.srl:350'),  # spec 15.4.9 config-0.srl:350
+                ('put', 'f64', (1.0,), '15.4.9 config-0.srl:351'),  # spec 15.4.9 config-0.srl:351
+                ('rep', 24, 0, '15.4.9 config-0.srl:352'),  # spec 15.4.9 config-0.srl:352
+                ('put', 'f64', (1.0,), '15.4.9 config-0.srl:353'),  # spec 15.4.9 config-0.srl:353
+                ('put', 'u32', (1,), '15.4.9 config-0.srl:354'),  # spec 15.4.9 config-0.srl:354
+                ('rep', 6, 0, '15.4.9 config-0.srl:355'),  # spec 15.4.9 config-0.srl:355
+            ), (  # spec 15.4.9 config-0.srl:332
+                ('put', 'u32', (0, 0, 0), '15.4.9 config-0.srl:357'),  # spec 15.4.9 config-0.srl:357
+            ), '15.4.9 config-0.srl:332'),  # spec 15.4.9 config-0.srl:332
+            ('class', 'moPrtExplViewManager_c', 1, None, '15.4.9 config-0.srl:359'),  # spec 15.4.9 config-0.srl:359
+            ('rep', 2, 0, '15.4.9 config-0.srl:360'),  # spec 15.4.9 config-0.srl:360
             ('put', 'u32', (0, 1073741824, 19, 0), '15.4.2 config-0-macros.srl:11'),  # spec 15.4.2 config-0-macros.srl:11
             ('put', 'cstr', ('',), '15.4.2 config-0-macros.srl:12'),  # spec 15.4.2 config-0-macros.srl:12
             ('rep', 6, 0, '15.4.2 config-0-macros.srl:13'),  # spec 15.4.2 config-0-macros.srl:13
-            ('put', 'u16', (0,), '15.4.9 config-0.srl:361'),  # spec 15.4.9 config-0.srl:361
+            ('put', 'u16', (0,), '15.4.9 config-0.srl:362'),  # spec 15.4.9 config-0.srl:362
             ('rep', 12, 0, '15.4.2 config-0-macros.srl:27'),  # spec 15.4.2 config-0-macros.srl:27
             ('put', 'u32', (101, 0), '15.4.2 config-0-macros.srl:28'),  # spec 15.4.2 config-0-macros.srl:28
             ('put', 'u8', (0,), '15.4.2 config-0-macros.srl:29'),  # spec 15.4.2 config-0-macros.srl:29
@@ -3023,13 +3056,13 @@ LISTINGS = {
             ('put', 'u32', (('=', '0x0//4294967296'), ('=', '0x0%4294967296')), '15.4.2 config-0-macros.srl:46'),  # spec 15.4.2 config-0-macros.srl:46
             ('put', 'u16', (2,), '15.4.2 config-0-macros.srl:47'),  # spec 15.4.2 config-0-macros.srl:47
             ('put', 'u32', (350108,), '15.4.2 config-0-macros.srl:48'),  # spec 15.4.2 config-0-macros.srl:48
-            ('put', 'u32', (1,), '15.4.9 config-0.srl:363'),  # spec 15.4.9 config-0.srl:363
-            ('rep', 12, 0, '15.4.9 config-0.srl:364'),  # spec 15.4.9 config-0.srl:364
-            ('put', 'i32', (-1, -1), '15.4.9 config-0.srl:365'),  # spec 15.4.9 config-0.srl:365
-            ('rep', 2, 0, '15.4.9 config-0.srl:366'),  # spec 15.4.9 config-0.srl:366
-            ('put', 'u32', (20, 1), '15.4.9 config-0.srl:367'),  # spec 15.4.9 config-0.srl:367
-            ('rep', 16, 0, '15.4.9 config-0.srl:368'),  # spec 15.4.9 config-0.srl:368
-            ('put', 'u32', (101, 0, 0), '15.4.9 config-0.srl:369'),  # spec 15.4.9 config-0.srl:369
+            ('put', 'u32', (1,), '15.4.9 config-0.srl:364'),  # spec 15.4.9 config-0.srl:364
+            ('rep', 12, 0, '15.4.9 config-0.srl:365'),  # spec 15.4.9 config-0.srl:365
+            ('put', 'i32', (-1, -1), '15.4.9 config-0.srl:366'),  # spec 15.4.9 config-0.srl:366
+            ('rep', 2, 0, '15.4.9 config-0.srl:367'),  # spec 15.4.9 config-0.srl:367
+            ('put', 'u32', (20, 1), '15.4.9 config-0.srl:368'),  # spec 15.4.9 config-0.srl:368
+            ('rep', 16, 0, '15.4.9 config-0.srl:369'),  # spec 15.4.9 config-0.srl:369
+            ('put', 'u32', (101, 0, 0), '15.4.9 config-0.srl:370'),  # spec 15.4.9 config-0.srl:370
         ), '15.4.6 config-0.srl:224'),  # spec 15.4.6 config-0.srl:224
     ),  # spec 15.4 config-0.srl
     'Contents/Config-0-LWDATA': (  # spec 15.2 config-0-lwdata.srl
@@ -3383,10 +3416,10 @@ LISTINGS = {
         ('put', 'cstr', ('Created',), '15.2.2.2 model-header.srl:23'),  # spec 15.2.2.2 model-header.srl:23
         ('put', 'u32', (25,), '15.2.2.2 model-header.srl:159'),  # spec 15.2.2.2 model-header.srl:159
         ('put', 'cstr', ('Selection Sets',), '15.2.2.2 model-header.srl:160'),  # spec 15.2.2.2 model-header.srl:160
-        ('for', 'f', ('$', 'features'), False, (  # spec 15.2.2.2 model-header.srl:162
-            ('class', 'moLogs_c', 1, None, '15.2.2.2 model-header.srl:163'),  # spec 15.2.2.2 model-header.srl:163
-            ('if', ('$', 'f.sketch'), (  # spec 15.2.2.2 model-header.srl:164
-                ('put', 'u16', (2,), '15.2.2.2 model-header.srl:165'),  # spec 15.2.2.2 model-header.srl:165
+        ('for', 'f', ('$', 'features'), False, (  # spec 15.2.2.2 model-header.srl:163
+            ('class', 'moLogs_c', 1, None, '15.2.2.2 model-header.srl:164'),  # spec 15.2.2.2 model-header.srl:164
+            ('if', ('$', 'f.log_modified'), (  # spec 15.2.2.2 model-header.srl:165
+                ('put', 'u16', (2,), '15.2.2.2 model-header.srl:166'),  # spec 15.2.2.2 model-header.srl:166
                 ('class', 'moStamp_c', 1, None, '15.2.2.2 model-header.srl:19'),  # spec 15.2.2.2 model-header.srl:19
                 ('put', 'u16', (0,), '15.2.2.2 model-header.srl:20'),  # spec 15.2.2.2 model-header.srl:20
                 ('put', 'u32', (0,), '15.2.2.2 model-header.srl:21'),  # spec 15.2.2.2 model-header.srl:21
@@ -3397,75 +3430,75 @@ LISTINGS = {
                 ('put', 'u32', (0,), '15.2.2.2 model-header.srl:28'),  # spec 15.2.2.2 model-header.srl:28
                 ('put', 'u32', (('$', 'f.modified'),), '15.2.2.2 model-header.srl:29'),  # spec 15.2.2.2 model-header.srl:29
                 ('put', 'cstr', ('Modified',), '15.2.2.2 model-header.srl:30'),  # spec 15.2.2.2 model-header.srl:30
-            ), (  # spec 15.2.2.2 model-header.srl:164
-                ('put', 'u16', (1,), '15.2.2.2 model-header.srl:169'),  # spec 15.2.2.2 model-header.srl:169
+            ), (  # spec 15.2.2.2 model-header.srl:165
+                ('put', 'u16', (1,), '15.2.2.2 model-header.srl:170'),  # spec 15.2.2.2 model-header.srl:170
                 ('class', 'moStamp_c', 1, None, '15.2.2.2 model-header.srl:19'),  # spec 15.2.2.2 model-header.srl:19
                 ('put', 'u16', (0,), '15.2.2.2 model-header.srl:20'),  # spec 15.2.2.2 model-header.srl:20
                 ('put', 'u32', (0,), '15.2.2.2 model-header.srl:21'),  # spec 15.2.2.2 model-header.srl:21
                 ('put', 'u32', (('$', 'f.created'),), '15.2.2.2 model-header.srl:22'),  # spec 15.2.2.2 model-header.srl:22
                 ('put', 'cstr', ('Created',), '15.2.2.2 model-header.srl:23'),  # spec 15.2.2.2 model-header.srl:23
-            ), '15.2.2.2 model-header.srl:164'),  # spec 15.2.2.2 model-header.srl:164
-            ('put', 'u32', (('$', 'f.id'),), '15.2.2.2 model-header.srl:172'),  # spec 15.2.2.2 model-header.srl:172
-            ('put', 'cstr', (('$', 'f.name'),), '15.2.2.2 model-header.srl:173'),  # spec 15.2.2.2 model-header.srl:173
-        ), '15.2.2.2 model-header.srl:162'),  # spec 15.2.2.2 model-header.srl:162
-        ('put', 'u32', (('$', 'tpl.unix2'),), '15.2.2.2 model-header.srl:175'),  # spec 15.2.2.2 model-header.srl:175
-        ('put', 'u32', (('$', 'hdr.next_id'),), '15.2.2.2 model-header.srl:176'),  # spec 15.2.2.2 model-header.srl:176
-        ('put', 'u16', (0,), '15.2.2.2 model-header.srl:177'),  # spec 15.2.2.2 model-header.srl:177
-        ('put', 'u32', (('$', 'doc.stamp'),), '15.2.2.2 model-header.srl:178'),  # spec 15.2.2.2 model-header.srl:178
-        ('class', 'moExtObject_c', 1, None, '15.2.2.5 model-header.srl:181'),  # spec 15.2.2.5 model-header.srl:181
-        ('class', 'moCStringHandle_c', 1, None, '15.2.2.5 model-header.srl:182'),  # spec 15.2.2.5 model-header.srl:182
-        ('put', 'cstr', ('',), '15.2.2.5 model-header.srl:183'),  # spec 15.2.2.5 model-header.srl:183
-        ('class', 'moCStringHandle_c', 1, None, '15.2.2.5 model-header.srl:184'),  # spec 15.2.2.5 model-header.srl:184
-        ('put', 'cstr', (('$', 'doc.name'),), '15.2.2.5 model-header.srl:185'),  # spec 15.2.2.5 model-header.srl:185
-        ('hex', '020000', '15.2.2.5 model-header.srl:186'),  # spec 15.2.2.5 model-header.srl:186
-        ('put', 'u32', (('$', 'doc.created'),), '15.2.2.5 model-header.srl:187'),  # spec 15.2.2.5 model-header.srl:187
-        ('put', 'cstr', ('',), '15.2.2.5 model-header.srl:188'),  # spec 15.2.2.5 model-header.srl:188
+            ), '15.2.2.2 model-header.srl:165'),  # spec 15.2.2.2 model-header.srl:165
+            ('put', 'u32', (('$', 'f.id'),), '15.2.2.2 model-header.srl:173'),  # spec 15.2.2.2 model-header.srl:173
+            ('put', 'cstr', (('$', 'f.name'),), '15.2.2.2 model-header.srl:174'),  # spec 15.2.2.2 model-header.srl:174
+        ), '15.2.2.2 model-header.srl:163'),  # spec 15.2.2.2 model-header.srl:163
+        ('put', 'u32', (('$', 'tpl.unix2'),), '15.2.2.2 model-header.srl:176'),  # spec 15.2.2.2 model-header.srl:176
+        ('put', 'u32', (('$', 'hdr.next_id'),), '15.2.2.2 model-header.srl:177'),  # spec 15.2.2.2 model-header.srl:177
+        ('put', 'u16', (0,), '15.2.2.2 model-header.srl:178'),  # spec 15.2.2.2 model-header.srl:178
+        ('put', 'u32', (('$', 'doc.stamp'),), '15.2.2.2 model-header.srl:179'),  # spec 15.2.2.2 model-header.srl:179
+        ('class', 'moExtObject_c', 1, None, '15.2.2.5 model-header.srl:182'),  # spec 15.2.2.5 model-header.srl:182
+        ('class', 'moCStringHandle_c', 1, None, '15.2.2.5 model-header.srl:183'),  # spec 15.2.2.5 model-header.srl:183
+        ('put', 'cstr', ('',), '15.2.2.5 model-header.srl:184'),  # spec 15.2.2.5 model-header.srl:184
+        ('class', 'moCStringHandle_c', 1, None, '15.2.2.5 model-header.srl:185'),  # spec 15.2.2.5 model-header.srl:185
+        ('put', 'cstr', (('$', 'doc.name'),), '15.2.2.5 model-header.srl:186'),  # spec 15.2.2.5 model-header.srl:186
+        ('hex', '020000', '15.2.2.5 model-header.srl:187'),  # spec 15.2.2.5 model-header.srl:187
+        ('put', 'u32', (('$', 'doc.created'),), '15.2.2.5 model-header.srl:188'),  # spec 15.2.2.5 model-header.srl:188
         ('put', 'cstr', ('',), '15.2.2.5 model-header.srl:189'),  # spec 15.2.2.5 model-header.srl:189
         ('put', 'cstr', ('',), '15.2.2.5 model-header.srl:190'),  # spec 15.2.2.5 model-header.srl:190
-        ('put', 'u16', (0,), '15.2.2.5 model-header.srl:191'),  # spec 15.2.2.5 model-header.srl:191
-        ('if', ('=', 'len($features)>0'), (  # spec 15.2.2.5 model-header.srl:192
-            ('put', 'u32', (('$', 'doc.unix'),), '15.2.2.5 model-header.srl:193'),  # spec 15.2.2.5 model-header.srl:193
-        ), (  # spec 15.2.2.5 model-header.srl:192
-            ('put', 'u32', (('$', 'tpl.unix2'),), '15.2.2.5 model-header.srl:195'),  # spec 15.2.2.5 model-header.srl:195
-        ), '15.2.2.5 model-header.srl:192'),  # spec 15.2.2.5 model-header.srl:192
-        ('put', 'u32', (1, 0), '15.2.2.5 model-header.srl:197'),  # spec 15.2.2.5 model-header.srl:197
-        ('put', 'i32', (-1,), '15.2.2.5 model-header.srl:198'),  # spec 15.2.2.5 model-header.srl:198
-        ('put', 'cstr', ('Default',), '15.2.2.5 model-header.srl:199'),  # spec 15.2.2.5 model-header.srl:199
-        ('rep', 16, 0, '15.2.2.5 model-header.srl:200'),  # spec 15.2.2.5 model-header.srl:200
-        ('put', 'u32', (('$', 'doc.stamp2'),), '15.2.2.5 model-header.srl:201'),  # spec 15.2.2.5 model-header.srl:201
-        ('put', 'u32', (0, 0), '15.2.2.5 model-header.srl:202'),  # spec 15.2.2.5 model-header.srl:202
-        ('put', 'u32', (('$', 'doc.created'),), '15.2.2.5 model-header.srl:203'),  # spec 15.2.2.5 model-header.srl:203
-        ('rep', 18, 0, '15.2.2.5 model-header.srl:204'),  # spec 15.2.2.5 model-header.srl:204
-        ('put', 'u32', (2,), '15.2.2.5 model-header.srl:205'),  # spec 15.2.2.5 model-header.srl:205
-        ('if', ('=', 'len($features)>0'), (  # spec 15.2.2.5 model-header.srl:206
-            ('put', 'u32', (('$', 'doc.unix'),), '15.2.2.5 model-header.srl:207'),  # spec 15.2.2.5 model-header.srl:207
-        ), (  # spec 15.2.2.5 model-header.srl:206
-            ('put', 'u32', (('$', 'tpl.unix'),), '15.2.2.5 model-header.srl:209'),  # spec 15.2.2.5 model-header.srl:209
-        ), '15.2.2.5 model-header.srl:206'),  # spec 15.2.2.5 model-header.srl:206
-        ('class', 'suObList', 1, None, '15.2.2.5 model-header.srl:211'),  # spec 15.2.2.5 model-header.srl:211
-        ('put', 'u16', (0,), '15.2.2.5 model-header.srl:212'),  # spec 15.2.2.5 model-header.srl:212
-        ('put', 'u32', (0, 0), '15.2.2.5 model-header.srl:213'),  # spec 15.2.2.5 model-header.srl:213
-        ('if', ('$', 'model.solid'), (  # spec 15.2.2.6 model-header.srl:217
-            ('put', 'u32', (1,), '15.2.2.6 model-header.srl:218'),  # spec 15.2.2.6 model-header.srl:218
-            ('put', 'f64', (('$', 'hdr.centre.0'), ('$', 'hdr.centre.1'), ('$', 'hdr.centre.2')), '15.2.2.6 model-header.srl:219'),  # spec 15.2.2.6 model-header.srl:219
-            ('put', 'f64', (('$', 'model.max.0'), ('$', 'model.max.1'), ('$', 'model.max.2')), '15.2.2.6 model-header.srl:220'),  # spec 15.2.2.6 model-header.srl:220
-            ('put', 'f64', (('$', 'model.min.0'), ('$', 'model.min.1'), ('$', 'model.min.2')), '15.2.2.6 model-header.srl:221'),  # spec 15.2.2.6 model-header.srl:221
-            ('put', 'f64', (('$', 'model.sphere.3'),), '15.2.2.6 model-header.srl:222'),  # spec 15.2.2.6 model-header.srl:222
-        ), (  # spec 15.2.2.6 model-header.srl:217
-            ('put', 'u32', (0,), '15.2.2.6 model-header.srl:224'),  # spec 15.2.2.6 model-header.srl:224
-        ), '15.2.2.6 model-header.srl:217'),  # spec 15.2.2.6 model-header.srl:217
-        ('put', 'i32', (-1, -1, -1), '15.2.2.6 model-header.srl:226'),  # spec 15.2.2.6 model-header.srl:226
-        ('put', 'u32', (1,), '15.2.2.6 model-header.srl:227'),  # spec 15.2.2.6 model-header.srl:227
-        ('rep', 40, 0, '15.2.2.6 model-header.srl:228'),  # spec 15.2.2.6 model-header.srl:228
-        ('put', 'u32', (1,), '15.2.2.6 model-header.srl:229'),  # spec 15.2.2.6 model-header.srl:229
-        ('rep', 16, 0, '15.2.2.6 model-header.srl:230'),  # spec 15.2.2.6 model-header.srl:230
-        ('put', 'u32', (1,), '15.2.2.6 model-header.srl:231'),  # spec 15.2.2.6 model-header.srl:231
+        ('put', 'cstr', ('',), '15.2.2.5 model-header.srl:191'),  # spec 15.2.2.5 model-header.srl:191
+        ('put', 'u16', (0,), '15.2.2.5 model-header.srl:192'),  # spec 15.2.2.5 model-header.srl:192
+        ('if', ('=', 'len($features)>0'), (  # spec 15.2.2.5 model-header.srl:193
+            ('put', 'u32', (('$', 'doc.unix'),), '15.2.2.5 model-header.srl:194'),  # spec 15.2.2.5 model-header.srl:194
+        ), (  # spec 15.2.2.5 model-header.srl:193
+            ('put', 'u32', (('$', 'tpl.unix2'),), '15.2.2.5 model-header.srl:196'),  # spec 15.2.2.5 model-header.srl:196
+        ), '15.2.2.5 model-header.srl:193'),  # spec 15.2.2.5 model-header.srl:193
+        ('put', 'u32', (1, 0), '15.2.2.5 model-header.srl:198'),  # spec 15.2.2.5 model-header.srl:198
+        ('put', 'i32', (-1,), '15.2.2.5 model-header.srl:199'),  # spec 15.2.2.5 model-header.srl:199
+        ('put', 'cstr', ('Default',), '15.2.2.5 model-header.srl:200'),  # spec 15.2.2.5 model-header.srl:200
+        ('rep', 16, 0, '15.2.2.5 model-header.srl:201'),  # spec 15.2.2.5 model-header.srl:201
+        ('put', 'u32', (('$', 'doc.stamp2'),), '15.2.2.5 model-header.srl:202'),  # spec 15.2.2.5 model-header.srl:202
+        ('put', 'u32', (0, 0), '15.2.2.5 model-header.srl:203'),  # spec 15.2.2.5 model-header.srl:203
+        ('put', 'u32', (('$', 'doc.created'),), '15.2.2.5 model-header.srl:204'),  # spec 15.2.2.5 model-header.srl:204
+        ('rep', 18, 0, '15.2.2.5 model-header.srl:205'),  # spec 15.2.2.5 model-header.srl:205
+        ('put', 'u32', (2,), '15.2.2.5 model-header.srl:206'),  # spec 15.2.2.5 model-header.srl:206
+        ('if', ('=', 'len($features)>0'), (  # spec 15.2.2.5 model-header.srl:207
+            ('put', 'u32', (('$', 'doc.unix'),), '15.2.2.5 model-header.srl:208'),  # spec 15.2.2.5 model-header.srl:208
+        ), (  # spec 15.2.2.5 model-header.srl:207
+            ('put', 'u32', (('$', 'tpl.unix'),), '15.2.2.5 model-header.srl:210'),  # spec 15.2.2.5 model-header.srl:210
+        ), '15.2.2.5 model-header.srl:207'),  # spec 15.2.2.5 model-header.srl:207
+        ('class', 'suObList', 1, None, '15.2.2.5 model-header.srl:212'),  # spec 15.2.2.5 model-header.srl:212
+        ('put', 'u16', (0,), '15.2.2.5 model-header.srl:213'),  # spec 15.2.2.5 model-header.srl:213
+        ('put', 'u32', (0, 0), '15.2.2.5 model-header.srl:214'),  # spec 15.2.2.5 model-header.srl:214
+        ('if', ('$', 'model.solid'), (  # spec 15.2.2.6 model-header.srl:218
+            ('put', 'u32', (1,), '15.2.2.6 model-header.srl:219'),  # spec 15.2.2.6 model-header.srl:219
+            ('put', 'f64', (('$', 'hdr.centre.0'), ('$', 'hdr.centre.1'), ('$', 'hdr.centre.2')), '15.2.2.6 model-header.srl:220'),  # spec 15.2.2.6 model-header.srl:220
+            ('put', 'f64', (('$', 'model.max.0'), ('$', 'model.max.1'), ('$', 'model.max.2')), '15.2.2.6 model-header.srl:221'),  # spec 15.2.2.6 model-header.srl:221
+            ('put', 'f64', (('$', 'model.min.0'), ('$', 'model.min.1'), ('$', 'model.min.2')), '15.2.2.6 model-header.srl:222'),  # spec 15.2.2.6 model-header.srl:222
+            ('put', 'f64', (('$', 'model.sphere.3'),), '15.2.2.6 model-header.srl:223'),  # spec 15.2.2.6 model-header.srl:223
+        ), (  # spec 15.2.2.6 model-header.srl:218
+            ('put', 'u32', (0,), '15.2.2.6 model-header.srl:225'),  # spec 15.2.2.6 model-header.srl:225
+        ), '15.2.2.6 model-header.srl:218'),  # spec 15.2.2.6 model-header.srl:218
+        ('put', 'i32', (-1, -1, -1), '15.2.2.6 model-header.srl:227'),  # spec 15.2.2.6 model-header.srl:227
+        ('put', 'u32', (1,), '15.2.2.6 model-header.srl:228'),  # spec 15.2.2.6 model-header.srl:228
+        ('rep', 40, 0, '15.2.2.6 model-header.srl:229'),  # spec 15.2.2.6 model-header.srl:229
+        ('put', 'u32', (1,), '15.2.2.6 model-header.srl:230'),  # spec 15.2.2.6 model-header.srl:230
+        ('rep', 16, 0, '15.2.2.6 model-header.srl:231'),  # spec 15.2.2.6 model-header.srl:231
+        ('put', 'u32', (1,), '15.2.2.6 model-header.srl:232'),  # spec 15.2.2.6 model-header.srl:232
     ),  # spec 15.2 config-0-modelheader.srl
     'Contents/Config-0-ResolvedFeatures': (  # spec 15.5 config-0-resolvedfeatures.srl
-        ('archive', 'continue', None, '15.5.1 config-0-resolvedfeatures.srl:6'),  # spec 15.5.1 config-0-resolvedfeatures.srl:6
-        ('archive', 'set', 'header', '15.5.1 config-0-resolvedfeatures.srl:7'),  # spec 15.5.1 config-0-resolvedfeatures.srl:7
-        ('put', 'u32', (('$', '_archive.header'),), '15.5.1 config-0-resolvedfeatures.srl:8'),  # spec 15.5.1 config-0-resolvedfeatures.srl:8
-        ('put', 'u16', (('=', '17+len($features)'),), '15.5.1 config-0-resolvedfeatures.srl:9'),  # spec 15.5.1 config-0-resolvedfeatures.srl:9
+        ('archive', 'continue', None, '15.5.1 config-0-resolvedfeatures.srl:7'),  # spec 15.5.1 config-0-resolvedfeatures.srl:7
+        ('archive', 'set', 'header', '15.5.1 config-0-resolvedfeatures.srl:8'),  # spec 15.5.1 config-0-resolvedfeatures.srl:8
+        ('put', 'u32', (('$', '_archive.header'),), '15.5.1 config-0-resolvedfeatures.srl:9'),  # spec 15.5.1 config-0-resolvedfeatures.srl:9
+        ('put', 'u16', (('=', '17+len($features)'),), '15.5.1 config-0-resolvedfeatures.srl:10'),  # spec 15.5.1 config-0-resolvedfeatures.srl:10
         ('class', 'moCommentsFolder_c', 1, None, '15.5.3 config-0-resolvedfeatures-fixed.srl:5'),  # spec 15.5.3 config-0-resolvedfeatures-fixed.srl:5
         ('class', 'moNodeName_c', 1, None, '15.4.2 config-0-macros.srl:18'),  # spec 15.4.2 config-0-macros.srl:18
         ('put', 'cstr', ('Comments',), '15.4.2 config-0-macros.srl:19'),  # spec 15.4.2 config-0-macros.srl:19
@@ -4440,546 +4473,16 @@ LISTINGS = {
         ('put', 'u32', (0,), '15.5.3 config-0-resolvedfeatures-fixed.srl:280'),  # spec 15.5.3 config-0-resolvedfeatures-fixed.srl:280
         ('put', 'u32', (('$', 'fixed.origin.regen'),), '15.5.3 config-0-resolvedfeatures-fixed.srl:281'),  # spec 15.5.3 config-0-resolvedfeatures-fixed.srl:281
         ('rep', 12, 0, '15.5.3 config-0-resolvedfeatures-fixed.srl:282'),  # spec 15.5.3 config-0-resolvedfeatures-fixed.srl:282
-        ('for', 'f', ('$', 'features'), False, (  # spec 15.5.6 config-0-resolvedfeatures.srl:12
-            ('if', ('$', 'f.sketch'), (  # spec 15.5.6 config-0-resolvedfeatures.srl:13
-                ('class', 'moProfileFeature_c', 1, ('$', 'f.name'), '15.5.7 config-0-resolvedfeatures-sketch.srl:7'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:7
-                ('class', 'moNodeName_c', 1, None, '15.4.2 config-0-macros.srl:18'),  # spec 15.4.2 config-0-macros.srl:18
-                ('put', 'cstr', (('$', 'f.name'),), '15.4.2 config-0-macros.srl:19'),  # spec 15.4.2 config-0-macros.srl:19
-                ('put', 'u32', (0, 1073741824, ('$', 'f.id'), 0), '15.4.2 config-0-macros.srl:11'),  # spec 15.4.2 config-0-macros.srl:11
-                ('put', 'cstr', ('',), '15.4.2 config-0-macros.srl:12'),  # spec 15.4.2 config-0-macros.srl:12
-                ('rep', 6, 0, '15.4.2 config-0-macros.srl:13'),  # spec 15.4.2 config-0-macros.srl:13
-                ('put', 'u16', (0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:9'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:9
-                ('rep', 12, 0, '15.4.2 config-0-macros.srl:27'),  # spec 15.4.2 config-0-macros.srl:27
-                ('put', 'u32', (('=', '$fixed.id_base+11+$f_index'), 0), '15.4.2 config-0-macros.srl:28'),  # spec 15.4.2 config-0-macros.srl:28
-                ('put', 'u8', (0,), '15.4.2 config-0-macros.srl:29'),  # spec 15.4.2 config-0-macros.srl:29
-                ('put', 'u32', (('=', '17000*1'), ('=', '2024016*1')), '15.4.2 config-0-macros.srl:30'),  # spec 15.4.2 config-0-macros.srl:30
-                ('put', 'u32', (17000,), '15.4.2 config-0-macros.srl:31'),  # spec 15.4.2 config-0-macros.srl:31
-                ('put', 'f64', (('$', 'f.cache_memo'),), '15.4.2 config-0-macros.srl:32'),  # spec 15.4.2 config-0-macros.srl:32
-                ('put', 'u32', (2024016,), '15.4.2 config-0-macros.srl:33'),  # spec 15.4.2 config-0-macros.srl:33
-                ('put', 'u16', (0,), '15.4.2 config-0-macros.srl:34'),  # spec 15.4.2 config-0-macros.srl:34
-                ('put', 'cstr', ('',), '15.4.2 config-0-macros.srl:35'),  # spec 15.4.2 config-0-macros.srl:35
-                ('put', 'u8', (0,), '15.4.2 config-0-macros.srl:36'),  # spec 15.4.2 config-0-macros.srl:36
-                ('put', 'i16', (-1,), '15.4.2 config-0-macros.srl:37'),  # spec 15.4.2 config-0-macros.srl:37
-                ('put', 'u16', (0,), '15.4.2 config-0-macros.srl:38'),  # spec 15.4.2 config-0-macros.srl:38
-                ('put', 'u8', (3,), '15.4.2 config-0-macros.srl:39'),  # spec 15.4.2 config-0-macros.srl:39
-                ('put', 'i32', (-1, -1), '15.4.2 config-0-macros.srl:40'),  # spec 15.4.2 config-0-macros.srl:40
-                ('put', 'f32', (-1,), '15.4.2 config-0-macros.srl:41'),  # spec 15.4.2 config-0-macros.srl:41
-                ('rep', 14, 0, '15.4.2 config-0-macros.srl:42'),  # spec 15.4.2 config-0-macros.srl:42
-                ('put', 'u32', (1,), '15.4.2 config-0-macros.srl:43'),  # spec 15.4.2 config-0-macros.srl:43
-                ('rep', 6, 0, '15.4.2 config-0-macros.srl:44'),  # spec 15.4.2 config-0-macros.srl:44
-                ('put', 'i32', (-1,), '15.4.2 config-0-macros.srl:45'),  # spec 15.4.2 config-0-macros.srl:45
-                ('put', 'u32', (('=', '$f.time//4294967296'), ('=', '$f.time%4294967296')), '15.4.2 config-0-macros.srl:46'),  # spec 15.4.2 config-0-macros.srl:46
-                ('put', 'u16', (2,), '15.4.2 config-0-macros.srl:47'),  # spec 15.4.2 config-0-macros.srl:47
-                ('put', 'u32', (350108,), '15.4.2 config-0-macros.srl:48'),  # spec 15.4.2 config-0-macros.srl:48
-                ('put', 'u32', (1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:11'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:11
-                ('rep', 14, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:12'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:12
-                ('class', 'sgSketch', 1, None, '15.5.7 config-0-resolvedfeatures-sketch.srl:13'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:13
-                ('put', 'u32', (('=', '4+int($f.at_origin)'),), '15.5.7 config-0-resolvedfeatures-sketch.srl:14'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:14
-                ('rep', 6, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:15'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:15
-                ('put', 'u32', (1, 2097151), '15.5.7 config-0-macros.srl:65'),  # spec 15.5.7 config-0-macros.srl:65
-                ('put', 'u8', (3,), '15.5.7 config-0-macros.srl:66'),  # spec 15.5.7 config-0-macros.srl:66
-                ('put', 'i32', (-1, -1), '15.5.7 config-0-macros.srl:67'),  # spec 15.5.7 config-0-macros.srl:67
-                ('put', 'f32', (-1,), '15.5.7 config-0-macros.srl:68'),  # spec 15.5.7 config-0-macros.srl:68
-                ('put', 'u32', (('=', 'int($f.at_origin)'),), '15.5.7 config-0-macros.srl:69'),  # spec 15.5.7 config-0-macros.srl:69
-                ('put', 'u16', (0, ('=', '5-int($f.at_origin)'), ('=', '1+int($f.at_origin)')), '15.5.7 config-0-macros.srl:70'),  # spec 15.5.7 config-0-macros.srl:70
-                ('put', 'u32', (1,), '15.5.7 config-0-macros.srl:71'),  # spec 15.5.7 config-0-macros.srl:71
-                ('put', 'f32', (-1,), '15.5.7 config-0-macros.srl:72'),  # spec 15.5.7 config-0-macros.srl:72
-                ('put', 'u16', (0,), '15.5.7 config-0-macros.srl:73'),  # spec 15.5.7 config-0-macros.srl:73
-                ('put', 'u32', (4,), '15.5.7 config-0-macros.srl:74'),  # spec 15.5.7 config-0-macros.srl:74
-                ('rep', 7, 0, '15.5.7 config-0-macros.srl:75'),  # spec 15.5.7 config-0-macros.srl:75
-                ('put', 'f64', (1.0, 0.0), '15.5.7 config-0-macros.srl:76'),  # spec 15.5.7 config-0-macros.srl:76
-                ('put', 'u16', (30,), '15.5.7 config-0-macros.srl:77'),  # spec 15.5.7 config-0-macros.srl:77
-                ('put', 'f64', (('$', 'f.corners.0'), ('$', 'f.corners.1')), '15.5.7 config-0-macros.srl:78'),  # spec 15.5.7 config-0-macros.srl:78
-                ('put', 'u16', (0, 2), '15.5.7 config-0-macros.srl:79'),  # spec 15.5.7 config-0-macros.srl:79
-                ('class', 'sgLineHandle', 1, None, '15.5.7 config-0-macros.srl:84'),  # spec 15.5.7 config-0-macros.srl:84
-                ('put', 'u16', (1,), '15.5.7 config-0-macros.srl:85'),  # spec 15.5.7 config-0-macros.srl:85
-                ('put', 'i32', (-1,), '15.5.7 config-0-macros.srl:86'),  # spec 15.5.7 config-0-macros.srl:86
-                ('put', 'u32', (0,), '15.5.7 config-0-macros.srl:87'),  # spec 15.5.7 config-0-macros.srl:87
-                ('class', 'sgLineHandle', 1, None, '15.5.7 config-0-macros.srl:92'),  # spec 15.5.7 config-0-macros.srl:92
-                ('put', 'u16', (2,), '15.5.7 config-0-macros.srl:93'),  # spec 15.5.7 config-0-macros.srl:93
-                ('put', 'i32', (-1,), '15.5.7 config-0-macros.srl:94'),  # spec 15.5.7 config-0-macros.srl:94
-                ('put', 'u32', (0,), '15.5.7 config-0-macros.srl:95'),  # spec 15.5.7 config-0-macros.srl:95
-                ('put', 'u16', (0,), '15.5.7 config-0-macros.srl:96'),  # spec 15.5.7 config-0-macros.srl:96
-                ('put', 'i32', (-2,), '15.5.7 config-0-macros.srl:97'),  # spec 15.5.7 config-0-macros.srl:97
-                ('rep', 42, 0, '15.5.7 config-0-macros.srl:98'),  # spec 15.5.7 config-0-macros.srl:98
-                ('put', 'u32', (2, 2097151), '15.5.7 config-0-macros.srl:65'),  # spec 15.5.7 config-0-macros.srl:65
-                ('put', 'u8', (3,), '15.5.7 config-0-macros.srl:66'),  # spec 15.5.7 config-0-macros.srl:66
-                ('put', 'i32', (-1, -1), '15.5.7 config-0-macros.srl:67'),  # spec 15.5.7 config-0-macros.srl:67
-                ('put', 'f32', (-1,), '15.5.7 config-0-macros.srl:68'),  # spec 15.5.7 config-0-macros.srl:68
-                ('put', 'u32', (('=', '0'),), '15.5.7 config-0-macros.srl:69'),  # spec 15.5.7 config-0-macros.srl:69
-                ('put', 'u16', (0, ('=', '5-0'), ('=', '1+0')), '15.5.7 config-0-macros.srl:70'),  # spec 15.5.7 config-0-macros.srl:70
-                ('put', 'u32', (1,), '15.5.7 config-0-macros.srl:71'),  # spec 15.5.7 config-0-macros.srl:71
-                ('put', 'f32', (-1,), '15.5.7 config-0-macros.srl:72'),  # spec 15.5.7 config-0-macros.srl:72
-                ('put', 'u16', (0,), '15.5.7 config-0-macros.srl:73'),  # spec 15.5.7 config-0-macros.srl:73
-                ('put', 'u32', (4,), '15.5.7 config-0-macros.srl:74'),  # spec 15.5.7 config-0-macros.srl:74
-                ('rep', 7, 0, '15.5.7 config-0-macros.srl:75'),  # spec 15.5.7 config-0-macros.srl:75
-                ('put', 'f64', (1.0, 0.0), '15.5.7 config-0-macros.srl:76'),  # spec 15.5.7 config-0-macros.srl:76
-                ('put', 'u16', (30,), '15.5.7 config-0-macros.srl:77'),  # spec 15.5.7 config-0-macros.srl:77
-                ('put', 'f64', (('$', 'f.corners.2'), ('$', 'f.corners.3')), '15.5.7 config-0-macros.srl:78'),  # spec 15.5.7 config-0-macros.srl:78
-                ('put', 'u16', (0, 2), '15.5.7 config-0-macros.srl:79'),  # spec 15.5.7 config-0-macros.srl:79
-                ('class', 'sgLineHandle', 1, None, '15.5.7 config-0-macros.srl:84'),  # spec 15.5.7 config-0-macros.srl:84
-                ('put', 'u16', (3,), '15.5.7 config-0-macros.srl:85'),  # spec 15.5.7 config-0-macros.srl:85
-                ('put', 'i32', (-1,), '15.5.7 config-0-macros.srl:86'),  # spec 15.5.7 config-0-macros.srl:86
-                ('put', 'u32', (0,), '15.5.7 config-0-macros.srl:87'),  # spec 15.5.7 config-0-macros.srl:87
-                ('class', 'sgLineHandle', 1, None, '15.5.7 config-0-macros.srl:92'),  # spec 15.5.7 config-0-macros.srl:92
-                ('put', 'u16', (4,), '15.5.7 config-0-macros.srl:93'),  # spec 15.5.7 config-0-macros.srl:93
-                ('put', 'i32', (-1,), '15.5.7 config-0-macros.srl:94'),  # spec 15.5.7 config-0-macros.srl:94
-                ('put', 'u32', (0,), '15.5.7 config-0-macros.srl:95'),  # spec 15.5.7 config-0-macros.srl:95
-                ('put', 'u16', (0,), '15.5.7 config-0-macros.srl:96'),  # spec 15.5.7 config-0-macros.srl:96
-                ('put', 'i32', (-2,), '15.5.7 config-0-macros.srl:97'),  # spec 15.5.7 config-0-macros.srl:97
-                ('rep', 42, 0, '15.5.7 config-0-macros.srl:98'),  # spec 15.5.7 config-0-macros.srl:98
-                ('put', 'u32', (3, 2097151), '15.5.7 config-0-macros.srl:65'),  # spec 15.5.7 config-0-macros.srl:65
-                ('put', 'u8', (3,), '15.5.7 config-0-macros.srl:66'),  # spec 15.5.7 config-0-macros.srl:66
-                ('put', 'i32', (-1, -1), '15.5.7 config-0-macros.srl:67'),  # spec 15.5.7 config-0-macros.srl:67
-                ('put', 'f32', (-1,), '15.5.7 config-0-macros.srl:68'),  # spec 15.5.7 config-0-macros.srl:68
-                ('put', 'u32', (('=', '0'),), '15.5.7 config-0-macros.srl:69'),  # spec 15.5.7 config-0-macros.srl:69
-                ('put', 'u16', (0, ('=', '5-0'), ('=', '1+0')), '15.5.7 config-0-macros.srl:70'),  # spec 15.5.7 config-0-macros.srl:70
-                ('put', 'u32', (1,), '15.5.7 config-0-macros.srl:71'),  # spec 15.5.7 config-0-macros.srl:71
-                ('put', 'f32', (-1,), '15.5.7 config-0-macros.srl:72'),  # spec 15.5.7 config-0-macros.srl:72
-                ('put', 'u16', (0,), '15.5.7 config-0-macros.srl:73'),  # spec 15.5.7 config-0-macros.srl:73
-                ('put', 'u32', (4,), '15.5.7 config-0-macros.srl:74'),  # spec 15.5.7 config-0-macros.srl:74
-                ('rep', 7, 0, '15.5.7 config-0-macros.srl:75'),  # spec 15.5.7 config-0-macros.srl:75
-                ('put', 'f64', (1.0, 0.0), '15.5.7 config-0-macros.srl:76'),  # spec 15.5.7 config-0-macros.srl:76
-                ('put', 'u16', (30,), '15.5.7 config-0-macros.srl:77'),  # spec 15.5.7 config-0-macros.srl:77
-                ('put', 'f64', (('$', 'f.corners.0'), ('$', 'f.corners.3')), '15.5.7 config-0-macros.srl:78'),  # spec 15.5.7 config-0-macros.srl:78
-                ('put', 'u16', (0, 2), '15.5.7 config-0-macros.srl:79'),  # spec 15.5.7 config-0-macros.srl:79
-                ('class', 'sgLineHandle', 1, None, '15.5.7 config-0-macros.srl:84'),  # spec 15.5.7 config-0-macros.srl:84
-                ('put', 'u16', (2,), '15.5.7 config-0-macros.srl:85'),  # spec 15.5.7 config-0-macros.srl:85
-                ('put', 'i32', (-1,), '15.5.7 config-0-macros.srl:86'),  # spec 15.5.7 config-0-macros.srl:86
-                ('put', 'u32', (0,), '15.5.7 config-0-macros.srl:87'),  # spec 15.5.7 config-0-macros.srl:87
-                ('class', 'sgLineHandle', 1, None, '15.5.7 config-0-macros.srl:92'),  # spec 15.5.7 config-0-macros.srl:92
-                ('put', 'u16', (3,), '15.5.7 config-0-macros.srl:93'),  # spec 15.5.7 config-0-macros.srl:93
-                ('put', 'i32', (-1,), '15.5.7 config-0-macros.srl:94'),  # spec 15.5.7 config-0-macros.srl:94
-                ('put', 'u32', (0,), '15.5.7 config-0-macros.srl:95'),  # spec 15.5.7 config-0-macros.srl:95
-                ('put', 'u16', (0,), '15.5.7 config-0-macros.srl:96'),  # spec 15.5.7 config-0-macros.srl:96
-                ('put', 'i32', (-2,), '15.5.7 config-0-macros.srl:97'),  # spec 15.5.7 config-0-macros.srl:97
-                ('rep', 42, 0, '15.5.7 config-0-macros.srl:98'),  # spec 15.5.7 config-0-macros.srl:98
-                ('put', 'u32', (4, 2097151), '15.5.7 config-0-macros.srl:65'),  # spec 15.5.7 config-0-macros.srl:65
-                ('put', 'u8', (3,), '15.5.7 config-0-macros.srl:66'),  # spec 15.5.7 config-0-macros.srl:66
-                ('put', 'i32', (-1, -1), '15.5.7 config-0-macros.srl:67'),  # spec 15.5.7 config-0-macros.srl:67
-                ('put', 'f32', (-1,), '15.5.7 config-0-macros.srl:68'),  # spec 15.5.7 config-0-macros.srl:68
-                ('put', 'u32', (('=', '0'),), '15.5.7 config-0-macros.srl:69'),  # spec 15.5.7 config-0-macros.srl:69
-                ('put', 'u16', (0, ('=', '5-0'), ('=', '1+0')), '15.5.7 config-0-macros.srl:70'),  # spec 15.5.7 config-0-macros.srl:70
-                ('put', 'u32', (1,), '15.5.7 config-0-macros.srl:71'),  # spec 15.5.7 config-0-macros.srl:71
-                ('put', 'f32', (-1,), '15.5.7 config-0-macros.srl:72'),  # spec 15.5.7 config-0-macros.srl:72
-                ('put', 'u16', (0,), '15.5.7 config-0-macros.srl:73'),  # spec 15.5.7 config-0-macros.srl:73
-                ('put', 'u32', (4,), '15.5.7 config-0-macros.srl:74'),  # spec 15.5.7 config-0-macros.srl:74
-                ('rep', 7, 0, '15.5.7 config-0-macros.srl:75'),  # spec 15.5.7 config-0-macros.srl:75
-                ('put', 'f64', (1.0, 0.0), '15.5.7 config-0-macros.srl:76'),  # spec 15.5.7 config-0-macros.srl:76
-                ('put', 'u16', (30,), '15.5.7 config-0-macros.srl:77'),  # spec 15.5.7 config-0-macros.srl:77
-                ('put', 'f64', (('$', 'f.corners.2'), ('$', 'f.corners.1')), '15.5.7 config-0-macros.srl:78'),  # spec 15.5.7 config-0-macros.srl:78
-                ('put', 'u16', (0, 2), '15.5.7 config-0-macros.srl:79'),  # spec 15.5.7 config-0-macros.srl:79
-                ('class', 'sgLineHandle', 1, None, '15.5.7 config-0-macros.srl:84'),  # spec 15.5.7 config-0-macros.srl:84
-                ('put', 'u16', (1,), '15.5.7 config-0-macros.srl:85'),  # spec 15.5.7 config-0-macros.srl:85
-                ('put', 'i32', (-1,), '15.5.7 config-0-macros.srl:86'),  # spec 15.5.7 config-0-macros.srl:86
-                ('put', 'u32', (0,), '15.5.7 config-0-macros.srl:87'),  # spec 15.5.7 config-0-macros.srl:87
-                ('if', ('$', 'f.at_origin'), (  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:27
-                    ('class', 'sgLineHandle', 1, None, '15.5.7 config-0-resolvedfeatures-sketch.srl:30'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:30
-                    ('put', 'u16', (4,), '15.5.7 config-0-resolvedfeatures-sketch.srl:31'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:31
-                    ('put', 'i32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:32'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:32
-                    ('put', 'u32', (0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:33'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:33
-                    ('put', 'u16', (0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:34'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:34
-                    ('put', 'i32', (-2,), '15.5.7 config-0-resolvedfeatures-sketch.srl:35'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:35
-                    ('rep', 36, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:36'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:36
-                    ('put', 'u32', (1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:37'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:37
-                    ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:38'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:38
-                    ('put', 'u32', (5,), '15.5.7 config-0-resolvedfeatures-sketch.srl:39'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:39
-                    ('put', 'u32', (2097151,), '15.5.7 config-0-resolvedfeatures-sketch.srl:40'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:40
-                    ('put', 'u8', (3,), '15.5.7 config-0-resolvedfeatures-sketch.srl:41'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:41
-                    ('put', 'i32', (-1, -1), '15.5.7 config-0-resolvedfeatures-sketch.srl:42'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:42
-                    ('put', 'f32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:43'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:43
-                    ('put', 'u32', (1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:44'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:44
-                    ('put', 'u16', (0, 4, 2), '15.5.7 config-0-resolvedfeatures-sketch.srl:45'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:45
-                    ('put', 'u32', (1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:46'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:46
-                    ('put', 'f32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:47'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:47
-                    ('class', 'sgExtEnt_c', 1, None, '15.5.7 config-0-resolvedfeatures-sketch.srl:48'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:48
-                    ('class', 'moSketchExtRef_w', 1, None, '15.5.7 config-0-resolvedfeatures-sketch.srl:49'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:49
-                    ('class', 'moCompSketchEntHandle_c', 1, None, '15.5.7 config-0-resolvedfeatures-sketch.srl:50'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:50
-                    ('class', 'moUnitComponent_c', 1, None, '15.5.7 config-0-resolvedfeatures-sketch.srl:51'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:51
-                    ('put', 'u32', (2,), '15.5.7 config-0-resolvedfeatures-sketch.srl:52'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:52
-                    ('rep', 11, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:53'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:53
-                    ('put', 'u32', (10001,), '15.5.7 config-0-resolvedfeatures-sketch.srl:54'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:54
-                    ('rep', 24, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:55'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:55
-                    ('put', 'i32', (-1, -1, -1, -1), '15.5.7 config-0-resolvedfeatures-sketch.srl:56'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:56
-                    ('rep', 20, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:57'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:57
-                    ('put', 'u32', (17000, 5), '15.5.7 config-0-resolvedfeatures-sketch.srl:58'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:58
-                    ('put', 'u32', (('$', 'tpl.unix'),), '15.5.7 config-0-resolvedfeatures-sketch.srl:59'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:59
-                    ('class', 'sgPointHandle', 1, None, '15.5.7 config-0-resolvedfeatures-sketch.srl:60'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:60
-                    ('put', 'i32', (-65536,), '15.5.7 config-0-resolvedfeatures-sketch.srl:61'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:61
-                    ('put', 'u32', (65535,), '15.5.7 config-0-resolvedfeatures-sketch.srl:62'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:62
-                    ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:63'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:63
-                    ('put', 'u32', (1, 0, 0), '15.5.7 config-0-resolvedfeatures-sketch.srl:64'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:64
-                    ('put', 'u32', (('=', '$fixed.id_base+10'),), '15.5.7 config-0-resolvedfeatures-sketch.srl:65'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:65
-                    ('rep', 12, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:66'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:66
-                    ('put', 'i32', (-12345, -12345, -12345), '15.5.7 config-0-resolvedfeatures-sketch.srl:67'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:67
-                    ('put', 'u32', (0, 17000), '15.5.7 config-0-resolvedfeatures-sketch.srl:68'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:68
-                    ('rep', 12, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:69'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:69
-                    ('put', 'i32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:70'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:70
-                    ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:71'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:71
-                    ('class', 'moPointBackedUpData_c', 1, None, '15.5.7 config-0-resolvedfeatures-sketch.srl:72'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:72
-                    ('rep', 30, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:73'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:73
-                    ('put', 'cstr', ('Point1@Origin',), '15.5.7 config-0-resolvedfeatures-sketch.srl:74'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:74
-                    ('put', 'u32', (4,), '15.5.7 config-0-resolvedfeatures-sketch.srl:75'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:75
-                    ('rep', 7, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:76'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:76
-                    ('put', 'f64', (1.0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:77'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:77
-                    ('put', 'u32', (0, 0, 30), '15.5.7 config-0-resolvedfeatures-sketch.srl:78'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:78
-                    ('rep', 14, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:79'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:79
-                    ('put', 'u32', (6,), '15.5.7 config-0-resolvedfeatures-sketch.srl:80'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:80
-                    ('rep', 6, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:81'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:81
-                    ('put', 'i32', (-2,), '15.5.7 config-0-resolvedfeatures-sketch.srl:82'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:82
-                    ('rep', 36, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:83'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:83
-                    ('put', 'u32', (5,), '15.5.7 config-0-resolvedfeatures-sketch.srl:84'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:84
-                    ('rep', 6, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:85'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:85
-                    ('put', 'i32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:86'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:86
-                    ('put', 'u32', (2097151,), '15.5.7 config-0-resolvedfeatures-sketch.srl:87'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:87
-                    ('put', 'u8', (3,), '15.5.7 config-0-resolvedfeatures-sketch.srl:88'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:88
-                    ('put', 'i32', (-1, -1), '15.5.7 config-0-resolvedfeatures-sketch.srl:89'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:89
-                    ('put', 'f32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:90'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:90
-                    ('put', 'u32', (0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:91'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:91
-                    ('put', 'u16', (0, 5, 1), '15.5.7 config-0-resolvedfeatures-sketch.srl:92'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:92
-                    ('put', 'u32', (1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:93'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:93
-                    ('put', 'f32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:94'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:94
-                    ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:95'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:95
-                    ('put', 'u32', (5,), '15.5.7 config-0-resolvedfeatures-sketch.srl:96'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:96
-                    ('rep', 7, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:97'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:97
-                    ('put', 'f64', (1.0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:98'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:98
-                    ('rep', 10, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:99'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:99
-                    ('put', 'u32', (1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:100'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:100
-                    ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:101'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:101
-                    ('put', 'f64', (-1.0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:102'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:102
-                    ('put', 'u32', (0, 1, 1), '15.5.7 config-0-resolvedfeatures-sketch.srl:103'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:103
-                    ('put', 'u32', (2097151,), '15.5.7 config-0-resolvedfeatures-sketch.srl:104'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:104
-                    ('put', 'u8', (3,), '15.5.7 config-0-resolvedfeatures-sketch.srl:105'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:105
-                    ('put', 'i32', (-1, -1), '15.5.7 config-0-resolvedfeatures-sketch.srl:106'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:106
-                    ('put', 'f32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:107'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:107
-                    ('put', 'u32', (1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:108'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:108
-                    ('put', 'u16', (0, 4, 2), '15.5.7 config-0-resolvedfeatures-sketch.srl:109'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:109
-                    ('put', 'u32', (65537,), '15.5.7 config-0-resolvedfeatures-sketch.srl:110'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:110
-                    ('put', 'f32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:111'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:111
-                    ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:112'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:112
-                    ('put', 'u32', (4,), '15.5.7 config-0-resolvedfeatures-sketch.srl:113'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:113
-                    ('rep', 7, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:114'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:114
-                    ('put', 'f64', (1.0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:115'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:115
-                    ('rep', 10, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:116'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:116
-                    ('put', 'u32', (65539,), '15.5.7 config-0-resolvedfeatures-sketch.srl:117'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:117
-                    ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:118'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:118
-                    ('put', 'f64', (-1.0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:119'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:119
-                    ('put', 'u32', (0, 4, 2), '15.5.7 config-0-resolvedfeatures-sketch.srl:120'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:120
-                    ('put', 'u32', (2097151,), '15.5.7 config-0-resolvedfeatures-sketch.srl:121'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:121
-                    ('put', 'u8', (3,), '15.5.7 config-0-resolvedfeatures-sketch.srl:122'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:122
-                    ('put', 'i32', (-1, -1), '15.5.7 config-0-resolvedfeatures-sketch.srl:123'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:123
-                    ('put', 'f32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:124'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:124
-                    ('put', 'u32', (1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:125'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:125
-                    ('put', 'u16', (0, 4, 2), '15.5.7 config-0-resolvedfeatures-sketch.srl:126'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:126
-                    ('put', 'u32', (65537,), '15.5.7 config-0-resolvedfeatures-sketch.srl:127'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:127
-                    ('put', 'f32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:128'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:128
-                    ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:129'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:129
-                    ('put', 'u32', (4,), '15.5.7 config-0-resolvedfeatures-sketch.srl:130'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:130
-                    ('rep', 7, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:131'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:131
-                    ('put', 'f64', (1.0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:132'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:132
-                    ('rep', 10, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:133'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:133
-                    ('put', 'u32', (65538,), '15.5.7 config-0-resolvedfeatures-sketch.srl:134'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:134
-                    ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:135'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:135
-                    ('put', 'f64', (-1.0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:136'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:136
-                    ('put', 'u32', (0, 3, 3), '15.5.7 config-0-resolvedfeatures-sketch.srl:137'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:137
-                    ('put', 'u32', (2097151,), '15.5.7 config-0-resolvedfeatures-sketch.srl:138'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:138
-                    ('put', 'u8', (3,), '15.5.7 config-0-resolvedfeatures-sketch.srl:139'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:139
-                    ('put', 'i32', (-1, -1), '15.5.7 config-0-resolvedfeatures-sketch.srl:140'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:140
-                    ('put', 'f32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:141'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:141
-                    ('put', 'u32', (1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:142'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:142
-                    ('put', 'u16', (0, 5, 1), '15.5.7 config-0-resolvedfeatures-sketch.srl:143'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:143
-                    ('put', 'u32', (65537,), '15.5.7 config-0-resolvedfeatures-sketch.srl:144'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:144
-                    ('put', 'f32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:145'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:145
-                    ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:146'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:146
-                    ('put', 'u32', (4,), '15.5.7 config-0-resolvedfeatures-sketch.srl:147'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:147
-                    ('rep', 7, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:148'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:148
-                    ('put', 'f64', (1.0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:149'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:149
-                    ('put', 'u32', (0, 0, 65538, 1), '15.5.7 config-0-resolvedfeatures-sketch.srl:150'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:150
-                    ('put', 'f64', (-1.0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:151'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:151
-                    ('put', 'u32', (0, 2, 4), '15.5.7 config-0-resolvedfeatures-sketch.srl:152'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:152
-                    ('put', 'u32', (2097151,), '15.5.7 config-0-resolvedfeatures-sketch.srl:153'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:153
-                    ('put', 'u8', (3,), '15.5.7 config-0-resolvedfeatures-sketch.srl:154'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:154
-                    ('put', 'i32', (-1, -1), '15.5.7 config-0-resolvedfeatures-sketch.srl:155'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:155
-                    ('put', 'f32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:156'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:156
-                    ('put', 'u32', (1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:157'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:157
-                    ('put', 'u16', (0, 5, 1), '15.5.7 config-0-resolvedfeatures-sketch.srl:158'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:158
-                    ('put', 'u32', (65537,), '15.5.7 config-0-resolvedfeatures-sketch.srl:159'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:159
-                    ('put', 'f32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:160'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:160
-                    ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:161'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:161
-                    ('put', 'u32', (4,), '15.5.7 config-0-resolvedfeatures-sketch.srl:162'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:162
-                    ('rep', 7, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:163'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:163
-                    ('put', 'f64', (1.0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:164'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:164
-                    ('put', 'u32', (0, 0, 65539, 1), '15.5.7 config-0-resolvedfeatures-sketch.srl:165'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:165
-                    ('put', 'f64', (-1.0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:166'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:166
-                    ('rep', 54, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:167'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:167
-                    ('put', 'u32', (4,), '15.5.7 config-0-resolvedfeatures-sketch.srl:168'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:168
-                    ('rep', 6, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:169'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:169
-                    ('put', 'i32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:170'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:170
-                    ('rep', 16, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:171'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:171
-                    ('put', 'u32', (5, 2), '15.5.7 config-0-resolvedfeatures-sketch.srl:172'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:172
-                    ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:173'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:173
-                    ('put', 'u32', (65534,), '15.5.7 config-0-resolvedfeatures-sketch.srl:174'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:174
-                    ('class', 'sgLineHandle', 1, None, '15.5.7 config-0-resolvedfeatures-sketch.srl:175'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:175
-                    ('put', 'u16', (2,), '15.5.7 config-0-resolvedfeatures-sketch.srl:176'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:176
-                    ('put', 'i32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:177'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:177
-                    ('rep', 12, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:178'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:178
-                    ('put', 'i32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:179'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:179
-                    ('rep', 16, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:180'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:180
-                    ('put', 'u32', (4, 2), '15.5.7 config-0-resolvedfeatures-sketch.srl:181'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:181
-                    ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:182'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:182
-                    ('put', 'u32', (65534,), '15.5.7 config-0-resolvedfeatures-sketch.srl:183'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:183
-                    ('class', 'sgLineHandle', 1, None, '15.5.7 config-0-resolvedfeatures-sketch.srl:184'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:184
-                    ('put', 'u16', (1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:185'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:185
-                    ('put', 'i32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:186'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:186
-                    ('rep', 12, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:187'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:187
-                    ('put', 'i32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:188'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:188
-                    ('rep', 16, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:189'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:189
-                    ('put', 'u32', (5, 2), '15.5.7 config-0-resolvedfeatures-sketch.srl:190'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:190
-                    ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:191'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:191
-                    ('put', 'u32', (65534,), '15.5.7 config-0-resolvedfeatures-sketch.srl:192'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:192
-                    ('class', 'sgLineHandle', 1, None, '15.5.7 config-0-resolvedfeatures-sketch.srl:193'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:193
-                    ('put', 'u16', (4,), '15.5.7 config-0-resolvedfeatures-sketch.srl:194'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:194
-                    ('put', 'i32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:195'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:195
-                    ('rep', 12, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:196'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:196
-                    ('put', 'i32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:197'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:197
-                    ('rep', 16, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:198'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:198
-                    ('put', 'u32', (4, 2), '15.5.7 config-0-resolvedfeatures-sketch.srl:199'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:199
-                    ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:200'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:200
-                    ('put', 'u32', (65534,), '15.5.7 config-0-resolvedfeatures-sketch.srl:201'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:201
-                    ('class', 'sgLineHandle', 1, None, '15.5.7 config-0-resolvedfeatures-sketch.srl:202'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:202
-                    ('put', 'u16', (3,), '15.5.7 config-0-resolvedfeatures-sketch.srl:203'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:203
-                    ('put', 'i32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:204'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:204
-                    ('put', 'u32', (0, 1), '15.5.7 config-0-resolvedfeatures-sketch.srl:205'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:205
-                    ('rep', 6, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:206'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:206
-                    ('put', 'i32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:207'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:207
-                    ('rep', 16, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:208'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:208
-                    ('put', 'u32', (9, 2), '15.5.7 config-0-resolvedfeatures-sketch.srl:209'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:209
-                    ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:210'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:210
-                    ('put', 'u32', (65534,), '15.5.7 config-0-resolvedfeatures-sketch.srl:211'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:211
-                    ('class', 'sgPointHandle', 1, None, '15.5.7 config-0-resolvedfeatures-sketch.srl:212'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:212
-                    ('put', 'u16', (4,), '15.5.7 config-0-resolvedfeatures-sketch.srl:213'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:213
-                    ('put', 'i32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:214'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:214
-                    ('put', 'u32', (0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:215'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:215
-                    ('class', 'sgPointHandle', 1, None, '15.5.7 config-0-resolvedfeatures-sketch.srl:216'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:216
-                    ('put', 'i32', (-65536,), '15.5.7 config-0-resolvedfeatures-sketch.srl:217'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:217
-                    ('put', 'u32', (65535,), '15.5.7 config-0-resolvedfeatures-sketch.srl:218'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:218
-                    ('rep', 10, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:219'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:219
-                    ('put', 'i32', (-1, -1), '15.5.7 config-0-resolvedfeatures-sketch.srl:220'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:220
-                    ('rep', 36, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:221'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:221
-                ), (  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:27
-                    ('class', 'sgLineHandle', 1, None, '15.5.7 config-0-resolvedfeatures-sketch.srl:224'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:224
-                    ('put', 'u16', (4,), '15.5.7 config-0-resolvedfeatures-sketch.srl:225'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:225
-                    ('put', 'i32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:226'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:226
-                    ('put', 'u32', (0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:227'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:227
-                    ('put', 'u16', (0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:228'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:228
-                    ('put', 'i32', (-2,), '15.5.7 config-0-resolvedfeatures-sketch.srl:229'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:229
-                    ('rep', 36, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:230'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:230
-                    ('put', 'u32', (5,), '15.5.7 config-0-resolvedfeatures-sketch.srl:231'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:231
-                    ('rep', 6, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:232'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:232
-                    ('put', 'i32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:233'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:233
-                    ('put', 'u32', (2097151,), '15.5.7 config-0-resolvedfeatures-sketch.srl:234'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:234
-                    ('put', 'u8', (3,), '15.5.7 config-0-resolvedfeatures-sketch.srl:235'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:235
-                    ('put', 'i32', (-1, -1), '15.5.7 config-0-resolvedfeatures-sketch.srl:236'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:236
-                    ('put', 'f32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:237'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:237
-                    ('put', 'u32', (0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:238'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:238
-                    ('put', 'u16', (0, 5, 1), '15.5.7 config-0-resolvedfeatures-sketch.srl:239'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:239
-                    ('put', 'u32', (1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:240'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:240
-                    ('put', 'f32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:241'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:241
-                    ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:242'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:242
-                    ('put', 'u32', (5,), '15.5.7 config-0-resolvedfeatures-sketch.srl:243'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:243
-                    ('rep', 7, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:244'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:244
-                    ('put', 'f64', (1.0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:245'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:245
-                    ('rep', 10, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:246'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:246
-                    ('put', 'u32', (1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:247'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:247
-                    ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:248'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:248
-                    ('put', 'f64', (-1.0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:249'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:249
-                    ('put', 'u32', (0, 1, 1), '15.5.7 config-0-resolvedfeatures-sketch.srl:250'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:250
-                    ('put', 'u32', (2097151,), '15.5.7 config-0-resolvedfeatures-sketch.srl:251'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:251
-                    ('put', 'u8', (3,), '15.5.7 config-0-resolvedfeatures-sketch.srl:252'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:252
-                    ('put', 'i32', (-1, -1), '15.5.7 config-0-resolvedfeatures-sketch.srl:253'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:253
-                    ('put', 'f32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:254'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:254
-                    ('put', 'u32', (1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:255'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:255
-                    ('put', 'u16', (0, 5, 1), '15.5.7 config-0-resolvedfeatures-sketch.srl:256'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:256
-                    ('put', 'u32', (65537,), '15.5.7 config-0-resolvedfeatures-sketch.srl:257'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:257
-                    ('put', 'f32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:258'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:258
-                    ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:259'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:259
-                    ('put', 'u32', (4,), '15.5.7 config-0-resolvedfeatures-sketch.srl:260'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:260
-                    ('rep', 7, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:261'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:261
-                    ('put', 'f64', (1.0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:262'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:262
-                    ('rep', 10, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:263'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:263
-                    ('put', 'u32', (65539,), '15.5.7 config-0-resolvedfeatures-sketch.srl:264'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:264
-                    ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:265'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:265
-                    ('put', 'f64', (-1.0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:266'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:266
-                    ('put', 'u32', (0, 4, 2), '15.5.7 config-0-resolvedfeatures-sketch.srl:267'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:267
-                    ('put', 'u32', (2097151,), '15.5.7 config-0-resolvedfeatures-sketch.srl:268'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:268
-                    ('put', 'u8', (3,), '15.5.7 config-0-resolvedfeatures-sketch.srl:269'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:269
-                    ('put', 'i32', (-1, -1), '15.5.7 config-0-resolvedfeatures-sketch.srl:270'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:270
-                    ('put', 'f32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:271'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:271
-                    ('put', 'u32', (1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:272'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:272
-                    ('put', 'u16', (0, 5, 1), '15.5.7 config-0-resolvedfeatures-sketch.srl:273'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:273
-                    ('put', 'u32', (65537,), '15.5.7 config-0-resolvedfeatures-sketch.srl:274'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:274
-                    ('put', 'f32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:275'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:275
-                    ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:276'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:276
-                    ('put', 'u32', (4,), '15.5.7 config-0-resolvedfeatures-sketch.srl:277'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:277
-                    ('rep', 7, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:278'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:278
-                    ('put', 'f64', (1.0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:279'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:279
-                    ('rep', 10, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:280'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:280
-                    ('put', 'u32', (65538,), '15.5.7 config-0-resolvedfeatures-sketch.srl:281'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:281
-                    ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:282'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:282
-                    ('put', 'f64', (-1.0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:283'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:283
-                    ('put', 'u32', (0, 3, 3), '15.5.7 config-0-resolvedfeatures-sketch.srl:284'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:284
-                    ('put', 'u32', (2097151,), '15.5.7 config-0-resolvedfeatures-sketch.srl:285'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:285
-                    ('put', 'u8', (3,), '15.5.7 config-0-resolvedfeatures-sketch.srl:286'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:286
-                    ('put', 'i32', (-1, -1), '15.5.7 config-0-resolvedfeatures-sketch.srl:287'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:287
-                    ('put', 'f32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:288'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:288
-                    ('put', 'u32', (1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:289'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:289
-                    ('put', 'u16', (0, 5, 1), '15.5.7 config-0-resolvedfeatures-sketch.srl:290'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:290
-                    ('put', 'u32', (65537,), '15.5.7 config-0-resolvedfeatures-sketch.srl:291'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:291
-                    ('put', 'f32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:292'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:292
-                    ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:293'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:293
-                    ('put', 'u32', (4,), '15.5.7 config-0-resolvedfeatures-sketch.srl:294'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:294
-                    ('rep', 7, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:295'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:295
-                    ('put', 'f64', (1.0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:296'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:296
-                    ('put', 'u32', (0, 0, 65538, 1), '15.5.7 config-0-resolvedfeatures-sketch.srl:297'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:297
-                    ('put', 'f64', (-1.0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:298'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:298
-                    ('put', 'u32', (0, 2, 4), '15.5.7 config-0-resolvedfeatures-sketch.srl:299'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:299
-                    ('put', 'u32', (2097151,), '15.5.7 config-0-resolvedfeatures-sketch.srl:300'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:300
-                    ('put', 'u8', (3,), '15.5.7 config-0-resolvedfeatures-sketch.srl:301'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:301
-                    ('put', 'i32', (-1, -1), '15.5.7 config-0-resolvedfeatures-sketch.srl:302'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:302
-                    ('put', 'f32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:303'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:303
-                    ('put', 'u32', (1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:304'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:304
-                    ('put', 'u16', (0, 5, 1), '15.5.7 config-0-resolvedfeatures-sketch.srl:305'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:305
-                    ('put', 'u32', (65537,), '15.5.7 config-0-resolvedfeatures-sketch.srl:306'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:306
-                    ('put', 'f32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:307'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:307
-                    ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:308'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:308
-                    ('put', 'u32', (4,), '15.5.7 config-0-resolvedfeatures-sketch.srl:309'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:309
-                    ('rep', 7, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:310'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:310
-                    ('put', 'f64', (1.0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:311'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:311
-                    ('put', 'u32', (0, 0, 65539, 1), '15.5.7 config-0-resolvedfeatures-sketch.srl:312'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:312
-                    ('put', 'f64', (-1.0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:313'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:313
-                    ('rep', 54, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:314'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:314
-                    ('put', 'u32', (4,), '15.5.7 config-0-resolvedfeatures-sketch.srl:315'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:315
-                    ('rep', 6, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:316'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:316
-                    ('put', 'i32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:317'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:317
-                    ('rep', 16, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:318'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:318
-                    ('put', 'u32', (5, 2), '15.5.7 config-0-resolvedfeatures-sketch.srl:319'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:319
-                    ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:320'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:320
-                    ('put', 'u32', (65534,), '15.5.7 config-0-resolvedfeatures-sketch.srl:321'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:321
-                    ('class', 'sgLineHandle', 1, None, '15.5.7 config-0-resolvedfeatures-sketch.srl:322'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:322
-                    ('put', 'u16', (2,), '15.5.7 config-0-resolvedfeatures-sketch.srl:323'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:323
-                    ('put', 'i32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:324'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:324
-                    ('rep', 12, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:325'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:325
-                    ('put', 'i32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:326'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:326
-                    ('rep', 16, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:327'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:327
-                    ('put', 'u32', (4, 2), '15.5.7 config-0-resolvedfeatures-sketch.srl:328'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:328
-                    ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:329'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:329
-                    ('put', 'u32', (65534,), '15.5.7 config-0-resolvedfeatures-sketch.srl:330'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:330
-                    ('class', 'sgLineHandle', 1, None, '15.5.7 config-0-resolvedfeatures-sketch.srl:331'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:331
-                    ('put', 'u16', (1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:332'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:332
-                    ('put', 'i32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:333'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:333
-                    ('rep', 12, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:334'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:334
-                    ('put', 'i32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:335'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:335
-                    ('rep', 16, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:336'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:336
-                    ('put', 'u32', (5, 2), '15.5.7 config-0-resolvedfeatures-sketch.srl:337'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:337
-                    ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:338'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:338
-                    ('put', 'u32', (65534,), '15.5.7 config-0-resolvedfeatures-sketch.srl:339'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:339
-                    ('class', 'sgLineHandle', 1, None, '15.5.7 config-0-resolvedfeatures-sketch.srl:340'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:340
-                    ('put', 'u16', (4,), '15.5.7 config-0-resolvedfeatures-sketch.srl:341'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:341
-                    ('put', 'i32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:342'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:342
-                    ('rep', 12, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:343'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:343
-                    ('put', 'i32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:344'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:344
-                    ('rep', 16, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:345'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:345
-                    ('put', 'u32', (4, 2), '15.5.7 config-0-resolvedfeatures-sketch.srl:346'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:346
-                    ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:347'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:347
-                    ('put', 'u32', (65534,), '15.5.7 config-0-resolvedfeatures-sketch.srl:348'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:348
-                    ('class', 'sgLineHandle', 1, None, '15.5.7 config-0-resolvedfeatures-sketch.srl:349'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:349
-                    ('put', 'u16', (3,), '15.5.7 config-0-resolvedfeatures-sketch.srl:350'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:350
-                    ('put', 'i32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:351'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:351
-                    ('rep', 18, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:352'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:352
-                ), '15.5.7 config-0-resolvedfeatures-sketch.srl:27'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:27
-                ('class', 'suObList', 1, None, '15.5.7 config-0-resolvedfeatures-sketch.srl:354'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:354
-                ('rep', 14, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:355'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:355
-                ('put', 'u32', (65537, 5), '15.5.7 config-0-resolvedfeatures-sketch.srl:356'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:356
-                ('put', 'u32', (('=', '5+int($f.at_origin)'),), '15.5.7 config-0-resolvedfeatures-sketch.srl:357'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:357
-                ('put', 'u32', (5, 1, 1, 1, 1, 1, 1, 1), '15.5.7 config-0-resolvedfeatures-sketch.srl:358'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:358
-                ('put', 'u32', (1, 1, 1, 1, 0, 1, 0, 0), '15.5.7 config-0-resolvedfeatures-sketch.srl:359'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:359
-                ('put', 'cstr', ('',), '15.5.7 config-0-resolvedfeatures-sketch.srl:360'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:360
-                ('put', 'u32', (65535,), '15.5.7 config-0-resolvedfeatures-sketch.srl:361'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:361
-                ('put', 'i32', (-16512,), '15.5.7 config-0-resolvedfeatures-sketch.srl:362'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:362
-                ('put', 'u32', (131071,), '15.5.7 config-0-resolvedfeatures-sketch.srl:363'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:363
-                ('put', 'i32', (-65536,), '15.5.7 config-0-resolvedfeatures-sketch.srl:364'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:364
-                ('put', 'u32', (65535,), '15.5.7 config-0-resolvedfeatures-sketch.srl:365'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:365
-                ('rep', 22, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:366'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:366
-                ('put', 'u32', (10,), '15.5.7 config-0-resolvedfeatures-sketch.srl:367'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:367
-                ('rep', 32, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:368'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:368
-                ('class', 'suObList', 1, None, '15.5.7 config-0-resolvedfeatures-sketch.srl:369'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:369
-                ('hex', '01', '15.5.7 config-0-resolvedfeatures-sketch.srl:370'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:370
-                ('put', 'u8', (0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:371'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:371
-                ('class', 'moSketchRegion_c', 1, None, '15.5.7 config-0-resolvedfeatures-sketch.srl:372'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:372
-                ('class', 'suObList', 1, None, '15.5.7 config-0-resolvedfeatures-sketch.srl:373'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:373
-                ('hex', '04', '15.5.7 config-0-resolvedfeatures-sketch.srl:374'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:374
-                ('put', 'u8', (0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:375'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:375
-                ('class', 'sgLineHandle', 1, None, '15.5.7 config-0-resolvedfeatures-sketch.srl:376'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:376
-                ('put', 'u16', (2,), '15.5.7 config-0-resolvedfeatures-sketch.srl:377'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:377
-                ('put', 'i32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:378'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:378
-                ('put', 'u32', (0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:379'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:379
-                ('class', 'sgLineHandle', 1, None, '15.5.7 config-0-resolvedfeatures-sketch.srl:380'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:380
-                ('put', 'u16', (1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:381'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:381
-                ('put', 'i32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:382'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:382
-                ('put', 'u32', (0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:383'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:383
-                ('class', 'sgLineHandle', 1, None, '15.5.7 config-0-resolvedfeatures-sketch.srl:384'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:384
-                ('put', 'u16', (4,), '15.5.7 config-0-resolvedfeatures-sketch.srl:385'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:385
-                ('put', 'i32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:386'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:386
-                ('put', 'u32', (0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:387'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:387
-                ('class', 'sgLineHandle', 1, None, '15.5.7 config-0-resolvedfeatures-sketch.srl:388'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:388
-                ('put', 'u16', (3,), '15.5.7 config-0-resolvedfeatures-sketch.srl:389'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:389
-                ('put', 'i32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:390'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:390
-                ('rep', 34, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:391'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:391
-                ('put', 'u32', (1, 1), '15.5.7 config-0-resolvedfeatures-sketch.srl:392'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:392
-                ('class', 'moSketchChain_c', 1, None, '15.5.7 config-0-resolvedfeatures-sketch.srl:393'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:393
-                ('put', 'u32', (65540,), '15.5.7 config-0-resolvedfeatures-sketch.srl:394'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:394
-                ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:395'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:395
-                ('put', 'u32', (2, 3, 4, 1), '15.5.7 config-0-resolvedfeatures-sketch.srl:396'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:396
-                ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:397'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:397
-                ('put', 'u32', (6,), '15.5.7 config-0-resolvedfeatures-sketch.srl:398'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:398
-                ('put', 'i32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:399'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:399
-                ('put', 'u32', (0, 0, 5, 5), '15.5.7 config-0-resolvedfeatures-sketch.srl:400'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:400
-                ('put', 'cstr', ('',), '15.5.7 config-0-resolvedfeatures-sketch.srl:401'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:401
-                ('put', 'i32', (-65536,), '15.5.7 config-0-resolvedfeatures-sketch.srl:402'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:402
-                ('put', 'u32', (65535,), '15.5.7 config-0-resolvedfeatures-sketch.srl:403'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:403
-                ('rep', 18, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:404'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:404
-                ('put', 'u32', (3, 1), '15.5.7 config-0-resolvedfeatures-sketch.srl:405'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:405
-                ('rep', 7, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:406'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:406
-                ('put', 'u32', (100000, 0), '15.5.7 config-0-resolvedfeatures-sketch.srl:407'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:407
-                ('class', 'moCompRefPlane_c', 1, None, '15.5.7 config-0-resolvedfeatures-sketch.srl:408'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:408
-                ('class', 'moUnitComponent_c', 1, None, '15.5.7 config-0-resolvedfeatures-sketch.srl:409'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:409
-                ('put', 'u32', (2,), '15.5.7 config-0-resolvedfeatures-sketch.srl:410'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:410
-                ('rep', 39, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:411'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:411
-                ('put', 'i32', (-1, -1, -1, -1), '15.5.7 config-0-resolvedfeatures-sketch.srl:412'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:412
-                ('rep', 20, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:413'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:413
-                ('put', 'u32', (17000, 2), '15.5.7 config-0-resolvedfeatures-sketch.srl:414'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:414
-                ('put', 'u32', (('$', 'tpl.unix'),), '15.5.7 config-0-resolvedfeatures-sketch.srl:415'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:415
-                ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:416'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:416
-                ('put', 'u32', (3,), '15.5.7 config-0-resolvedfeatures-sketch.srl:417'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:417
-                ('rep', 25, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:418'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:418
-                ('put', 'f64', (1.0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:419'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:419
-                ('rep', 3, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:420'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:420
-                ('put', 'u32', (4,), '15.5.7 config-0-resolvedfeatures-sketch.srl:421'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:421
-                ('put', 'i32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:422'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:422
-                ('put', 'u32', (0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:423'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:423
-                ('put', 'u32', (('$', 'f.regen'),), '15.5.7 config-0-resolvedfeatures-sketch.srl:424'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:424
-                ('put', 'u32', (('=', '$f_index+1'),), '15.5.7 config-0-resolvedfeatures-sketch.srl:425'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:425
-                ('put', 'u32', (0, 0), '15.5.7 config-0-resolvedfeatures-sketch.srl:426'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:426
-            ), (  # spec 15.5.6 config-0-resolvedfeatures.srl:13
-                ('if', ('$', 'f.first'), (  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:6
-                    ('class', 'moExtrusion_c', 1, ('$', 'f.name'), '15.5.8 config-0-resolvedfeatures-extrude.srl:7'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:7
+        ('for', 'f', ('$', 'features'), False, (  # spec 15.5.6 config-0-resolvedfeatures.srl:13
+            ('if', ('$', 'f.sketch'), (  # spec 15.5.6 config-0-resolvedfeatures.srl:14
+                ('if', ('$', 'f.circle'), (  # spec 15.5.6 config-0-resolvedfeatures.srl:15
+                    ('class', 'moProfileFeature_c', 1, ('$', 'f.name'), '15.5.12 config-0-resolvedfeatures-circle.srl:8'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:8
                     ('class', 'moNodeName_c', 1, None, '15.4.2 config-0-macros.srl:18'),  # spec 15.4.2 config-0-macros.srl:18
                     ('put', 'cstr', (('$', 'f.name'),), '15.4.2 config-0-macros.srl:19'),  # spec 15.4.2 config-0-macros.srl:19
-                    ('put', 'u32', (0, 1073742144, ('$', 'f.id'), 0), '15.4.2 config-0-macros.srl:11'),  # spec 15.4.2 config-0-macros.srl:11
+                    ('put', 'u32', (0, 1073741824, ('$', 'f.id'), 0), '15.4.2 config-0-macros.srl:11'),  # spec 15.4.2 config-0-macros.srl:11
                     ('put', 'cstr', ('',), '15.4.2 config-0-macros.srl:12'),  # spec 15.4.2 config-0-macros.srl:12
                     ('rep', 6, 0, '15.4.2 config-0-macros.srl:13'),  # spec 15.4.2 config-0-macros.srl:13
-                    ('put', 'u16', (1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:9'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:9
-                    ('objref', ('$', 'f.sketch_name'), '15.5.8 config-0-resolvedfeatures-extrude.srl:10'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:10
+                    ('put', 'u16', (0,), '15.5.12 config-0-resolvedfeatures-circle.srl:10'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:10
                     ('rep', 12, 0, '15.4.2 config-0-macros.srl:27'),  # spec 15.4.2 config-0-macros.srl:27
                     ('put', 'u32', (('=', '$fixed.id_base+11+$f_index'), 0), '15.4.2 config-0-macros.srl:28'),  # spec 15.4.2 config-0-macros.srl:28
                     ('put', 'u8', (0,), '15.4.2 config-0-macros.srl:29'),  # spec 15.4.2 config-0-macros.srl:29
@@ -5002,122 +4505,130 @@ LISTINGS = {
                     ('put', 'u32', (('=', '$f.time//4294967296'), ('=', '$f.time%4294967296')), '15.4.2 config-0-macros.srl:46'),  # spec 15.4.2 config-0-macros.srl:46
                     ('put', 'u16', (2,), '15.4.2 config-0-macros.srl:47'),  # spec 15.4.2 config-0-macros.srl:47
                     ('put', 'u32', (350108,), '15.4.2 config-0-macros.srl:48'),  # spec 15.4.2 config-0-macros.srl:48
-                    ('put', 'u32', (1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:12'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:12
-                    ('rep', 10, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:13'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:13
-                    ('put', 'u32', (1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:14'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:14
-                    ('hex', '01', '15.5.8 config-0-resolvedfeatures-extrude.srl:15'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:15
-                    ('put', 'u8', (0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:16'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:16
-                    ('objref', ('$', 'f.body_label'), '15.5.8 config-0-resolvedfeatures-extrude.srl:17'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:17
-                    ('rep', 6, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:18'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:18
-                    ('put', 'u32', (1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:19'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:19
-                    ('put', 'u32', (('$', 'f.body_id'),), '15.5.8 config-0-resolvedfeatures-extrude.srl:20'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:20
-                    ('put', 'u32', (3, 0, 1, 65537), '15.5.8 config-0-resolvedfeatures-extrude.srl:21'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:21
-                    ('class', 'moPerBodyChooserData_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:22'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:22
-                    ('hex', '02', '15.5.8 config-0-resolvedfeatures-extrude.srl:23'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:23
-                    ('put', 'u8', (0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:24'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:24
-                    ('class', 'moFaceRef_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:25'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:25
-                    ('put', 'u32', (1, 0, 6, 768), '15.5.8 config-0-resolvedfeatures-extrude.srl:26'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:26
-                    ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:27'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:27
-                    ('put', 'f32', (-253,), '15.5.8 config-0-resolvedfeatures-extrude.srl:28'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:28
-                    ('hex', '9425AD49B254', '15.5.8 config-0-resolvedfeatures-extrude.srl:29'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:29
-                    ('put', 'u64', (6103021453049119613,), '15.5.8 config-0-resolvedfeatures-extrude.srl:30'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:30
-                    ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:31'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:31
-                    ('class', 'moEndFaceSurfIdRep_c', 1, 'face_end1', '15.5.8 config-0-resolvedfeatures-extrude.srl:32'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:32
-                    ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:33'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:33
-                    ('class', 'moFR_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:34'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:34
-                    ('class', 'moExtObject_c', 1, 'ext_obj', '15.5.8 config-0-resolvedfeatures-extrude.srl:35'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:35
-                    ('class', 'moCStringHandle_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:36'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:36
-                    ('put', 'cstr', ('',), '15.5.8 config-0-resolvedfeatures-extrude.srl:37'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:37
-                    ('class', 'moCStringHandle_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:38'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:38
-                    ('put', 'cstr', (('$', 'doc.name'),), '15.5.8 config-0-resolvedfeatures-extrude.srl:39'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:39
-                    ('hex', '02', '15.5.8 config-0-resolvedfeatures-extrude.srl:40'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:40
-                    ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:41'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:41
-                    ('put', 'u32', (('$', 'doc.created'),), '15.5.8 config-0-resolvedfeatures-extrude.srl:42'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:42
-                    ('put', 'cstr', ('',), '15.5.8 config-0-resolvedfeatures-extrude.srl:43'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:43
-                    ('put', 'cstr', ('',), '15.5.8 config-0-resolvedfeatures-extrude.srl:44'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:44
-                    ('put', 'cstr', ('',), '15.5.8 config-0-resolvedfeatures-extrude.srl:45'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:45
-                    ('rep', 18, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:46'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:46
-                    ('put', 'cstr', ('Default',), '15.5.8 config-0-resolvedfeatures-extrude.srl:47'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:47
-                    ('rep', 16, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:48'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:48
-                    ('put', 'u32', (('$', 'f.id'), ('$', 'f.created')), '15.5.8 config-0-resolvedfeatures-extrude.srl:49'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:49
-                    ('put', 'u32', (0, 0), '15.5.8 config-0-resolvedfeatures-extrude.srl:50'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:50
-                    ('class', 'moFromSktEntSurfIdRep_c', 1, 'side1', '15.5.8 config-0-resolvedfeatures-extrude.srl:51'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:51
-                    ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:52'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:52
-                    ('class', 'moFR_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:53'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:53
-                    ('objref', 'ext_obj', '15.5.8 config-0-resolvedfeatures-extrude.srl:54'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:54
-                    ('put', 'u32', (('$', 'f.id'), ('$', 'f.created')), '15.5.8 config-0-resolvedfeatures-extrude.srl:55'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:55
-                    ('put', 'u32', (4,), '15.5.8 config-0-resolvedfeatures-extrude.srl:56'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:56
-                    ('class', 'moFromSktEntSurfIdRep_c', 1, 'side2', '15.5.8 config-0-resolvedfeatures-extrude.srl:57'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:57
-                    ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:58'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:58
-                    ('class', 'moFR_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:59'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:59
-                    ('objref', 'ext_obj', '15.5.8 config-0-resolvedfeatures-extrude.srl:60'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:60
-                    ('put', 'u32', (('$', 'f.id'), ('$', 'f.created')), '15.5.8 config-0-resolvedfeatures-extrude.srl:61'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:61
-                    ('put', 'u32', (3,), '15.5.8 config-0-resolvedfeatures-extrude.srl:62'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:62
-                    ('class', 'moFromSktEntSurfIdRep_c', 1, 'side3', '15.5.8 config-0-resolvedfeatures-extrude.srl:63'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:63
-                    ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:64'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:64
-                    ('class', 'moFR_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:65'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:65
-                    ('objref', 'ext_obj', '15.5.8 config-0-resolvedfeatures-extrude.srl:66'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:66
-                    ('put', 'u32', (('$', 'f.id'), ('$', 'f.created')), '15.5.8 config-0-resolvedfeatures-extrude.srl:67'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:67
-                    ('put', 'u32', (2,), '15.5.8 config-0-resolvedfeatures-extrude.srl:68'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:68
-                    ('class', 'moFromSktEntSurfIdRep_c', 1, 'side4', '15.5.8 config-0-resolvedfeatures-extrude.srl:69'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:69
-                    ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:70'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:70
-                    ('class', 'moFR_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:71'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:71
-                    ('objref', 'ext_obj', '15.5.8 config-0-resolvedfeatures-extrude.srl:72'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:72
-                    ('put', 'u32', (('$', 'f.id'), ('$', 'f.created')), '15.5.8 config-0-resolvedfeatures-extrude.srl:73'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:73
-                    ('put', 'u32', (1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:74'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:74
-                    ('rep', 10, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:75'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:75
-                    ('put', 'u32', (17000, 0, 0), '15.5.8 config-0-resolvedfeatures-extrude.srl:76'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:76
-                    ('class', 'moFaceRef_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:77'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:77
-                    ('put', 'u32', (1, 0, 6, 768), '15.5.8 config-0-resolvedfeatures-extrude.srl:78'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:78
-                    ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:79'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:79
-                    ('put', 'f32', (-253,), '15.5.8 config-0-resolvedfeatures-extrude.srl:80'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:80
-                    ('hex', '9425AD49B254', '15.5.8 config-0-resolvedfeatures-extrude.srl:81'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:81
-                    ('put', 'u64', (6103021453049119613,), '15.5.8 config-0-resolvedfeatures-extrude.srl:82'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:82
-                    ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:83'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:83
-                    ('class', 'moEndFaceSurfIdRep_c', 1, 'face_end2', '15.5.8 config-0-resolvedfeatures-extrude.srl:84'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:84
-                    ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:85'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:85
-                    ('class', 'moFR_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:86'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:86
-                    ('objref', 'ext_obj', '15.5.8 config-0-resolvedfeatures-extrude.srl:87'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:87
-                    ('put', 'u32', (('$', 'f.id'), ('$', 'f.created')), '15.5.8 config-0-resolvedfeatures-extrude.srl:88'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:88
-                    ('put', 'u32', (1, 0), '15.5.8 config-0-resolvedfeatures-extrude.srl:89'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:89
-                    ('class', 'moFromSktEntSurfIdRep_c', 1, 'side5', '15.5.8 config-0-resolvedfeatures-extrude.srl:90'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:90
-                    ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:91'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:91
-                    ('class', 'moFR_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:92'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:92
-                    ('objref', 'ext_obj', '15.5.8 config-0-resolvedfeatures-extrude.srl:93'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:93
-                    ('put', 'u32', (('$', 'f.id'), ('$', 'f.created')), '15.5.8 config-0-resolvedfeatures-extrude.srl:94'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:94
-                    ('put', 'u32', (4,), '15.5.8 config-0-resolvedfeatures-extrude.srl:95'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:95
-                    ('class', 'moFromSktEntSurfIdRep_c', 1, 'side6', '15.5.8 config-0-resolvedfeatures-extrude.srl:96'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:96
-                    ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:97'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:97
-                    ('class', 'moFR_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:98'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:98
-                    ('objref', 'ext_obj', '15.5.8 config-0-resolvedfeatures-extrude.srl:99'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:99
-                    ('put', 'u32', (('$', 'f.id'), ('$', 'f.created')), '15.5.8 config-0-resolvedfeatures-extrude.srl:100'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:100
-                    ('put', 'u32', (1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:101'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:101
-                    ('class', 'moFromSktEntSurfIdRep_c', 1, 'side7', '15.5.8 config-0-resolvedfeatures-extrude.srl:102'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:102
-                    ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:103'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:103
-                    ('class', 'moFR_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:104'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:104
-                    ('objref', 'ext_obj', '15.5.8 config-0-resolvedfeatures-extrude.srl:105'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:105
-                    ('put', 'u32', (('$', 'f.id'), ('$', 'f.created')), '15.5.8 config-0-resolvedfeatures-extrude.srl:106'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:106
-                    ('put', 'u32', (2,), '15.5.8 config-0-resolvedfeatures-extrude.srl:107'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:107
-                    ('class', 'moFromSktEntSurfIdRep_c', 1, 'side8', '15.5.8 config-0-resolvedfeatures-extrude.srl:108'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:108
-                    ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:109'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:109
-                    ('class', 'moFR_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:110'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:110
-                    ('objref', 'ext_obj', '15.5.8 config-0-resolvedfeatures-extrude.srl:111'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:111
-                    ('put', 'u32', (('$', 'f.id'), ('$', 'f.created')), '15.5.8 config-0-resolvedfeatures-extrude.srl:112'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:112
-                    ('put', 'u32', (3,), '15.5.8 config-0-resolvedfeatures-extrude.srl:113'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:113
-                    ('rep', 10, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:114'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:114
-                    ('put', 'u32', (17000,), '15.5.8 config-0-resolvedfeatures-extrude.srl:115'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:115
-                    ('rep', 10, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:116'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:116
-                    ('hex', '01', '15.5.8 config-0-resolvedfeatures-extrude.srl:117'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:117
-                    ('put', 'u8', (0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:118'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:118
-                ), (  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:6
-                    ('class', 'moICE_c', 1, ('$', 'f.name'), '15.5.8 config-0-resolvedfeatures-extrude.srl:120'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:120
+                    ('put', 'u32', (1,), '15.5.12 config-0-resolvedfeatures-circle.srl:12'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:12
+                    ('rep', 14, 0, '15.5.12 config-0-resolvedfeatures-circle.srl:13'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:13
+                    ('class', 'sgSketch', 1, None, '15.5.12 config-0-resolvedfeatures-circle.srl:14'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:14
+                    ('put', 'u32', (2,), '15.5.12 config-0-resolvedfeatures-circle.srl:15'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:15
+                    ('rep', 6, 0, '15.5.12 config-0-resolvedfeatures-circle.srl:16'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:16
+                    ('put', 'u32', (2, 2097151), '15.5.7 config-0-macros.srl:67'),  # spec 15.5.7 config-0-macros.srl:67
+                    ('put', 'u8', (3,), '15.5.7 config-0-macros.srl:68'),  # spec 15.5.7 config-0-macros.srl:68
+                    ('put', 'i32', (-1, -1), '15.5.7 config-0-macros.srl:69'),  # spec 15.5.7 config-0-macros.srl:69
+                    ('put', 'f32', (-1,), '15.5.7 config-0-macros.srl:70'),  # spec 15.5.7 config-0-macros.srl:70
+                    ('put', 'u32', (('=', '0'),), '15.5.7 config-0-macros.srl:71'),  # spec 15.5.7 config-0-macros.srl:71
+                    ('put', 'u16', (0, ('=', '5-0'), ('=', '1+0')), '15.5.7 config-0-macros.srl:72'),  # spec 15.5.7 config-0-macros.srl:72
+                    ('put', 'u32', (1,), '15.5.7 config-0-macros.srl:73'),  # spec 15.5.7 config-0-macros.srl:73
+                    ('put', 'f32', (-1,), '15.5.7 config-0-macros.srl:74'),  # spec 15.5.7 config-0-macros.srl:74
+                    ('put', 'u16', (0,), '15.5.7 config-0-macros.srl:75'),  # spec 15.5.7 config-0-macros.srl:75
+                    ('put', 'u32', (4,), '15.5.7 config-0-macros.srl:76'),  # spec 15.5.7 config-0-macros.srl:76
+                    ('rep', 7, 0, '15.5.7 config-0-macros.srl:77'),  # spec 15.5.7 config-0-macros.srl:77
+                    ('put', 'f64', (1.0, 0.0), '15.5.7 config-0-macros.srl:78'),  # spec 15.5.7 config-0-macros.srl:78
+                    ('put', 'u16', (30,), '15.5.7 config-0-macros.srl:79'),  # spec 15.5.7 config-0-macros.srl:79
+                    ('put', 'f64', (('$', 'f.centre.0'), ('$', 'f.centre.1')), '15.5.7 config-0-macros.srl:80'),  # spec 15.5.7 config-0-macros.srl:80
+                    ('put', 'u16', (0, 1), '15.5.12 config-0-resolvedfeatures-circle.srl:18'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:18
+                    ('put', 'u32', (0,), '15.5.12 config-0-resolvedfeatures-circle.srl:19'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:19
+                    ('put', 'u16', (1,), '15.5.12 config-0-resolvedfeatures-circle.srl:20'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:20
+                    ('put', 'i32', (-2,), '15.5.12 config-0-resolvedfeatures-circle.srl:21'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:21
+                    ('rep', 42, 0, '15.5.12 config-0-resolvedfeatures-circle.srl:22'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:22
+                    ('put', 'u32', (1, 2097151), '15.5.7 config-0-macros.srl:67'),  # spec 15.5.7 config-0-macros.srl:67
+                    ('put', 'u8', (3,), '15.5.7 config-0-macros.srl:68'),  # spec 15.5.7 config-0-macros.srl:68
+                    ('put', 'i32', (-1, -1), '15.5.7 config-0-macros.srl:69'),  # spec 15.5.7 config-0-macros.srl:69
+                    ('put', 'f32', (-1,), '15.5.7 config-0-macros.srl:70'),  # spec 15.5.7 config-0-macros.srl:70
+                    ('put', 'u32', (('=', '0'),), '15.5.7 config-0-macros.srl:71'),  # spec 15.5.7 config-0-macros.srl:71
+                    ('put', 'u16', (0, ('=', '5-0'), ('=', '1+0')), '15.5.7 config-0-macros.srl:72'),  # spec 15.5.7 config-0-macros.srl:72
+                    ('put', 'u32', (1,), '15.5.7 config-0-macros.srl:73'),  # spec 15.5.7 config-0-macros.srl:73
+                    ('put', 'f32', (-1,), '15.5.7 config-0-macros.srl:74'),  # spec 15.5.7 config-0-macros.srl:74
+                    ('put', 'u16', (0,), '15.5.7 config-0-macros.srl:75'),  # spec 15.5.7 config-0-macros.srl:75
+                    ('put', 'u32', (4,), '15.5.7 config-0-macros.srl:76'),  # spec 15.5.7 config-0-macros.srl:76
+                    ('rep', 7, 0, '15.5.7 config-0-macros.srl:77'),  # spec 15.5.7 config-0-macros.srl:77
+                    ('put', 'f64', (1.0, 0.0), '15.5.7 config-0-macros.srl:78'),  # spec 15.5.7 config-0-macros.srl:78
+                    ('put', 'u16', (30,), '15.5.7 config-0-macros.srl:79'),  # spec 15.5.7 config-0-macros.srl:79
+                    ('put', 'f64', (('$', 'f.start.0'), ('$', 'f.start.1')), '15.5.7 config-0-macros.srl:80'),  # spec 15.5.7 config-0-macros.srl:80
+                    ('put', 'u16', (2, 2), '15.5.12 config-0-resolvedfeatures-circle.srl:24'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:24
+                    ('class', 'sgArcHandle', 1, None, '15.5.12 config-0-resolvedfeatures-circle.srl:27'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:27
+                    ('put', 'u16', (0,), '15.5.12 config-0-resolvedfeatures-circle.srl:28'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:28
+                    ('put', 'i32', (-1,), '15.5.12 config-0-resolvedfeatures-circle.srl:29'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:29
+                    ('put', 'u32', (0, 0), '15.5.12 config-0-resolvedfeatures-circle.srl:30'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:30
+                    ('put', 'i32', (-2,), '15.5.12 config-0-resolvedfeatures-circle.srl:31'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:31
+                    ('rep', 48, 0, '15.5.12 config-0-resolvedfeatures-circle.srl:32'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:32
+                    ('put', 'u32', (1,), '15.5.12 config-0-resolvedfeatures-circle.srl:33'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:33
+                    ('put', 'u16', (0,), '15.5.12 config-0-resolvedfeatures-circle.srl:34'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:34
+                    ('put', 'u32', (1, 1, 2097151), '15.5.12 config-0-resolvedfeatures-circle.srl:35'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:35
+                    ('put', 'u8', (3,), '15.5.12 config-0-resolvedfeatures-circle.srl:36'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:36
+                    ('put', 'i32', (-1, -1), '15.5.12 config-0-resolvedfeatures-circle.srl:37'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:37
+                    ('put', 'f32', (-1,), '15.5.12 config-0-resolvedfeatures-circle.srl:38'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:38
+                    ('put', 'u32', (0,), '15.5.12 config-0-resolvedfeatures-circle.srl:39'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:39
+                    ('put', 'u16', (0, 5, 1, 1, 1), '15.5.12 config-0-resolvedfeatures-circle.srl:40'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:40
+                    ('put', 'f32', (-1,), '15.5.12 config-0-resolvedfeatures-circle.srl:41'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:41
+                    ('put', 'u16', (0,), '15.5.12 config-0-resolvedfeatures-circle.srl:42'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:42
+                    ('put', 'u32', (4,), '15.5.12 config-0-resolvedfeatures-circle.srl:43'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:43
+                    ('rep', 7, 0, '15.5.12 config-0-resolvedfeatures-circle.srl:44'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:44
+                    ('put', 'f64', (1.0,), '15.5.12 config-0-resolvedfeatures-circle.srl:45'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:45
+                    ('rep', 8, 0, '15.5.12 config-0-resolvedfeatures-circle.srl:46'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:46
+                    ('put', 'u16', (1, 1, 1), '15.5.12 config-0-resolvedfeatures-circle.srl:47'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:47
+                    ('rep', 2, 0, '15.5.12 config-0-resolvedfeatures-circle.srl:48'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:48
+                    ('put', 'f64', (-1.0,), '15.5.12 config-0-resolvedfeatures-circle.srl:49'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:49
+                    ('put', 'u32', (1,), '15.5.12 config-0-resolvedfeatures-circle.srl:50'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:50
+                    ('put', 'u16', (0,), '15.5.12 config-0-resolvedfeatures-circle.srl:51'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:51
+                    ('put', 'i32', (-2, -2, -2, -2), '15.5.12 config-0-resolvedfeatures-circle.srl:52'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:52
+                    ('rep', 56, 0, '15.5.12 config-0-resolvedfeatures-circle.srl:53'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:53
+                    ('class', 'suObList', 1, None, '15.5.12 config-0-resolvedfeatures-circle.srl:54'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:54
+                    ('rep', 14, 0, '15.5.12 config-0-resolvedfeatures-circle.srl:55'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:55
+                    ('put', 'u16', (1, 1), '15.5.12 config-0-resolvedfeatures-circle.srl:56'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:56
+                    ('put', 'u32', (2, 3, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 0), '15.5.12 config-0-resolvedfeatures-circle.srl:57'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:57
+                    ('put', 'cstr', ('',), '15.5.12 config-0-resolvedfeatures-circle.srl:58'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:58
+                    ('put', 'u16', (65535,), '15.5.12 config-0-resolvedfeatures-circle.srl:59'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:59
+                    ('put', 'f32', (-1,), '15.5.12 config-0-resolvedfeatures-circle.srl:60'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:60
+                    ('put', 'i32', (-1,), '15.5.12 config-0-resolvedfeatures-circle.srl:61'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:61
+                    ('put', 'u32', (1,), '15.5.12 config-0-resolvedfeatures-circle.srl:62'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:62
+                    ('put', 'i32', (-1,), '15.5.12 config-0-resolvedfeatures-circle.srl:63'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:63
+                    ('rep', 24, 0, '15.5.12 config-0-resolvedfeatures-circle.srl:64'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:64
+                    ('put', 'u32', (2,), '15.5.12 config-0-resolvedfeatures-circle.srl:65'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:65
+                    ('rep', 32, 0, '15.5.12 config-0-resolvedfeatures-circle.srl:66'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:66
+                    ('class', 'suObList', 1, None, '15.5.12 config-0-resolvedfeatures-circle.srl:67'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:67
+                    ('rep', 32, 0, '15.5.12 config-0-resolvedfeatures-circle.srl:68'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:68
+                    ('put', 'u32', (1, 1), '15.5.12 config-0-resolvedfeatures-circle.srl:69'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:69
+                    ('class', 'moSketchChain_c', 1, None, '15.5.12 config-0-resolvedfeatures-circle.srl:70'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:70
+                    ('put', 'u32', (65537,), '15.5.12 config-0-resolvedfeatures-circle.srl:71'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:71
+                    ('rep', 2, 0, '15.5.12 config-0-resolvedfeatures-circle.srl:72'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:72
+                    ('put', 'u32', (1,), '15.5.12 config-0-resolvedfeatures-circle.srl:73'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:73
+                    ('rep', 2, 0, '15.5.12 config-0-resolvedfeatures-circle.srl:74'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:74
+                    ('put', 'u32', (6,), '15.5.12 config-0-resolvedfeatures-circle.srl:75'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:75
+                    ('put', 'i32', (-1,), '15.5.12 config-0-resolvedfeatures-circle.srl:76'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:76
+                    ('put', 'u32', (0, 0, 5, 5), '15.5.12 config-0-resolvedfeatures-circle.srl:77'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:77
+                    ('put', 'cstr', ('',), '15.5.12 config-0-resolvedfeatures-circle.srl:78'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:78
+                    ('put', 'i32', (-65536,), '15.5.12 config-0-resolvedfeatures-circle.srl:79'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:79
+                    ('put', 'u32', (65535,), '15.5.12 config-0-resolvedfeatures-circle.srl:80'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:80
+                    ('rep', 18, 0, '15.5.12 config-0-resolvedfeatures-circle.srl:81'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:81
+                    ('put', 'u32', (3, 1), '15.5.12 config-0-resolvedfeatures-circle.srl:82'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:82
+                    ('rep', 7, 0, '15.5.12 config-0-resolvedfeatures-circle.srl:83'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:83
+                    ('put', 'u32', (100000, 0), '15.5.12 config-0-resolvedfeatures-circle.srl:84'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:84
+                    ('class', 'moCompRefPlane_c', 1, None, '15.5.12 config-0-resolvedfeatures-circle.srl:85'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:85
+                    ('class', 'moUnitComponent_c', 1, None, '15.5.12 config-0-resolvedfeatures-circle.srl:86'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:86
+                    ('put', 'u32', (2,), '15.5.12 config-0-resolvedfeatures-circle.srl:87'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:87
+                    ('rep', 39, 0, '15.5.12 config-0-resolvedfeatures-circle.srl:88'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:88
+                    ('put', 'i32', (-1, -1, -1, -1), '15.5.12 config-0-resolvedfeatures-circle.srl:89'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:89
+                    ('rep', 20, 0, '15.5.12 config-0-resolvedfeatures-circle.srl:90'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:90
+                    ('put', 'u32', (17000, 2), '15.5.12 config-0-resolvedfeatures-circle.srl:91'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:91
+                    ('put', 'u32', (('$', 'tpl.unix'),), '15.5.12 config-0-resolvedfeatures-circle.srl:92'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:92
+                    ('rep', 2, 0, '15.5.12 config-0-resolvedfeatures-circle.srl:93'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:93
+                    ('put', 'u32', (3,), '15.5.12 config-0-resolvedfeatures-circle.srl:94'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:94
+                    ('rep', 25, 0, '15.5.12 config-0-resolvedfeatures-circle.srl:95'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:95
+                    ('put', 'f64', (1.0,), '15.5.12 config-0-resolvedfeatures-circle.srl:96'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:96
+                    ('rep', 3, 0, '15.5.12 config-0-resolvedfeatures-circle.srl:97'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:97
+                    ('put', 'u32', (4,), '15.5.12 config-0-resolvedfeatures-circle.srl:98'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:98
+                    ('put', 'i32', (-1,), '15.5.12 config-0-resolvedfeatures-circle.srl:99'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:99
+                    ('put', 'u32', (0,), '15.5.12 config-0-resolvedfeatures-circle.srl:100'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:100
+                    ('put', 'u32', (('$', 'f.regen'),), '15.5.12 config-0-resolvedfeatures-circle.srl:101'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:101
+                    ('put', 'u32', (11,), '15.5.12 config-0-resolvedfeatures-circle.srl:102'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:102
+                    ('put', 'u32', (0, 0), '15.5.12 config-0-resolvedfeatures-circle.srl:103'),  # spec 15.5.12 config-0-resolvedfeatures-circle.srl:103
+                ), (  # spec 15.5.6 config-0-resolvedfeatures.srl:15
+                    ('class', 'moProfileFeature_c', 1, ('$', 'f.name'), '15.5.7 config-0-resolvedfeatures-sketch.srl:7'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:7
                     ('class', 'moNodeName_c', 1, None, '15.4.2 config-0-macros.srl:18'),  # spec 15.4.2 config-0-macros.srl:18
                     ('put', 'cstr', (('$', 'f.name'),), '15.4.2 config-0-macros.srl:19'),  # spec 15.4.2 config-0-macros.srl:19
-                    ('put', 'u32', (0, 1073742144, ('$', 'f.id'), 0), '15.4.2 config-0-macros.srl:11'),  # spec 15.4.2 config-0-macros.srl:11
+                    ('put', 'u32', (0, 1073741824, ('$', 'f.id'), 0), '15.4.2 config-0-macros.srl:11'),  # spec 15.4.2 config-0-macros.srl:11
                     ('put', 'cstr', ('',), '15.4.2 config-0-macros.srl:12'),  # spec 15.4.2 config-0-macros.srl:12
                     ('rep', 6, 0, '15.4.2 config-0-macros.srl:13'),  # spec 15.4.2 config-0-macros.srl:13
-                    ('put', 'u16', (1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:122'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:122
-                    ('objref', ('$', 'f.sketch_name'), '15.5.8 config-0-resolvedfeatures-extrude.srl:123'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:123
+                    ('put', 'u16', (0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:9'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:9
                     ('rep', 12, 0, '15.4.2 config-0-macros.srl:27'),  # spec 15.4.2 config-0-macros.srl:27
                     ('put', 'u32', (('=', '$fixed.id_base+11+$f_index'), 0), '15.4.2 config-0-macros.srl:28'),  # spec 15.4.2 config-0-macros.srl:28
                     ('put', 'u8', (0,), '15.4.2 config-0-macros.srl:29'),  # spec 15.4.2 config-0-macros.srl:29
@@ -5140,364 +4651,1336 @@ LISTINGS = {
                     ('put', 'u32', (('=', '$f.time//4294967296'), ('=', '$f.time%4294967296')), '15.4.2 config-0-macros.srl:46'),  # spec 15.4.2 config-0-macros.srl:46
                     ('put', 'u16', (2,), '15.4.2 config-0-macros.srl:47'),  # spec 15.4.2 config-0-macros.srl:47
                     ('put', 'u32', (350108,), '15.4.2 config-0-macros.srl:48'),  # spec 15.4.2 config-0-macros.srl:48
-                    ('put', 'u32', (1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:125'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:125
-                    ('rep', 10, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:126'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:126
-                    ('put', 'u32', (1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:127'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:127
-                    ('hex', '01', '15.5.8 config-0-resolvedfeatures-extrude.srl:128'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:128
-                    ('put', 'u8', (0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:129'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:129
-                    ('objref', ('$', 'f.body_label'), '15.5.8 config-0-resolvedfeatures-extrude.srl:130'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:130
-                    ('rep', 6, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:131'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:131
-                    ('put', 'u32', (1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:132'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:132
-                    ('put', 'u32', (('$', 'f.body_id'),), '15.5.8 config-0-resolvedfeatures-extrude.srl:133'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:133
-                    ('put', 'u32', (3, 0, 1, 65537), '15.5.8 config-0-resolvedfeatures-extrude.srl:134'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:134
-                    ('class', 'moPerBodyChooserData_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:135'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:135
-                    ('hex', '02', '15.5.8 config-0-resolvedfeatures-extrude.srl:136'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:136
-                    ('put', 'u8', (0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:137'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:137
-                    ('class', 'moFaceRef_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:138'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:138
-                    ('put', 'u32', (1, 0, 6, 768), '15.5.8 config-0-resolvedfeatures-extrude.srl:139'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:139
-                    ('put', 'u32', (('$', 'f.counter_face1'),), '15.5.8 config-0-resolvedfeatures-extrude.srl:140'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:140
-                    ('put', 'u64', (6103021453049119613, 6103021453049119613), '15.5.8 config-0-resolvedfeatures-extrude.srl:141'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:141
-                    ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:142'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:142
-                    ('class', 'moEndFace3IntSurfIdRep_c', 1, 'face_end1', '15.5.8 config-0-resolvedfeatures-extrude.srl:143'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:143
-                    ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:144'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:144
-                    ('class', 'moFR_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:145'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:145
-                    ('objref', 'ext_obj', '15.5.8 config-0-resolvedfeatures-extrude.srl:146'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:146
-                    ('put', 'u32', (('$', 'f.id'), ('$', 'f.created')), '15.5.8 config-0-resolvedfeatures-extrude.srl:147'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:147
-                    ('rep', 12, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:148'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:148
-                    ('class', 'moFromSktEnt3IntSurfIdRep_c', 1, 'side1', '15.5.8 config-0-resolvedfeatures-extrude.srl:149'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:149
-                    ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:150'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:150
-                    ('class', 'moFR_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:151'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:151
-                    ('objref', 'ext_obj', '15.5.8 config-0-resolvedfeatures-extrude.srl:152'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:152
-                    ('put', 'u32', (('$', 'f.id'), ('$', 'f.created')), '15.5.8 config-0-resolvedfeatures-extrude.srl:153'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:153
-                    ('put', 'u32', (4,), '15.5.8 config-0-resolvedfeatures-extrude.srl:154'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:154
-                    ('put', 'i32', (-1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:155'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:155
-                    ('put', 'u32', (0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:156'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:156
-                    ('class', 'moFromSktEnt3IntSurfIdRep_c', 1, 'side2', '15.5.8 config-0-resolvedfeatures-extrude.srl:157'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:157
-                    ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:158'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:158
-                    ('class', 'moFR_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:159'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:159
-                    ('objref', 'ext_obj', '15.5.8 config-0-resolvedfeatures-extrude.srl:160'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:160
-                    ('put', 'u32', (('$', 'f.id'), ('$', 'f.created')), '15.5.8 config-0-resolvedfeatures-extrude.srl:161'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:161
-                    ('put', 'u32', (3,), '15.5.8 config-0-resolvedfeatures-extrude.srl:162'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:162
-                    ('put', 'i32', (-1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:163'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:163
-                    ('put', 'u32', (0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:164'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:164
-                    ('class', 'moFromSktEnt3IntSurfIdRep_c', 1, 'side3', '15.5.8 config-0-resolvedfeatures-extrude.srl:165'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:165
-                    ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:166'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:166
-                    ('class', 'moFR_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:167'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:167
-                    ('objref', 'ext_obj', '15.5.8 config-0-resolvedfeatures-extrude.srl:168'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:168
-                    ('put', 'u32', (('$', 'f.id'), ('$', 'f.created')), '15.5.8 config-0-resolvedfeatures-extrude.srl:169'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:169
-                    ('put', 'u32', (2,), '15.5.8 config-0-resolvedfeatures-extrude.srl:170'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:170
-                    ('put', 'i32', (-1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:171'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:171
-                    ('put', 'u32', (0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:172'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:172
-                    ('class', 'moFromSktEnt3IntSurfIdRep_c', 1, 'side4', '15.5.8 config-0-resolvedfeatures-extrude.srl:173'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:173
-                    ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:174'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:174
-                    ('class', 'moFR_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:175'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:175
-                    ('objref', 'ext_obj', '15.5.8 config-0-resolvedfeatures-extrude.srl:176'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:176
-                    ('put', 'u32', (('$', 'f.id'), ('$', 'f.created')), '15.5.8 config-0-resolvedfeatures-extrude.srl:177'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:177
-                    ('put', 'u32', (1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:178'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:178
-                    ('put', 'i32', (-1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:179'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:179
-                    ('rep', 14, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:180'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:180
-                    ('put', 'u32', (17000, 0, 0), '15.5.8 config-0-resolvedfeatures-extrude.srl:181'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:181
-                    ('class', 'moFaceRef_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:182'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:182
-                    ('put', 'u32', (1, 0, 6, 768), '15.5.8 config-0-resolvedfeatures-extrude.srl:183'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:183
-                    ('put', 'u32', (('$', 'f.counter_face2'),), '15.5.8 config-0-resolvedfeatures-extrude.srl:184'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:184
-                    ('put', 'u64', (6103021453049119613, 6103021453049119613), '15.5.8 config-0-resolvedfeatures-extrude.srl:185'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:185
-                    ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:186'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:186
-                    ('class', 'moEndFace3IntSurfIdRep_c', 1, 'face_end2', '15.5.8 config-0-resolvedfeatures-extrude.srl:187'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:187
-                    ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:188'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:188
-                    ('class', 'moFR_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:189'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:189
-                    ('objref', 'ext_obj', '15.5.8 config-0-resolvedfeatures-extrude.srl:190'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:190
-                    ('put', 'u32', (('$', 'f.id'), ('$', 'f.created')), '15.5.8 config-0-resolvedfeatures-extrude.srl:191'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:191
-                    ('put', 'u32', (1, 0, 0), '15.5.8 config-0-resolvedfeatures-extrude.srl:192'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:192
-                    ('class', 'moFromSktEnt3IntSurfIdRep_c', 1, 'side5', '15.5.8 config-0-resolvedfeatures-extrude.srl:193'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:193
-                    ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:194'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:194
-                    ('class', 'moFR_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:195'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:195
-                    ('objref', 'ext_obj', '15.5.8 config-0-resolvedfeatures-extrude.srl:196'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:196
-                    ('put', 'u32', (('$', 'f.id'), ('$', 'f.created')), '15.5.8 config-0-resolvedfeatures-extrude.srl:197'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:197
-                    ('put', 'u32', (4,), '15.5.8 config-0-resolvedfeatures-extrude.srl:198'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:198
-                    ('put', 'i32', (-1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:199'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:199
-                    ('put', 'u32', (0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:200'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:200
-                    ('class', 'moFromSktEnt3IntSurfIdRep_c', 1, 'side6', '15.5.8 config-0-resolvedfeatures-extrude.srl:201'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:201
-                    ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:202'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:202
-                    ('class', 'moFR_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:203'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:203
-                    ('objref', 'ext_obj', '15.5.8 config-0-resolvedfeatures-extrude.srl:204'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:204
-                    ('put', 'u32', (('$', 'f.id'), ('$', 'f.created')), '15.5.8 config-0-resolvedfeatures-extrude.srl:205'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:205
-                    ('put', 'u32', (1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:206'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:206
-                    ('put', 'i32', (-1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:207'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:207
-                    ('put', 'u32', (0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:208'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:208
-                    ('class', 'moFromSktEnt3IntSurfIdRep_c', 1, 'side7', '15.5.8 config-0-resolvedfeatures-extrude.srl:209'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:209
-                    ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:210'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:210
-                    ('class', 'moFR_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:211'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:211
-                    ('objref', 'ext_obj', '15.5.8 config-0-resolvedfeatures-extrude.srl:212'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:212
-                    ('put', 'u32', (('$', 'f.id'), ('$', 'f.created')), '15.5.8 config-0-resolvedfeatures-extrude.srl:213'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:213
-                    ('put', 'u32', (2,), '15.5.8 config-0-resolvedfeatures-extrude.srl:214'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:214
-                    ('put', 'i32', (-1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:215'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:215
-                    ('put', 'u32', (0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:216'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:216
-                    ('class', 'moFromSktEnt3IntSurfIdRep_c', 1, 'side8', '15.5.8 config-0-resolvedfeatures-extrude.srl:217'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:217
-                    ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:218'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:218
-                    ('class', 'moFR_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:219'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:219
-                    ('objref', 'ext_obj', '15.5.8 config-0-resolvedfeatures-extrude.srl:220'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:220
-                    ('put', 'u32', (('$', 'f.id'), ('$', 'f.created')), '15.5.8 config-0-resolvedfeatures-extrude.srl:221'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:221
-                    ('put', 'u32', (3,), '15.5.8 config-0-resolvedfeatures-extrude.srl:222'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:222
-                    ('put', 'i32', (-1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:223'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:223
-                    ('rep', 14, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:224'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:224
-                    ('put', 'u32', (17000,), '15.5.8 config-0-resolvedfeatures-extrude.srl:225'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:225
-                    ('rep', 10, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:226'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:226
-                    ('hex', '01', '15.5.8 config-0-resolvedfeatures-extrude.srl:227'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:227
-                    ('put', 'u8', (0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:228'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:228
-                ), '15.5.8 config-0-resolvedfeatures-extrude.srl:6'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:6
-                ('class', 'moBBoxCenterData_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:231'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:231
-                ('put', 'u32', (1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:232'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:232
-                ('put', 'f64', (('$', 'f.centre.0'), ('$', 'f.centre.1'), ('$', 'f.centre.2'), ('$', 'f.diagonal')), '15.5.8 config-0-resolvedfeatures-extrude.srl:233'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:233
-                ('rep', 8, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:234'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:234
-                ('if', ('$', 'f.merge'), (  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:235
-                    ('put', 'u32', (1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:236'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:236
-                ), (  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:235
-                ), '15.5.8 config-0-resolvedfeatures-extrude.srl:235'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:235
-                ('rep', 6, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:238'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:238
-                ('objref', ('$', 'f.name'), '15.5.8 config-0-resolvedfeatures-extrude.srl:239'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:239
-                ('put', 'u32', (65537,), '15.5.8 config-0-resolvedfeatures-extrude.srl:240'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:240
-                ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:241'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:241
-                ('objref', ('$', 'f.name'), '15.5.8 config-0-resolvedfeatures-extrude.srl:242'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:242
-                ('put', 'u32', (1, 65537), '15.5.8 config-0-resolvedfeatures-extrude.srl:243'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:243
-                ('class', 'moPerBodyChooserData_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:244'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:244
-                ('hex', '02', '15.5.8 config-0-resolvedfeatures-extrude.srl:245'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:245
-                ('put', 'u8', (0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:246'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:246
-                ('class', 'moFaceRef_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:247'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:247
-                ('put', 'u32', (1, 0, 6, 768), '15.5.8 config-0-resolvedfeatures-extrude.srl:248'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:248
-                ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:249'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:249
-                ('put', 'f32', (-253,), '15.5.8 config-0-resolvedfeatures-extrude.srl:250'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:250
-                ('hex', '9425AD49B254', '15.5.8 config-0-resolvedfeatures-extrude.srl:251'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:251
-                ('put', 'u64', (6103021453049119613,), '15.5.8 config-0-resolvedfeatures-extrude.srl:252'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:252
-                ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:253'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:253
-                ('objref', 'face_end1', '15.5.8 config-0-resolvedfeatures-extrude.srl:254'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:254
-                ('objref', 'side1', '15.5.8 config-0-resolvedfeatures-extrude.srl:255'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:255
-                ('objref', 'side2', '15.5.8 config-0-resolvedfeatures-extrude.srl:256'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:256
-                ('objref', 'side3', '15.5.8 config-0-resolvedfeatures-extrude.srl:257'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:257
-                ('objref', 'side4', '15.5.8 config-0-resolvedfeatures-extrude.srl:258'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:258
-                ('rep', 10, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:259'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:259
-                ('put', 'u32', (17000, 0, 0), '15.5.8 config-0-resolvedfeatures-extrude.srl:260'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:260
-                ('class', 'moFaceRef_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:261'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:261
-                ('put', 'u32', (1, 0, 6, 768), '15.5.8 config-0-resolvedfeatures-extrude.srl:262'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:262
-                ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:263'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:263
-                ('put', 'f32', (-253,), '15.5.8 config-0-resolvedfeatures-extrude.srl:264'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:264
-                ('hex', '9425AD49B254', '15.5.8 config-0-resolvedfeatures-extrude.srl:265'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:265
-                ('put', 'u64', (6103021453049119613,), '15.5.8 config-0-resolvedfeatures-extrude.srl:266'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:266
-                ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:267'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:267
-                ('objref', 'face_end2', '15.5.8 config-0-resolvedfeatures-extrude.srl:268'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:268
-                ('objref', 'side5', '15.5.8 config-0-resolvedfeatures-extrude.srl:269'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:269
-                ('objref', 'side6', '15.5.8 config-0-resolvedfeatures-extrude.srl:270'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:270
-                ('objref', 'side7', '15.5.8 config-0-resolvedfeatures-extrude.srl:271'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:271
-                ('objref', 'side8', '15.5.8 config-0-resolvedfeatures-extrude.srl:272'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:272
-                ('rep', 10, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:273'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:273
-                ('put', 'u32', (17000,), '15.5.8 config-0-resolvedfeatures-extrude.srl:274'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:274
-                ('rep', 10, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:275'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:275
-                ('hex', '01', '15.5.8 config-0-resolvedfeatures-extrude.srl:276'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:276
-                ('put', 'u8', (0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:277'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:277
-                ('class', 'moBBoxCenterData_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:278'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:278
-                ('put', 'u32', (1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:279'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:279
-                ('put', 'f64', (('$', 'f.centre.0'), ('$', 'f.centre.1'), ('$', 'f.centre.2'), ('$', 'f.diagonal')), '15.5.8 config-0-resolvedfeatures-extrude.srl:280'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:280
-                ('rep', 8, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:281'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:281
-                ('if', ('$', 'f.merge'), (  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:282
-                    ('put', 'u32', (1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:283'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:283
-                ), (  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:282
-                ), '15.5.8 config-0-resolvedfeatures-extrude.srl:282'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:282
-                ('rep', 6, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:285'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:285
-                ('objref', ('$', 'f.name'), '15.5.8 config-0-resolvedfeatures-extrude.srl:286'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:286
-                ('rep', 10, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:287'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:287
-                ('put', 'u32', (1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:288'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:288
-                ('class', 'moPMarkRecord_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:289'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:289
-                ('put', 'u16', (('$', 'f.counter_marks'),), '15.5.8 config-0-resolvedfeatures-extrude.srl:290'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:290
-                ('rep', 64, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:291'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:291
-                ('class', 'moEndSpec_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:293'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:293
-                ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:294'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:294
-                ('put', 'u32', (1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:295'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:295
-                ('rep', 18, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:296'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:296
-                ('class', 'moDisplayDistanceDim_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:297'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:297
-                ('rep', 16, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:298'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:298
-                ('put', 'u32', (65535,), '15.5.8 config-0-resolvedfeatures-extrude.srl:299'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:299
-                ('put', 'i32', (-253,), '15.5.8 config-0-resolvedfeatures-extrude.srl:300'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:300
-                ('put', 'u32', (255,), '15.5.8 config-0-resolvedfeatures-extrude.srl:301'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:301
-                ('put', 'u8', (0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:302'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:302
-                ('put', 'f32', (-1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:303'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:303
-                ('rep', 14, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:304'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:304
-                ('put', 'u32', (17000, 0, 524416), '15.5.8 config-0-resolvedfeatures-extrude.srl:305'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:305
-                ('rep', 83, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:306'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:306
-                ('put', 'f64', (1.0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:307'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:307
-                ('put', 'u32', (256, 51200), '15.5.8 config-0-resolvedfeatures-extrude.srl:308'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:308
-                ('rep', 20, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:309'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:309
-                ('put', 'f64', (-1.0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:310'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:310
-                ('put', 'u32', (0, 1), '15.5.8 config-0-resolvedfeatures-extrude.srl:311'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:311
-                ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:312'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:312
-                ('put', 'f32', (-1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:313'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:313
-                ('put', 'u32', (0, 1), '15.5.8 config-0-resolvedfeatures-extrude.srl:314'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:314
-                ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:315'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:315
-                ('put', 'f32', (-1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:316'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:316
-                ('rep', 12, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:317'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:317
-                ('put', 'i32', (-1, -1), '15.5.8 config-0-resolvedfeatures-extrude.srl:318'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:318
-                ('put', 'u32', (0, 1), '15.5.8 config-0-resolvedfeatures-extrude.srl:319'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:319
-                ('rep', 6, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:320'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:320
-                ('put', 'f32', (-1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:321'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:321
-                ('rep', 16, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:322'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:322
-                ('put', 'u32', (4,), '15.5.8 config-0-resolvedfeatures-extrude.srl:323'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:323
-                ('rep', 96, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:324'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:324
-                ('put', 'u32', (2, 0, 0), '15.5.8 config-0-resolvedfeatures-extrude.srl:325'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:325
-                ('put', 'f64', (1.0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:326'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:326
-                ('rep', 16, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:327'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:327
-                ('put', 'f64', (1.0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:328'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:328
-                ('put', 'u32', (0, 0), '15.5.8 config-0-resolvedfeatures-extrude.srl:329'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:329
-                ('put', 'cstr', ('',), '15.5.8 config-0-resolvedfeatures-extrude.srl:330'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:330
-                ('rep', 24, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:331'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:331
-                ('put', 'u32', (18,), '15.5.8 config-0-resolvedfeatures-extrude.srl:332'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:332
-                ('rep', 30, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:333'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:333
-                ('put', 'f64', (1.0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:334'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:334
-                ('rep', 16, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:335'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:335
-                ('put', 'f64', (1e-06, 1e-06), '15.5.8 config-0-resolvedfeatures-extrude.srl:336'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:336
-                ('rep', 18, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:337'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:337
-                ('put', 'f64', (1.0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:338'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:338
-                ('put', 'u32', (0, 1), '15.5.8 config-0-resolvedfeatures-extrude.srl:339'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:339
-                ('class', 'moFeatureDimHandle_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:340'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:340
-                ('rep', 42, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:341'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:341
-                ('put', 'i32', (-1, -1, -1, -1), '15.5.8 config-0-resolvedfeatures-extrude.srl:342'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:342
-                ('rep', 20, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:343'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:343
-                ('put', 'u32', (17000,), '15.5.8 config-0-resolvedfeatures-extrude.srl:344'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:344
-                ('rep', 15, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:345'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:345
-                ('put', 'i32', (-1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:346'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:346
-                ('rep', 6, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:347'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:347
-                ('class', 'ParallelPlaneDistanceDim_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:348'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:348
-                ('put', 'u32', (1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:349'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:349
-                ('class', 'moLengthParameter_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:350'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:350
-                ('class', 'moNodeName_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:353'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:353
-                ('put', 'cstr', ('D1',), '15.5.8 config-0-resolvedfeatures-extrude.srl:354'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:354
-                ('put', 'f64', (2.0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:355'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:355
-                ('put', 'i32', (-1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:356'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:356
-                ('put', 'u32', (0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:357'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:357
-                ('put', 'cstr', ('',), '15.5.8 config-0-resolvedfeatures-extrude.srl:358'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:358
-                ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:359'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:359
-                ('put', 'f64', (('$', 'f.depth'),), '15.5.8 config-0-resolvedfeatures-extrude.srl:360'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:360
-                ('rep', 3, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:361'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:361
-                ('put', 'u32', (('=', '$f.sketch_id+1'),), '15.5.8 config-0-resolvedfeatures-extrude.srl:362'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:362
-                ('rep', 16, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:363'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:363
-                ('put', 'f64', (('$', 'f.corners.2'), ('$', 'f.corners.3')), '15.5.8 config-0-resolvedfeatures-extrude.srl:364'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:364
-                ('put', 'u32', (0, 0), '15.5.8 config-0-resolvedfeatures-extrude.srl:365'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:365
-                ('put', 'f64', (('$', 'f.corners.2'), ('$', 'f.corners.3'), ('$', 'f.depth')), '15.5.8 config-0-resolvedfeatures-extrude.srl:366'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:366
-                ('rep', 24, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:367'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:367
-                ('put', 'u32', (1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:368'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:368
-                ('rep', 14, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:369'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:369
-                ('put', 'f64', (1.0, 1.0), '15.5.8 config-0-resolvedfeatures-extrude.srl:370'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:370
-                ('rep', 16, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:371'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:371
-                ('put', 'u32', (65537,), '15.5.8 config-0-resolvedfeatures-extrude.srl:372'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:372
-                ('rep', 3, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:373'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:373
-                ('put', 'f32', (1.875,), '15.5.8 config-0-resolvedfeatures-extrude.srl:374'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:374
-                ('rep', 32, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:375'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:375
-                ('put', 'f64', (1.0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:376'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:376
-                ('put', 'u32', (0, 0), '15.5.8 config-0-resolvedfeatures-extrude.srl:377'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:377
-                ('put', 'f64', (-1.0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:378'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:378
-                ('put', 'u32', (0, 0), '15.5.8 config-0-resolvedfeatures-extrude.srl:379'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:379
-                ('put', 'f64', (('=', '-$f.corners.2'),), '15.5.8 config-0-resolvedfeatures-extrude.srl:380'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:380
-                ('put', 'u32', (0, 0), '15.5.8 config-0-resolvedfeatures-extrude.srl:381'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:381
-                ('put', 'f64', (('=', '-$f.corners.3'),), '15.5.8 config-0-resolvedfeatures-extrude.srl:382'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:382
-                ('put', 'f64', (1.0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:383'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:383
-                ('rep', 3, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:384'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:384
-                ('put', 'u32', (65537,), '15.5.8 config-0-resolvedfeatures-extrude.srl:385'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:385
-                ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:386'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:386
-                ('put', 'cstr', ('',), '15.5.8 config-0-resolvedfeatures-extrude.srl:387'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:387
-                ('put', 'cstr', ('',), '15.5.8 config-0-resolvedfeatures-extrude.srl:388'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:388
-                ('put', 'cstr', ('',), '15.5.8 config-0-resolvedfeatures-extrude.srl:389'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:389
-                ('put', 'cstr', ('',), '15.5.8 config-0-resolvedfeatures-extrude.srl:390'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:390
-                ('put', 'f64', (1.0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:391'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:391
-                ('rep', 16, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:392'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:392
-                ('put', 'f64', (0.5,), '15.5.8 config-0-resolvedfeatures-extrude.srl:393'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:393
-                ('put', 'f64', (('$', 'f.cache_text'),), '15.5.8 config-0-resolvedfeatures-extrude.srl:394'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:394
-                ('put', 'u32', (0, 0), '15.5.8 config-0-resolvedfeatures-extrude.srl:395'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:395
-                ('put', 'f64', (-1.0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:396'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:396
-                ('rep', 56, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:397'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:397
-                ('put', 'f64', (('=', '-$f.depth'),), '15.5.8 config-0-resolvedfeatures-extrude.srl:398'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:398
-                ('rep', 16, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:399'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:399
-                ('put', 'f64', (('=', '-$f.depth'),), '15.5.8 config-0-resolvedfeatures-extrude.srl:400'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:400
-                ('rep', 42, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:401'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:401
-                ('put', 'u32', (131077, 131075, 0, 0), '15.5.8 config-0-resolvedfeatures-extrude.srl:402'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:402
-                ('put', 'f64', (-1.0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:403'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:403
-                ('rep', 36, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:404'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:404
-                ('put', 'u32', (131074,), '15.5.8 config-0-resolvedfeatures-extrude.srl:405'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:405
-                ('hex', '27', '15.5.8 config-0-resolvedfeatures-extrude.srl:406'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:406
-                ('put', 'u32', (8388612,), '15.5.8 config-0-resolvedfeatures-extrude.srl:407'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:407
-                ('rep', 7, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:408'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:408
-                ('put', 'cstr', ('',), '15.5.8 config-0-resolvedfeatures-extrude.srl:409'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:409
-                ('put', 'u32', (0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:410'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:410
-                ('put', 'i32', (-1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:411'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:411
-                ('put', 'f64', (('$', 'f.depth'),), '15.5.8 config-0-resolvedfeatures-extrude.srl:412'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:412
-                ('put', 'u32', (8, 16, 1, 1), '15.5.8 config-0-resolvedfeatures-extrude.srl:413'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:413
-                ('put', 'f64', (('$', 'f.depth'),), '15.5.8 config-0-resolvedfeatures-extrude.srl:414'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:414
-                ('put', 'cstr', ('',), '15.5.8 config-0-resolvedfeatures-extrude.srl:415'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:415
-                ('class', 'moFavoriteHandle_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:416'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:416
-                ('put', 'u32', (0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:417'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:417
-                ('put', 'i32', (-1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:418'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:418
-                ('put', 'u32', (0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:419'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:419
-                ('put', 'f64', (-1.0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:420'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:420
-                ('put', 'u32', (65537,), '15.5.8 config-0-resolvedfeatures-extrude.srl:421'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:421
-                ('hex', 'FD', '15.5.8 config-0-resolvedfeatures-extrude.srl:422'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:422
-                ('put', 'u32', (14737985,), '15.5.8 config-0-resolvedfeatures-extrude.srl:423'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:423
-                ('rep', 41, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:424'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:424
-                ('put', 'u32', (114745, 0), '15.5.8 config-0-resolvedfeatures-extrude.srl:425'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:425
-                ('put', 'f64', (1.0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:426'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:426
-                ('rep', 24, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:427'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:427
-                ('put', 'f64', (1.0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:428'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:428
-                ('rep', 24, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:429'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:429
-                ('put', 'f64', (1.0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:430'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:430
-                ('put', 'u32', (1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:431'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:431
-                ('rep', 28, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:432'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:432
-                ('put', 'f64', (1.0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:433'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:433
-                ('put', 'u32', (0, 0), '15.5.8 config-0-resolvedfeatures-extrude.srl:434'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:434
-                ('put', 'f64', (1.0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:435'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:435
-                ('put', 'cstr', ('',), '15.5.8 config-0-resolvedfeatures-extrude.srl:436'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:436
-                ('put', 'cstr', ('',), '15.5.8 config-0-resolvedfeatures-extrude.srl:437'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:437
-                ('put', 'cstr', ('',), '15.5.8 config-0-resolvedfeatures-extrude.srl:438'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:438
-                ('put', 'cstr', ('',), '15.5.8 config-0-resolvedfeatures-extrude.srl:439'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:439
-                ('put', 'u32', (0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:440'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:440
-                ('put', 'i32', (-1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:441'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:441
-                ('put', 'u32', (1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:442'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:442
-                ('rep', 6, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:443'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:443
-                ('put', 'u32', (1002101,), '15.5.8 config-0-resolvedfeatures-extrude.srl:444'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:444
-                ('rep', 18, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:445'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:445
-                ('put', 'u32', (1, 1, 0, 0, 1), '15.5.8 config-0-resolvedfeatures-extrude.srl:446'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:446
-                ('rep', 32, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:447'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:447
-                ('put', 'cstr', ('',), '15.5.8 config-0-resolvedfeatures-extrude.srl:448'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:448
-                ('put', 'cstr', ('',), '15.5.8 config-0-resolvedfeatures-extrude.srl:449'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:449
-                ('put', 'i32', (-1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:450'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:450
-                ('put', 'u32', (0, 0), '15.5.8 config-0-resolvedfeatures-extrude.srl:451'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:451
-                ('put', 'cstr', ('',), '15.5.8 config-0-resolvedfeatures-extrude.srl:452'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:452
-                ('put', 'u32', (0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:453'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:453
-                ('put', 'u32', (('$', 'f.counter_favorite'),), '15.5.8 config-0-resolvedfeatures-extrude.srl:454'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:454
-                ('rep', 32, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:455'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:455
-                ('put', 'cstr', ('',), '15.5.8 config-0-resolvedfeatures-extrude.srl:456'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:456
-                ('rep', 56, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:457'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:457
-                ('hex', '01', '15.5.8 config-0-resolvedfeatures-extrude.srl:458'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:458
-                ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:459'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:459
-                ('put', 'u32', (1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:460'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:460
-                ('rep', 55, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:461'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:461
-                ('put', 'u32', (('=', 'int($f.merge)'),), '15.5.8 config-0-resolvedfeatures-extrude.srl:462'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:462
-                ('put', 'u32', (0, 0), '15.5.8 config-0-resolvedfeatures-extrude.srl:463'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:463
-                ('if', ('$', 'f.first'), (  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:464
-                    ('class', 'moFromEndSpec_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:465'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:465
-                    ('put', 'u32', (0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:466'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:466
-                    ('hex', '52', '15.5.8 config-0-resolvedfeatures-extrude.srl:467'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:467
-                    ('put', 'u32', (9808418,), '15.5.8 config-0-resolvedfeatures-extrude.srl:468'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:468
-                    ('put', 'u8', (0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:469'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:469
-                    ('put', 'f32', (137,), '15.5.8 config-0-resolvedfeatures-extrude.srl:470'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:470
-                    ('hex', 'FE4280', '15.5.8 config-0-resolvedfeatures-extrude.srl:471'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:471
-                    ('put', 'u32', (207138,), '15.5.8 config-0-resolvedfeatures-extrude.srl:472'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:472
-                    ('rep', 11, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:473'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:473
-                    ('put', 'i32', (-1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:474'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:474
-                ), (  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:464
-                    ('class', 'moFromEndSpec_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:476'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:476
-                    ('put', 'u32', (0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:477'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:477
-                    ('hex', '401F6D48B1A833234C31969570FA', '15.5.8 config-0-resolvedfeatures-extrude.srl:478'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:478
-                    ('put', 'u32', (94813,), '15.5.8 config-0-resolvedfeatures-extrude.srl:479'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:479
-                    ('rep', 14, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:480'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:480
-                ), '15.5.8 config-0-resolvedfeatures-extrude.srl:464'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:464
-            ), '15.5.6 config-0-resolvedfeatures.srl:13'),  # spec 15.5.6 config-0-resolvedfeatures.srl:13
-        ), '15.5.6 config-0-resolvedfeatures.srl:12'),  # spec 15.5.6 config-0-resolvedfeatures.srl:12
-        ('put', 'u32', (0,), '15.5.1 config-0-resolvedfeatures.srl:20'),  # spec 15.5.1 config-0-resolvedfeatures.srl:20
+                    ('put', 'u32', (1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:11'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:11
+                    ('rep', 14, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:12'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:12
+                    ('class', 'sgSketch', 1, None, '15.5.7 config-0-resolvedfeatures-sketch.srl:13'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:13
+                    ('put', 'u32', (('=', '4+int($f.at_origin)'),), '15.5.7 config-0-resolvedfeatures-sketch.srl:14'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:14
+                    ('rep', 6, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:15'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:15
+                    ('put', 'u32', (1, 2097151), '15.5.7 config-0-macros.srl:67'),  # spec 15.5.7 config-0-macros.srl:67
+                    ('put', 'u8', (3,), '15.5.7 config-0-macros.srl:68'),  # spec 15.5.7 config-0-macros.srl:68
+                    ('put', 'i32', (-1, -1), '15.5.7 config-0-macros.srl:69'),  # spec 15.5.7 config-0-macros.srl:69
+                    ('put', 'f32', (-1,), '15.5.7 config-0-macros.srl:70'),  # spec 15.5.7 config-0-macros.srl:70
+                    ('put', 'u32', (('=', 'int($f.at_origin)'),), '15.5.7 config-0-macros.srl:71'),  # spec 15.5.7 config-0-macros.srl:71
+                    ('put', 'u16', (0, ('=', '5-int($f.at_origin)'), ('=', '1+int($f.at_origin)')), '15.5.7 config-0-macros.srl:72'),  # spec 15.5.7 config-0-macros.srl:72
+                    ('put', 'u32', (1,), '15.5.7 config-0-macros.srl:73'),  # spec 15.5.7 config-0-macros.srl:73
+                    ('put', 'f32', (-1,), '15.5.7 config-0-macros.srl:74'),  # spec 15.5.7 config-0-macros.srl:74
+                    ('put', 'u16', (0,), '15.5.7 config-0-macros.srl:75'),  # spec 15.5.7 config-0-macros.srl:75
+                    ('put', 'u32', (4,), '15.5.7 config-0-macros.srl:76'),  # spec 15.5.7 config-0-macros.srl:76
+                    ('rep', 7, 0, '15.5.7 config-0-macros.srl:77'),  # spec 15.5.7 config-0-macros.srl:77
+                    ('put', 'f64', (1.0, 0.0), '15.5.7 config-0-macros.srl:78'),  # spec 15.5.7 config-0-macros.srl:78
+                    ('put', 'u16', (30,), '15.5.7 config-0-macros.srl:79'),  # spec 15.5.7 config-0-macros.srl:79
+                    ('put', 'f64', (('$', 'f.corners.0'), ('$', 'f.corners.1')), '15.5.7 config-0-macros.srl:80'),  # spec 15.5.7 config-0-macros.srl:80
+                    ('put', 'u16', (0, 2), '15.5.7 config-0-macros.srl:85'),  # spec 15.5.7 config-0-macros.srl:85
+                    ('class', 'sgLineHandle', 1, None, '15.5.7 config-0-macros.srl:90'),  # spec 15.5.7 config-0-macros.srl:90
+                    ('put', 'u16', (1,), '15.5.7 config-0-macros.srl:91'),  # spec 15.5.7 config-0-macros.srl:91
+                    ('put', 'i32', (-1,), '15.5.7 config-0-macros.srl:92'),  # spec 15.5.7 config-0-macros.srl:92
+                    ('put', 'u32', (0,), '15.5.7 config-0-macros.srl:93'),  # spec 15.5.7 config-0-macros.srl:93
+                    ('class', 'sgLineHandle', 1, None, '15.5.7 config-0-macros.srl:98'),  # spec 15.5.7 config-0-macros.srl:98
+                    ('put', 'u16', (2,), '15.5.7 config-0-macros.srl:99'),  # spec 15.5.7 config-0-macros.srl:99
+                    ('put', 'i32', (-1,), '15.5.7 config-0-macros.srl:100'),  # spec 15.5.7 config-0-macros.srl:100
+                    ('put', 'u32', (0,), '15.5.7 config-0-macros.srl:101'),  # spec 15.5.7 config-0-macros.srl:101
+                    ('put', 'u16', (0,), '15.5.7 config-0-macros.srl:102'),  # spec 15.5.7 config-0-macros.srl:102
+                    ('put', 'i32', (-2,), '15.5.7 config-0-macros.srl:103'),  # spec 15.5.7 config-0-macros.srl:103
+                    ('rep', 42, 0, '15.5.7 config-0-macros.srl:104'),  # spec 15.5.7 config-0-macros.srl:104
+                    ('put', 'u32', (2, 2097151), '15.5.7 config-0-macros.srl:67'),  # spec 15.5.7 config-0-macros.srl:67
+                    ('put', 'u8', (3,), '15.5.7 config-0-macros.srl:68'),  # spec 15.5.7 config-0-macros.srl:68
+                    ('put', 'i32', (-1, -1), '15.5.7 config-0-macros.srl:69'),  # spec 15.5.7 config-0-macros.srl:69
+                    ('put', 'f32', (-1,), '15.5.7 config-0-macros.srl:70'),  # spec 15.5.7 config-0-macros.srl:70
+                    ('put', 'u32', (('=', '0'),), '15.5.7 config-0-macros.srl:71'),  # spec 15.5.7 config-0-macros.srl:71
+                    ('put', 'u16', (0, ('=', '5-0'), ('=', '1+0')), '15.5.7 config-0-macros.srl:72'),  # spec 15.5.7 config-0-macros.srl:72
+                    ('put', 'u32', (1,), '15.5.7 config-0-macros.srl:73'),  # spec 15.5.7 config-0-macros.srl:73
+                    ('put', 'f32', (-1,), '15.5.7 config-0-macros.srl:74'),  # spec 15.5.7 config-0-macros.srl:74
+                    ('put', 'u16', (0,), '15.5.7 config-0-macros.srl:75'),  # spec 15.5.7 config-0-macros.srl:75
+                    ('put', 'u32', (4,), '15.5.7 config-0-macros.srl:76'),  # spec 15.5.7 config-0-macros.srl:76
+                    ('rep', 7, 0, '15.5.7 config-0-macros.srl:77'),  # spec 15.5.7 config-0-macros.srl:77
+                    ('put', 'f64', (1.0, 0.0), '15.5.7 config-0-macros.srl:78'),  # spec 15.5.7 config-0-macros.srl:78
+                    ('put', 'u16', (30,), '15.5.7 config-0-macros.srl:79'),  # spec 15.5.7 config-0-macros.srl:79
+                    ('put', 'f64', (('$', 'f.corners.2'), ('$', 'f.corners.3')), '15.5.7 config-0-macros.srl:80'),  # spec 15.5.7 config-0-macros.srl:80
+                    ('put', 'u16', (0, 2), '15.5.7 config-0-macros.srl:85'),  # spec 15.5.7 config-0-macros.srl:85
+                    ('class', 'sgLineHandle', 1, None, '15.5.7 config-0-macros.srl:90'),  # spec 15.5.7 config-0-macros.srl:90
+                    ('put', 'u16', (3,), '15.5.7 config-0-macros.srl:91'),  # spec 15.5.7 config-0-macros.srl:91
+                    ('put', 'i32', (-1,), '15.5.7 config-0-macros.srl:92'),  # spec 15.5.7 config-0-macros.srl:92
+                    ('put', 'u32', (0,), '15.5.7 config-0-macros.srl:93'),  # spec 15.5.7 config-0-macros.srl:93
+                    ('class', 'sgLineHandle', 1, None, '15.5.7 config-0-macros.srl:98'),  # spec 15.5.7 config-0-macros.srl:98
+                    ('put', 'u16', (4,), '15.5.7 config-0-macros.srl:99'),  # spec 15.5.7 config-0-macros.srl:99
+                    ('put', 'i32', (-1,), '15.5.7 config-0-macros.srl:100'),  # spec 15.5.7 config-0-macros.srl:100
+                    ('put', 'u32', (0,), '15.5.7 config-0-macros.srl:101'),  # spec 15.5.7 config-0-macros.srl:101
+                    ('put', 'u16', (0,), '15.5.7 config-0-macros.srl:102'),  # spec 15.5.7 config-0-macros.srl:102
+                    ('put', 'i32', (-2,), '15.5.7 config-0-macros.srl:103'),  # spec 15.5.7 config-0-macros.srl:103
+                    ('rep', 42, 0, '15.5.7 config-0-macros.srl:104'),  # spec 15.5.7 config-0-macros.srl:104
+                    ('put', 'u32', (3, 2097151), '15.5.7 config-0-macros.srl:67'),  # spec 15.5.7 config-0-macros.srl:67
+                    ('put', 'u8', (3,), '15.5.7 config-0-macros.srl:68'),  # spec 15.5.7 config-0-macros.srl:68
+                    ('put', 'i32', (-1, -1), '15.5.7 config-0-macros.srl:69'),  # spec 15.5.7 config-0-macros.srl:69
+                    ('put', 'f32', (-1,), '15.5.7 config-0-macros.srl:70'),  # spec 15.5.7 config-0-macros.srl:70
+                    ('put', 'u32', (('=', '0'),), '15.5.7 config-0-macros.srl:71'),  # spec 15.5.7 config-0-macros.srl:71
+                    ('put', 'u16', (0, ('=', '5-0'), ('=', '1+0')), '15.5.7 config-0-macros.srl:72'),  # spec 15.5.7 config-0-macros.srl:72
+                    ('put', 'u32', (1,), '15.5.7 config-0-macros.srl:73'),  # spec 15.5.7 config-0-macros.srl:73
+                    ('put', 'f32', (-1,), '15.5.7 config-0-macros.srl:74'),  # spec 15.5.7 config-0-macros.srl:74
+                    ('put', 'u16', (0,), '15.5.7 config-0-macros.srl:75'),  # spec 15.5.7 config-0-macros.srl:75
+                    ('put', 'u32', (4,), '15.5.7 config-0-macros.srl:76'),  # spec 15.5.7 config-0-macros.srl:76
+                    ('rep', 7, 0, '15.5.7 config-0-macros.srl:77'),  # spec 15.5.7 config-0-macros.srl:77
+                    ('put', 'f64', (1.0, 0.0), '15.5.7 config-0-macros.srl:78'),  # spec 15.5.7 config-0-macros.srl:78
+                    ('put', 'u16', (30,), '15.5.7 config-0-macros.srl:79'),  # spec 15.5.7 config-0-macros.srl:79
+                    ('put', 'f64', (('$', 'f.corners.0'), ('$', 'f.corners.3')), '15.5.7 config-0-macros.srl:80'),  # spec 15.5.7 config-0-macros.srl:80
+                    ('put', 'u16', (0, 2), '15.5.7 config-0-macros.srl:85'),  # spec 15.5.7 config-0-macros.srl:85
+                    ('class', 'sgLineHandle', 1, None, '15.5.7 config-0-macros.srl:90'),  # spec 15.5.7 config-0-macros.srl:90
+                    ('put', 'u16', (2,), '15.5.7 config-0-macros.srl:91'),  # spec 15.5.7 config-0-macros.srl:91
+                    ('put', 'i32', (-1,), '15.5.7 config-0-macros.srl:92'),  # spec 15.5.7 config-0-macros.srl:92
+                    ('put', 'u32', (0,), '15.5.7 config-0-macros.srl:93'),  # spec 15.5.7 config-0-macros.srl:93
+                    ('class', 'sgLineHandle', 1, None, '15.5.7 config-0-macros.srl:98'),  # spec 15.5.7 config-0-macros.srl:98
+                    ('put', 'u16', (3,), '15.5.7 config-0-macros.srl:99'),  # spec 15.5.7 config-0-macros.srl:99
+                    ('put', 'i32', (-1,), '15.5.7 config-0-macros.srl:100'),  # spec 15.5.7 config-0-macros.srl:100
+                    ('put', 'u32', (0,), '15.5.7 config-0-macros.srl:101'),  # spec 15.5.7 config-0-macros.srl:101
+                    ('put', 'u16', (0,), '15.5.7 config-0-macros.srl:102'),  # spec 15.5.7 config-0-macros.srl:102
+                    ('put', 'i32', (-2,), '15.5.7 config-0-macros.srl:103'),  # spec 15.5.7 config-0-macros.srl:103
+                    ('rep', 42, 0, '15.5.7 config-0-macros.srl:104'),  # spec 15.5.7 config-0-macros.srl:104
+                    ('put', 'u32', (4, 2097151), '15.5.7 config-0-macros.srl:67'),  # spec 15.5.7 config-0-macros.srl:67
+                    ('put', 'u8', (3,), '15.5.7 config-0-macros.srl:68'),  # spec 15.5.7 config-0-macros.srl:68
+                    ('put', 'i32', (-1, -1), '15.5.7 config-0-macros.srl:69'),  # spec 15.5.7 config-0-macros.srl:69
+                    ('put', 'f32', (-1,), '15.5.7 config-0-macros.srl:70'),  # spec 15.5.7 config-0-macros.srl:70
+                    ('put', 'u32', (('=', '0'),), '15.5.7 config-0-macros.srl:71'),  # spec 15.5.7 config-0-macros.srl:71
+                    ('put', 'u16', (0, ('=', '5-0'), ('=', '1+0')), '15.5.7 config-0-macros.srl:72'),  # spec 15.5.7 config-0-macros.srl:72
+                    ('put', 'u32', (1,), '15.5.7 config-0-macros.srl:73'),  # spec 15.5.7 config-0-macros.srl:73
+                    ('put', 'f32', (-1,), '15.5.7 config-0-macros.srl:74'),  # spec 15.5.7 config-0-macros.srl:74
+                    ('put', 'u16', (0,), '15.5.7 config-0-macros.srl:75'),  # spec 15.5.7 config-0-macros.srl:75
+                    ('put', 'u32', (4,), '15.5.7 config-0-macros.srl:76'),  # spec 15.5.7 config-0-macros.srl:76
+                    ('rep', 7, 0, '15.5.7 config-0-macros.srl:77'),  # spec 15.5.7 config-0-macros.srl:77
+                    ('put', 'f64', (1.0, 0.0), '15.5.7 config-0-macros.srl:78'),  # spec 15.5.7 config-0-macros.srl:78
+                    ('put', 'u16', (30,), '15.5.7 config-0-macros.srl:79'),  # spec 15.5.7 config-0-macros.srl:79
+                    ('put', 'f64', (('$', 'f.corners.2'), ('$', 'f.corners.1')), '15.5.7 config-0-macros.srl:80'),  # spec 15.5.7 config-0-macros.srl:80
+                    ('put', 'u16', (0, 2), '15.5.7 config-0-macros.srl:85'),  # spec 15.5.7 config-0-macros.srl:85
+                    ('class', 'sgLineHandle', 1, None, '15.5.7 config-0-macros.srl:90'),  # spec 15.5.7 config-0-macros.srl:90
+                    ('put', 'u16', (1,), '15.5.7 config-0-macros.srl:91'),  # spec 15.5.7 config-0-macros.srl:91
+                    ('put', 'i32', (-1,), '15.5.7 config-0-macros.srl:92'),  # spec 15.5.7 config-0-macros.srl:92
+                    ('put', 'u32', (0,), '15.5.7 config-0-macros.srl:93'),  # spec 15.5.7 config-0-macros.srl:93
+                    ('if', ('$', 'f.at_origin'), (  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:27
+                        ('class', 'sgLineHandle', 1, None, '15.5.7 config-0-resolvedfeatures-sketch.srl:30'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:30
+                        ('put', 'u16', (4,), '15.5.7 config-0-resolvedfeatures-sketch.srl:31'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:31
+                        ('put', 'i32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:32'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:32
+                        ('put', 'u32', (0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:33'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:33
+                        ('put', 'u16', (0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:34'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:34
+                        ('put', 'i32', (-2,), '15.5.7 config-0-resolvedfeatures-sketch.srl:35'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:35
+                        ('rep', 36, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:36'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:36
+                        ('put', 'u32', (1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:37'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:37
+                        ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:38'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:38
+                        ('put', 'u32', (5,), '15.5.7 config-0-resolvedfeatures-sketch.srl:39'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:39
+                        ('put', 'u32', (2097151,), '15.5.7 config-0-resolvedfeatures-sketch.srl:40'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:40
+                        ('put', 'u8', (3,), '15.5.7 config-0-resolvedfeatures-sketch.srl:41'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:41
+                        ('put', 'i32', (-1, -1), '15.5.7 config-0-resolvedfeatures-sketch.srl:42'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:42
+                        ('put', 'f32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:43'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:43
+                        ('put', 'u32', (1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:44'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:44
+                        ('put', 'u16', (0, 4, 2), '15.5.7 config-0-resolvedfeatures-sketch.srl:45'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:45
+                        ('put', 'u32', (1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:46'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:46
+                        ('put', 'f32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:47'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:47
+                        ('class', 'sgExtEnt_c', 1, None, '15.5.7 config-0-resolvedfeatures-sketch.srl:48'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:48
+                        ('class', 'moSketchExtRef_w', 1, None, '15.5.7 config-0-resolvedfeatures-sketch.srl:49'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:49
+                        ('class', 'moCompSketchEntHandle_c', 1, None, '15.5.7 config-0-resolvedfeatures-sketch.srl:50'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:50
+                        ('class', 'moUnitComponent_c', 1, None, '15.5.7 config-0-resolvedfeatures-sketch.srl:51'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:51
+                        ('put', 'u32', (2,), '15.5.7 config-0-resolvedfeatures-sketch.srl:52'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:52
+                        ('rep', 11, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:53'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:53
+                        ('put', 'u32', (10001,), '15.5.7 config-0-resolvedfeatures-sketch.srl:54'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:54
+                        ('rep', 24, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:55'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:55
+                        ('put', 'i32', (-1, -1, -1, -1), '15.5.7 config-0-resolvedfeatures-sketch.srl:56'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:56
+                        ('rep', 20, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:57'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:57
+                        ('put', 'u32', (17000, 5), '15.5.7 config-0-resolvedfeatures-sketch.srl:58'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:58
+                        ('put', 'u32', (('$', 'tpl.unix'),), '15.5.7 config-0-resolvedfeatures-sketch.srl:59'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:59
+                        ('class', 'sgPointHandle', 1, None, '15.5.7 config-0-resolvedfeatures-sketch.srl:60'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:60
+                        ('put', 'i32', (-65536,), '15.5.7 config-0-resolvedfeatures-sketch.srl:61'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:61
+                        ('put', 'u32', (65535,), '15.5.7 config-0-resolvedfeatures-sketch.srl:62'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:62
+                        ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:63'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:63
+                        ('put', 'u32', (1, 0, 0), '15.5.7 config-0-resolvedfeatures-sketch.srl:64'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:64
+                        ('put', 'u32', (('=', '$fixed.id_base+10'),), '15.5.7 config-0-resolvedfeatures-sketch.srl:65'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:65
+                        ('rep', 12, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:66'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:66
+                        ('put', 'i32', (-12345, -12345, -12345), '15.5.7 config-0-resolvedfeatures-sketch.srl:67'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:67
+                        ('put', 'u32', (0, 17000), '15.5.7 config-0-resolvedfeatures-sketch.srl:68'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:68
+                        ('rep', 12, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:69'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:69
+                        ('put', 'i32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:70'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:70
+                        ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:71'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:71
+                        ('class', 'moPointBackedUpData_c', 1, None, '15.5.7 config-0-resolvedfeatures-sketch.srl:72'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:72
+                        ('rep', 30, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:73'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:73
+                        ('put', 'cstr', ('Point1@Origin',), '15.5.7 config-0-resolvedfeatures-sketch.srl:74'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:74
+                        ('put', 'u32', (4,), '15.5.7 config-0-resolvedfeatures-sketch.srl:75'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:75
+                        ('rep', 7, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:76'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:76
+                        ('put', 'f64', (1.0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:77'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:77
+                        ('put', 'u32', (0, 0, 30), '15.5.7 config-0-resolvedfeatures-sketch.srl:78'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:78
+                        ('rep', 14, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:79'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:79
+                        ('put', 'u32', (6,), '15.5.7 config-0-resolvedfeatures-sketch.srl:80'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:80
+                        ('rep', 6, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:81'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:81
+                        ('put', 'i32', (-2,), '15.5.7 config-0-resolvedfeatures-sketch.srl:82'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:82
+                        ('rep', 36, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:83'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:83
+                        ('put', 'u32', (5,), '15.5.7 config-0-resolvedfeatures-sketch.srl:84'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:84
+                        ('rep', 6, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:85'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:85
+                        ('put', 'i32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:86'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:86
+                        ('put', 'u32', (2097151,), '15.5.7 config-0-resolvedfeatures-sketch.srl:87'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:87
+                        ('put', 'u8', (3,), '15.5.7 config-0-resolvedfeatures-sketch.srl:88'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:88
+                        ('put', 'i32', (-1, -1), '15.5.7 config-0-resolvedfeatures-sketch.srl:89'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:89
+                        ('put', 'f32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:90'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:90
+                        ('put', 'u32', (0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:91'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:91
+                        ('put', 'u16', (0, 5, 1), '15.5.7 config-0-resolvedfeatures-sketch.srl:92'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:92
+                        ('put', 'u32', (1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:93'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:93
+                        ('put', 'f32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:94'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:94
+                        ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:95'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:95
+                        ('put', 'u32', (5,), '15.5.7 config-0-resolvedfeatures-sketch.srl:96'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:96
+                        ('rep', 7, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:97'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:97
+                        ('put', 'f64', (1.0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:98'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:98
+                        ('rep', 10, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:99'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:99
+                        ('put', 'u32', (1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:100'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:100
+                        ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:101'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:101
+                        ('put', 'f64', (-1.0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:102'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:102
+                        ('put', 'u32', (0, 1, 1), '15.5.7 config-0-resolvedfeatures-sketch.srl:103'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:103
+                        ('put', 'u32', (2097151,), '15.5.7 config-0-resolvedfeatures-sketch.srl:104'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:104
+                        ('put', 'u8', (3,), '15.5.7 config-0-resolvedfeatures-sketch.srl:105'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:105
+                        ('put', 'i32', (-1, -1), '15.5.7 config-0-resolvedfeatures-sketch.srl:106'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:106
+                        ('put', 'f32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:107'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:107
+                        ('put', 'u32', (1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:108'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:108
+                        ('put', 'u16', (0, 4, 2), '15.5.7 config-0-resolvedfeatures-sketch.srl:109'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:109
+                        ('put', 'u32', (65537,), '15.5.7 config-0-resolvedfeatures-sketch.srl:110'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:110
+                        ('put', 'f32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:111'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:111
+                        ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:112'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:112
+                        ('put', 'u32', (4,), '15.5.7 config-0-resolvedfeatures-sketch.srl:113'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:113
+                        ('rep', 7, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:114'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:114
+                        ('put', 'f64', (1.0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:115'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:115
+                        ('rep', 10, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:116'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:116
+                        ('put', 'u32', (65539,), '15.5.7 config-0-resolvedfeatures-sketch.srl:117'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:117
+                        ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:118'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:118
+                        ('put', 'f64', (-1.0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:119'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:119
+                        ('put', 'u32', (0, 4, 2), '15.5.7 config-0-resolvedfeatures-sketch.srl:120'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:120
+                        ('put', 'u32', (2097151,), '15.5.7 config-0-resolvedfeatures-sketch.srl:121'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:121
+                        ('put', 'u8', (3,), '15.5.7 config-0-resolvedfeatures-sketch.srl:122'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:122
+                        ('put', 'i32', (-1, -1), '15.5.7 config-0-resolvedfeatures-sketch.srl:123'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:123
+                        ('put', 'f32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:124'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:124
+                        ('put', 'u32', (1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:125'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:125
+                        ('put', 'u16', (0, 4, 2), '15.5.7 config-0-resolvedfeatures-sketch.srl:126'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:126
+                        ('put', 'u32', (65537,), '15.5.7 config-0-resolvedfeatures-sketch.srl:127'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:127
+                        ('put', 'f32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:128'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:128
+                        ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:129'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:129
+                        ('put', 'u32', (4,), '15.5.7 config-0-resolvedfeatures-sketch.srl:130'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:130
+                        ('rep', 7, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:131'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:131
+                        ('put', 'f64', (1.0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:132'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:132
+                        ('rep', 10, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:133'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:133
+                        ('put', 'u32', (65538,), '15.5.7 config-0-resolvedfeatures-sketch.srl:134'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:134
+                        ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:135'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:135
+                        ('put', 'f64', (-1.0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:136'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:136
+                        ('put', 'u32', (0, 3, 3), '15.5.7 config-0-resolvedfeatures-sketch.srl:137'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:137
+                        ('put', 'u32', (2097151,), '15.5.7 config-0-resolvedfeatures-sketch.srl:138'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:138
+                        ('put', 'u8', (3,), '15.5.7 config-0-resolvedfeatures-sketch.srl:139'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:139
+                        ('put', 'i32', (-1, -1), '15.5.7 config-0-resolvedfeatures-sketch.srl:140'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:140
+                        ('put', 'f32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:141'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:141
+                        ('put', 'u32', (1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:142'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:142
+                        ('put', 'u16', (0, 5, 1), '15.5.7 config-0-resolvedfeatures-sketch.srl:143'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:143
+                        ('put', 'u32', (65537,), '15.5.7 config-0-resolvedfeatures-sketch.srl:144'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:144
+                        ('put', 'f32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:145'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:145
+                        ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:146'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:146
+                        ('put', 'u32', (4,), '15.5.7 config-0-resolvedfeatures-sketch.srl:147'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:147
+                        ('rep', 7, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:148'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:148
+                        ('put', 'f64', (1.0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:149'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:149
+                        ('put', 'u32', (0, 0, 65538, 1), '15.5.7 config-0-resolvedfeatures-sketch.srl:150'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:150
+                        ('put', 'f64', (-1.0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:151'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:151
+                        ('put', 'u32', (0, 2, 4), '15.5.7 config-0-resolvedfeatures-sketch.srl:152'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:152
+                        ('put', 'u32', (2097151,), '15.5.7 config-0-resolvedfeatures-sketch.srl:153'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:153
+                        ('put', 'u8', (3,), '15.5.7 config-0-resolvedfeatures-sketch.srl:154'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:154
+                        ('put', 'i32', (-1, -1), '15.5.7 config-0-resolvedfeatures-sketch.srl:155'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:155
+                        ('put', 'f32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:156'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:156
+                        ('put', 'u32', (1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:157'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:157
+                        ('put', 'u16', (0, 5, 1), '15.5.7 config-0-resolvedfeatures-sketch.srl:158'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:158
+                        ('put', 'u32', (65537,), '15.5.7 config-0-resolvedfeatures-sketch.srl:159'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:159
+                        ('put', 'f32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:160'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:160
+                        ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:161'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:161
+                        ('put', 'u32', (4,), '15.5.7 config-0-resolvedfeatures-sketch.srl:162'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:162
+                        ('rep', 7, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:163'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:163
+                        ('put', 'f64', (1.0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:164'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:164
+                        ('put', 'u32', (0, 0, 65539, 1), '15.5.7 config-0-resolvedfeatures-sketch.srl:165'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:165
+                        ('put', 'f64', (-1.0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:166'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:166
+                        ('rep', 54, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:167'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:167
+                        ('put', 'u32', (4,), '15.5.7 config-0-resolvedfeatures-sketch.srl:168'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:168
+                        ('rep', 6, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:169'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:169
+                        ('put', 'i32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:170'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:170
+                        ('rep', 16, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:171'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:171
+                        ('put', 'u32', (5, 2), '15.5.7 config-0-resolvedfeatures-sketch.srl:172'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:172
+                        ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:173'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:173
+                        ('put', 'u32', (65534,), '15.5.7 config-0-resolvedfeatures-sketch.srl:174'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:174
+                        ('class', 'sgLineHandle', 1, None, '15.5.7 config-0-resolvedfeatures-sketch.srl:175'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:175
+                        ('put', 'u16', (2,), '15.5.7 config-0-resolvedfeatures-sketch.srl:176'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:176
+                        ('put', 'i32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:177'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:177
+                        ('rep', 12, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:178'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:178
+                        ('put', 'i32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:179'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:179
+                        ('rep', 16, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:180'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:180
+                        ('put', 'u32', (4, 2), '15.5.7 config-0-resolvedfeatures-sketch.srl:181'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:181
+                        ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:182'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:182
+                        ('put', 'u32', (65534,), '15.5.7 config-0-resolvedfeatures-sketch.srl:183'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:183
+                        ('class', 'sgLineHandle', 1, None, '15.5.7 config-0-resolvedfeatures-sketch.srl:184'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:184
+                        ('put', 'u16', (1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:185'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:185
+                        ('put', 'i32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:186'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:186
+                        ('rep', 12, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:187'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:187
+                        ('put', 'i32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:188'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:188
+                        ('rep', 16, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:189'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:189
+                        ('put', 'u32', (5, 2), '15.5.7 config-0-resolvedfeatures-sketch.srl:190'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:190
+                        ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:191'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:191
+                        ('put', 'u32', (65534,), '15.5.7 config-0-resolvedfeatures-sketch.srl:192'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:192
+                        ('class', 'sgLineHandle', 1, None, '15.5.7 config-0-resolvedfeatures-sketch.srl:193'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:193
+                        ('put', 'u16', (4,), '15.5.7 config-0-resolvedfeatures-sketch.srl:194'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:194
+                        ('put', 'i32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:195'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:195
+                        ('rep', 12, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:196'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:196
+                        ('put', 'i32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:197'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:197
+                        ('rep', 16, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:198'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:198
+                        ('put', 'u32', (4, 2), '15.5.7 config-0-resolvedfeatures-sketch.srl:199'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:199
+                        ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:200'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:200
+                        ('put', 'u32', (65534,), '15.5.7 config-0-resolvedfeatures-sketch.srl:201'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:201
+                        ('class', 'sgLineHandle', 1, None, '15.5.7 config-0-resolvedfeatures-sketch.srl:202'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:202
+                        ('put', 'u16', (3,), '15.5.7 config-0-resolvedfeatures-sketch.srl:203'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:203
+                        ('put', 'i32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:204'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:204
+                        ('put', 'u32', (0, 1), '15.5.7 config-0-resolvedfeatures-sketch.srl:205'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:205
+                        ('rep', 6, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:206'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:206
+                        ('put', 'i32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:207'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:207
+                        ('rep', 16, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:208'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:208
+                        ('put', 'u32', (9, 2), '15.5.7 config-0-resolvedfeatures-sketch.srl:209'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:209
+                        ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:210'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:210
+                        ('put', 'u32', (65534,), '15.5.7 config-0-resolvedfeatures-sketch.srl:211'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:211
+                        ('class', 'sgPointHandle', 1, None, '15.5.7 config-0-resolvedfeatures-sketch.srl:212'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:212
+                        ('put', 'u16', (4,), '15.5.7 config-0-resolvedfeatures-sketch.srl:213'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:213
+                        ('put', 'i32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:214'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:214
+                        ('put', 'u32', (0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:215'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:215
+                        ('class', 'sgPointHandle', 1, None, '15.5.7 config-0-resolvedfeatures-sketch.srl:216'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:216
+                        ('put', 'i32', (-65536,), '15.5.7 config-0-resolvedfeatures-sketch.srl:217'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:217
+                        ('put', 'u32', (65535,), '15.5.7 config-0-resolvedfeatures-sketch.srl:218'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:218
+                        ('rep', 10, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:219'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:219
+                        ('put', 'i32', (-1, -1), '15.5.7 config-0-resolvedfeatures-sketch.srl:220'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:220
+                        ('rep', 36, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:221'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:221
+                    ), (  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:27
+                        ('class', 'sgLineHandle', 1, None, '15.5.7 config-0-resolvedfeatures-sketch.srl:224'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:224
+                        ('put', 'u16', (4,), '15.5.7 config-0-resolvedfeatures-sketch.srl:225'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:225
+                        ('put', 'i32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:226'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:226
+                        ('put', 'u32', (0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:227'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:227
+                        ('put', 'u16', (0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:228'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:228
+                        ('put', 'i32', (-2,), '15.5.7 config-0-resolvedfeatures-sketch.srl:229'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:229
+                        ('rep', 36, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:230'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:230
+                        ('put', 'u32', (5,), '15.5.7 config-0-resolvedfeatures-sketch.srl:231'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:231
+                        ('rep', 6, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:232'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:232
+                        ('put', 'i32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:233'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:233
+                        ('put', 'u32', (2097151,), '15.5.7 config-0-resolvedfeatures-sketch.srl:234'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:234
+                        ('put', 'u8', (3,), '15.5.7 config-0-resolvedfeatures-sketch.srl:235'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:235
+                        ('put', 'i32', (-1, -1), '15.5.7 config-0-resolvedfeatures-sketch.srl:236'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:236
+                        ('put', 'f32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:237'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:237
+                        ('put', 'u32', (0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:238'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:238
+                        ('put', 'u16', (0, 5, 1), '15.5.7 config-0-resolvedfeatures-sketch.srl:239'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:239
+                        ('put', 'u32', (1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:240'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:240
+                        ('put', 'f32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:241'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:241
+                        ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:242'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:242
+                        ('put', 'u32', (5,), '15.5.7 config-0-resolvedfeatures-sketch.srl:243'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:243
+                        ('rep', 7, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:244'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:244
+                        ('put', 'f64', (1.0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:245'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:245
+                        ('rep', 10, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:246'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:246
+                        ('put', 'u32', (1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:247'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:247
+                        ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:248'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:248
+                        ('put', 'f64', (-1.0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:249'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:249
+                        ('put', 'u32', (0, 1, 1), '15.5.7 config-0-resolvedfeatures-sketch.srl:250'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:250
+                        ('put', 'u32', (2097151,), '15.5.7 config-0-resolvedfeatures-sketch.srl:251'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:251
+                        ('put', 'u8', (3,), '15.5.7 config-0-resolvedfeatures-sketch.srl:252'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:252
+                        ('put', 'i32', (-1, -1), '15.5.7 config-0-resolvedfeatures-sketch.srl:253'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:253
+                        ('put', 'f32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:254'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:254
+                        ('put', 'u32', (1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:255'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:255
+                        ('put', 'u16', (0, 5, 1), '15.5.7 config-0-resolvedfeatures-sketch.srl:256'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:256
+                        ('put', 'u32', (65537,), '15.5.7 config-0-resolvedfeatures-sketch.srl:257'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:257
+                        ('put', 'f32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:258'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:258
+                        ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:259'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:259
+                        ('put', 'u32', (4,), '15.5.7 config-0-resolvedfeatures-sketch.srl:260'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:260
+                        ('rep', 7, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:261'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:261
+                        ('put', 'f64', (1.0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:262'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:262
+                        ('rep', 10, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:263'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:263
+                        ('put', 'u32', (65539,), '15.5.7 config-0-resolvedfeatures-sketch.srl:264'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:264
+                        ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:265'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:265
+                        ('put', 'f64', (-1.0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:266'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:266
+                        ('put', 'u32', (0, 4, 2), '15.5.7 config-0-resolvedfeatures-sketch.srl:267'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:267
+                        ('put', 'u32', (2097151,), '15.5.7 config-0-resolvedfeatures-sketch.srl:268'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:268
+                        ('put', 'u8', (3,), '15.5.7 config-0-resolvedfeatures-sketch.srl:269'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:269
+                        ('put', 'i32', (-1, -1), '15.5.7 config-0-resolvedfeatures-sketch.srl:270'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:270
+                        ('put', 'f32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:271'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:271
+                        ('put', 'u32', (1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:272'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:272
+                        ('put', 'u16', (0, 5, 1), '15.5.7 config-0-resolvedfeatures-sketch.srl:273'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:273
+                        ('put', 'u32', (65537,), '15.5.7 config-0-resolvedfeatures-sketch.srl:274'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:274
+                        ('put', 'f32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:275'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:275
+                        ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:276'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:276
+                        ('put', 'u32', (4,), '15.5.7 config-0-resolvedfeatures-sketch.srl:277'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:277
+                        ('rep', 7, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:278'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:278
+                        ('put', 'f64', (1.0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:279'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:279
+                        ('rep', 10, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:280'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:280
+                        ('put', 'u32', (65538,), '15.5.7 config-0-resolvedfeatures-sketch.srl:281'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:281
+                        ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:282'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:282
+                        ('put', 'f64', (-1.0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:283'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:283
+                        ('put', 'u32', (0, 3, 3), '15.5.7 config-0-resolvedfeatures-sketch.srl:284'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:284
+                        ('put', 'u32', (2097151,), '15.5.7 config-0-resolvedfeatures-sketch.srl:285'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:285
+                        ('put', 'u8', (3,), '15.5.7 config-0-resolvedfeatures-sketch.srl:286'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:286
+                        ('put', 'i32', (-1, -1), '15.5.7 config-0-resolvedfeatures-sketch.srl:287'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:287
+                        ('put', 'f32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:288'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:288
+                        ('put', 'u32', (1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:289'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:289
+                        ('put', 'u16', (0, 5, 1), '15.5.7 config-0-resolvedfeatures-sketch.srl:290'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:290
+                        ('put', 'u32', (65537,), '15.5.7 config-0-resolvedfeatures-sketch.srl:291'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:291
+                        ('put', 'f32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:292'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:292
+                        ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:293'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:293
+                        ('put', 'u32', (4,), '15.5.7 config-0-resolvedfeatures-sketch.srl:294'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:294
+                        ('rep', 7, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:295'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:295
+                        ('put', 'f64', (1.0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:296'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:296
+                        ('put', 'u32', (0, 0, 65538, 1), '15.5.7 config-0-resolvedfeatures-sketch.srl:297'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:297
+                        ('put', 'f64', (-1.0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:298'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:298
+                        ('put', 'u32', (0, 2, 4), '15.5.7 config-0-resolvedfeatures-sketch.srl:299'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:299
+                        ('put', 'u32', (2097151,), '15.5.7 config-0-resolvedfeatures-sketch.srl:300'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:300
+                        ('put', 'u8', (3,), '15.5.7 config-0-resolvedfeatures-sketch.srl:301'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:301
+                        ('put', 'i32', (-1, -1), '15.5.7 config-0-resolvedfeatures-sketch.srl:302'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:302
+                        ('put', 'f32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:303'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:303
+                        ('put', 'u32', (1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:304'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:304
+                        ('put', 'u16', (0, 5, 1), '15.5.7 config-0-resolvedfeatures-sketch.srl:305'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:305
+                        ('put', 'u32', (65537,), '15.5.7 config-0-resolvedfeatures-sketch.srl:306'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:306
+                        ('put', 'f32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:307'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:307
+                        ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:308'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:308
+                        ('put', 'u32', (4,), '15.5.7 config-0-resolvedfeatures-sketch.srl:309'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:309
+                        ('rep', 7, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:310'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:310
+                        ('put', 'f64', (1.0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:311'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:311
+                        ('put', 'u32', (0, 0, 65539, 1), '15.5.7 config-0-resolvedfeatures-sketch.srl:312'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:312
+                        ('put', 'f64', (-1.0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:313'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:313
+                        ('rep', 54, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:314'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:314
+                        ('put', 'u32', (4,), '15.5.7 config-0-resolvedfeatures-sketch.srl:315'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:315
+                        ('rep', 6, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:316'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:316
+                        ('put', 'i32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:317'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:317
+                        ('rep', 16, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:318'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:318
+                        ('put', 'u32', (5, 2), '15.5.7 config-0-resolvedfeatures-sketch.srl:319'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:319
+                        ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:320'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:320
+                        ('put', 'u32', (65534,), '15.5.7 config-0-resolvedfeatures-sketch.srl:321'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:321
+                        ('class', 'sgLineHandle', 1, None, '15.5.7 config-0-resolvedfeatures-sketch.srl:322'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:322
+                        ('put', 'u16', (2,), '15.5.7 config-0-resolvedfeatures-sketch.srl:323'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:323
+                        ('put', 'i32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:324'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:324
+                        ('rep', 12, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:325'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:325
+                        ('put', 'i32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:326'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:326
+                        ('rep', 16, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:327'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:327
+                        ('put', 'u32', (4, 2), '15.5.7 config-0-resolvedfeatures-sketch.srl:328'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:328
+                        ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:329'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:329
+                        ('put', 'u32', (65534,), '15.5.7 config-0-resolvedfeatures-sketch.srl:330'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:330
+                        ('class', 'sgLineHandle', 1, None, '15.5.7 config-0-resolvedfeatures-sketch.srl:331'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:331
+                        ('put', 'u16', (1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:332'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:332
+                        ('put', 'i32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:333'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:333
+                        ('rep', 12, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:334'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:334
+                        ('put', 'i32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:335'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:335
+                        ('rep', 16, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:336'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:336
+                        ('put', 'u32', (5, 2), '15.5.7 config-0-resolvedfeatures-sketch.srl:337'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:337
+                        ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:338'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:338
+                        ('put', 'u32', (65534,), '15.5.7 config-0-resolvedfeatures-sketch.srl:339'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:339
+                        ('class', 'sgLineHandle', 1, None, '15.5.7 config-0-resolvedfeatures-sketch.srl:340'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:340
+                        ('put', 'u16', (4,), '15.5.7 config-0-resolvedfeatures-sketch.srl:341'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:341
+                        ('put', 'i32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:342'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:342
+                        ('rep', 12, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:343'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:343
+                        ('put', 'i32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:344'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:344
+                        ('rep', 16, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:345'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:345
+                        ('put', 'u32', (4, 2), '15.5.7 config-0-resolvedfeatures-sketch.srl:346'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:346
+                        ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:347'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:347
+                        ('put', 'u32', (65534,), '15.5.7 config-0-resolvedfeatures-sketch.srl:348'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:348
+                        ('class', 'sgLineHandle', 1, None, '15.5.7 config-0-resolvedfeatures-sketch.srl:349'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:349
+                        ('put', 'u16', (3,), '15.5.7 config-0-resolvedfeatures-sketch.srl:350'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:350
+                        ('put', 'i32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:351'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:351
+                        ('rep', 18, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:352'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:352
+                    ), '15.5.7 config-0-resolvedfeatures-sketch.srl:27'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:27
+                    ('class', 'suObList', 1, None, '15.5.7 config-0-resolvedfeatures-sketch.srl:354'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:354
+                    ('rep', 14, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:355'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:355
+                    ('put', 'u32', (65537, 5), '15.5.7 config-0-resolvedfeatures-sketch.srl:356'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:356
+                    ('put', 'u32', (('=', '5+int($f.at_origin)'),), '15.5.7 config-0-resolvedfeatures-sketch.srl:357'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:357
+                    ('put', 'u32', (5, 1, 1, 1, 1, 1, 1, 1), '15.5.7 config-0-resolvedfeatures-sketch.srl:358'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:358
+                    ('put', 'u32', (1, 1, 1, 1, 0, 1, 0, 0), '15.5.7 config-0-resolvedfeatures-sketch.srl:359'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:359
+                    ('put', 'cstr', ('',), '15.5.7 config-0-resolvedfeatures-sketch.srl:360'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:360
+                    ('put', 'u32', (65535,), '15.5.7 config-0-resolvedfeatures-sketch.srl:361'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:361
+                    ('put', 'i32', (-16512,), '15.5.7 config-0-resolvedfeatures-sketch.srl:362'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:362
+                    ('put', 'u32', (131071,), '15.5.7 config-0-resolvedfeatures-sketch.srl:363'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:363
+                    ('put', 'i32', (-65536,), '15.5.7 config-0-resolvedfeatures-sketch.srl:364'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:364
+                    ('put', 'u32', (65535,), '15.5.7 config-0-resolvedfeatures-sketch.srl:365'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:365
+                    ('rep', 22, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:366'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:366
+                    ('put', 'u32', (10,), '15.5.7 config-0-resolvedfeatures-sketch.srl:367'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:367
+                    ('rep', 32, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:368'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:368
+                    ('class', 'suObList', 1, None, '15.5.7 config-0-resolvedfeatures-sketch.srl:369'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:369
+                    ('hex', '01', '15.5.7 config-0-resolvedfeatures-sketch.srl:370'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:370
+                    ('put', 'u8', (0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:371'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:371
+                    ('class', 'moSketchRegion_c', 1, None, '15.5.7 config-0-resolvedfeatures-sketch.srl:372'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:372
+                    ('class', 'suObList', 1, None, '15.5.7 config-0-resolvedfeatures-sketch.srl:373'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:373
+                    ('hex', '04', '15.5.7 config-0-resolvedfeatures-sketch.srl:374'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:374
+                    ('put', 'u8', (0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:375'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:375
+                    ('class', 'sgLineHandle', 1, None, '15.5.7 config-0-resolvedfeatures-sketch.srl:376'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:376
+                    ('put', 'u16', (2,), '15.5.7 config-0-resolvedfeatures-sketch.srl:377'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:377
+                    ('put', 'i32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:378'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:378
+                    ('put', 'u32', (0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:379'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:379
+                    ('class', 'sgLineHandle', 1, None, '15.5.7 config-0-resolvedfeatures-sketch.srl:380'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:380
+                    ('put', 'u16', (1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:381'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:381
+                    ('put', 'i32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:382'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:382
+                    ('put', 'u32', (0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:383'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:383
+                    ('class', 'sgLineHandle', 1, None, '15.5.7 config-0-resolvedfeatures-sketch.srl:384'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:384
+                    ('put', 'u16', (4,), '15.5.7 config-0-resolvedfeatures-sketch.srl:385'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:385
+                    ('put', 'i32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:386'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:386
+                    ('put', 'u32', (0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:387'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:387
+                    ('class', 'sgLineHandle', 1, None, '15.5.7 config-0-resolvedfeatures-sketch.srl:388'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:388
+                    ('put', 'u16', (3,), '15.5.7 config-0-resolvedfeatures-sketch.srl:389'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:389
+                    ('put', 'i32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:390'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:390
+                    ('rep', 34, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:391'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:391
+                    ('put', 'u32', (1, 1), '15.5.7 config-0-resolvedfeatures-sketch.srl:392'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:392
+                    ('class', 'moSketchChain_c', 1, None, '15.5.7 config-0-resolvedfeatures-sketch.srl:393'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:393
+                    ('put', 'u32', (65540,), '15.5.7 config-0-resolvedfeatures-sketch.srl:394'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:394
+                    ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:395'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:395
+                    ('put', 'u32', (2, 3, 4, 1), '15.5.7 config-0-resolvedfeatures-sketch.srl:396'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:396
+                    ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:397'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:397
+                    ('put', 'u32', (6,), '15.5.7 config-0-resolvedfeatures-sketch.srl:398'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:398
+                    ('put', 'i32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:399'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:399
+                    ('put', 'u32', (0, 0, 5, 5), '15.5.7 config-0-resolvedfeatures-sketch.srl:400'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:400
+                    ('put', 'cstr', ('',), '15.5.7 config-0-resolvedfeatures-sketch.srl:401'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:401
+                    ('put', 'i32', (-65536,), '15.5.7 config-0-resolvedfeatures-sketch.srl:402'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:402
+                    ('put', 'u32', (65535,), '15.5.7 config-0-resolvedfeatures-sketch.srl:403'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:403
+                    ('rep', 18, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:404'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:404
+                    ('put', 'u32', (3, 1), '15.5.7 config-0-resolvedfeatures-sketch.srl:405'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:405
+                    ('rep', 7, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:406'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:406
+                    ('put', 'u32', (100000, 0), '15.5.7 config-0-resolvedfeatures-sketch.srl:407'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:407
+                    ('class', 'moCompRefPlane_c', 1, None, '15.5.7 config-0-resolvedfeatures-sketch.srl:408'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:408
+                    ('class', 'moUnitComponent_c', 1, None, '15.5.7 config-0-resolvedfeatures-sketch.srl:409'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:409
+                    ('put', 'u32', (2,), '15.5.7 config-0-resolvedfeatures-sketch.srl:410'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:410
+                    ('rep', 39, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:411'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:411
+                    ('put', 'i32', (-1, -1, -1, -1), '15.5.7 config-0-resolvedfeatures-sketch.srl:412'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:412
+                    ('rep', 20, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:413'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:413
+                    ('put', 'u32', (17000, 2), '15.5.7 config-0-resolvedfeatures-sketch.srl:414'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:414
+                    ('put', 'u32', (('$', 'tpl.unix'),), '15.5.7 config-0-resolvedfeatures-sketch.srl:415'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:415
+                    ('rep', 2, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:416'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:416
+                    ('put', 'u32', (3,), '15.5.7 config-0-resolvedfeatures-sketch.srl:417'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:417
+                    ('rep', 25, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:418'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:418
+                    ('put', 'f64', (1.0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:419'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:419
+                    ('rep', 3, 0, '15.5.7 config-0-resolvedfeatures-sketch.srl:420'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:420
+                    ('put', 'u32', (4,), '15.5.7 config-0-resolvedfeatures-sketch.srl:421'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:421
+                    ('put', 'i32', (-1,), '15.5.7 config-0-resolvedfeatures-sketch.srl:422'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:422
+                    ('put', 'u32', (0,), '15.5.7 config-0-resolvedfeatures-sketch.srl:423'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:423
+                    ('put', 'u32', (('$', 'f.regen'),), '15.5.7 config-0-resolvedfeatures-sketch.srl:424'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:424
+                    ('put', 'u32', (('=', '$f_index+1'),), '15.5.7 config-0-resolvedfeatures-sketch.srl:425'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:425
+                    ('put', 'u32', (0, 0), '15.5.7 config-0-resolvedfeatures-sketch.srl:426'),  # spec 15.5.7 config-0-resolvedfeatures-sketch.srl:426
+                ), '15.5.6 config-0-resolvedfeatures.srl:15'),  # spec 15.5.6 config-0-resolvedfeatures.srl:15
+            ), (  # spec 15.5.6 config-0-resolvedfeatures.srl:14
+                ('if', ('$', 'f.cut'), (  # spec 15.5.6 config-0-resolvedfeatures.srl:21
+                    ('class', 'moICE_c', 1, ('$', 'f.name'), '15.5.13 config-0-resolvedfeatures-cut.srl:8'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:8
+                    ('class', 'moNodeName_c', 1, None, '15.4.2 config-0-macros.srl:18'),  # spec 15.4.2 config-0-macros.srl:18
+                    ('put', 'cstr', (('$', 'f.name'),), '15.4.2 config-0-macros.srl:19'),  # spec 15.4.2 config-0-macros.srl:19
+                    ('put', 'u32', (0, 1073873354, ('$', 'f.id'), 0), '15.4.2 config-0-macros.srl:11'),  # spec 15.4.2 config-0-macros.srl:11
+                    ('put', 'cstr', ('',), '15.4.2 config-0-macros.srl:12'),  # spec 15.4.2 config-0-macros.srl:12
+                    ('rep', 6, 0, '15.4.2 config-0-macros.srl:13'),  # spec 15.4.2 config-0-macros.srl:13
+                    ('put', 'u16', (1,), '15.5.13 config-0-resolvedfeatures-cut.srl:10'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:10
+                    ('objref', ('$', 'f.sketch_name'), '15.5.13 config-0-resolvedfeatures-cut.srl:11'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:11
+                    ('rep', 12, 0, '15.4.2 config-0-macros.srl:27'),  # spec 15.4.2 config-0-macros.srl:27
+                    ('put', 'u32', (('=', '$fixed.id_base+11+$f_index'), 0), '15.4.2 config-0-macros.srl:28'),  # spec 15.4.2 config-0-macros.srl:28
+                    ('put', 'u8', (0,), '15.4.2 config-0-macros.srl:29'),  # spec 15.4.2 config-0-macros.srl:29
+                    ('put', 'u32', (('=', '17000*1'), ('=', '2024016*1')), '15.4.2 config-0-macros.srl:30'),  # spec 15.4.2 config-0-macros.srl:30
+                    ('put', 'u32', (17000,), '15.4.2 config-0-macros.srl:31'),  # spec 15.4.2 config-0-macros.srl:31
+                    ('put', 'f64', (('$', 'f.cache_memo'),), '15.4.2 config-0-macros.srl:32'),  # spec 15.4.2 config-0-macros.srl:32
+                    ('put', 'u32', (2024016,), '15.4.2 config-0-macros.srl:33'),  # spec 15.4.2 config-0-macros.srl:33
+                    ('put', 'u16', (0,), '15.4.2 config-0-macros.srl:34'),  # spec 15.4.2 config-0-macros.srl:34
+                    ('put', 'cstr', ('',), '15.4.2 config-0-macros.srl:35'),  # spec 15.4.2 config-0-macros.srl:35
+                    ('put', 'u8', (0,), '15.4.2 config-0-macros.srl:36'),  # spec 15.4.2 config-0-macros.srl:36
+                    ('put', 'i16', (-1,), '15.4.2 config-0-macros.srl:37'),  # spec 15.4.2 config-0-macros.srl:37
+                    ('put', 'u16', (0,), '15.4.2 config-0-macros.srl:38'),  # spec 15.4.2 config-0-macros.srl:38
+                    ('put', 'u8', (3,), '15.4.2 config-0-macros.srl:39'),  # spec 15.4.2 config-0-macros.srl:39
+                    ('put', 'i32', (-1, -1), '15.4.2 config-0-macros.srl:40'),  # spec 15.4.2 config-0-macros.srl:40
+                    ('put', 'f32', (-1,), '15.4.2 config-0-macros.srl:41'),  # spec 15.4.2 config-0-macros.srl:41
+                    ('rep', 14, 0, '15.4.2 config-0-macros.srl:42'),  # spec 15.4.2 config-0-macros.srl:42
+                    ('put', 'u32', (1,), '15.4.2 config-0-macros.srl:43'),  # spec 15.4.2 config-0-macros.srl:43
+                    ('rep', 6, 0, '15.4.2 config-0-macros.srl:44'),  # spec 15.4.2 config-0-macros.srl:44
+                    ('put', 'i32', (-1,), '15.4.2 config-0-macros.srl:45'),  # spec 15.4.2 config-0-macros.srl:45
+                    ('put', 'u32', (('=', '$f.time//4294967296'), ('=', '$f.time%4294967296')), '15.4.2 config-0-macros.srl:46'),  # spec 15.4.2 config-0-macros.srl:46
+                    ('put', 'u16', (2,), '15.4.2 config-0-macros.srl:47'),  # spec 15.4.2 config-0-macros.srl:47
+                    ('put', 'u32', (350108,), '15.4.2 config-0-macros.srl:48'),  # spec 15.4.2 config-0-macros.srl:48
+                    ('put', 'u32', (1,), '15.5.13 config-0-resolvedfeatures-cut.srl:13'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:13
+                    ('rep', 10, 0, '15.5.13 config-0-resolvedfeatures-cut.srl:14'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:14
+                    ('put', 'u32', (1,), '15.5.13 config-0-resolvedfeatures-cut.srl:15'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:15
+                    ('hex', '01', '15.5.13 config-0-resolvedfeatures-cut.srl:16'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:16
+                    ('put', 'u8', (0,), '15.5.13 config-0-resolvedfeatures-cut.srl:17'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:17
+                    ('objref', ('$', 'f.body_label'), '15.5.13 config-0-resolvedfeatures-cut.srl:18'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:18
+                    ('put', 'u32', (1,), '15.5.13 config-0-resolvedfeatures-cut.srl:19'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:19
+                    ('put', 'u16', (1,), '15.5.13 config-0-resolvedfeatures-cut.srl:20'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:20
+                    ('objref', ('$', 'f.target_label'), '15.5.13 config-0-resolvedfeatures-cut.srl:21'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:21
+                    ('put', 'u16', (0,), '15.5.13 config-0-resolvedfeatures-cut.srl:22'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:22
+                    ('put', 'u32', (1,), '15.5.13 config-0-resolvedfeatures-cut.srl:23'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:23
+                    ('put', 'u32', (('$', 'f.body_id'),), '15.5.13 config-0-resolvedfeatures-cut.srl:24'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:24
+                    ('put', 'u32', (3, 1), '15.5.13 config-0-resolvedfeatures-cut.srl:25'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:25
+                    ('put', 'u16', (1,), '15.5.13 config-0-resolvedfeatures-cut.srl:26'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:26
+                    ('class', 'moCompSolidBody_c', 1, None, '15.5.13 config-0-resolvedfeatures-cut.srl:28'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:28
+                    ('class', 'moUnitComponent_c', 1, None, '15.5.13 config-0-resolvedfeatures-cut.srl:29'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:29
+                    ('put', 'u16', (2,), '15.5.13 config-0-resolvedfeatures-cut.srl:30'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:30
+                    ('rep', 5, 0, '15.5.13 config-0-resolvedfeatures-cut.srl:31'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:31
+                    ('put', 'u32', (('$', 'f.target_id'), ('$', 'f.target_id')), '15.5.13 config-0-resolvedfeatures-cut.srl:32'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:32
+                    ('rep', 28, 0, '15.5.13 config-0-resolvedfeatures-cut.srl:33'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:33
+                    ('put', 'i32', (-1, -1, -1, -1), '15.5.13 config-0-resolvedfeatures-cut.srl:34'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:34
+                    ('rep', 20, 0, '15.5.13 config-0-resolvedfeatures-cut.srl:35'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:35
+                    ('put', 'u32', (17000,), '15.5.13 config-0-resolvedfeatures-cut.srl:36'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:36
+                    ('class', 'moFaceRef_c', 1, None, '15.5.13 config-0-macros.srl:113'),  # spec 15.5.13 config-0-macros.srl:113
+                    ('put', 'u32', (1, 0, 6, 0, 0), '15.5.13 config-0-macros.srl:114'),  # spec 15.5.13 config-0-macros.srl:114
+                    ('put', 'f64bits', (6103021453049119613, 6103021453049119613), '15.5.13 config-0-macros.srl:115'),  # spec 15.5.13 config-0-macros.srl:115
+                    ('rep', 2, 0, '15.5.13 config-0-macros.srl:116'),  # spec 15.5.13 config-0-macros.srl:116
+                    ('if', ('$', 'f.ring.0.end'), (  # spec 15.5.13 config-0-macros.srl:123
+                        ('class', 'moEndFaceSurfIdRep_c', 1, 'ringa0', '15.5.13 config-0-macros.srl:124'),  # spec 15.5.13 config-0-macros.srl:124
+                        ('rep', 2, 0, '15.5.13 config-0-macros.srl:125'),  # spec 15.5.13 config-0-macros.srl:125
+                        ('class', 'moFR_c', 1, None, '15.5.13 config-0-macros.srl:126'),  # spec 15.5.13 config-0-macros.srl:126
+                        ('objref', 'ext_obj', '15.5.13 config-0-macros.srl:127'),  # spec 15.5.13 config-0-macros.srl:127
+                        ('put', 'u32', (('$', 'f.ring.0.uid'), ('$', 'f.ring.0.created'), ('$', 'f.ring.0.face')), '15.5.13 config-0-macros.srl:128'),  # spec 15.5.13 config-0-macros.srl:128
+                        ('put', 'u32', (0,), '15.5.13 config-0-macros.srl:129'),  # spec 15.5.13 config-0-macros.srl:129
+                    ), (  # spec 15.5.13 config-0-macros.srl:123
+                        ('class', 'moFromSktEntSurfIdRep_c', 1, 'ringa0', '15.5.13 config-0-macros.srl:131'),  # spec 15.5.13 config-0-macros.srl:131
+                        ('rep', 2, 0, '15.5.13 config-0-macros.srl:132'),  # spec 15.5.13 config-0-macros.srl:132
+                        ('class', 'moFR_c', 1, None, '15.5.13 config-0-macros.srl:133'),  # spec 15.5.13 config-0-macros.srl:133
+                        ('objref', 'ext_obj', '15.5.13 config-0-macros.srl:134'),  # spec 15.5.13 config-0-macros.srl:134
+                        ('put', 'u32', (('$', 'f.ring.0.uid'), ('$', 'f.ring.0.created'), ('$', 'f.ring.0.face')), '15.5.13 config-0-macros.srl:135'),  # spec 15.5.13 config-0-macros.srl:135
+                    ), '15.5.13 config-0-macros.srl:123'),  # spec 15.5.13 config-0-macros.srl:123
+                    ('if', ('$', 'f.ring.1.end'), (  # spec 15.5.13 config-0-macros.srl:123
+                        ('class', 'moEndFaceSurfIdRep_c', 1, 'ringa1', '15.5.13 config-0-macros.srl:124'),  # spec 15.5.13 config-0-macros.srl:124
+                        ('rep', 2, 0, '15.5.13 config-0-macros.srl:125'),  # spec 15.5.13 config-0-macros.srl:125
+                        ('class', 'moFR_c', 1, None, '15.5.13 config-0-macros.srl:126'),  # spec 15.5.13 config-0-macros.srl:126
+                        ('objref', 'ext_obj', '15.5.13 config-0-macros.srl:127'),  # spec 15.5.13 config-0-macros.srl:127
+                        ('put', 'u32', (('$', 'f.ring.1.uid'), ('$', 'f.ring.1.created'), ('$', 'f.ring.1.face')), '15.5.13 config-0-macros.srl:128'),  # spec 15.5.13 config-0-macros.srl:128
+                        ('put', 'u32', (0,), '15.5.13 config-0-macros.srl:129'),  # spec 15.5.13 config-0-macros.srl:129
+                    ), (  # spec 15.5.13 config-0-macros.srl:123
+                        ('class', 'moFromSktEntSurfIdRep_c', 1, 'ringa1', '15.5.13 config-0-macros.srl:131'),  # spec 15.5.13 config-0-macros.srl:131
+                        ('rep', 2, 0, '15.5.13 config-0-macros.srl:132'),  # spec 15.5.13 config-0-macros.srl:132
+                        ('class', 'moFR_c', 1, None, '15.5.13 config-0-macros.srl:133'),  # spec 15.5.13 config-0-macros.srl:133
+                        ('objref', 'ext_obj', '15.5.13 config-0-macros.srl:134'),  # spec 15.5.13 config-0-macros.srl:134
+                        ('put', 'u32', (('$', 'f.ring.1.uid'), ('$', 'f.ring.1.created'), ('$', 'f.ring.1.face')), '15.5.13 config-0-macros.srl:135'),  # spec 15.5.13 config-0-macros.srl:135
+                    ), '15.5.13 config-0-macros.srl:123'),  # spec 15.5.13 config-0-macros.srl:123
+                    ('if', ('$', 'f.ring.2.end'), (  # spec 15.5.13 config-0-macros.srl:123
+                        ('class', 'moEndFaceSurfIdRep_c', 1, 'ringa2', '15.5.13 config-0-macros.srl:124'),  # spec 15.5.13 config-0-macros.srl:124
+                        ('rep', 2, 0, '15.5.13 config-0-macros.srl:125'),  # spec 15.5.13 config-0-macros.srl:125
+                        ('class', 'moFR_c', 1, None, '15.5.13 config-0-macros.srl:126'),  # spec 15.5.13 config-0-macros.srl:126
+                        ('objref', 'ext_obj', '15.5.13 config-0-macros.srl:127'),  # spec 15.5.13 config-0-macros.srl:127
+                        ('put', 'u32', (('$', 'f.ring.2.uid'), ('$', 'f.ring.2.created'), ('$', 'f.ring.2.face')), '15.5.13 config-0-macros.srl:128'),  # spec 15.5.13 config-0-macros.srl:128
+                        ('put', 'u32', (0,), '15.5.13 config-0-macros.srl:129'),  # spec 15.5.13 config-0-macros.srl:129
+                    ), (  # spec 15.5.13 config-0-macros.srl:123
+                        ('class', 'moFromSktEntSurfIdRep_c', 1, 'ringa2', '15.5.13 config-0-macros.srl:131'),  # spec 15.5.13 config-0-macros.srl:131
+                        ('rep', 2, 0, '15.5.13 config-0-macros.srl:132'),  # spec 15.5.13 config-0-macros.srl:132
+                        ('class', 'moFR_c', 1, None, '15.5.13 config-0-macros.srl:133'),  # spec 15.5.13 config-0-macros.srl:133
+                        ('objref', 'ext_obj', '15.5.13 config-0-macros.srl:134'),  # spec 15.5.13 config-0-macros.srl:134
+                        ('put', 'u32', (('$', 'f.ring.2.uid'), ('$', 'f.ring.2.created'), ('$', 'f.ring.2.face')), '15.5.13 config-0-macros.srl:135'),  # spec 15.5.13 config-0-macros.srl:135
+                    ), '15.5.13 config-0-macros.srl:123'),  # spec 15.5.13 config-0-macros.srl:123
+                    ('if', ('$', 'f.ring.3.end'), (  # spec 15.5.13 config-0-macros.srl:123
+                        ('class', 'moEndFaceSurfIdRep_c', 1, 'ringa3', '15.5.13 config-0-macros.srl:124'),  # spec 15.5.13 config-0-macros.srl:124
+                        ('rep', 2, 0, '15.5.13 config-0-macros.srl:125'),  # spec 15.5.13 config-0-macros.srl:125
+                        ('class', 'moFR_c', 1, None, '15.5.13 config-0-macros.srl:126'),  # spec 15.5.13 config-0-macros.srl:126
+                        ('objref', 'ext_obj', '15.5.13 config-0-macros.srl:127'),  # spec 15.5.13 config-0-macros.srl:127
+                        ('put', 'u32', (('$', 'f.ring.3.uid'), ('$', 'f.ring.3.created'), ('$', 'f.ring.3.face')), '15.5.13 config-0-macros.srl:128'),  # spec 15.5.13 config-0-macros.srl:128
+                        ('put', 'u32', (0,), '15.5.13 config-0-macros.srl:129'),  # spec 15.5.13 config-0-macros.srl:129
+                    ), (  # spec 15.5.13 config-0-macros.srl:123
+                        ('class', 'moFromSktEntSurfIdRep_c', 1, 'ringa3', '15.5.13 config-0-macros.srl:131'),  # spec 15.5.13 config-0-macros.srl:131
+                        ('rep', 2, 0, '15.5.13 config-0-macros.srl:132'),  # spec 15.5.13 config-0-macros.srl:132
+                        ('class', 'moFR_c', 1, None, '15.5.13 config-0-macros.srl:133'),  # spec 15.5.13 config-0-macros.srl:133
+                        ('objref', 'ext_obj', '15.5.13 config-0-macros.srl:134'),  # spec 15.5.13 config-0-macros.srl:134
+                        ('put', 'u32', (('$', 'f.ring.3.uid'), ('$', 'f.ring.3.created'), ('$', 'f.ring.3.face')), '15.5.13 config-0-macros.srl:135'),  # spec 15.5.13 config-0-macros.srl:135
+                    ), '15.5.13 config-0-macros.srl:123'),  # spec 15.5.13 config-0-macros.srl:123
+                    ('if', ('$', 'f.ring.4.end'), (  # spec 15.5.13 config-0-macros.srl:123
+                        ('class', 'moEndFaceSurfIdRep_c', 1, 'ringa4', '15.5.13 config-0-macros.srl:124'),  # spec 15.5.13 config-0-macros.srl:124
+                        ('rep', 2, 0, '15.5.13 config-0-macros.srl:125'),  # spec 15.5.13 config-0-macros.srl:125
+                        ('class', 'moFR_c', 1, None, '15.5.13 config-0-macros.srl:126'),  # spec 15.5.13 config-0-macros.srl:126
+                        ('objref', 'ext_obj', '15.5.13 config-0-macros.srl:127'),  # spec 15.5.13 config-0-macros.srl:127
+                        ('put', 'u32', (('$', 'f.ring.4.uid'), ('$', 'f.ring.4.created'), ('$', 'f.ring.4.face')), '15.5.13 config-0-macros.srl:128'),  # spec 15.5.13 config-0-macros.srl:128
+                        ('put', 'u32', (0,), '15.5.13 config-0-macros.srl:129'),  # spec 15.5.13 config-0-macros.srl:129
+                    ), (  # spec 15.5.13 config-0-macros.srl:123
+                        ('class', 'moFromSktEntSurfIdRep_c', 1, 'ringa4', '15.5.13 config-0-macros.srl:131'),  # spec 15.5.13 config-0-macros.srl:131
+                        ('rep', 2, 0, '15.5.13 config-0-macros.srl:132'),  # spec 15.5.13 config-0-macros.srl:132
+                        ('class', 'moFR_c', 1, None, '15.5.13 config-0-macros.srl:133'),  # spec 15.5.13 config-0-macros.srl:133
+                        ('objref', 'ext_obj', '15.5.13 config-0-macros.srl:134'),  # spec 15.5.13 config-0-macros.srl:134
+                        ('put', 'u32', (('$', 'f.ring.4.uid'), ('$', 'f.ring.4.created'), ('$', 'f.ring.4.face')), '15.5.13 config-0-macros.srl:135'),  # spec 15.5.13 config-0-macros.srl:135
+                    ), '15.5.13 config-0-macros.srl:123'),  # spec 15.5.13 config-0-macros.srl:123
+                    ('rep', 10, 0, '15.5.13 config-0-resolvedfeatures-cut.srl:43'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:43
+                    ('put', 'u32', (17000, 0, 0), '15.5.13 config-0-resolvedfeatures-cut.srl:44'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:44
+                    ('put', 'u32', (1, ('$', 'f.target_id'), ('$', 'f.target_uid'), 0, 0), '15.5.13 config-0-resolvedfeatures-cut.srl:45'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:45
+                    ('put', 'u32', (1, 65537), '15.5.13 config-0-resolvedfeatures-cut.srl:46'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:46
+                    ('class', 'moPerBodyChooserData_c', 1, None, '15.5.13 config-0-resolvedfeatures-cut.srl:47'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:47
+                    ('hex', '02', '15.5.13 config-0-resolvedfeatures-cut.srl:48'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:48
+                    ('put', 'u8', (0,), '15.5.13 config-0-resolvedfeatures-cut.srl:49'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:49
+                    ('class', 'moFaceRef_c', 1, None, '15.5.13 config-0-macros.srl:113'),  # spec 15.5.13 config-0-macros.srl:113
+                    ('put', 'u32', (1, 0, 5, 768, ('$', 'f.counter_face1')), '15.5.13 config-0-macros.srl:114'),  # spec 15.5.13 config-0-macros.srl:114
+                    ('put', 'f64bits', (6103021453049119613, 6103021453049119613), '15.5.13 config-0-macros.srl:115'),  # spec 15.5.13 config-0-macros.srl:115
+                    ('rep', 2, 0, '15.5.13 config-0-macros.srl:116'),  # spec 15.5.13 config-0-macros.srl:116
+                    ('class', 'moFromSktEnt3IntSurfIdRep_c', 1, 'cyl', '15.5.13 config-0-resolvedfeatures-cut.srl:53'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:53
+                    ('rep', 2, 0, '15.5.13 config-0-resolvedfeatures-cut.srl:54'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:54
+                    ('class', 'moFR_c', 1, None, '15.5.13 config-0-resolvedfeatures-cut.srl:55'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:55
+                    ('objref', 'ext_obj', '15.5.13 config-0-resolvedfeatures-cut.srl:56'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:56
+                    ('put', 'u32', (('$', 'f.id'), ('$', 'f.created')), '15.5.13 config-0-resolvedfeatures-cut.srl:57'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:57
+                    ('put', 'u32', (1,), '15.5.13 config-0-resolvedfeatures-cut.srl:58'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:58
+                    ('put', 'i32', (-1,), '15.5.13 config-0-resolvedfeatures-cut.srl:59'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:59
+                    ('put', 'u32', (0,), '15.5.13 config-0-resolvedfeatures-cut.srl:60'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:60
+                    ('class', 'moEndFaceSurfIdRep_c', 1, 'cap0', '15.5.13 config-0-resolvedfeatures-cut.srl:61'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:61
+                    ('rep', 2, 0, '15.5.13 config-0-resolvedfeatures-cut.srl:62'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:62
+                    ('class', 'moFR_c', 1, None, '15.5.13 config-0-resolvedfeatures-cut.srl:63'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:63
+                    ('objref', 'ext_obj', '15.5.13 config-0-resolvedfeatures-cut.srl:64'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:64
+                    ('put', 'u32', (('$', 'f.target_uid'), ('$', 'f.target_created')), '15.5.13 config-0-resolvedfeatures-cut.srl:65'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:65
+                    ('put', 'u32', (0, 0), '15.5.13 config-0-resolvedfeatures-cut.srl:66'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:66
+                    ('rep', 2, 0, '15.5.13 config-0-resolvedfeatures-cut.srl:67'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:67
+                    ('class', 'moEndFaceSurfIdRep_c', 1, 'cap1', '15.5.13 config-0-resolvedfeatures-cut.srl:68'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:68
+                    ('rep', 2, 0, '15.5.13 config-0-resolvedfeatures-cut.srl:69'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:69
+                    ('class', 'moFR_c', 1, None, '15.5.13 config-0-resolvedfeatures-cut.srl:70'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:70
+                    ('objref', 'ext_obj', '15.5.13 config-0-resolvedfeatures-cut.srl:71'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:71
+                    ('put', 'u32', (('$', 'f.target_uid'), ('$', 'f.target_created')), '15.5.13 config-0-resolvedfeatures-cut.srl:72'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:72
+                    ('put', 'u32', (1, 0), '15.5.13 config-0-resolvedfeatures-cut.srl:73'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:73
+                    ('rep', 10, 0, '15.5.13 config-0-resolvedfeatures-cut.srl:74'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:74
+                    ('put', 'u32', (17000, 0, 0), '15.5.13 config-0-resolvedfeatures-cut.srl:75'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:75
+                    ('class', 'moFaceRef_c', 1, None, '15.5.13 config-0-macros.srl:113'),  # spec 15.5.13 config-0-macros.srl:113
+                    ('put', 'u32', (1, 0, 6, 768, ('$', 'f.counter_face2')), '15.5.13 config-0-macros.srl:114'),  # spec 15.5.13 config-0-macros.srl:114
+                    ('put', 'f64bits', (6103021453049119613, 6103021453049119613), '15.5.13 config-0-macros.srl:115'),  # spec 15.5.13 config-0-macros.srl:115
+                    ('rep', 2, 0, '15.5.13 config-0-macros.srl:116'),  # spec 15.5.13 config-0-macros.srl:116
+                    ('if', ('$', 'f.ring.0.end'), (  # spec 15.5.13 config-0-macros.srl:123
+                        ('class', 'moEndFaceSurfIdRep_c', 1, 'ring0', '15.5.13 config-0-macros.srl:124'),  # spec 15.5.13 config-0-macros.srl:124
+                        ('rep', 2, 0, '15.5.13 config-0-macros.srl:125'),  # spec 15.5.13 config-0-macros.srl:125
+                        ('class', 'moFR_c', 1, None, '15.5.13 config-0-macros.srl:126'),  # spec 15.5.13 config-0-macros.srl:126
+                        ('objref', 'ext_obj', '15.5.13 config-0-macros.srl:127'),  # spec 15.5.13 config-0-macros.srl:127
+                        ('put', 'u32', (('$', 'f.ring.0.uid'), ('$', 'f.ring.0.created'), ('$', 'f.ring.0.face')), '15.5.13 config-0-macros.srl:128'),  # spec 15.5.13 config-0-macros.srl:128
+                        ('put', 'u32', (0,), '15.5.13 config-0-macros.srl:129'),  # spec 15.5.13 config-0-macros.srl:129
+                    ), (  # spec 15.5.13 config-0-macros.srl:123
+                        ('class', 'moFromSktEntSurfIdRep_c', 1, 'ring0', '15.5.13 config-0-macros.srl:131'),  # spec 15.5.13 config-0-macros.srl:131
+                        ('rep', 2, 0, '15.5.13 config-0-macros.srl:132'),  # spec 15.5.13 config-0-macros.srl:132
+                        ('class', 'moFR_c', 1, None, '15.5.13 config-0-macros.srl:133'),  # spec 15.5.13 config-0-macros.srl:133
+                        ('objref', 'ext_obj', '15.5.13 config-0-macros.srl:134'),  # spec 15.5.13 config-0-macros.srl:134
+                        ('put', 'u32', (('$', 'f.ring.0.uid'), ('$', 'f.ring.0.created'), ('$', 'f.ring.0.face')), '15.5.13 config-0-macros.srl:135'),  # spec 15.5.13 config-0-macros.srl:135
+                    ), '15.5.13 config-0-macros.srl:123'),  # spec 15.5.13 config-0-macros.srl:123
+                    ('if', ('$', 'f.ring.1.end'), (  # spec 15.5.13 config-0-macros.srl:123
+                        ('class', 'moEndFaceSurfIdRep_c', 1, 'ring1', '15.5.13 config-0-macros.srl:124'),  # spec 15.5.13 config-0-macros.srl:124
+                        ('rep', 2, 0, '15.5.13 config-0-macros.srl:125'),  # spec 15.5.13 config-0-macros.srl:125
+                        ('class', 'moFR_c', 1, None, '15.5.13 config-0-macros.srl:126'),  # spec 15.5.13 config-0-macros.srl:126
+                        ('objref', 'ext_obj', '15.5.13 config-0-macros.srl:127'),  # spec 15.5.13 config-0-macros.srl:127
+                        ('put', 'u32', (('$', 'f.ring.1.uid'), ('$', 'f.ring.1.created'), ('$', 'f.ring.1.face')), '15.5.13 config-0-macros.srl:128'),  # spec 15.5.13 config-0-macros.srl:128
+                        ('put', 'u32', (0,), '15.5.13 config-0-macros.srl:129'),  # spec 15.5.13 config-0-macros.srl:129
+                    ), (  # spec 15.5.13 config-0-macros.srl:123
+                        ('class', 'moFromSktEntSurfIdRep_c', 1, 'ring1', '15.5.13 config-0-macros.srl:131'),  # spec 15.5.13 config-0-macros.srl:131
+                        ('rep', 2, 0, '15.5.13 config-0-macros.srl:132'),  # spec 15.5.13 config-0-macros.srl:132
+                        ('class', 'moFR_c', 1, None, '15.5.13 config-0-macros.srl:133'),  # spec 15.5.13 config-0-macros.srl:133
+                        ('objref', 'ext_obj', '15.5.13 config-0-macros.srl:134'),  # spec 15.5.13 config-0-macros.srl:134
+                        ('put', 'u32', (('$', 'f.ring.1.uid'), ('$', 'f.ring.1.created'), ('$', 'f.ring.1.face')), '15.5.13 config-0-macros.srl:135'),  # spec 15.5.13 config-0-macros.srl:135
+                    ), '15.5.13 config-0-macros.srl:123'),  # spec 15.5.13 config-0-macros.srl:123
+                    ('if', ('$', 'f.ring.2.end'), (  # spec 15.5.13 config-0-macros.srl:123
+                        ('class', 'moEndFaceSurfIdRep_c', 1, 'ring2', '15.5.13 config-0-macros.srl:124'),  # spec 15.5.13 config-0-macros.srl:124
+                        ('rep', 2, 0, '15.5.13 config-0-macros.srl:125'),  # spec 15.5.13 config-0-macros.srl:125
+                        ('class', 'moFR_c', 1, None, '15.5.13 config-0-macros.srl:126'),  # spec 15.5.13 config-0-macros.srl:126
+                        ('objref', 'ext_obj', '15.5.13 config-0-macros.srl:127'),  # spec 15.5.13 config-0-macros.srl:127
+                        ('put', 'u32', (('$', 'f.ring.2.uid'), ('$', 'f.ring.2.created'), ('$', 'f.ring.2.face')), '15.5.13 config-0-macros.srl:128'),  # spec 15.5.13 config-0-macros.srl:128
+                        ('put', 'u32', (0,), '15.5.13 config-0-macros.srl:129'),  # spec 15.5.13 config-0-macros.srl:129
+                    ), (  # spec 15.5.13 config-0-macros.srl:123
+                        ('class', 'moFromSktEntSurfIdRep_c', 1, 'ring2', '15.5.13 config-0-macros.srl:131'),  # spec 15.5.13 config-0-macros.srl:131
+                        ('rep', 2, 0, '15.5.13 config-0-macros.srl:132'),  # spec 15.5.13 config-0-macros.srl:132
+                        ('class', 'moFR_c', 1, None, '15.5.13 config-0-macros.srl:133'),  # spec 15.5.13 config-0-macros.srl:133
+                        ('objref', 'ext_obj', '15.5.13 config-0-macros.srl:134'),  # spec 15.5.13 config-0-macros.srl:134
+                        ('put', 'u32', (('$', 'f.ring.2.uid'), ('$', 'f.ring.2.created'), ('$', 'f.ring.2.face')), '15.5.13 config-0-macros.srl:135'),  # spec 15.5.13 config-0-macros.srl:135
+                    ), '15.5.13 config-0-macros.srl:123'),  # spec 15.5.13 config-0-macros.srl:123
+                    ('if', ('$', 'f.ring.3.end'), (  # spec 15.5.13 config-0-macros.srl:123
+                        ('class', 'moEndFaceSurfIdRep_c', 1, 'ring3', '15.5.13 config-0-macros.srl:124'),  # spec 15.5.13 config-0-macros.srl:124
+                        ('rep', 2, 0, '15.5.13 config-0-macros.srl:125'),  # spec 15.5.13 config-0-macros.srl:125
+                        ('class', 'moFR_c', 1, None, '15.5.13 config-0-macros.srl:126'),  # spec 15.5.13 config-0-macros.srl:126
+                        ('objref', 'ext_obj', '15.5.13 config-0-macros.srl:127'),  # spec 15.5.13 config-0-macros.srl:127
+                        ('put', 'u32', (('$', 'f.ring.3.uid'), ('$', 'f.ring.3.created'), ('$', 'f.ring.3.face')), '15.5.13 config-0-macros.srl:128'),  # spec 15.5.13 config-0-macros.srl:128
+                        ('put', 'u32', (0,), '15.5.13 config-0-macros.srl:129'),  # spec 15.5.13 config-0-macros.srl:129
+                    ), (  # spec 15.5.13 config-0-macros.srl:123
+                        ('class', 'moFromSktEntSurfIdRep_c', 1, 'ring3', '15.5.13 config-0-macros.srl:131'),  # spec 15.5.13 config-0-macros.srl:131
+                        ('rep', 2, 0, '15.5.13 config-0-macros.srl:132'),  # spec 15.5.13 config-0-macros.srl:132
+                        ('class', 'moFR_c', 1, None, '15.5.13 config-0-macros.srl:133'),  # spec 15.5.13 config-0-macros.srl:133
+                        ('objref', 'ext_obj', '15.5.13 config-0-macros.srl:134'),  # spec 15.5.13 config-0-macros.srl:134
+                        ('put', 'u32', (('$', 'f.ring.3.uid'), ('$', 'f.ring.3.created'), ('$', 'f.ring.3.face')), '15.5.13 config-0-macros.srl:135'),  # spec 15.5.13 config-0-macros.srl:135
+                    ), '15.5.13 config-0-macros.srl:123'),  # spec 15.5.13 config-0-macros.srl:123
+                    ('if', ('$', 'f.ring.4.end'), (  # spec 15.5.13 config-0-macros.srl:123
+                        ('class', 'moEndFaceSurfIdRep_c', 1, 'ring4', '15.5.13 config-0-macros.srl:124'),  # spec 15.5.13 config-0-macros.srl:124
+                        ('rep', 2, 0, '15.5.13 config-0-macros.srl:125'),  # spec 15.5.13 config-0-macros.srl:125
+                        ('class', 'moFR_c', 1, None, '15.5.13 config-0-macros.srl:126'),  # spec 15.5.13 config-0-macros.srl:126
+                        ('objref', 'ext_obj', '15.5.13 config-0-macros.srl:127'),  # spec 15.5.13 config-0-macros.srl:127
+                        ('put', 'u32', (('$', 'f.ring.4.uid'), ('$', 'f.ring.4.created'), ('$', 'f.ring.4.face')), '15.5.13 config-0-macros.srl:128'),  # spec 15.5.13 config-0-macros.srl:128
+                        ('put', 'u32', (0,), '15.5.13 config-0-macros.srl:129'),  # spec 15.5.13 config-0-macros.srl:129
+                    ), (  # spec 15.5.13 config-0-macros.srl:123
+                        ('class', 'moFromSktEntSurfIdRep_c', 1, 'ring4', '15.5.13 config-0-macros.srl:131'),  # spec 15.5.13 config-0-macros.srl:131
+                        ('rep', 2, 0, '15.5.13 config-0-macros.srl:132'),  # spec 15.5.13 config-0-macros.srl:132
+                        ('class', 'moFR_c', 1, None, '15.5.13 config-0-macros.srl:133'),  # spec 15.5.13 config-0-macros.srl:133
+                        ('objref', 'ext_obj', '15.5.13 config-0-macros.srl:134'),  # spec 15.5.13 config-0-macros.srl:134
+                        ('put', 'u32', (('$', 'f.ring.4.uid'), ('$', 'f.ring.4.created'), ('$', 'f.ring.4.face')), '15.5.13 config-0-macros.srl:135'),  # spec 15.5.13 config-0-macros.srl:135
+                    ), '15.5.13 config-0-macros.srl:123'),  # spec 15.5.13 config-0-macros.srl:123
+                    ('rep', 10, 0, '15.5.13 config-0-resolvedfeatures-cut.srl:82'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:82
+                    ('put', 'u32', (17000,), '15.5.13 config-0-resolvedfeatures-cut.srl:83'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:83
+                    ('rep', 10, 0, '15.5.13 config-0-resolvedfeatures-cut.srl:84'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:84
+                    ('hex', '01', '15.5.13 config-0-resolvedfeatures-cut.srl:85'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:85
+                    ('put', 'u8', (0,), '15.5.13 config-0-resolvedfeatures-cut.srl:86'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:86
+                    ('class', 'moBBoxCenterData_c', 1, None, '15.5.13 config-0-resolvedfeatures-cut.srl:88'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:88
+                    ('put', 'u32', (1,), '15.5.13 config-0-resolvedfeatures-cut.srl:89'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:89
+                    ('put', 'f64', (('$', 'f.centre.0'), ('$', 'f.centre.1'), ('$', 'f.centre.2'), ('$', 'f.diagonal')), '15.5.13 config-0-resolvedfeatures-cut.srl:90'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:90
+                    ('rep', 14, 0, '15.5.13 config-0-resolvedfeatures-cut.srl:91'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:91
+                    ('objref', ('$', 'f.name'), '15.5.13 config-0-resolvedfeatures-cut.srl:92'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:92
+                    ('put', 'u32', (65537,), '15.5.13 config-0-resolvedfeatures-cut.srl:93'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:93
+                    ('rep', 2, 0, '15.5.13 config-0-resolvedfeatures-cut.srl:94'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:94
+                    ('objref', ('$', 'f.name'), '15.5.13 config-0-resolvedfeatures-cut.srl:95'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:95
+                    ('put', 'u32', (1, 65537), '15.5.13 config-0-resolvedfeatures-cut.srl:96'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:96
+                    ('class', 'moPerBodyChooserData_c', 1, None, '15.5.13 config-0-resolvedfeatures-cut.srl:97'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:97
+                    ('hex', '02', '15.5.13 config-0-resolvedfeatures-cut.srl:98'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:98
+                    ('put', 'u8', (0,), '15.5.13 config-0-resolvedfeatures-cut.srl:99'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:99
+                    ('class', 'moFaceRef_c', 1, None, '15.5.13 config-0-macros.srl:113'),  # spec 15.5.13 config-0-macros.srl:113
+                    ('put', 'u32', (1, 0, 5, 768, 0), '15.5.13 config-0-macros.srl:114'),  # spec 15.5.13 config-0-macros.srl:114
+                    ('put', 'f64bits', (6103021453049119613, 6103021453049119613), '15.5.13 config-0-macros.srl:115'),  # spec 15.5.13 config-0-macros.srl:115
+                    ('rep', 2, 0, '15.5.13 config-0-macros.srl:116'),  # spec 15.5.13 config-0-macros.srl:116
+                    ('objref', 'cyl', '15.5.13 config-0-resolvedfeatures-cut.srl:101'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:101
+                    ('objref', 'cap0', '15.5.13 config-0-resolvedfeatures-cut.srl:102'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:102
+                    ('rep', 2, 0, '15.5.13 config-0-resolvedfeatures-cut.srl:103'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:103
+                    ('objref', 'cap1', '15.5.13 config-0-resolvedfeatures-cut.srl:104'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:104
+                    ('rep', 10, 0, '15.5.13 config-0-resolvedfeatures-cut.srl:105'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:105
+                    ('put', 'u32', (17000, 0, 0), '15.5.13 config-0-resolvedfeatures-cut.srl:106'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:106
+                    ('class', 'moFaceRef_c', 1, None, '15.5.13 config-0-macros.srl:113'),  # spec 15.5.13 config-0-macros.srl:113
+                    ('put', 'u32', (1, 0, 6, 768, 0), '15.5.13 config-0-macros.srl:114'),  # spec 15.5.13 config-0-macros.srl:114
+                    ('put', 'f64bits', (6103021453049119613, 6103021453049119613), '15.5.13 config-0-macros.srl:115'),  # spec 15.5.13 config-0-macros.srl:115
+                    ('rep', 2, 0, '15.5.13 config-0-macros.srl:116'),  # spec 15.5.13 config-0-macros.srl:116
+                    ('objref', 'ring0', '15.5.13 config-0-resolvedfeatures-cut.srl:108'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:108
+                    ('objref', 'ring1', '15.5.13 config-0-resolvedfeatures-cut.srl:109'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:109
+                    ('objref', 'ring2', '15.5.13 config-0-resolvedfeatures-cut.srl:110'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:110
+                    ('objref', 'ring3', '15.5.13 config-0-resolvedfeatures-cut.srl:111'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:111
+                    ('objref', 'ring4', '15.5.13 config-0-resolvedfeatures-cut.srl:112'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:112
+                    ('rep', 10, 0, '15.5.13 config-0-resolvedfeatures-cut.srl:113'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:113
+                    ('put', 'u32', (17000,), '15.5.13 config-0-resolvedfeatures-cut.srl:114'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:114
+                    ('rep', 10, 0, '15.5.13 config-0-resolvedfeatures-cut.srl:115'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:115
+                    ('hex', '01', '15.5.13 config-0-resolvedfeatures-cut.srl:116'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:116
+                    ('put', 'u8', (0,), '15.5.13 config-0-resolvedfeatures-cut.srl:117'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:117
+                    ('class', 'moBBoxCenterData_c', 1, None, '15.5.13 config-0-resolvedfeatures-cut.srl:118'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:118
+                    ('put', 'u32', (1,), '15.5.13 config-0-resolvedfeatures-cut.srl:119'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:119
+                    ('put', 'f64', (('$', 'f.centre.0'), ('$', 'f.centre.1'), ('$', 'f.centre.2'), ('$', 'f.diagonal')), '15.5.13 config-0-resolvedfeatures-cut.srl:120'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:120
+                    ('rep', 14, 0, '15.5.13 config-0-resolvedfeatures-cut.srl:121'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:121
+                    ('objref', ('$', 'f.name'), '15.5.13 config-0-resolvedfeatures-cut.srl:122'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:122
+                    ('rep', 10, 0, '15.5.13 config-0-resolvedfeatures-cut.srl:123'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:123
+                    ('put', 'u32', (1,), '15.5.13 config-0-resolvedfeatures-cut.srl:124'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:124
+                    ('class', 'moPMarkRecord_c', 1, None, '15.5.13 config-0-resolvedfeatures-cut.srl:125'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:125
+                    ('put', 'u16', (('$', 'f.counter_marks'),), '15.5.13 config-0-resolvedfeatures-cut.srl:126'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:126
+                    ('rep', 64, 0, '15.5.13 config-0-resolvedfeatures-cut.srl:127'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:127
+                    ('class', 'moEndSpec_c', 1, None, '15.5.13 config-0-resolvedfeatures-cut.srl:129'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:129
+                    ('rep', 16, 0, '15.5.13 config-0-resolvedfeatures-cut.srl:130'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:130
+                    ('put', 'u32', (1, 1, 0), '15.5.13 config-0-resolvedfeatures-cut.srl:131'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:131
+                    ('put', 'u16', (1, 256), '15.5.13 config-0-resolvedfeatures-cut.srl:132'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:132
+                    ('rep', 58, 0, '15.5.13 config-0-resolvedfeatures-cut.srl:133'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:133
+                    ('put', 'u32', (1,), '15.5.13 config-0-resolvedfeatures-cut.srl:134'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:134
+                    ('rep', 8, 0, '15.5.13 config-0-resolvedfeatures-cut.srl:135'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:135
+                    ('class', 'moFromEndSpec_c', 1, None, '15.5.13 config-0-resolvedfeatures-cut.srl:136'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:136
+                    ('rep', 12, 0, '15.5.13 config-0-resolvedfeatures-cut.srl:137'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:137
+                    ('hex', '2EF0EE4208C3D195', '15.5.13 config-0-resolvedfeatures-cut.srl:138'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:138
+                    ('put', 'u32', (('$', 'f.counter_end'),), '15.5.13 config-0-resolvedfeatures-cut.srl:139'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:139
+                    ('rep', 8, 0, '15.5.13 config-0-resolvedfeatures-cut.srl:140'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:140
+                    ('put', 'u32', (1,), '15.5.13 config-0-resolvedfeatures-cut.srl:141'),  # spec 15.5.13 config-0-resolvedfeatures-cut.srl:141
+                ), (  # spec 15.5.6 config-0-resolvedfeatures.srl:21
+                    ('if', ('$', 'f.first'), (  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:6
+                        ('class', 'moExtrusion_c', 1, ('$', 'f.name'), '15.5.8 config-0-resolvedfeatures-extrude.srl:7'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:7
+                        ('class', 'moNodeName_c', 1, None, '15.4.2 config-0-macros.srl:18'),  # spec 15.4.2 config-0-macros.srl:18
+                        ('put', 'cstr', (('$', 'f.name'),), '15.4.2 config-0-macros.srl:19'),  # spec 15.4.2 config-0-macros.srl:19
+                        ('put', 'u32', (0, 1073742144, ('$', 'f.id'), 0), '15.4.2 config-0-macros.srl:11'),  # spec 15.4.2 config-0-macros.srl:11
+                        ('put', 'cstr', ('',), '15.4.2 config-0-macros.srl:12'),  # spec 15.4.2 config-0-macros.srl:12
+                        ('rep', 6, 0, '15.4.2 config-0-macros.srl:13'),  # spec 15.4.2 config-0-macros.srl:13
+                        ('put', 'u16', (1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:9'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:9
+                        ('objref', ('$', 'f.sketch_name'), '15.5.8 config-0-resolvedfeatures-extrude.srl:10'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:10
+                        ('rep', 12, 0, '15.4.2 config-0-macros.srl:27'),  # spec 15.4.2 config-0-macros.srl:27
+                        ('put', 'u32', (('=', '$fixed.id_base+11+$f_index'), 0), '15.4.2 config-0-macros.srl:28'),  # spec 15.4.2 config-0-macros.srl:28
+                        ('put', 'u8', (0,), '15.4.2 config-0-macros.srl:29'),  # spec 15.4.2 config-0-macros.srl:29
+                        ('put', 'u32', (('=', '17000*1'), ('=', '2024016*1')), '15.4.2 config-0-macros.srl:30'),  # spec 15.4.2 config-0-macros.srl:30
+                        ('put', 'u32', (17000,), '15.4.2 config-0-macros.srl:31'),  # spec 15.4.2 config-0-macros.srl:31
+                        ('put', 'f64', (('$', 'f.cache_memo'),), '15.4.2 config-0-macros.srl:32'),  # spec 15.4.2 config-0-macros.srl:32
+                        ('put', 'u32', (2024016,), '15.4.2 config-0-macros.srl:33'),  # spec 15.4.2 config-0-macros.srl:33
+                        ('put', 'u16', (0,), '15.4.2 config-0-macros.srl:34'),  # spec 15.4.2 config-0-macros.srl:34
+                        ('put', 'cstr', ('',), '15.4.2 config-0-macros.srl:35'),  # spec 15.4.2 config-0-macros.srl:35
+                        ('put', 'u8', (0,), '15.4.2 config-0-macros.srl:36'),  # spec 15.4.2 config-0-macros.srl:36
+                        ('put', 'i16', (-1,), '15.4.2 config-0-macros.srl:37'),  # spec 15.4.2 config-0-macros.srl:37
+                        ('put', 'u16', (0,), '15.4.2 config-0-macros.srl:38'),  # spec 15.4.2 config-0-macros.srl:38
+                        ('put', 'u8', (3,), '15.4.2 config-0-macros.srl:39'),  # spec 15.4.2 config-0-macros.srl:39
+                        ('put', 'i32', (-1, -1), '15.4.2 config-0-macros.srl:40'),  # spec 15.4.2 config-0-macros.srl:40
+                        ('put', 'f32', (-1,), '15.4.2 config-0-macros.srl:41'),  # spec 15.4.2 config-0-macros.srl:41
+                        ('rep', 14, 0, '15.4.2 config-0-macros.srl:42'),  # spec 15.4.2 config-0-macros.srl:42
+                        ('put', 'u32', (1,), '15.4.2 config-0-macros.srl:43'),  # spec 15.4.2 config-0-macros.srl:43
+                        ('rep', 6, 0, '15.4.2 config-0-macros.srl:44'),  # spec 15.4.2 config-0-macros.srl:44
+                        ('put', 'i32', (-1,), '15.4.2 config-0-macros.srl:45'),  # spec 15.4.2 config-0-macros.srl:45
+                        ('put', 'u32', (('=', '$f.time//4294967296'), ('=', '$f.time%4294967296')), '15.4.2 config-0-macros.srl:46'),  # spec 15.4.2 config-0-macros.srl:46
+                        ('put', 'u16', (2,), '15.4.2 config-0-macros.srl:47'),  # spec 15.4.2 config-0-macros.srl:47
+                        ('put', 'u32', (350108,), '15.4.2 config-0-macros.srl:48'),  # spec 15.4.2 config-0-macros.srl:48
+                        ('put', 'u32', (1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:12'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:12
+                        ('rep', 10, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:13'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:13
+                        ('put', 'u32', (1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:14'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:14
+                        ('hex', '01', '15.5.8 config-0-resolvedfeatures-extrude.srl:15'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:15
+                        ('put', 'u8', (0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:16'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:16
+                        ('objref', ('$', 'f.body_label'), '15.5.8 config-0-resolvedfeatures-extrude.srl:17'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:17
+                        ('rep', 6, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:18'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:18
+                        ('put', 'u32', (1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:19'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:19
+                        ('put', 'u32', (('$', 'f.body_id'),), '15.5.8 config-0-resolvedfeatures-extrude.srl:20'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:20
+                        ('put', 'u32', (3, 0, 1, 65537), '15.5.8 config-0-resolvedfeatures-extrude.srl:21'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:21
+                        ('class', 'moPerBodyChooserData_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:22'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:22
+                        ('hex', '02', '15.5.8 config-0-resolvedfeatures-extrude.srl:23'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:23
+                        ('put', 'u8', (0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:24'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:24
+                        ('class', 'moFaceRef_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:25'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:25
+                        ('put', 'u32', (1, 0, 6, 768), '15.5.8 config-0-resolvedfeatures-extrude.srl:26'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:26
+                        ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:27'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:27
+                        ('put', 'f32', (-253,), '15.5.8 config-0-resolvedfeatures-extrude.srl:28'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:28
+                        ('hex', '9425AD49B254', '15.5.8 config-0-resolvedfeatures-extrude.srl:29'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:29
+                        ('put', 'u64', (6103021453049119613,), '15.5.8 config-0-resolvedfeatures-extrude.srl:30'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:30
+                        ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:31'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:31
+                        ('class', 'moEndFaceSurfIdRep_c', 1, 'face_end1', '15.5.8 config-0-resolvedfeatures-extrude.srl:32'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:32
+                        ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:33'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:33
+                        ('class', 'moFR_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:34'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:34
+                        ('class', 'moExtObject_c', 1, 'ext_obj', '15.5.8 config-0-resolvedfeatures-extrude.srl:35'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:35
+                        ('class', 'moCStringHandle_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:36'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:36
+                        ('put', 'cstr', ('',), '15.5.8 config-0-resolvedfeatures-extrude.srl:37'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:37
+                        ('class', 'moCStringHandle_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:38'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:38
+                        ('put', 'cstr', (('$', 'doc.name'),), '15.5.8 config-0-resolvedfeatures-extrude.srl:39'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:39
+                        ('hex', '02', '15.5.8 config-0-resolvedfeatures-extrude.srl:40'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:40
+                        ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:41'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:41
+                        ('put', 'u32', (('$', 'doc.created'),), '15.5.8 config-0-resolvedfeatures-extrude.srl:42'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:42
+                        ('put', 'cstr', ('',), '15.5.8 config-0-resolvedfeatures-extrude.srl:43'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:43
+                        ('put', 'cstr', ('',), '15.5.8 config-0-resolvedfeatures-extrude.srl:44'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:44
+                        ('put', 'cstr', ('',), '15.5.8 config-0-resolvedfeatures-extrude.srl:45'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:45
+                        ('rep', 18, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:46'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:46
+                        ('put', 'cstr', ('Default',), '15.5.8 config-0-resolvedfeatures-extrude.srl:47'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:47
+                        ('rep', 16, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:48'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:48
+                        ('put', 'u32', (('$', 'f.id'), ('$', 'f.created')), '15.5.8 config-0-resolvedfeatures-extrude.srl:49'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:49
+                        ('put', 'u32', (0, 0), '15.5.8 config-0-resolvedfeatures-extrude.srl:50'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:50
+                        ('class', 'moFromSktEntSurfIdRep_c', 1, 'side1', '15.5.8 config-0-resolvedfeatures-extrude.srl:51'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:51
+                        ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:52'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:52
+                        ('class', 'moFR_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:53'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:53
+                        ('objref', 'ext_obj', '15.5.8 config-0-resolvedfeatures-extrude.srl:54'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:54
+                        ('put', 'u32', (('$', 'f.id'), ('$', 'f.created')), '15.5.8 config-0-resolvedfeatures-extrude.srl:55'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:55
+                        ('put', 'u32', (4,), '15.5.8 config-0-resolvedfeatures-extrude.srl:56'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:56
+                        ('class', 'moFromSktEntSurfIdRep_c', 1, 'side2', '15.5.8 config-0-resolvedfeatures-extrude.srl:57'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:57
+                        ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:58'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:58
+                        ('class', 'moFR_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:59'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:59
+                        ('objref', 'ext_obj', '15.5.8 config-0-resolvedfeatures-extrude.srl:60'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:60
+                        ('put', 'u32', (('$', 'f.id'), ('$', 'f.created')), '15.5.8 config-0-resolvedfeatures-extrude.srl:61'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:61
+                        ('put', 'u32', (3,), '15.5.8 config-0-resolvedfeatures-extrude.srl:62'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:62
+                        ('class', 'moFromSktEntSurfIdRep_c', 1, 'side3', '15.5.8 config-0-resolvedfeatures-extrude.srl:63'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:63
+                        ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:64'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:64
+                        ('class', 'moFR_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:65'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:65
+                        ('objref', 'ext_obj', '15.5.8 config-0-resolvedfeatures-extrude.srl:66'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:66
+                        ('put', 'u32', (('$', 'f.id'), ('$', 'f.created')), '15.5.8 config-0-resolvedfeatures-extrude.srl:67'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:67
+                        ('put', 'u32', (2,), '15.5.8 config-0-resolvedfeatures-extrude.srl:68'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:68
+                        ('class', 'moFromSktEntSurfIdRep_c', 1, 'side4', '15.5.8 config-0-resolvedfeatures-extrude.srl:69'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:69
+                        ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:70'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:70
+                        ('class', 'moFR_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:71'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:71
+                        ('objref', 'ext_obj', '15.5.8 config-0-resolvedfeatures-extrude.srl:72'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:72
+                        ('put', 'u32', (('$', 'f.id'), ('$', 'f.created')), '15.5.8 config-0-resolvedfeatures-extrude.srl:73'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:73
+                        ('put', 'u32', (1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:74'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:74
+                        ('rep', 10, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:75'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:75
+                        ('put', 'u32', (17000, 0, 0), '15.5.8 config-0-resolvedfeatures-extrude.srl:76'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:76
+                        ('class', 'moFaceRef_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:77'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:77
+                        ('put', 'u32', (1, 0, 6, 768), '15.5.8 config-0-resolvedfeatures-extrude.srl:78'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:78
+                        ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:79'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:79
+                        ('put', 'f32', (-253,), '15.5.8 config-0-resolvedfeatures-extrude.srl:80'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:80
+                        ('hex', '9425AD49B254', '15.5.8 config-0-resolvedfeatures-extrude.srl:81'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:81
+                        ('put', 'u64', (6103021453049119613,), '15.5.8 config-0-resolvedfeatures-extrude.srl:82'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:82
+                        ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:83'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:83
+                        ('class', 'moEndFaceSurfIdRep_c', 1, 'face_end2', '15.5.8 config-0-resolvedfeatures-extrude.srl:84'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:84
+                        ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:85'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:85
+                        ('class', 'moFR_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:86'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:86
+                        ('objref', 'ext_obj', '15.5.8 config-0-resolvedfeatures-extrude.srl:87'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:87
+                        ('put', 'u32', (('$', 'f.id'), ('$', 'f.created')), '15.5.8 config-0-resolvedfeatures-extrude.srl:88'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:88
+                        ('put', 'u32', (1, 0), '15.5.8 config-0-resolvedfeatures-extrude.srl:89'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:89
+                        ('class', 'moFromSktEntSurfIdRep_c', 1, 'side5', '15.5.8 config-0-resolvedfeatures-extrude.srl:90'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:90
+                        ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:91'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:91
+                        ('class', 'moFR_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:92'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:92
+                        ('objref', 'ext_obj', '15.5.8 config-0-resolvedfeatures-extrude.srl:93'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:93
+                        ('put', 'u32', (('$', 'f.id'), ('$', 'f.created')), '15.5.8 config-0-resolvedfeatures-extrude.srl:94'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:94
+                        ('put', 'u32', (4,), '15.5.8 config-0-resolvedfeatures-extrude.srl:95'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:95
+                        ('class', 'moFromSktEntSurfIdRep_c', 1, 'side6', '15.5.8 config-0-resolvedfeatures-extrude.srl:96'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:96
+                        ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:97'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:97
+                        ('class', 'moFR_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:98'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:98
+                        ('objref', 'ext_obj', '15.5.8 config-0-resolvedfeatures-extrude.srl:99'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:99
+                        ('put', 'u32', (('$', 'f.id'), ('$', 'f.created')), '15.5.8 config-0-resolvedfeatures-extrude.srl:100'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:100
+                        ('put', 'u32', (1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:101'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:101
+                        ('class', 'moFromSktEntSurfIdRep_c', 1, 'side7', '15.5.8 config-0-resolvedfeatures-extrude.srl:102'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:102
+                        ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:103'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:103
+                        ('class', 'moFR_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:104'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:104
+                        ('objref', 'ext_obj', '15.5.8 config-0-resolvedfeatures-extrude.srl:105'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:105
+                        ('put', 'u32', (('$', 'f.id'), ('$', 'f.created')), '15.5.8 config-0-resolvedfeatures-extrude.srl:106'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:106
+                        ('put', 'u32', (2,), '15.5.8 config-0-resolvedfeatures-extrude.srl:107'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:107
+                        ('class', 'moFromSktEntSurfIdRep_c', 1, 'side8', '15.5.8 config-0-resolvedfeatures-extrude.srl:108'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:108
+                        ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:109'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:109
+                        ('class', 'moFR_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:110'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:110
+                        ('objref', 'ext_obj', '15.5.8 config-0-resolvedfeatures-extrude.srl:111'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:111
+                        ('put', 'u32', (('$', 'f.id'), ('$', 'f.created')), '15.5.8 config-0-resolvedfeatures-extrude.srl:112'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:112
+                        ('put', 'u32', (3,), '15.5.8 config-0-resolvedfeatures-extrude.srl:113'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:113
+                        ('rep', 10, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:114'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:114
+                        ('put', 'u32', (17000,), '15.5.8 config-0-resolvedfeatures-extrude.srl:115'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:115
+                        ('rep', 10, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:116'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:116
+                        ('hex', '01', '15.5.8 config-0-resolvedfeatures-extrude.srl:117'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:117
+                        ('put', 'u8', (0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:118'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:118
+                    ), (  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:6
+                        ('class', 'moICE_c', 1, ('$', 'f.name'), '15.5.8 config-0-resolvedfeatures-extrude.srl:120'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:120
+                        ('class', 'moNodeName_c', 1, None, '15.4.2 config-0-macros.srl:18'),  # spec 15.4.2 config-0-macros.srl:18
+                        ('put', 'cstr', (('$', 'f.name'),), '15.4.2 config-0-macros.srl:19'),  # spec 15.4.2 config-0-macros.srl:19
+                        ('put', 'u32', (0, 1073742144, ('$', 'f.id'), 0), '15.4.2 config-0-macros.srl:11'),  # spec 15.4.2 config-0-macros.srl:11
+                        ('put', 'cstr', ('',), '15.4.2 config-0-macros.srl:12'),  # spec 15.4.2 config-0-macros.srl:12
+                        ('rep', 6, 0, '15.4.2 config-0-macros.srl:13'),  # spec 15.4.2 config-0-macros.srl:13
+                        ('put', 'u16', (1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:122'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:122
+                        ('objref', ('$', 'f.sketch_name'), '15.5.8 config-0-resolvedfeatures-extrude.srl:123'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:123
+                        ('rep', 12, 0, '15.4.2 config-0-macros.srl:27'),  # spec 15.4.2 config-0-macros.srl:27
+                        ('put', 'u32', (('=', '$fixed.id_base+11+$f_index'), 0), '15.4.2 config-0-macros.srl:28'),  # spec 15.4.2 config-0-macros.srl:28
+                        ('put', 'u8', (0,), '15.4.2 config-0-macros.srl:29'),  # spec 15.4.2 config-0-macros.srl:29
+                        ('put', 'u32', (('=', '17000*1'), ('=', '2024016*1')), '15.4.2 config-0-macros.srl:30'),  # spec 15.4.2 config-0-macros.srl:30
+                        ('put', 'u32', (17000,), '15.4.2 config-0-macros.srl:31'),  # spec 15.4.2 config-0-macros.srl:31
+                        ('put', 'f64', (('$', 'f.cache_memo'),), '15.4.2 config-0-macros.srl:32'),  # spec 15.4.2 config-0-macros.srl:32
+                        ('put', 'u32', (2024016,), '15.4.2 config-0-macros.srl:33'),  # spec 15.4.2 config-0-macros.srl:33
+                        ('put', 'u16', (0,), '15.4.2 config-0-macros.srl:34'),  # spec 15.4.2 config-0-macros.srl:34
+                        ('put', 'cstr', ('',), '15.4.2 config-0-macros.srl:35'),  # spec 15.4.2 config-0-macros.srl:35
+                        ('put', 'u8', (0,), '15.4.2 config-0-macros.srl:36'),  # spec 15.4.2 config-0-macros.srl:36
+                        ('put', 'i16', (-1,), '15.4.2 config-0-macros.srl:37'),  # spec 15.4.2 config-0-macros.srl:37
+                        ('put', 'u16', (0,), '15.4.2 config-0-macros.srl:38'),  # spec 15.4.2 config-0-macros.srl:38
+                        ('put', 'u8', (3,), '15.4.2 config-0-macros.srl:39'),  # spec 15.4.2 config-0-macros.srl:39
+                        ('put', 'i32', (-1, -1), '15.4.2 config-0-macros.srl:40'),  # spec 15.4.2 config-0-macros.srl:40
+                        ('put', 'f32', (-1,), '15.4.2 config-0-macros.srl:41'),  # spec 15.4.2 config-0-macros.srl:41
+                        ('rep', 14, 0, '15.4.2 config-0-macros.srl:42'),  # spec 15.4.2 config-0-macros.srl:42
+                        ('put', 'u32', (1,), '15.4.2 config-0-macros.srl:43'),  # spec 15.4.2 config-0-macros.srl:43
+                        ('rep', 6, 0, '15.4.2 config-0-macros.srl:44'),  # spec 15.4.2 config-0-macros.srl:44
+                        ('put', 'i32', (-1,), '15.4.2 config-0-macros.srl:45'),  # spec 15.4.2 config-0-macros.srl:45
+                        ('put', 'u32', (('=', '$f.time//4294967296'), ('=', '$f.time%4294967296')), '15.4.2 config-0-macros.srl:46'),  # spec 15.4.2 config-0-macros.srl:46
+                        ('put', 'u16', (2,), '15.4.2 config-0-macros.srl:47'),  # spec 15.4.2 config-0-macros.srl:47
+                        ('put', 'u32', (350108,), '15.4.2 config-0-macros.srl:48'),  # spec 15.4.2 config-0-macros.srl:48
+                        ('put', 'u32', (1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:125'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:125
+                        ('rep', 10, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:126'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:126
+                        ('put', 'u32', (1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:127'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:127
+                        ('hex', '01', '15.5.8 config-0-resolvedfeatures-extrude.srl:128'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:128
+                        ('put', 'u8', (0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:129'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:129
+                        ('objref', ('$', 'f.body_label'), '15.5.8 config-0-resolvedfeatures-extrude.srl:130'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:130
+                        ('rep', 6, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:131'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:131
+                        ('put', 'u32', (1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:132'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:132
+                        ('put', 'u32', (('$', 'f.body_id'),), '15.5.8 config-0-resolvedfeatures-extrude.srl:133'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:133
+                        ('put', 'u32', (3, 0, 1, 65537), '15.5.8 config-0-resolvedfeatures-extrude.srl:134'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:134
+                        ('class', 'moPerBodyChooserData_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:135'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:135
+                        ('hex', '02', '15.5.8 config-0-resolvedfeatures-extrude.srl:136'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:136
+                        ('put', 'u8', (0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:137'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:137
+                        ('class', 'moFaceRef_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:138'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:138
+                        ('put', 'u32', (1, 0, 6, 768), '15.5.8 config-0-resolvedfeatures-extrude.srl:139'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:139
+                        ('put', 'u32', (('$', 'f.counter_face1'),), '15.5.8 config-0-resolvedfeatures-extrude.srl:140'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:140
+                        ('put', 'u64', (6103021453049119613, 6103021453049119613), '15.5.8 config-0-resolvedfeatures-extrude.srl:141'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:141
+                        ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:142'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:142
+                        ('class', 'moEndFace3IntSurfIdRep_c', 1, 'face_end1', '15.5.8 config-0-resolvedfeatures-extrude.srl:143'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:143
+                        ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:144'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:144
+                        ('class', 'moFR_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:145'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:145
+                        ('objref', 'ext_obj', '15.5.8 config-0-resolvedfeatures-extrude.srl:146'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:146
+                        ('put', 'u32', (('$', 'f.id'), ('$', 'f.created')), '15.5.8 config-0-resolvedfeatures-extrude.srl:147'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:147
+                        ('rep', 12, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:148'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:148
+                        ('class', 'moFromSktEnt3IntSurfIdRep_c', 1, 'side1', '15.5.8 config-0-resolvedfeatures-extrude.srl:149'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:149
+                        ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:150'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:150
+                        ('class', 'moFR_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:151'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:151
+                        ('objref', 'ext_obj', '15.5.8 config-0-resolvedfeatures-extrude.srl:152'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:152
+                        ('put', 'u32', (('$', 'f.id'), ('$', 'f.created')), '15.5.8 config-0-resolvedfeatures-extrude.srl:153'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:153
+                        ('put', 'u32', (4,), '15.5.8 config-0-resolvedfeatures-extrude.srl:154'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:154
+                        ('put', 'i32', (-1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:155'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:155
+                        ('put', 'u32', (0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:156'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:156
+                        ('class', 'moFromSktEnt3IntSurfIdRep_c', 1, 'side2', '15.5.8 config-0-resolvedfeatures-extrude.srl:157'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:157
+                        ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:158'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:158
+                        ('class', 'moFR_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:159'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:159
+                        ('objref', 'ext_obj', '15.5.8 config-0-resolvedfeatures-extrude.srl:160'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:160
+                        ('put', 'u32', (('$', 'f.id'), ('$', 'f.created')), '15.5.8 config-0-resolvedfeatures-extrude.srl:161'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:161
+                        ('put', 'u32', (3,), '15.5.8 config-0-resolvedfeatures-extrude.srl:162'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:162
+                        ('put', 'i32', (-1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:163'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:163
+                        ('put', 'u32', (0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:164'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:164
+                        ('class', 'moFromSktEnt3IntSurfIdRep_c', 1, 'side3', '15.5.8 config-0-resolvedfeatures-extrude.srl:165'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:165
+                        ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:166'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:166
+                        ('class', 'moFR_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:167'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:167
+                        ('objref', 'ext_obj', '15.5.8 config-0-resolvedfeatures-extrude.srl:168'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:168
+                        ('put', 'u32', (('$', 'f.id'), ('$', 'f.created')), '15.5.8 config-0-resolvedfeatures-extrude.srl:169'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:169
+                        ('put', 'u32', (2,), '15.5.8 config-0-resolvedfeatures-extrude.srl:170'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:170
+                        ('put', 'i32', (-1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:171'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:171
+                        ('put', 'u32', (0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:172'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:172
+                        ('class', 'moFromSktEnt3IntSurfIdRep_c', 1, 'side4', '15.5.8 config-0-resolvedfeatures-extrude.srl:173'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:173
+                        ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:174'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:174
+                        ('class', 'moFR_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:175'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:175
+                        ('objref', 'ext_obj', '15.5.8 config-0-resolvedfeatures-extrude.srl:176'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:176
+                        ('put', 'u32', (('$', 'f.id'), ('$', 'f.created')), '15.5.8 config-0-resolvedfeatures-extrude.srl:177'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:177
+                        ('put', 'u32', (1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:178'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:178
+                        ('put', 'i32', (-1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:179'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:179
+                        ('rep', 14, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:180'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:180
+                        ('put', 'u32', (17000, 0, 0), '15.5.8 config-0-resolvedfeatures-extrude.srl:181'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:181
+                        ('class', 'moFaceRef_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:182'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:182
+                        ('put', 'u32', (1, 0, 6, 768), '15.5.8 config-0-resolvedfeatures-extrude.srl:183'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:183
+                        ('put', 'u32', (('$', 'f.counter_face2'),), '15.5.8 config-0-resolvedfeatures-extrude.srl:184'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:184
+                        ('put', 'u64', (6103021453049119613, 6103021453049119613), '15.5.8 config-0-resolvedfeatures-extrude.srl:185'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:185
+                        ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:186'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:186
+                        ('class', 'moEndFace3IntSurfIdRep_c', 1, 'face_end2', '15.5.8 config-0-resolvedfeatures-extrude.srl:187'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:187
+                        ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:188'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:188
+                        ('class', 'moFR_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:189'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:189
+                        ('objref', 'ext_obj', '15.5.8 config-0-resolvedfeatures-extrude.srl:190'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:190
+                        ('put', 'u32', (('$', 'f.id'), ('$', 'f.created')), '15.5.8 config-0-resolvedfeatures-extrude.srl:191'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:191
+                        ('put', 'u32', (1, 0, 0), '15.5.8 config-0-resolvedfeatures-extrude.srl:192'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:192
+                        ('class', 'moFromSktEnt3IntSurfIdRep_c', 1, 'side5', '15.5.8 config-0-resolvedfeatures-extrude.srl:193'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:193
+                        ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:194'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:194
+                        ('class', 'moFR_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:195'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:195
+                        ('objref', 'ext_obj', '15.5.8 config-0-resolvedfeatures-extrude.srl:196'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:196
+                        ('put', 'u32', (('$', 'f.id'), ('$', 'f.created')), '15.5.8 config-0-resolvedfeatures-extrude.srl:197'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:197
+                        ('put', 'u32', (4,), '15.5.8 config-0-resolvedfeatures-extrude.srl:198'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:198
+                        ('put', 'i32', (-1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:199'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:199
+                        ('put', 'u32', (0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:200'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:200
+                        ('class', 'moFromSktEnt3IntSurfIdRep_c', 1, 'side6', '15.5.8 config-0-resolvedfeatures-extrude.srl:201'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:201
+                        ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:202'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:202
+                        ('class', 'moFR_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:203'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:203
+                        ('objref', 'ext_obj', '15.5.8 config-0-resolvedfeatures-extrude.srl:204'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:204
+                        ('put', 'u32', (('$', 'f.id'), ('$', 'f.created')), '15.5.8 config-0-resolvedfeatures-extrude.srl:205'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:205
+                        ('put', 'u32', (1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:206'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:206
+                        ('put', 'i32', (-1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:207'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:207
+                        ('put', 'u32', (0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:208'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:208
+                        ('class', 'moFromSktEnt3IntSurfIdRep_c', 1, 'side7', '15.5.8 config-0-resolvedfeatures-extrude.srl:209'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:209
+                        ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:210'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:210
+                        ('class', 'moFR_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:211'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:211
+                        ('objref', 'ext_obj', '15.5.8 config-0-resolvedfeatures-extrude.srl:212'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:212
+                        ('put', 'u32', (('$', 'f.id'), ('$', 'f.created')), '15.5.8 config-0-resolvedfeatures-extrude.srl:213'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:213
+                        ('put', 'u32', (2,), '15.5.8 config-0-resolvedfeatures-extrude.srl:214'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:214
+                        ('put', 'i32', (-1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:215'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:215
+                        ('put', 'u32', (0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:216'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:216
+                        ('class', 'moFromSktEnt3IntSurfIdRep_c', 1, 'side8', '15.5.8 config-0-resolvedfeatures-extrude.srl:217'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:217
+                        ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:218'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:218
+                        ('class', 'moFR_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:219'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:219
+                        ('objref', 'ext_obj', '15.5.8 config-0-resolvedfeatures-extrude.srl:220'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:220
+                        ('put', 'u32', (('$', 'f.id'), ('$', 'f.created')), '15.5.8 config-0-resolvedfeatures-extrude.srl:221'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:221
+                        ('put', 'u32', (3,), '15.5.8 config-0-resolvedfeatures-extrude.srl:222'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:222
+                        ('put', 'i32', (-1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:223'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:223
+                        ('rep', 14, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:224'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:224
+                        ('put', 'u32', (17000,), '15.5.8 config-0-resolvedfeatures-extrude.srl:225'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:225
+                        ('rep', 10, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:226'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:226
+                        ('hex', '01', '15.5.8 config-0-resolvedfeatures-extrude.srl:227'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:227
+                        ('put', 'u8', (0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:228'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:228
+                    ), '15.5.8 config-0-resolvedfeatures-extrude.srl:6'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:6
+                    ('class', 'moBBoxCenterData_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:231'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:231
+                    ('put', 'u32', (1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:232'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:232
+                    ('put', 'f64', (('$', 'f.centre.0'), ('$', 'f.centre.1'), ('$', 'f.centre.2'), ('$', 'f.diagonal')), '15.5.8 config-0-resolvedfeatures-extrude.srl:233'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:233
+                    ('rep', 8, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:234'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:234
+                    ('if', ('$', 'f.merge'), (  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:235
+                        ('put', 'u32', (1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:236'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:236
+                    ), (  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:235
+                    ), '15.5.8 config-0-resolvedfeatures-extrude.srl:235'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:235
+                    ('rep', 6, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:238'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:238
+                    ('objref', ('$', 'f.name'), '15.5.8 config-0-resolvedfeatures-extrude.srl:239'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:239
+                    ('put', 'u32', (65537,), '15.5.8 config-0-resolvedfeatures-extrude.srl:240'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:240
+                    ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:241'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:241
+                    ('objref', ('$', 'f.name'), '15.5.8 config-0-resolvedfeatures-extrude.srl:242'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:242
+                    ('put', 'u32', (1, 65537), '15.5.8 config-0-resolvedfeatures-extrude.srl:243'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:243
+                    ('class', 'moPerBodyChooserData_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:244'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:244
+                    ('hex', '02', '15.5.8 config-0-resolvedfeatures-extrude.srl:245'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:245
+                    ('put', 'u8', (0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:246'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:246
+                    ('class', 'moFaceRef_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:247'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:247
+                    ('put', 'u32', (1, 0, 6, 768), '15.5.8 config-0-resolvedfeatures-extrude.srl:248'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:248
+                    ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:249'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:249
+                    ('put', 'f32', (-253,), '15.5.8 config-0-resolvedfeatures-extrude.srl:250'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:250
+                    ('hex', '9425AD49B254', '15.5.8 config-0-resolvedfeatures-extrude.srl:251'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:251
+                    ('put', 'u64', (6103021453049119613,), '15.5.8 config-0-resolvedfeatures-extrude.srl:252'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:252
+                    ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:253'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:253
+                    ('objref', 'face_end1', '15.5.8 config-0-resolvedfeatures-extrude.srl:254'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:254
+                    ('objref', 'side1', '15.5.8 config-0-resolvedfeatures-extrude.srl:255'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:255
+                    ('objref', 'side2', '15.5.8 config-0-resolvedfeatures-extrude.srl:256'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:256
+                    ('objref', 'side3', '15.5.8 config-0-resolvedfeatures-extrude.srl:257'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:257
+                    ('objref', 'side4', '15.5.8 config-0-resolvedfeatures-extrude.srl:258'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:258
+                    ('rep', 10, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:259'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:259
+                    ('put', 'u32', (17000, 0, 0), '15.5.8 config-0-resolvedfeatures-extrude.srl:260'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:260
+                    ('class', 'moFaceRef_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:261'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:261
+                    ('put', 'u32', (1, 0, 6, 768), '15.5.8 config-0-resolvedfeatures-extrude.srl:262'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:262
+                    ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:263'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:263
+                    ('put', 'f32', (-253,), '15.5.8 config-0-resolvedfeatures-extrude.srl:264'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:264
+                    ('hex', '9425AD49B254', '15.5.8 config-0-resolvedfeatures-extrude.srl:265'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:265
+                    ('put', 'u64', (6103021453049119613,), '15.5.8 config-0-resolvedfeatures-extrude.srl:266'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:266
+                    ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:267'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:267
+                    ('objref', 'face_end2', '15.5.8 config-0-resolvedfeatures-extrude.srl:268'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:268
+                    ('objref', 'side5', '15.5.8 config-0-resolvedfeatures-extrude.srl:269'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:269
+                    ('objref', 'side6', '15.5.8 config-0-resolvedfeatures-extrude.srl:270'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:270
+                    ('objref', 'side7', '15.5.8 config-0-resolvedfeatures-extrude.srl:271'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:271
+                    ('objref', 'side8', '15.5.8 config-0-resolvedfeatures-extrude.srl:272'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:272
+                    ('rep', 10, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:273'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:273
+                    ('put', 'u32', (17000,), '15.5.8 config-0-resolvedfeatures-extrude.srl:274'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:274
+                    ('rep', 10, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:275'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:275
+                    ('hex', '01', '15.5.8 config-0-resolvedfeatures-extrude.srl:276'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:276
+                    ('put', 'u8', (0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:277'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:277
+                    ('class', 'moBBoxCenterData_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:278'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:278
+                    ('put', 'u32', (1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:279'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:279
+                    ('put', 'f64', (('$', 'f.centre.0'), ('$', 'f.centre.1'), ('$', 'f.centre.2'), ('$', 'f.diagonal')), '15.5.8 config-0-resolvedfeatures-extrude.srl:280'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:280
+                    ('rep', 8, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:281'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:281
+                    ('if', ('$', 'f.merge'), (  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:282
+                        ('put', 'u32', (1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:283'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:283
+                    ), (  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:282
+                    ), '15.5.8 config-0-resolvedfeatures-extrude.srl:282'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:282
+                    ('rep', 6, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:285'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:285
+                    ('objref', ('$', 'f.name'), '15.5.8 config-0-resolvedfeatures-extrude.srl:286'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:286
+                    ('rep', 10, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:287'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:287
+                    ('put', 'u32', (1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:288'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:288
+                    ('class', 'moPMarkRecord_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:289'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:289
+                    ('put', 'u16', (('$', 'f.counter_marks'),), '15.5.8 config-0-resolvedfeatures-extrude.srl:290'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:290
+                    ('rep', 64, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:291'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:291
+                    ('class', 'moEndSpec_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:293'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:293
+                    ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:294'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:294
+                    ('put', 'u32', (1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:295'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:295
+                    ('rep', 18, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:296'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:296
+                    ('class', 'moDisplayDistanceDim_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:297'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:297
+                    ('rep', 16, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:298'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:298
+                    ('put', 'u32', (65535,), '15.5.8 config-0-resolvedfeatures-extrude.srl:299'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:299
+                    ('put', 'i32', (-253,), '15.5.8 config-0-resolvedfeatures-extrude.srl:300'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:300
+                    ('put', 'u32', (255,), '15.5.8 config-0-resolvedfeatures-extrude.srl:301'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:301
+                    ('put', 'u8', (0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:302'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:302
+                    ('put', 'f32', (-1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:303'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:303
+                    ('rep', 14, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:304'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:304
+                    ('put', 'u32', (17000, 0, 524416), '15.5.8 config-0-resolvedfeatures-extrude.srl:305'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:305
+                    ('rep', 83, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:306'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:306
+                    ('put', 'f64', (1.0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:307'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:307
+                    ('put', 'u32', (256, 51200), '15.5.8 config-0-resolvedfeatures-extrude.srl:308'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:308
+                    ('rep', 20, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:309'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:309
+                    ('put', 'f64', (-1.0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:310'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:310
+                    ('put', 'u32', (0, 1), '15.5.8 config-0-resolvedfeatures-extrude.srl:311'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:311
+                    ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:312'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:312
+                    ('put', 'f32', (-1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:313'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:313
+                    ('put', 'u32', (0, 1), '15.5.8 config-0-resolvedfeatures-extrude.srl:314'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:314
+                    ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:315'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:315
+                    ('put', 'f32', (-1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:316'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:316
+                    ('rep', 12, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:317'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:317
+                    ('put', 'i32', (-1, -1), '15.5.8 config-0-resolvedfeatures-extrude.srl:318'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:318
+                    ('put', 'u32', (0, 1), '15.5.8 config-0-resolvedfeatures-extrude.srl:319'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:319
+                    ('rep', 6, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:320'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:320
+                    ('put', 'f32', (-1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:321'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:321
+                    ('rep', 16, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:322'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:322
+                    ('put', 'u32', (4,), '15.5.8 config-0-resolvedfeatures-extrude.srl:323'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:323
+                    ('rep', 96, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:324'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:324
+                    ('put', 'u32', (2, 0, 0), '15.5.8 config-0-resolvedfeatures-extrude.srl:325'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:325
+                    ('put', 'f64', (1.0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:326'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:326
+                    ('rep', 16, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:327'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:327
+                    ('put', 'f64', (1.0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:328'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:328
+                    ('put', 'u32', (0, 0), '15.5.8 config-0-resolvedfeatures-extrude.srl:329'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:329
+                    ('put', 'cstr', ('',), '15.5.8 config-0-resolvedfeatures-extrude.srl:330'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:330
+                    ('rep', 24, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:331'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:331
+                    ('put', 'u32', (18,), '15.5.8 config-0-resolvedfeatures-extrude.srl:332'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:332
+                    ('rep', 30, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:333'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:333
+                    ('put', 'f64', (1.0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:334'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:334
+                    ('rep', 16, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:335'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:335
+                    ('put', 'f64', (1e-06, 1e-06), '15.5.8 config-0-resolvedfeatures-extrude.srl:336'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:336
+                    ('rep', 18, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:337'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:337
+                    ('put', 'f64', (1.0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:338'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:338
+                    ('put', 'u32', (0, 1), '15.5.8 config-0-resolvedfeatures-extrude.srl:339'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:339
+                    ('class', 'moFeatureDimHandle_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:340'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:340
+                    ('rep', 42, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:341'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:341
+                    ('put', 'i32', (-1, -1, -1, -1), '15.5.8 config-0-resolvedfeatures-extrude.srl:342'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:342
+                    ('rep', 20, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:343'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:343
+                    ('put', 'u32', (17000,), '15.5.8 config-0-resolvedfeatures-extrude.srl:344'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:344
+                    ('rep', 15, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:345'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:345
+                    ('put', 'i32', (-1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:346'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:346
+                    ('rep', 6, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:347'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:347
+                    ('class', 'ParallelPlaneDistanceDim_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:348'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:348
+                    ('put', 'u32', (1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:349'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:349
+                    ('class', 'moLengthParameter_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:350'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:350
+                    ('class', 'moNodeName_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:353'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:353
+                    ('put', 'cstr', ('D1',), '15.5.8 config-0-resolvedfeatures-extrude.srl:354'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:354
+                    ('put', 'f64', (2.0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:355'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:355
+                    ('put', 'i32', (-1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:356'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:356
+                    ('put', 'u32', (0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:357'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:357
+                    ('put', 'cstr', ('',), '15.5.8 config-0-resolvedfeatures-extrude.srl:358'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:358
+                    ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:359'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:359
+                    ('put', 'f64', (('$', 'f.depth'),), '15.5.8 config-0-resolvedfeatures-extrude.srl:360'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:360
+                    ('rep', 3, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:361'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:361
+                    ('put', 'u32', (('=', '$f.sketch_id+1'),), '15.5.8 config-0-resolvedfeatures-extrude.srl:362'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:362
+                    ('rep', 16, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:363'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:363
+                    ('put', 'f64', (('$', 'f.corners.2'), ('$', 'f.corners.3')), '15.5.8 config-0-resolvedfeatures-extrude.srl:364'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:364
+                    ('put', 'u32', (0, 0), '15.5.8 config-0-resolvedfeatures-extrude.srl:365'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:365
+                    ('put', 'f64', (('$', 'f.corners.2'), ('$', 'f.corners.3'), ('$', 'f.depth')), '15.5.8 config-0-resolvedfeatures-extrude.srl:366'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:366
+                    ('rep', 24, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:367'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:367
+                    ('put', 'u32', (1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:368'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:368
+                    ('rep', 14, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:369'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:369
+                    ('put', 'f64', (1.0, 1.0), '15.5.8 config-0-resolvedfeatures-extrude.srl:370'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:370
+                    ('rep', 16, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:371'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:371
+                    ('put', 'u32', (65537,), '15.5.8 config-0-resolvedfeatures-extrude.srl:372'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:372
+                    ('rep', 3, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:373'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:373
+                    ('put', 'f32', (1.875,), '15.5.8 config-0-resolvedfeatures-extrude.srl:374'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:374
+                    ('rep', 32, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:375'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:375
+                    ('put', 'f64', (1.0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:376'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:376
+                    ('put', 'u32', (0, 0), '15.5.8 config-0-resolvedfeatures-extrude.srl:377'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:377
+                    ('put', 'f64', (-1.0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:378'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:378
+                    ('put', 'u32', (0, 0), '15.5.8 config-0-resolvedfeatures-extrude.srl:379'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:379
+                    ('put', 'f64', (('=', '-$f.corners.2'),), '15.5.8 config-0-resolvedfeatures-extrude.srl:380'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:380
+                    ('put', 'u32', (0, 0), '15.5.8 config-0-resolvedfeatures-extrude.srl:381'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:381
+                    ('put', 'f64', (('=', '-$f.corners.3'),), '15.5.8 config-0-resolvedfeatures-extrude.srl:382'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:382
+                    ('put', 'f64', (1.0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:383'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:383
+                    ('rep', 3, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:384'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:384
+                    ('put', 'u32', (65537,), '15.5.8 config-0-resolvedfeatures-extrude.srl:385'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:385
+                    ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:386'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:386
+                    ('put', 'cstr', ('',), '15.5.8 config-0-resolvedfeatures-extrude.srl:387'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:387
+                    ('put', 'cstr', ('',), '15.5.8 config-0-resolvedfeatures-extrude.srl:388'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:388
+                    ('put', 'cstr', ('',), '15.5.8 config-0-resolvedfeatures-extrude.srl:389'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:389
+                    ('put', 'cstr', ('',), '15.5.8 config-0-resolvedfeatures-extrude.srl:390'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:390
+                    ('put', 'f64', (1.0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:391'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:391
+                    ('rep', 16, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:392'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:392
+                    ('put', 'f64', (0.5,), '15.5.8 config-0-resolvedfeatures-extrude.srl:393'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:393
+                    ('put', 'f64', (('$', 'f.cache_text'),), '15.5.8 config-0-resolvedfeatures-extrude.srl:394'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:394
+                    ('put', 'u32', (0, 0), '15.5.8 config-0-resolvedfeatures-extrude.srl:395'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:395
+                    ('put', 'f64', (-1.0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:396'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:396
+                    ('rep', 56, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:397'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:397
+                    ('put', 'f64', (('=', '-$f.depth'),), '15.5.8 config-0-resolvedfeatures-extrude.srl:398'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:398
+                    ('rep', 16, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:399'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:399
+                    ('put', 'f64', (('=', '-$f.depth'),), '15.5.8 config-0-resolvedfeatures-extrude.srl:400'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:400
+                    ('rep', 42, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:401'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:401
+                    ('put', 'u32', (131077, 131075, 0, 0), '15.5.8 config-0-resolvedfeatures-extrude.srl:402'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:402
+                    ('put', 'f64', (-1.0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:403'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:403
+                    ('rep', 36, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:404'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:404
+                    ('put', 'u32', (131074,), '15.5.8 config-0-resolvedfeatures-extrude.srl:405'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:405
+                    ('hex', '27', '15.5.8 config-0-resolvedfeatures-extrude.srl:406'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:406
+                    ('put', 'u32', (8388612,), '15.5.8 config-0-resolvedfeatures-extrude.srl:407'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:407
+                    ('rep', 7, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:408'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:408
+                    ('put', 'cstr', ('',), '15.5.8 config-0-resolvedfeatures-extrude.srl:409'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:409
+                    ('put', 'u32', (0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:410'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:410
+                    ('put', 'i32', (-1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:411'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:411
+                    ('put', 'f64', (('$', 'f.depth'),), '15.5.8 config-0-resolvedfeatures-extrude.srl:412'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:412
+                    ('put', 'u32', (8, 16, 1, 1), '15.5.8 config-0-resolvedfeatures-extrude.srl:413'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:413
+                    ('put', 'f64', (('$', 'f.depth'),), '15.5.8 config-0-resolvedfeatures-extrude.srl:414'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:414
+                    ('put', 'cstr', ('',), '15.5.8 config-0-resolvedfeatures-extrude.srl:415'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:415
+                    ('class', 'moFavoriteHandle_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:416'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:416
+                    ('put', 'u32', (0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:417'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:417
+                    ('put', 'i32', (-1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:418'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:418
+                    ('put', 'u32', (0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:419'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:419
+                    ('put', 'f64', (-1.0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:420'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:420
+                    ('put', 'u32', (65537,), '15.5.8 config-0-resolvedfeatures-extrude.srl:421'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:421
+                    ('hex', 'FD', '15.5.8 config-0-resolvedfeatures-extrude.srl:422'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:422
+                    ('put', 'u32', (14737985,), '15.5.8 config-0-resolvedfeatures-extrude.srl:423'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:423
+                    ('rep', 41, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:424'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:424
+                    ('put', 'u32', (114745, 0), '15.5.8 config-0-resolvedfeatures-extrude.srl:425'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:425
+                    ('put', 'f64', (1.0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:426'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:426
+                    ('rep', 24, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:427'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:427
+                    ('put', 'f64', (1.0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:428'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:428
+                    ('rep', 24, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:429'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:429
+                    ('put', 'f64', (1.0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:430'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:430
+                    ('put', 'u32', (1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:431'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:431
+                    ('rep', 28, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:432'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:432
+                    ('put', 'f64', (1.0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:433'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:433
+                    ('put', 'u32', (0, 0), '15.5.8 config-0-resolvedfeatures-extrude.srl:434'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:434
+                    ('put', 'f64', (1.0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:435'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:435
+                    ('put', 'cstr', ('',), '15.5.8 config-0-resolvedfeatures-extrude.srl:436'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:436
+                    ('put', 'cstr', ('',), '15.5.8 config-0-resolvedfeatures-extrude.srl:437'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:437
+                    ('put', 'cstr', ('',), '15.5.8 config-0-resolvedfeatures-extrude.srl:438'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:438
+                    ('put', 'cstr', ('',), '15.5.8 config-0-resolvedfeatures-extrude.srl:439'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:439
+                    ('put', 'u32', (0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:440'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:440
+                    ('put', 'i32', (-1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:441'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:441
+                    ('put', 'u32', (1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:442'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:442
+                    ('rep', 6, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:443'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:443
+                    ('put', 'u32', (1002101,), '15.5.8 config-0-resolvedfeatures-extrude.srl:444'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:444
+                    ('rep', 18, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:445'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:445
+                    ('put', 'u32', (1, 1, 0, 0, 1), '15.5.8 config-0-resolvedfeatures-extrude.srl:446'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:446
+                    ('rep', 32, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:447'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:447
+                    ('put', 'cstr', ('',), '15.5.8 config-0-resolvedfeatures-extrude.srl:448'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:448
+                    ('put', 'cstr', ('',), '15.5.8 config-0-resolvedfeatures-extrude.srl:449'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:449
+                    ('put', 'i32', (-1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:450'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:450
+                    ('put', 'u32', (0, 0), '15.5.8 config-0-resolvedfeatures-extrude.srl:451'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:451
+                    ('put', 'cstr', ('',), '15.5.8 config-0-resolvedfeatures-extrude.srl:452'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:452
+                    ('put', 'u32', (0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:453'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:453
+                    ('put', 'u32', (('$', 'f.counter_favorite'),), '15.5.8 config-0-resolvedfeatures-extrude.srl:454'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:454
+                    ('rep', 32, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:455'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:455
+                    ('put', 'cstr', ('',), '15.5.8 config-0-resolvedfeatures-extrude.srl:456'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:456
+                    ('rep', 56, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:457'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:457
+                    ('hex', '01', '15.5.8 config-0-resolvedfeatures-extrude.srl:458'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:458
+                    ('rep', 2, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:459'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:459
+                    ('put', 'u32', (1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:460'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:460
+                    ('rep', 55, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:461'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:461
+                    ('put', 'u32', (('=', 'int($f.merge)'),), '15.5.8 config-0-resolvedfeatures-extrude.srl:462'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:462
+                    ('put', 'u32', (0, 0), '15.5.8 config-0-resolvedfeatures-extrude.srl:463'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:463
+                    ('if', ('$', 'f.first'), (  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:464
+                        ('class', 'moFromEndSpec_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:465'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:465
+                        ('put', 'u32', (0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:466'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:466
+                        ('hex', '52', '15.5.8 config-0-resolvedfeatures-extrude.srl:467'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:467
+                        ('put', 'u32', (9808418,), '15.5.8 config-0-resolvedfeatures-extrude.srl:468'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:468
+                        ('put', 'u8', (0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:469'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:469
+                        ('put', 'f32', (137,), '15.5.8 config-0-resolvedfeatures-extrude.srl:470'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:470
+                        ('hex', 'FE4280', '15.5.8 config-0-resolvedfeatures-extrude.srl:471'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:471
+                        ('put', 'u32', (207138,), '15.5.8 config-0-resolvedfeatures-extrude.srl:472'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:472
+                        ('rep', 11, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:473'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:473
+                        ('put', 'i32', (-1,), '15.5.8 config-0-resolvedfeatures-extrude.srl:474'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:474
+                    ), (  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:464
+                        ('class', 'moFromEndSpec_c', 1, None, '15.5.8 config-0-resolvedfeatures-extrude.srl:476'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:476
+                        ('put', 'u32', (0,), '15.5.8 config-0-resolvedfeatures-extrude.srl:477'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:477
+                        ('hex', '401F6D48B1A833234C31969570FA', '15.5.8 config-0-resolvedfeatures-extrude.srl:478'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:478
+                        ('put', 'u32', (94813,), '15.5.8 config-0-resolvedfeatures-extrude.srl:479'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:479
+                        ('rep', 14, 0, '15.5.8 config-0-resolvedfeatures-extrude.srl:480'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:480
+                    ), '15.5.8 config-0-resolvedfeatures-extrude.srl:464'),  # spec 15.5.8 config-0-resolvedfeatures-extrude.srl:464
+                ), '15.5.6 config-0-resolvedfeatures.srl:21'),  # spec 15.5.6 config-0-resolvedfeatures.srl:21
+            ), '15.5.6 config-0-resolvedfeatures.srl:14'),  # spec 15.5.6 config-0-resolvedfeatures.srl:14
+        ), '15.5.6 config-0-resolvedfeatures.srl:13'),  # spec 15.5.6 config-0-resolvedfeatures.srl:13
+        ('put', 'u32', (0,), '15.5.1 config-0-resolvedfeatures.srl:29'),  # spec 15.5.1 config-0-resolvedfeatures.srl:29
     ),  # spec 15.5 config-0-resolvedfeatures.srl
     'Contents/CusProps': (  # spec 15.2 cusprops.srl
         ('archive', 'start', 1, '15.2.4 cusprops.srl:6'),  # spec 15.2.4 cusprops.srl:6
@@ -6185,10 +6668,10 @@ LISTINGS = {
         ('put', 'cstr', ('Created',), '15.2.2.2 model-header.srl:23'),  # spec 15.2.2.2 model-header.srl:23
         ('put', 'u32', (25,), '15.2.2.2 model-header.srl:159'),  # spec 15.2.2.2 model-header.srl:159
         ('put', 'cstr', ('Selection Sets',), '15.2.2.2 model-header.srl:160'),  # spec 15.2.2.2 model-header.srl:160
-        ('for', 'f', ('$', 'features'), False, (  # spec 15.2.2.2 model-header.srl:162
-            ('class', 'moLogs_c', 1, None, '15.2.2.2 model-header.srl:163'),  # spec 15.2.2.2 model-header.srl:163
-            ('if', ('$', 'f.sketch'), (  # spec 15.2.2.2 model-header.srl:164
-                ('put', 'u16', (2,), '15.2.2.2 model-header.srl:165'),  # spec 15.2.2.2 model-header.srl:165
+        ('for', 'f', ('$', 'features'), False, (  # spec 15.2.2.2 model-header.srl:163
+            ('class', 'moLogs_c', 1, None, '15.2.2.2 model-header.srl:164'),  # spec 15.2.2.2 model-header.srl:164
+            ('if', ('$', 'f.log_modified'), (  # spec 15.2.2.2 model-header.srl:165
+                ('put', 'u16', (2,), '15.2.2.2 model-header.srl:166'),  # spec 15.2.2.2 model-header.srl:166
                 ('class', 'moStamp_c', 1, None, '15.2.2.2 model-header.srl:19'),  # spec 15.2.2.2 model-header.srl:19
                 ('put', 'u16', (0,), '15.2.2.2 model-header.srl:20'),  # spec 15.2.2.2 model-header.srl:20
                 ('put', 'u32', (0,), '15.2.2.2 model-header.srl:21'),  # spec 15.2.2.2 model-header.srl:21
@@ -6199,69 +6682,69 @@ LISTINGS = {
                 ('put', 'u32', (0,), '15.2.2.2 model-header.srl:28'),  # spec 15.2.2.2 model-header.srl:28
                 ('put', 'u32', (('$', 'f.modified'),), '15.2.2.2 model-header.srl:29'),  # spec 15.2.2.2 model-header.srl:29
                 ('put', 'cstr', ('Modified',), '15.2.2.2 model-header.srl:30'),  # spec 15.2.2.2 model-header.srl:30
-            ), (  # spec 15.2.2.2 model-header.srl:164
-                ('put', 'u16', (1,), '15.2.2.2 model-header.srl:169'),  # spec 15.2.2.2 model-header.srl:169
+            ), (  # spec 15.2.2.2 model-header.srl:165
+                ('put', 'u16', (1,), '15.2.2.2 model-header.srl:170'),  # spec 15.2.2.2 model-header.srl:170
                 ('class', 'moStamp_c', 1, None, '15.2.2.2 model-header.srl:19'),  # spec 15.2.2.2 model-header.srl:19
                 ('put', 'u16', (0,), '15.2.2.2 model-header.srl:20'),  # spec 15.2.2.2 model-header.srl:20
                 ('put', 'u32', (0,), '15.2.2.2 model-header.srl:21'),  # spec 15.2.2.2 model-header.srl:21
                 ('put', 'u32', (('$', 'f.created'),), '15.2.2.2 model-header.srl:22'),  # spec 15.2.2.2 model-header.srl:22
                 ('put', 'cstr', ('Created',), '15.2.2.2 model-header.srl:23'),  # spec 15.2.2.2 model-header.srl:23
-            ), '15.2.2.2 model-header.srl:164'),  # spec 15.2.2.2 model-header.srl:164
-            ('put', 'u32', (('$', 'f.id'),), '15.2.2.2 model-header.srl:172'),  # spec 15.2.2.2 model-header.srl:172
-            ('put', 'cstr', (('$', 'f.name'),), '15.2.2.2 model-header.srl:173'),  # spec 15.2.2.2 model-header.srl:173
-        ), '15.2.2.2 model-header.srl:162'),  # spec 15.2.2.2 model-header.srl:162
-        ('put', 'u32', (('$', 'tpl.unix2'),), '15.2.2.2 model-header.srl:175'),  # spec 15.2.2.2 model-header.srl:175
-        ('put', 'u32', (('$', 'hdr.next_id'),), '15.2.2.2 model-header.srl:176'),  # spec 15.2.2.2 model-header.srl:176
-        ('put', 'u16', (0,), '15.2.2.2 model-header.srl:177'),  # spec 15.2.2.2 model-header.srl:177
-        ('put', 'u32', (('$', 'doc.stamp'),), '15.2.2.2 model-header.srl:178'),  # spec 15.2.2.2 model-header.srl:178
-        ('class', 'moExtObject_c', 1, None, '15.2.2.5 model-header.srl:181'),  # spec 15.2.2.5 model-header.srl:181
-        ('class', 'moCStringHandle_c', 1, None, '15.2.2.5 model-header.srl:182'),  # spec 15.2.2.5 model-header.srl:182
-        ('put', 'cstr', ('',), '15.2.2.5 model-header.srl:183'),  # spec 15.2.2.5 model-header.srl:183
-        ('class', 'moCStringHandle_c', 1, None, '15.2.2.5 model-header.srl:184'),  # spec 15.2.2.5 model-header.srl:184
-        ('put', 'cstr', (('$', 'doc.name'),), '15.2.2.5 model-header.srl:185'),  # spec 15.2.2.5 model-header.srl:185
-        ('hex', '020000', '15.2.2.5 model-header.srl:186'),  # spec 15.2.2.5 model-header.srl:186
-        ('put', 'u32', (('$', 'doc.created'),), '15.2.2.5 model-header.srl:187'),  # spec 15.2.2.5 model-header.srl:187
-        ('put', 'cstr', ('',), '15.2.2.5 model-header.srl:188'),  # spec 15.2.2.5 model-header.srl:188
+            ), '15.2.2.2 model-header.srl:165'),  # spec 15.2.2.2 model-header.srl:165
+            ('put', 'u32', (('$', 'f.id'),), '15.2.2.2 model-header.srl:173'),  # spec 15.2.2.2 model-header.srl:173
+            ('put', 'cstr', (('$', 'f.name'),), '15.2.2.2 model-header.srl:174'),  # spec 15.2.2.2 model-header.srl:174
+        ), '15.2.2.2 model-header.srl:163'),  # spec 15.2.2.2 model-header.srl:163
+        ('put', 'u32', (('$', 'tpl.unix2'),), '15.2.2.2 model-header.srl:176'),  # spec 15.2.2.2 model-header.srl:176
+        ('put', 'u32', (('$', 'hdr.next_id'),), '15.2.2.2 model-header.srl:177'),  # spec 15.2.2.2 model-header.srl:177
+        ('put', 'u16', (0,), '15.2.2.2 model-header.srl:178'),  # spec 15.2.2.2 model-header.srl:178
+        ('put', 'u32', (('$', 'doc.stamp'),), '15.2.2.2 model-header.srl:179'),  # spec 15.2.2.2 model-header.srl:179
+        ('class', 'moExtObject_c', 1, None, '15.2.2.5 model-header.srl:182'),  # spec 15.2.2.5 model-header.srl:182
+        ('class', 'moCStringHandle_c', 1, None, '15.2.2.5 model-header.srl:183'),  # spec 15.2.2.5 model-header.srl:183
+        ('put', 'cstr', ('',), '15.2.2.5 model-header.srl:184'),  # spec 15.2.2.5 model-header.srl:184
+        ('class', 'moCStringHandle_c', 1, None, '15.2.2.5 model-header.srl:185'),  # spec 15.2.2.5 model-header.srl:185
+        ('put', 'cstr', (('$', 'doc.name'),), '15.2.2.5 model-header.srl:186'),  # spec 15.2.2.5 model-header.srl:186
+        ('hex', '020000', '15.2.2.5 model-header.srl:187'),  # spec 15.2.2.5 model-header.srl:187
+        ('put', 'u32', (('$', 'doc.created'),), '15.2.2.5 model-header.srl:188'),  # spec 15.2.2.5 model-header.srl:188
         ('put', 'cstr', ('',), '15.2.2.5 model-header.srl:189'),  # spec 15.2.2.5 model-header.srl:189
         ('put', 'cstr', ('',), '15.2.2.5 model-header.srl:190'),  # spec 15.2.2.5 model-header.srl:190
-        ('put', 'u16', (0,), '15.2.2.5 model-header.srl:191'),  # spec 15.2.2.5 model-header.srl:191
-        ('if', ('=', 'len($features)>0'), (  # spec 15.2.2.5 model-header.srl:192
-            ('put', 'u32', (('$', 'doc.unix'),), '15.2.2.5 model-header.srl:193'),  # spec 15.2.2.5 model-header.srl:193
-        ), (  # spec 15.2.2.5 model-header.srl:192
-            ('put', 'u32', (('$', 'tpl.unix2'),), '15.2.2.5 model-header.srl:195'),  # spec 15.2.2.5 model-header.srl:195
-        ), '15.2.2.5 model-header.srl:192'),  # spec 15.2.2.5 model-header.srl:192
-        ('put', 'u32', (1, 0), '15.2.2.5 model-header.srl:197'),  # spec 15.2.2.5 model-header.srl:197
-        ('put', 'i32', (-1,), '15.2.2.5 model-header.srl:198'),  # spec 15.2.2.5 model-header.srl:198
-        ('put', 'cstr', ('Default',), '15.2.2.5 model-header.srl:199'),  # spec 15.2.2.5 model-header.srl:199
-        ('rep', 16, 0, '15.2.2.5 model-header.srl:200'),  # spec 15.2.2.5 model-header.srl:200
-        ('put', 'u32', (('$', 'doc.stamp2'),), '15.2.2.5 model-header.srl:201'),  # spec 15.2.2.5 model-header.srl:201
-        ('put', 'u32', (0, 0), '15.2.2.5 model-header.srl:202'),  # spec 15.2.2.5 model-header.srl:202
-        ('put', 'u32', (('$', 'doc.created'),), '15.2.2.5 model-header.srl:203'),  # spec 15.2.2.5 model-header.srl:203
-        ('rep', 18, 0, '15.2.2.5 model-header.srl:204'),  # spec 15.2.2.5 model-header.srl:204
-        ('put', 'u32', (2,), '15.2.2.5 model-header.srl:205'),  # spec 15.2.2.5 model-header.srl:205
-        ('if', ('=', 'len($features)>0'), (  # spec 15.2.2.5 model-header.srl:206
-            ('put', 'u32', (('$', 'doc.unix'),), '15.2.2.5 model-header.srl:207'),  # spec 15.2.2.5 model-header.srl:207
-        ), (  # spec 15.2.2.5 model-header.srl:206
-            ('put', 'u32', (('$', 'tpl.unix'),), '15.2.2.5 model-header.srl:209'),  # spec 15.2.2.5 model-header.srl:209
-        ), '15.2.2.5 model-header.srl:206'),  # spec 15.2.2.5 model-header.srl:206
-        ('class', 'suObList', 1, None, '15.2.2.5 model-header.srl:211'),  # spec 15.2.2.5 model-header.srl:211
-        ('put', 'u16', (0,), '15.2.2.5 model-header.srl:212'),  # spec 15.2.2.5 model-header.srl:212
-        ('put', 'u32', (0, 0), '15.2.2.5 model-header.srl:213'),  # spec 15.2.2.5 model-header.srl:213
-        ('if', ('$', 'model.solid'), (  # spec 15.2.2.6 model-header.srl:217
-            ('put', 'u32', (1,), '15.2.2.6 model-header.srl:218'),  # spec 15.2.2.6 model-header.srl:218
-            ('put', 'f64', (('$', 'hdr.centre.0'), ('$', 'hdr.centre.1'), ('$', 'hdr.centre.2')), '15.2.2.6 model-header.srl:219'),  # spec 15.2.2.6 model-header.srl:219
-            ('put', 'f64', (('$', 'model.max.0'), ('$', 'model.max.1'), ('$', 'model.max.2')), '15.2.2.6 model-header.srl:220'),  # spec 15.2.2.6 model-header.srl:220
-            ('put', 'f64', (('$', 'model.min.0'), ('$', 'model.min.1'), ('$', 'model.min.2')), '15.2.2.6 model-header.srl:221'),  # spec 15.2.2.6 model-header.srl:221
-            ('put', 'f64', (('$', 'model.sphere.3'),), '15.2.2.6 model-header.srl:222'),  # spec 15.2.2.6 model-header.srl:222
-        ), (  # spec 15.2.2.6 model-header.srl:217
-            ('put', 'u32', (0,), '15.2.2.6 model-header.srl:224'),  # spec 15.2.2.6 model-header.srl:224
-        ), '15.2.2.6 model-header.srl:217'),  # spec 15.2.2.6 model-header.srl:217
-        ('put', 'i32', (-1, -1, -1), '15.2.2.6 model-header.srl:226'),  # spec 15.2.2.6 model-header.srl:226
-        ('put', 'u32', (1,), '15.2.2.6 model-header.srl:227'),  # spec 15.2.2.6 model-header.srl:227
-        ('rep', 40, 0, '15.2.2.6 model-header.srl:228'),  # spec 15.2.2.6 model-header.srl:228
-        ('put', 'u32', (1,), '15.2.2.6 model-header.srl:229'),  # spec 15.2.2.6 model-header.srl:229
-        ('rep', 16, 0, '15.2.2.6 model-header.srl:230'),  # spec 15.2.2.6 model-header.srl:230
-        ('put', 'u32', (1,), '15.2.2.6 model-header.srl:231'),  # spec 15.2.2.6 model-header.srl:231
+        ('put', 'cstr', ('',), '15.2.2.5 model-header.srl:191'),  # spec 15.2.2.5 model-header.srl:191
+        ('put', 'u16', (0,), '15.2.2.5 model-header.srl:192'),  # spec 15.2.2.5 model-header.srl:192
+        ('if', ('=', 'len($features)>0'), (  # spec 15.2.2.5 model-header.srl:193
+            ('put', 'u32', (('$', 'doc.unix'),), '15.2.2.5 model-header.srl:194'),  # spec 15.2.2.5 model-header.srl:194
+        ), (  # spec 15.2.2.5 model-header.srl:193
+            ('put', 'u32', (('$', 'tpl.unix2'),), '15.2.2.5 model-header.srl:196'),  # spec 15.2.2.5 model-header.srl:196
+        ), '15.2.2.5 model-header.srl:193'),  # spec 15.2.2.5 model-header.srl:193
+        ('put', 'u32', (1, 0), '15.2.2.5 model-header.srl:198'),  # spec 15.2.2.5 model-header.srl:198
+        ('put', 'i32', (-1,), '15.2.2.5 model-header.srl:199'),  # spec 15.2.2.5 model-header.srl:199
+        ('put', 'cstr', ('Default',), '15.2.2.5 model-header.srl:200'),  # spec 15.2.2.5 model-header.srl:200
+        ('rep', 16, 0, '15.2.2.5 model-header.srl:201'),  # spec 15.2.2.5 model-header.srl:201
+        ('put', 'u32', (('$', 'doc.stamp2'),), '15.2.2.5 model-header.srl:202'),  # spec 15.2.2.5 model-header.srl:202
+        ('put', 'u32', (0, 0), '15.2.2.5 model-header.srl:203'),  # spec 15.2.2.5 model-header.srl:203
+        ('put', 'u32', (('$', 'doc.created'),), '15.2.2.5 model-header.srl:204'),  # spec 15.2.2.5 model-header.srl:204
+        ('rep', 18, 0, '15.2.2.5 model-header.srl:205'),  # spec 15.2.2.5 model-header.srl:205
+        ('put', 'u32', (2,), '15.2.2.5 model-header.srl:206'),  # spec 15.2.2.5 model-header.srl:206
+        ('if', ('=', 'len($features)>0'), (  # spec 15.2.2.5 model-header.srl:207
+            ('put', 'u32', (('$', 'doc.unix'),), '15.2.2.5 model-header.srl:208'),  # spec 15.2.2.5 model-header.srl:208
+        ), (  # spec 15.2.2.5 model-header.srl:207
+            ('put', 'u32', (('$', 'tpl.unix'),), '15.2.2.5 model-header.srl:210'),  # spec 15.2.2.5 model-header.srl:210
+        ), '15.2.2.5 model-header.srl:207'),  # spec 15.2.2.5 model-header.srl:207
+        ('class', 'suObList', 1, None, '15.2.2.5 model-header.srl:212'),  # spec 15.2.2.5 model-header.srl:212
+        ('put', 'u16', (0,), '15.2.2.5 model-header.srl:213'),  # spec 15.2.2.5 model-header.srl:213
+        ('put', 'u32', (0, 0), '15.2.2.5 model-header.srl:214'),  # spec 15.2.2.5 model-header.srl:214
+        ('if', ('$', 'model.solid'), (  # spec 15.2.2.6 model-header.srl:218
+            ('put', 'u32', (1,), '15.2.2.6 model-header.srl:219'),  # spec 15.2.2.6 model-header.srl:219
+            ('put', 'f64', (('$', 'hdr.centre.0'), ('$', 'hdr.centre.1'), ('$', 'hdr.centre.2')), '15.2.2.6 model-header.srl:220'),  # spec 15.2.2.6 model-header.srl:220
+            ('put', 'f64', (('$', 'model.max.0'), ('$', 'model.max.1'), ('$', 'model.max.2')), '15.2.2.6 model-header.srl:221'),  # spec 15.2.2.6 model-header.srl:221
+            ('put', 'f64', (('$', 'model.min.0'), ('$', 'model.min.1'), ('$', 'model.min.2')), '15.2.2.6 model-header.srl:222'),  # spec 15.2.2.6 model-header.srl:222
+            ('put', 'f64', (('$', 'model.sphere.3'),), '15.2.2.6 model-header.srl:223'),  # spec 15.2.2.6 model-header.srl:223
+        ), (  # spec 15.2.2.6 model-header.srl:218
+            ('put', 'u32', (0,), '15.2.2.6 model-header.srl:225'),  # spec 15.2.2.6 model-header.srl:225
+        ), '15.2.2.6 model-header.srl:218'),  # spec 15.2.2.6 model-header.srl:218
+        ('put', 'i32', (-1, -1, -1), '15.2.2.6 model-header.srl:227'),  # spec 15.2.2.6 model-header.srl:227
+        ('put', 'u32', (1,), '15.2.2.6 model-header.srl:228'),  # spec 15.2.2.6 model-header.srl:228
+        ('rep', 40, 0, '15.2.2.6 model-header.srl:229'),  # spec 15.2.2.6 model-header.srl:229
+        ('put', 'u32', (1,), '15.2.2.6 model-header.srl:230'),  # spec 15.2.2.6 model-header.srl:230
+        ('rep', 16, 0, '15.2.2.6 model-header.srl:231'),  # spec 15.2.2.6 model-header.srl:231
+        ('put', 'u32', (1,), '15.2.2.6 model-header.srl:232'),  # spec 15.2.2.6 model-header.srl:232
     ),  # spec 15.2 header2.srl
     'ModelStamps': (  # spec 15.1 modelstamps.srl
         ('put', 'u32', (('$', 'doc.created'),), '15.1.7 modelstamps.srl:4'),  # spec 15.1.7 modelstamps.srl:4
@@ -6297,10 +6780,10 @@ LISTINGS = {
         ('put', 'u32', (0, 4, 1), '15.1.6 swdoccontentmgrinfo.srl:28'),  # spec 15.1.6 swdoccontentmgrinfo.srl:28
         ('put', 'u32', (1,), '15.1.6 swdoccontentmgrinfo.srl:29'),  # spec 15.1.6 swdoccontentmgrinfo.srl:29
         ('put', 'cstr', ('Default',), '15.1.6 swdoccontentmgrinfo.srl:30'),  # spec 15.1.6 swdoccontentmgrinfo.srl:30
-        ('put', 'u32', (('=', 'len($bodies)'),), '15.1.6 swdoccontentmgrinfo.srl:31'),  # spec 15.1.6 swdoccontentmgrinfo.srl:31
-        ('if', ('=', 'len($bodies)>0'), (  # spec 15.1.6 swdoccontentmgrinfo.srl:32
-            ('put', 'u32', (('=', 'len($bodies)'),), '15.1.6 swdoccontentmgrinfo.srl:33'),  # spec 15.1.6 swdoccontentmgrinfo.srl:33
-            ('for', 'b', ('$', 'bodies'), False, (  # spec 15.1.6 swdoccontentmgrinfo.srl:34
+        ('put', 'u32', (('=', 'len($live_bodies)'),), '15.1.6 swdoccontentmgrinfo.srl:31'),  # spec 15.1.6 swdoccontentmgrinfo.srl:31
+        ('if', ('=', 'len($live_bodies)>0'), (  # spec 15.1.6 swdoccontentmgrinfo.srl:32
+            ('put', 'u32', (('=', 'len($live_bodies)'),), '15.1.6 swdoccontentmgrinfo.srl:33'),  # spec 15.1.6 swdoccontentmgrinfo.srl:33
+            ('for', 'b', ('$', 'live_bodies'), False, (  # spec 15.1.6 swdoccontentmgrinfo.srl:34
                 ('put', 'u32', (('$', 'b.id'),), '15.1.6 swdoccontentmgrinfo.srl:35'),  # spec 15.1.6 swdoccontentmgrinfo.srl:35
                 ('put', 'cstr', (('$', 'b.name'),), '15.1.6 swdoccontentmgrinfo.srl:36'),  # spec 15.1.6 swdoccontentmgrinfo.srl:36
             ), '15.1.6 swdoccontentmgrinfo.srl:34'),  # spec 15.1.6 swdoccontentmgrinfo.srl:34
@@ -6308,10 +6791,10 @@ LISTINGS = {
         ), '15.1.6 swdoccontentmgrinfo.srl:32'),  # spec 15.1.6 swdoccontentmgrinfo.srl:32
         ('put', 'u32', (1,), '15.1.6 swdoccontentmgrinfo.srl:39'),  # spec 15.1.6 swdoccontentmgrinfo.srl:39
         ('put', 'cstr', ('Default',), '15.1.6 swdoccontentmgrinfo.srl:40'),  # spec 15.1.6 swdoccontentmgrinfo.srl:40
-        ('put', 'u32', (('=', 'len($bodies)'),), '15.1.6 swdoccontentmgrinfo.srl:41'),  # spec 15.1.6 swdoccontentmgrinfo.srl:41
-        ('if', ('=', 'len($bodies)>0'), (  # spec 15.1.6 swdoccontentmgrinfo.srl:42
-            ('put', 'u32', (('=', 'len($bodies)'),), '15.1.6 swdoccontentmgrinfo.srl:43'),  # spec 15.1.6 swdoccontentmgrinfo.srl:43
-            ('for', 'b', ('$', 'bodies'), False, (  # spec 15.1.6 swdoccontentmgrinfo.srl:44
+        ('put', 'u32', (('=', 'len($live_bodies)'),), '15.1.6 swdoccontentmgrinfo.srl:41'),  # spec 15.1.6 swdoccontentmgrinfo.srl:41
+        ('if', ('=', 'len($live_bodies)>0'), (  # spec 15.1.6 swdoccontentmgrinfo.srl:42
+            ('put', 'u32', (('=', 'len($live_bodies)'),), '15.1.6 swdoccontentmgrinfo.srl:43'),  # spec 15.1.6 swdoccontentmgrinfo.srl:43
+            ('for', 'b', ('$', 'live_bodies'), False, (  # spec 15.1.6 swdoccontentmgrinfo.srl:44
                 ('put', 'u32', (('$', 'b.id'),), '15.1.6 swdoccontentmgrinfo.srl:45'),  # spec 15.1.6 swdoccontentmgrinfo.srl:45
                 ('put', 'u32', (1,), '15.1.6 swdoccontentmgrinfo.srl:46'),  # spec 15.1.6 swdoccontentmgrinfo.srl:46
             ), '15.1.6 swdoccontentmgrinfo.srl:44'),  # spec 15.1.6 swdoccontentmgrinfo.srl:44
@@ -6704,32 +7187,38 @@ LISTINGS = {
             ('<Keywords id="', ('$', 'doc.created'), '" Name="', ('$', 'doc.name'), '"><Configuration id="0" Name="Default" Type="ConfigurationManager" Material="Material &lt;not specified&gt;"/>'),  # spec 15.1.5 keywords.srl:8
         ), '15.1.5 keywords.srl:8'),  # spec 15.1.5 keywords.srl:8
         ('for', 'e', ('$', 'meta.kw_extrusions'), False, (  # spec 15.1.5 keywords.srl:12
-            ('if', ('$', 'e.first'), (  # spec 15.1.5 keywords.srl:13
+            ('if', ('$', 'e.cut'), (  # spec 15.1.5 keywords.srl:13
                 ('text', 'utf8', 'lf', False, False, (  # spec 15.1.5 keywords.srl:14
-                    ('<Extrusion id="', ('$', 'e.id'), '" Name="', ('$', 'e.name'), '" Type="Boss-Extrude"><Dimension Name="D1">', ('$', 'e.depth_text'), '</Dimension></Extrusion>'),  # spec 15.1.5 keywords.srl:14
+                    ('<Extrusion id="', ('$', 'e.id'), '" Name="', ('$', 'e.name'), '" Dissectable="true" DissectableChildren="', ('$', 'e.sketch_id'), '" DissectableRoot="true"/>'),  # spec 15.1.5 keywords.srl:14
                 ), '15.1.5 keywords.srl:14'),  # spec 15.1.5 keywords.srl:14
             ), (  # spec 15.1.5 keywords.srl:13
-                ('text', 'utf8', 'lf', False, False, (  # spec 15.1.5 keywords.srl:18
-                    ('<Extrusion id="', ('$', 'e.id'), '" Name="', ('$', 'e.name'), '" Dissectable="true" DissectableChildren="', ('$', 'e.sketch_id'), '" DissectableRoot="true"><Dimension Name="D1">', ('$', 'e.depth_text'), '</Dimension></Extrusion>'),  # spec 15.1.5 keywords.srl:18
+                ('if', ('$', 'e.first'), (  # spec 15.1.5 keywords.srl:18
+                    ('text', 'utf8', 'lf', False, False, (  # spec 15.1.5 keywords.srl:19
+                        ('<Extrusion id="', ('$', 'e.id'), '" Name="', ('$', 'e.name'), '" Type="Boss-Extrude"><Dimension Name="D1">', ('$', 'e.depth_text'), '</Dimension></Extrusion>'),  # spec 15.1.5 keywords.srl:19
+                    ), '15.1.5 keywords.srl:19'),  # spec 15.1.5 keywords.srl:19
+                ), (  # spec 15.1.5 keywords.srl:18
+                    ('text', 'utf8', 'lf', False, False, (  # spec 15.1.5 keywords.srl:23
+                        ('<Extrusion id="', ('$', 'e.id'), '" Name="', ('$', 'e.name'), '" Dissectable="true" DissectableChildren="', ('$', 'e.sketch_id'), '" DissectableRoot="true"><Dimension Name="D1">', ('$', 'e.depth_text'), '</Dimension></Extrusion>'),  # spec 15.1.5 keywords.srl:23
+                    ), '15.1.5 keywords.srl:23'),  # spec 15.1.5 keywords.srl:23
                 ), '15.1.5 keywords.srl:18'),  # spec 15.1.5 keywords.srl:18
             ), '15.1.5 keywords.srl:13'),  # spec 15.1.5 keywords.srl:13
         ), '15.1.5 keywords.srl:12'),  # spec 15.1.5 keywords.srl:12
-        ('text', 'utf8', 'lf', False, False, (  # spec 15.1.5 keywords.srl:24
-            ('<Feature id="1" Name="Annotations" Type="Annotations"/><Feature id="10" Name="Surface Bodies" Type="Surface Bodies"/><Feature id="11" Name="Material &lt;not specified&gt;" Type="SOLIDWORKS Materials"/><Feature id="12" Name="Ambient" Type="Ambient"/><Feature id="13" Name="Directional1" Type="Directional"/><Feature id="14" Name="Directional2" Type="Directional"/><Feature id="15" Name="Directional3" Type="Directional"/><Feature id="16" Name="Equations" Type="Equations"/><Feature id="17" Name="Notes" Type="Notes"/><Feature id="18" Name="Notes1___EndTag___" Type="Notes"/><Feature id="19" Name="" Type="Exploded Views"/><Feature id="2" Name="Front Plane" Type="Plane"/><Feature id="21" Name="Markups" Type="Markups"/><Feature id="22" Name="Sensors" Type="Sensors"/><Feature id="23" Name="Favorites" Type="Favorites"/><Feature id="24" Name="Folder " Type="History"/><Feature id="25" Name="Selection Sets" Type="Selection Sets"/><Feature id="3" Name="Top Plane" Type="Plane"/><Feature id="4" Name="Right Plane" Type="Plane"/><Feature id="6" Name="Lights and Cameras" Type="Lights and Cameras"/><Feature id="7" Name="Design Binder" Type="Design Binder"/><Feature id="8" Name="Comments" Type="Comments"/><Feature id="9" Name="Solid Bodies" Type="Solid Bodies"/>',),  # spec 15.1.5 keywords.srl:24
-        ), '15.1.5 keywords.srl:24'),  # spec 15.1.5 keywords.srl:24
-        ('for', 's', ('$', 'meta.kw_sketches'), False, (  # spec 15.1.5 keywords.srl:28
-            ('if', ('$', 's.origin'), (  # spec 15.1.5 keywords.srl:29
-                ('text', 'utf8', 'lf', False, False, (  # spec 15.1.5 keywords.srl:30
-                    ('<Sketch id="5" Name="Origin" Type="Origin"/>',),  # spec 15.1.5 keywords.srl:30
-                ), '15.1.5 keywords.srl:30'),  # spec 15.1.5 keywords.srl:30
-            ), (  # spec 15.1.5 keywords.srl:29
-                ('text', 'utf8', 'lf', False, False, (  # spec 15.1.5 keywords.srl:34
-                    ('<Sketch id="', ('$', 's.id'), '" Name="', ('$', 's.name'), '" Dissectable="true"/>'),  # spec 15.1.5 keywords.srl:34
-                ), '15.1.5 keywords.srl:34'),  # spec 15.1.5 keywords.srl:34
-            ), '15.1.5 keywords.srl:29'),  # spec 15.1.5 keywords.srl:29
-        ), '15.1.5 keywords.srl:28'),  # spec 15.1.5 keywords.srl:28
-        ('text', 'utf8', 'crlf', True, False, (  # spec 15.1.5 keywords.srl:39
-            ('</Keywords>',),  # spec 15.1.5 keywords.srl:39
-        ), '15.1.5 keywords.srl:39'),  # spec 15.1.5 keywords.srl:39
+        ('text', 'utf8', 'lf', False, False, (  # spec 15.1.5 keywords.srl:30
+            ('<Feature id="1" Name="Annotations" Type="Annotations"/><Feature id="10" Name="Surface Bodies" Type="Surface Bodies"/><Feature id="11" Name="Material &lt;not specified&gt;" Type="SOLIDWORKS Materials"/><Feature id="12" Name="Ambient" Type="Ambient"/><Feature id="13" Name="Directional1" Type="Directional"/><Feature id="14" Name="Directional2" Type="Directional"/><Feature id="15" Name="Directional3" Type="Directional"/><Feature id="16" Name="Equations" Type="Equations"/><Feature id="17" Name="Notes" Type="Notes"/><Feature id="18" Name="Notes1___EndTag___" Type="Notes"/><Feature id="19" Name="" Type="Exploded Views"/><Feature id="2" Name="Front Plane" Type="Plane"/><Feature id="21" Name="Markups" Type="Markups"/><Feature id="22" Name="Sensors" Type="Sensors"/><Feature id="23" Name="Favorites" Type="Favorites"/><Feature id="24" Name="Folder " Type="History"/><Feature id="25" Name="Selection Sets" Type="Selection Sets"/><Feature id="3" Name="Top Plane" Type="Plane"/><Feature id="4" Name="Right Plane" Type="Plane"/><Feature id="6" Name="Lights and Cameras" Type="Lights and Cameras"/><Feature id="7" Name="Design Binder" Type="Design Binder"/><Feature id="8" Name="Comments" Type="Comments"/><Feature id="9" Name="Solid Bodies" Type="Solid Bodies"/>',),  # spec 15.1.5 keywords.srl:30
+        ), '15.1.5 keywords.srl:30'),  # spec 15.1.5 keywords.srl:30
+        ('for', 's', ('$', 'meta.kw_sketches'), False, (  # spec 15.1.5 keywords.srl:34
+            ('if', ('$', 's.origin'), (  # spec 15.1.5 keywords.srl:35
+                ('text', 'utf8', 'lf', False, False, (  # spec 15.1.5 keywords.srl:36
+                    ('<Sketch id="5" Name="Origin" Type="Origin"/>',),  # spec 15.1.5 keywords.srl:36
+                ), '15.1.5 keywords.srl:36'),  # spec 15.1.5 keywords.srl:36
+            ), (  # spec 15.1.5 keywords.srl:35
+                ('text', 'utf8', 'lf', False, False, (  # spec 15.1.5 keywords.srl:40
+                    ('<Sketch id="', ('$', 's.id'), '" Name="', ('$', 's.name'), '" Dissectable="true"/>'),  # spec 15.1.5 keywords.srl:40
+                ), '15.1.5 keywords.srl:40'),  # spec 15.1.5 keywords.srl:40
+            ), '15.1.5 keywords.srl:35'),  # spec 15.1.5 keywords.srl:35
+        ), '15.1.5 keywords.srl:34'),  # spec 15.1.5 keywords.srl:34
+        ('text', 'utf8', 'crlf', True, False, (  # spec 15.1.5 keywords.srl:45
+            ('</Keywords>',),  # spec 15.1.5 keywords.srl:45
+        ), '15.1.5 keywords.srl:45'),  # spec 15.1.5 keywords.srl:45
     ),  # spec 15.1 keywords.srl
 }
