@@ -1,0 +1,103 @@
+# Contents/Config-0-ResolvedFeatures, section 15.5.12: one circle sketch on the Front
+# Plane, the features item $f: the profile of a cut (15.5.13). Its two points, in the
+# sketch's frame (the Front Plane: x along model X, y along model Y), are the centre,
+# point 2 at $f.centre, and the point the circle starts at, point 1 at $f.start, the
+# centre moved by the radius along +x. The circle is not tied to the origin. Proved on o10
+# and o11 (15.5.10).
+@section 15.5.12
+class moProfileFeature_c 1 as $f.name
+@use nodehead NAME=$f.name FLAGS=0x40000000 UID=$f.id
+u16 0  # children
+@use feattail ID==$fixed.id_base+11+$f_index STAMP=1 MEMO=$f.cache_memo TIME=$f.time
+u32 1
+rep 14 00
+class sgSketch 1
+u32 2   # sketch records
+rep 6 00
+@use pointcore ID=2 TIED=0 X=$f.centre.0 Y=$f.centre.1
+u16 0 1
+u32 0
+u16 1
+i32 -2
+rep 42 00
+@use pointcore ID=1 TIED=0 X=$f.start.0 Y=$f.start.1
+u16 2 2
+# The circle: an arc handle with no coordinates of its own; its centre and size are the
+# two points above.
+class sgArcHandle 1
+u16 0
+i32 -1
+u32 0 0
+i32 -2
+rep 48 00
+u32 1
+u16 0
+u32 1 1 0x1FFFFF
+u8 3
+i32 -1 -1
+f32 -1
+u32 0
+u16 0 5 1 1 1
+f32 -1
+u16 0
+u32 4
+rep 7 00
+f64 1.0
+rep 8 00
+u16 1 1 1
+rep 2 00
+f64 -1.0
+u32 1
+u16 0
+i32 -2 -2 -2 -2
+rep 56 00
+class suObList 1
+rep 14 00
+u16 1 1
+u32 2 3 1 2 1 1 1 1 1 1 1 1 1 1 0 1 0 0
+cstr ""
+u16 65535
+f32 -1
+i32 -1
+u32 1
+i32 -1
+rep 24 00
+u32 2
+rep 32 00
+class suObList 1
+rep 32 00
+u32 1 1
+class moSketchChain_c 1
+u32 65537
+rep 2 00
+u32 1     # the chain's one segment, the circle
+rep 2 00
+u32 6
+i32 -1
+u32 0 0 5 5
+cstr ""
+i32 -65536
+u32 65535
+rep 18 00
+u32 3 1
+rep 7 00
+u32 100000 0
+class moCompRefPlane_c 1
+class moUnitComponent_c 1
+u32 2
+rep 39 00
+i32 -1 -1 -1 -1
+rep 20 00
+u32 17000 2
+u32 $tpl.unix
+rep 2 00
+u32 3
+rep 25 00
+f64 1.0
+rep 3 00
+u32 4
+i32 -1
+u32 0
+u32 $f.regen   # free (15.5.9)
+u32 11         # 11 in both circle sketches; not the sketch's place (15.5.12)
+u32 0 0

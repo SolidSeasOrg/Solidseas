@@ -1,5 +1,6 @@
 # Contents/CMgr: the configuration manager (section 15.2.7).
-# One CArchive of its own. Proved on o01, o02, o03, o07 and o12.
+# One CArchive of its own. Proved on o01, o02, o03, o07 and o12, and with a cut on o10
+# and o11 (15.2, 15.5.10).
 @member Contents/CMgr
 @include visual-properties.srl
 @section 15.2.7.1
@@ -26,6 +27,24 @@ u32 =$cmgr.created%4294967296      #   high word first (15.2.7.2)
 u16 2
 u32 0x0005579C                     # not decoded, constant
 u32 1
+@end
+
+# A list of body ids (15.2.7.4): u32 the count, then per body its id and u16 0.
+@define bodyids LIST
+u32 =len(%LIST)
+@for i in %LIST
+u32 $i
+u16 0
+@endfor
+@end
+
+# The bodies made by a cut from another (15.2.7.4): u32 the count, then per pair the new
+# body's id and the id of the body it was made from.
+@define bodylinks
+u32 =len($body_links)
+@for k in $body_links
+u32 $k.new $k.old
+@endfor
 @end
 
 @archive start 1
@@ -70,8 +89,9 @@ u32 0x259EE3D0                     # not decoded, constant
 u32 0
 
 @section 15.2.7.4
-# The solid bodies (15.2.7.4): one per boss extrusion, in timeline order
-u32 =len($bodies)
+# The solid bodies (15.2.7.4): every body the part's features made, in timeline order,
+# those a cut has used up included; the first count is of the bodies still in the part.
+u32 =len($live_bodies)
 u32 0
 u32 17000
 u32 1
@@ -93,7 +113,9 @@ u32 =len($bodies)
 u32 $b.id                          # the body's id
 u32 0
 @endfor
-rep 40 00
+u32 0
+@use bodylinks
+rep 32 00
 u32 =len($bodies)
 @for b in $bodies
 u32 $b.id
@@ -101,9 +123,17 @@ class moLinkedAtomIdNode_c 1
 u32 $b.id
 u16 1
 u32 $b.feature                     # the node id of the feature that made the body
-rep 18 00
+u16 =len($b.changed)               # the features that changed it since (none in a generated part)
+@for c in $b.changed
+u32 $c
 @endfor
-rep 16 00
+@use bodyids LIST=$b.from          # the bodies it was made from
+@use bodyids LIST=$b.into          # the bodies made from it
+@use bodyids LIST=$b.from
+@use bodyids LIST=$b.into
+@endfor
+rep 12 00
+@use bodylinks
 u32 2                              # not decoded, constant
 rep 14 00
 u32 1
@@ -148,10 +178,10 @@ cstr ""
 rep 4 00
 class suObList 1                   # an empty list
 u16 0
-u32 =len($bodies)
-@for b in $bodies reversed
+u32 =len($builds)
+@for b in $builds                  # each feature that made or changed a body, in the order of 15.2.7.5
 u32 $b.feature
-u32 =$b.time//4294967296           # when the body was last built: a FILETIME,
+u32 =$b.time//4294967296           # when it last built the body: a FILETIME,
 u32 =$b.time%4294967296            #   high word first
 @endfor
 rep 8 00

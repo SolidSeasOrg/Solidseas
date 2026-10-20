@@ -65,11 +65,11 @@ def design_part(name: str) -> dict:
     uid = 26  # 15.5.4: the template's records use creation numbers 1 to 25
     for k, (corners, depth) in enumerate(DESIGNS[name]):
         x0, y0, x1, y1 = corners
-        sketch = {"name": f"Sketch{k + 1}", "sketch": True, "id": uid, "corners": list(corners),
-                  "at_origin": (x0, y0) == (0.0, 0.0)}
-        uid += 6 if sketch["at_origin"] else 7
+        sketch = {"name": f"Sketch{k + 1}", "sketch": True, "circle": False, "log_modified": True, "id": uid,
+                  "corners": list(corners), "at_origin": (x0, y0) == (0.0, 0.0)}
+        uid += 6 if k == 0 else 7  # 15.5.4: the first sketch leaves 5 numbers unused, a later one 6
         ext = {
-            "name": f"Boss-Extrude{k + 1}", "sketch": False, "id": uid,
+            "name": f"Boss-Extrude{k + 1}", "sketch": False, "cut": False, "log_modified": False, "id": uid,
             "sketch_name": sketch["name"], "sketch_id": sketch["id"], "depth": depth,
             "depth_text": T.depth_text(depth * 1000), "corners": list(corners),
             "first": k == 0, "merge": k == 0,
@@ -79,7 +79,8 @@ def design_part(name: str) -> dict:
         }
         uid += 1
         features += [sketch, ext]
-        bodies.append({"id": 101 + k, "name": ext["name"], "label": f"body{k + 1}", "feature": ext["id"]})
+        bodies.append({"id": 101 + k, "name": ext["name"], "label": f"body{k + 1}", "feature": ext["id"],
+                       "last": ext["id"], "changed": [], "live": True, "from": [], "into": []})
     boxes = [([f["corners"][0], f["corners"][1], 0.0], [f["corners"][2], f["corners"][3], f["depth"]])
              for f in features if not f["sketch"]]
     solid = bool(boxes)
@@ -97,6 +98,10 @@ def design_part(name: str) -> dict:
         "features": features,
         "sketches": [f for f in features if f["sketch"]],
         "bodies": bodies,
+        "live_bodies": bodies,
+        "body_links": [],
+        "builds": [{"feature": b["feature"]} for _, _, b in
+                   sorted((b["feature"] % 17, -k, b) for k, b in enumerate(bodies))],
         "model": {
             "solid": solid, "min": lo, "max": hi, "centre": centre,
             "sphere": A.sphere(boxes) if solid else [0.0] * 4,
@@ -129,6 +134,8 @@ def _full(name: str) -> dict:
     _merge(s, E.read_identity(fx))
     s["fixed"] = {"id_base": s["doc"]["stamp"] - 11 - len(s["features"])}  # 15.6.5: derived from doc.stamp
     H.read_identity(fx, s)
+    for b in s["bodies"]:  # 15.2.7.5 gives each body's time, in the list of the features that built it
+        b["time"] = next(x["time"] for x in s["builds"] if x["feature"] == b["feature"])
     s = A.read_identity(fx, s)
     # 3. derived from identity and free slots
     doc = s["doc"]

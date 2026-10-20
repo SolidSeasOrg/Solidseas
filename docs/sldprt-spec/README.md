@@ -111,8 +111,11 @@ for every slot, shared or not, and its tables name every slot a listing reads.
 | `props` | design | list | the file custom properties, in the design's order; fields `name`, `pid`, `code`, `type_id`, `vt`, `text`, `xml_text`, `xml_value` (15.6.9) |
 | `props_by_name` | derived | list | the same items ordered by name without regard to case (15.6.9) |
 | `sketches` | derived | list | the sketch items of `features`, in timeline order (15.6.5) |
-| `bodies` | derived | list | the solid bodies, one per extrusion, in timeline order; schema 15.6.4 |
-| `model.solid` | derived | bool | the part has at least one extrusion (15.6.3) |
+| `bodies` | derived | list | the solid bodies, one per extrusion or cut, in timeline order, a body a cut used up included; schema 15.6.4 |
+| `live_bodies` | derived | list | the items of `bodies` still in the part (15.6.5) |
+| `body_links` | derived | list | each body a cut made, with the body it was made from; fields `new`, `old` (15.6.5) |
+| `builds` | derived | list | each feature that made or changed a body, with when it built it, in a hash table's order; fields `feature`, `time` (15.6.5) |
+| `model.solid` | derived | bool | the part has at least one box (15.6.3) |
 | `model.min`, `model.max`, `model.centre` | derived | 3 f64 each | the model's box in metres and its centre (15.6.3) |
 | `model.sphere` | derived | 4 f64 | the bounding sphere's centre and radius (15.6.3) |
 | `model.origin_refs` | derived | u32 | the number of sketches whose first corner is the origin (15.6.3) |
@@ -122,7 +125,9 @@ for every slot, shared or not, and its tables name every slot a listing reads.
 
 Inside `@for x in $list` the loop variable's fields are `$x.field` and its
 position in the iteration is `$x_index` (from 0; with `reversed`, 0 is the last
-item of the list).
+item of the list). When the list's items are numbers or texts, `$x` is the item
+itself (`@for i in $b.from` ... `u32 $i`). A path may index a list by position:
+`$f.corners.0`, `$f.ring.4.face`.
 
 ### 15.0.3 The listing language
 
@@ -206,7 +211,11 @@ extruded blind (o02, and o03, the same part saved again), the same box with
 three file custom properties (o04), the same box at another depth (o07), and
 two boxes (o12). Every listing is proved on these six parts, and the two
 property listings also on the five typed properties of o14, a part that holds
-more than the generator writes (15.1.4, 15.2.4). A listing is claimed for
+more than the generator writes (15.1.4, 15.2.4). The circle and the cut of a
+box with a hole are proved on o10 (a box imported from STEP, then a hole cut
+through all) and o11 (a box rounded by fillets, a hole, a fillet on the hole),
+record by record and, for the members their other features leave alone, member
+by member (15.5.10). A listing is claimed for
 exactly the parts it was proved on. A claim marked "VERIFIED (5 parts)" in a
 section was made on o01, o02, o03, o07 and o12, before o04 was added.
 
@@ -228,7 +237,7 @@ that value is accepted (VERIFIED) or not yet (HYPOTHESIS).
 | `plan(doc, *, identity=None, allow_partial=False) -> Plan` | what `write_part` would write: `slots` (the dict of every slot, section by section), `left_out` (each item of the design not written, in words for the person exporting), `names` (the design's feature names and the names they get in the part) |
 | `assemble(slots) -> dict[str, bytes]` | every member of section 15.0.1, by name, from a complete slot dict; `write_part` is `plan`, then `assemble`, then the container (15.1.1) |
 | `Identity` | the identity values of one file: `when` (a UTC `datetime`), `key_index` (15.1.1.1), the GUIDs `anim_guid`, `exch_front`, `exch_top`, `exch_right`, `exch_doc`, `exch_config`, and `file_stem`. Section 15.6.6 defines each and the default the generator makes when `identity` is `None` (the clock and a random source) |
-| `SPEC_CONSTANTS` | every run longer than 31 bytes of output that is the same whatever the design's values and the identity: the listings' constants together with the values section 15.6.6 fixes (such as `SolidSeas`) and values derived only from how many features, bodies and properties there are and of which types. Computed by comparing assemblies of the same shape made with different values and different identities, and keeping the runs that agree, as `bytes`, for the clean-room test (`docs/CLEANROOM.md` section 4). The shapes: an empty part, one box, two boxes, and one box with five file custom properties, one of each form of 15.6.9 in this order: a text, a whole number (an `int`), a real number (a `float`), a date and yes or no. In the two variants of the last shape every name and every value as typed has the same length and differs from the first character, except the yes or no property, which is true in both; the names start with ASCII letters, and in both variants they sort by `props_by_name` in the design's order, so the members line up byte for byte |
+| `SPEC_CONSTANTS` | every run longer than 31 bytes of output that is the same whatever the design's values and the identity: the listings' constants together with the values section 15.6.6 fixes (such as `SolidSeas`) and values derived only from how many features, bodies and properties there are and of which types. Computed by comparing assemblies of the same shape made with different values and different identities, and keeping the runs that agree, as `bytes`, for the clean-room test (`docs/CLEANROOM.md` section 4). The shapes: an empty part, one box, two boxes, one box with a hole (a circle inside the box's rectangle, cut through all in both directions, 15.6.2), and one box with five file custom properties, one of each form of 15.6.9 in this order: a text, a whole number (an `int`), a real number (a `float`), a date and yes or no. In the two variants of the last shape every name and every value as typed has the same length and differs from the first character, except the yes or no property, which is true in both; the names start with ASCII letters, and in both variants they sort by `props_by_name` in the design's order, so the members line up byte for byte |
 | `NativeWriteUnsupported` | a `ValueError` with `items`, the list of what cannot be written |
 
 `assemble` takes the slot dict in the shape the sections define (one dict for
@@ -239,4 +248,6 @@ is held to the specification without its author seeing the part. The analysis
 side holds itself to the same: one slot dict per part assembles all 35 of its
 members, and the rules of 15.6 applied to the part written as an IR design, with
 only its identity and free values read from the part, give the same 35 members
-(VERIFIED, o01, o02, o03, o04, o07, o12).
+(VERIFIED, o01, o02, o03, o04, o07, o12). For a box with a hole, which no fixture
+is, the analysis side's rules give the 35 members the generator is held to, each
+record of which is proved on o10 and o11 (15.5.10).

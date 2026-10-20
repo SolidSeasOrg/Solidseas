@@ -1,5 +1,5 @@
 # ThirdPtyStore/VisualStates: the display state's per-node visibility and appearance
-# (section 15.2.6). Proved on o01, o02, o03, o07 and o12.
+# (section 15.2.6). Proved on o01, o02, o03, o07 and o12, and with a circle on o10 and o11.
 @member ThirdPtyStore/VisualStates
 @include visual-properties.srl
 @section 15.2.6.1

@@ -1,6 +1,6 @@
 # Contents/Config-0: the document's settings archive (section 15.4).
 # One MFC CArchive with Contents/Config-0-ResolvedFeatures (15.0.4). Proved on o01, o02,
-# o03, o07 and o12 (15.4.12).
+# o03, o07 and o12 (15.4.12); the bodies a cut leaves on o10 and o11 (15.4.6).
 @member Contents/Config-0
 @include config-0-macros.srl
 @section 15.4.1
@@ -232,8 +232,9 @@ i32 -1
 u32 0
 cstr ""
 rep 12 00
-u32 $b.id 0                # body id: 101 for the first body, then 102 ...
-u32 $b.feature $b.feature        # creation number of the feature that made the body
+u32 $b.id                  # body id: 101 for the first body, then 102 ...
+u32 =int(not($b.live))     # 1 when a cut has used the body up (15.4.6)
+u32 $b.last $b.feature           # creation numbers: the last feature that built the body, the one that made it
 rep 12 00
 u32 1
 i32 -1
@@ -329,9 +330,9 @@ class moCThreadRefMgr_c 1
 # they have been evaluated (15.4.11). The generator writes the empty form.
 rep 23 00
 @if $config0.mass_block
-u32 1 1 =len($bodies)
-@for b in $bodies
-u32 $b.id =$doc.stamp2-2*(len($bodies)-1-$b_index)   # body id, mass tag (15.4.9)
+u32 1 1 =len($live_bodies)
+@for b in $live_bodies
+u32 $b.id =$doc.stamp2-2*(len($live_bodies)-1-$b_index)   # body id, mass tag (15.4.9)
 f64 1.0
 @endfor
 f64 $config0.mass.0 $config0.mass.1 $config0.mass.2      # centre of mass

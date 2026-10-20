@@ -1,5 +1,5 @@
 # Contents/Config-0-LWDATA: the configuration's light-weight data (section 15.2.5).
-# Proved on o01, o02, o03, o07 and o12.
+# Proved on o01, o02, o03, o07 and o12, and with a cut on o10 and o11.
 @member Contents/Config-0-LWDATA
 @section 15.2.5.1
 u32 $doc.stamp                     # the document's change stamp (15.2.2.4)

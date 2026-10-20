@@ -1,6 +1,6 @@
 # The model header: the body Header2 and Contents/Config-0-ModelHeader share (section 15.2.2).
 # One CArchive of its own. Proved on o01, o02, o03, o07 and o12, through header2.srl and
-# config-0-modelheader.srl.
+# config-0-modelheader.srl, and with a cut on o11 (15.2.2.2).
 @archive start 1
 @section 15.2.2.1
 class moHeader_c 1
@@ -158,10 +158,11 @@ u16 1
 @use created T=$doc.created
 u32 25
 cstr "Selection Sets"
-# The features, in timeline order (15.2.2.3): a sketch is logged created and modified
+# The features, in timeline order (15.2.2.3): logged created, and also modified when
+# $f.log_modified (a corner rectangle's sketch)
 @for f in $features
 class moLogs_c 1
-@if $f.sketch
+@if $f.log_modified
 u16 2
 @use created T=$f.created
 @use modified T=$f.modified

@@ -15,8 +15,10 @@ import pytest
 
 from solidseas.formats.solidworks import open_document
 from solidseas.nativewrite import ir
+from swnative import features as F_
 from swnative import listing as L
 from swnative import speccases as S
+from swnative.speccases import cut as CUT
 from swnative.speccases import design as D
 from swnative.speccases import full as F
 
@@ -247,3 +249,157 @@ def test_no_listing_or_section_carries_a_name_or_path_from_a_fixture():
         text = p.read_text(encoding="utf-8").lower()
         for w in words:
             assert w.lower() not in text, f"{p.name} carries a fixture's {w!r}"
+
+
+# ------------------------------------------------------------------ the circle and the cut (15.5.12, 15.5.13)
+def _box_with_hole(cx=0.005, cy=0.01, r=0.0025, corners=(0.0, 0.0, 0.01, 0.02), depth=0.03):
+    """A corner rectangle extruded blind, then a circle cut through all in both directions."""
+    return ir.validate(ir.Document("box", [
+        D._rectangle("s1", "Sketch1", *corners), ir.Extrude("e1", "Extrude1", "s1", depth),
+        D.circle_sketch("s2", "Sketch2", cx, cy, r), D.through_cut("e2", "Cut1", "s2")]))
+
+
+def _uid(name: str) -> dict[str, int]:
+    feats = S.fixture(name)[CUT.FEATURES]
+    return {n.name: struct.unpack_from("<I", feats, n.end + 8)[0] for n in F_.named_nodes(feats)}
+
+
+def test_the_scan_of_o10_and_o11_reaches_every_anchor():
+    """cut.py's two corrections of the archive scan (docs/NATIVE_SLDPRT_WRITER.md 4.6): with
+    o10's three false references skipped, the count at the end of Contents/Config-0 is the
+    feature stream's header; with o11's false reference inside its box's cache double skipped,
+    the count where Sketch2 starts is the object the cut's child list names."""
+    fx = S.fixture("o10")
+    assert len(CUT.phantom_references(fx[CUT.CONFIG], 3)) == 3
+    CUT.walk(fx, 6)  # asserts the header
+    fx = S.fixture("o11")
+    feats = fx[CUT.FEATURES]
+    nodes = {n.name: n for n in F_.named_nodes(feats)}
+    start = CUT.class_token(feats, nodes["Sketch2"].offset)
+    w = CUT.walk(fx, start, CUT.cache_phantoms(feats, 0.04))
+    child = struct.unpack_from("<H", feats, nodes["Cut-Extrude1"].end + 28)[0]  # after the head (15.4.2)
+    assert w.next == child
+
+
+def test_the_circle_and_cut_listings_give_o11s_records():
+    """15.5.12 and 15.5.13 on o11, whose cut follows a box like a generated part's: Sketch2 and
+    Cut-Extrude1 byte for byte, but for the class of the two faces of Fillet1 in each of the
+    cut's two lists of its body's faces, which o11 names moFilletSurfIdRep_c (a fillet's face)
+    and the listing, written for a box, moFromSktEntSurfIdRep_c."""
+    case = CUT.feature_case("o11")
+    feats = S.fixture("o11")[CUT.FEATURES]
+    uid = _uid("o11")
+    w = CUT.walk(S.fixture("o11"), len(feats), CUT.cache_phantoms(feats, 0.04))
+    fillet = struct.pack("<H", 0x8000 | w.classes["moFilletSurfIdRep_c"])
+    side = struct.pack("<H", 0x8000 | w.classes["moFromSktEntSurfIdRep_c"])
+    assert len(case.got) == len(case.want)
+    differ = {k for k in range(len(case.got)) if case.got[k] != case.want[k]}
+    starts = [k for k in range(len(case.got) - 1)
+              if case.got[k:k + 2] == side and case.want[k:k + 2] == fillet]
+    assert len(starts) == 4
+    assert differ <= {k for s in starts for k in (s, s + 1)}
+    cut = case.slots["features"][1]
+    box_time = CUT.history_created(feats, uid["Boss-Extrude1"])
+    assert cut["target_created"] == box_time == cut["ring"][0]["created"] == cut["ring"][3]["created"]
+    assert cut["created"] == CUT.history_created(feats, uid["Cut-Extrude1"])
+
+
+def test_the_circle_and_cut_listings_give_o10s_records():
+    """15.5.12 and 15.5.13 on o10, a cut through an imported body: Sketch1 byte for byte, and
+    every record of Cut-Extrude1 but the entries naming the import's faces, each assembled with
+    the archive o10 has where it starts. One field differs, as the specification says: after
+    the first face list o10 writes its body's id and 33 where o11, whose body a boss extrusion
+    made, writes 0 and 0 (15.5.13)."""
+    sketch = CUT.feature_case("o10", cut=False)
+    assert sketch.got == sketch.want
+    for what, case in CUT.o10_segments():
+        if what.startswith("the chooser"):
+            k = next(r.offset for r in case.runs if r.source == CUT.CUT
+                     and case.got[r.offset:r.offset + 4] == struct.pack("<I", 1)
+                     and case.got[r.offset + 4:r.offset + 8] == struct.pack("<I", 101))
+            assert case.want[k + 12:k + 20] == struct.pack("<II", 101, 33)
+            assert case.got[k + 12:k + 20] == struct.pack("<II", 0, 0)
+            assert case.got[:k + 12] + case.got[k + 20:] == case.want[:k + 12] + case.want[k + 20:], what
+        else:
+            assert case.got == case.want, what
+
+
+@pytest.mark.parametrize("name,member", [(n, m) for n in CUT.WHOLE for m in CUT.WHOLE[n]])
+def test_a_cut_parts_member_follows_its_design(name, member):
+    """Members a cut changes, given whole by their listings from what o10 and o11 are: the
+    bodies a cut makes and uses up (15.2.7.4, 15.4.6), the logs (15.2.2.2), the display state
+    (15.2.6) and the stamps."""
+    res = CUT.member_case(name, member, CUT.WHOLE[name][member])
+    assert L.first_difference(res, S.fixture(name)[member]) is None
+
+
+def test_config_0_gives_the_bodies_a_cut_leaves():
+    """15.4.6: o11's Contents/Config-0 byte for byte up to its tail size, which counts what its
+    fillets add further on, and its two bodies, the one the cut made and the one it used up;
+    and o10's two bodies, but for the archive index of moAtom_c, one higher there because the
+    import starts the numbering at 3 (docs/NATIVE_SLDPRT_WRITER.md 4.6)."""
+    lines = (LISTINGS / "config-0.srl").read_text(encoding="utf-8").splitlines()
+    for name in ("o11", "o10"):
+        res = CUT.config0_case(name)
+        c0 = S.fixture(name)[CUT.CONFIG]
+        a, b = CUT.atoms(res.data)
+        a2, b2 = CUT.atoms(c0)
+        got, want = res.data[a:b], c0[a2:b2]
+        if name == "o11":
+            size = next(r.offset for r in res.runs
+                        if r.source == "config-0.srl" and "tail_size" in lines[r.line - 1])
+            assert res.data[:size] == c0[:size]
+            assert got == want
+        else:
+            ref = 6 + len(b"moAtom_c") + 86  # the second atom's class reference
+            index = struct.unpack_from("<H", got, ref)[0] & 0x7FFF
+            assert got[:ref] + got[ref + 2:] == want[:ref] + want[ref + 2:]
+            assert want[ref:ref + 2] == struct.pack("<H", 0x8000 | index + 1)
+
+
+def test_keywords_name_a_cut_without_a_dimension():
+    """15.1.5: the cut's element, and the circle sketch's, are SOLIDWORKS' own in o10 and o11."""
+    for name in ("o10", "o11"):
+        extrusions, sketches, kw = CUT.keyword_elements(name)
+        assert extrusions in kw and sketches in kw
+        assert 'Name="Cut-Extrude1" Dissectable="true"' in extrusions
+
+
+def test_the_rules_of_15_6_give_a_box_with_a_hole():
+    """15.6.2 to 15.6.6 for a box with a hole: the items, the bodies, the order of 15.2.7.5,
+    and every member assembles from the slots the generator's identity gives."""
+    doc = _box_with_hole()
+    slots = D.design_slots(doc, D.generator_identity(doc, D.Identity.new()))
+    sketch, cut = slots["features"][2:]
+    assert (sketch["id"], cut["id"], sketch["circle"], cut["cut"]) == (33, 40, True, True)
+    assert sketch["start"] == [0.0075, 0.01] and cut["target_uid"] == 32 and cut["body_id"] == 102
+    assert [(e["end"], e["face"]) for e in cut["ring"]] == [
+        (False, 4), (True, 1), (False, 3), (True, 0), (False, 1)]
+    assert [(b["id"], b["live"], b["from"], b["into"]) for b in slots["bodies"]] == [
+        (101, False, [], [102]), (102, True, [101], [])]
+    assert [b["feature"] for b in slots["builds"]] == [40, 32]
+    assert slots["model"]["max"] == [0.01, 0.02, 0.03] and slots["hdr"]["next_id"] == 41
+    results = _assemble_all(slots)
+    assert len(results) == 35
+    assert results["ModelStamps"].data[4:] == bytes.fromhex("8c0000006f000000")
+    c0, feats = results["Contents/Config-0"].data, results["Contents/Config-0-ResolvedFeatures"].data
+    assert F_.object_map(c0, feats)[0].count == F_.header(feats)[0]
+    assert [n.name for n in F_.named_nodes(feats)][-4:] == ["Boss-Extrude1", "D1", "Sketch2", "Cut-Extrude1"]
+
+
+@pytest.mark.parametrize("change, reason", [
+    (lambda d: setattr(d.features[3], "direction", "forward"), "both directions"),
+    (lambda d: setattr(d.features[3], "end", "blind"), "both directions"),
+    (lambda d: setattr(d.features[2].curves[0], "radius", 0.006), "inside the box"),
+    (lambda d: d.features[2].curves.append(ir.Curve("k2", "circle", ["c"], radius=0.001)),
+     "more than one circle"),
+    (lambda d: d.features.extend([D.circle_sketch("s3", "S3", 0.005, 0.01, 0.001),
+                                  D.through_cut("e3", "Cut2", "s3")]), "last feature"),
+    (lambda d: d.features.__setitem__(slice(2, 2), [D._rectangle("s9", "S9", 0.03, 0.0, 0.04, 0.02),
+                                                    ir.Extrude("e9", "E9", "s9", 0.01)]), "one box"),
+])
+def test_the_rules_of_15_6_refuse_what_the_fixtures_do_not_show(change, reason):
+    doc = _box_with_hole()
+    change(doc)
+    with pytest.raises(ValueError, match=reason):
+        D.features_of(doc)

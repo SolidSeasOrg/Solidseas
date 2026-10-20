@@ -1,5 +1,6 @@
 # Contents/Config-0-ResolvedFeatures: the feature tree (section 15.5). It continues the
-# archive of Contents/Config-0 (15.0.4). Proved on o01, o02, o03, o07 and o12.
+# archive of Contents/Config-0 (15.0.4). Proved on o01, o02, o03, o07 and o12; the circle
+# sketch and the cut on o10 and o11 record by record (15.5.12, 15.5.13).
 @member Contents/Config-0-ResolvedFeatures
 @include config-0-macros.srl
 @section 15.5.1
@@ -11,9 +12,17 @@ u16 =17+len($features)    # top-level features: the template's 17, then the desi
 @section 15.5.6
 @for f in $features
 @if $f.sketch
+@if $f.circle
+@include config-0-resolvedfeatures-circle.srl
+@else
 @include config-0-resolvedfeatures-sketch.srl
+@endif
+@else
+@if $f.cut
+@include config-0-resolvedfeatures-cut.srl
 @else
 @include config-0-resolvedfeatures-extrude.srl
+@endif
 @endif
 @endfor
 @section 15.5.1

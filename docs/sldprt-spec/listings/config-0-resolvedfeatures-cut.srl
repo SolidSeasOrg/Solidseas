@@ -1,0 +1,141 @@
+# Contents/Config-0-ResolvedFeatures, section 15.5.13: one cut, through all in both
+# directions from the Front Plane, of the circle sketch just before it, through the one
+# box of the part, the features item $f. The cut makes a new body ($f.body_label) from the
+# body it cuts ($f.target_label). Its face records name faces by the feature that made
+# them, that feature's time and the face's number within it (15.5.13). Proved on o11 and,
+# record by record, on o10 (15.5.10).
+@section 15.5.13
+class moICE_c 1 as $f.name
+@use nodehead NAME=$f.name FLAGS=0x400201CA UID=$f.id
+u16 1  # children
+objref $f.sketch_name
+@use feattail ID==$fixed.id_base+11+$f_index STAMP=1 MEMO=$f.cache_memo TIME=$f.time
+u32 1
+rep 10 00
+u32 1
+hex 01
+u8 0
+objref $f.body_label     # the body the cut makes
+u32 1
+u16 1
+objref $f.target_label   # the body it cuts
+u16 0
+u32 1
+u32 $f.body_id
+u32 3 1
+u16 1
+# The body the cut is applied to, named by one of its faces and that face's neighbours.
+class moCompSolidBody_c 1
+class moUnitComponent_c 1
+u16 2
+rep 5 00
+u32 $f.target_id $f.target_id
+rep 28 00
+i32 -1 -1 -1 -1
+rep 20 00
+u32 17000
+@use faceref KIND=6 FLAGS=0 COUNTER=0
+@use cutface E=f.ring.0 L=ringa0
+@use cutface E=f.ring.1 L=ringa1
+@use cutface E=f.ring.2 L=ringa2
+@use cutface E=f.ring.3 L=ringa3
+@use cutface E=f.ring.4 L=ringa4
+rep 10 00
+u32 17000 0 0
+u32 1 $f.target_id $f.target_uid 0 0
+u32 1 65537
+class moPerBodyChooserData_c 1
+hex 02
+u8 0
+# The cut's own face, the cylinder (the circle's one sketch entity), and its neighbours,
+# the two caps of the box.
+@use faceref KIND=5 FLAGS=768 COUNTER=$f.counter_face1
+class moFromSktEnt3IntSurfIdRep_c 1 as cyl
+rep 2 00
+class moFR_c 1
+objref ext_obj
+u32 $f.id $f.created
+u32 1
+i32 -1
+u32 0
+class moEndFaceSurfIdRep_c 1 as cap0
+rep 2 00
+class moFR_c 1
+objref ext_obj
+u32 $f.target_uid $f.target_created
+u32 0 0
+rep 2 00
+class moEndFaceSurfIdRep_c 1 as cap1
+rep 2 00
+class moFR_c 1
+objref ext_obj
+u32 $f.target_uid $f.target_created
+u32 1 0
+rep 10 00
+u32 17000 0 0
+@use faceref KIND=6 FLAGS=768 COUNTER=$f.counter_face2
+@use cutface E=f.ring.0 L=ring0
+@use cutface E=f.ring.1 L=ring1
+@use cutface E=f.ring.2 L=ring2
+@use cutface E=f.ring.3 L=ring3
+@use cutface E=f.ring.4 L=ring4
+rep 10 00
+u32 17000
+rep 10 00
+hex 01
+u8 0
+# The body's box, and the two face lists again as references.
+class moBBoxCenterData_c 1
+u32 1
+f64 $f.centre.0 $f.centre.1 $f.centre.2 $f.diagonal
+rep 14 00
+objref $f.name
+u32 65537
+rep 2 00
+objref $f.name
+u32 1 65537
+class moPerBodyChooserData_c 1
+hex 02
+u8 0
+@use faceref KIND=5 FLAGS=768 COUNTER=0
+objref cyl
+objref cap0
+rep 2 00
+objref cap1
+rep 10 00
+u32 17000 0 0
+@use faceref KIND=6 FLAGS=768 COUNTER=0
+objref ring0
+objref ring1
+objref ring2
+objref ring3
+objref ring4
+rep 10 00
+u32 17000
+rep 10 00
+hex 01
+u8 0
+class moBBoxCenterData_c 1
+u32 1
+f64 $f.centre.0 $f.centre.1 $f.centre.2 $f.diagonal
+rep 14 00
+objref $f.name
+rep 10 00
+u32 1
+class moPMarkRecord_c 1
+u16 $f.counter_marks   # free (15.5.9)
+rep 64 00
+# The end conditions: through all, in both directions.
+class moEndSpec_c 1
+rep 16 00
+u32 1 1 0
+u16 1 256
+rep 58 00
+u32 1
+rep 8 00
+class moFromEndSpec_c 1
+rep 12 00
+hex 2E F0 EE 42 08 C3 D1 95
+u32 $f.counter_end   # free (15.5.9)
+rep 8 00
+u32 1

@@ -10,6 +10,11 @@ hex 86                                  # not decoded; the same in every fixture
 <Keywords id="${doc.created}" Name="${doc.name}"><Configuration id="0" Name="Default" Type="ConfigurationManager" Material="Material &lt;not specified&gt;"/>
 @endtext
 @for e in $meta.kw_extrusions
+@if $e.cut
+@text utf8 final=no
+<Extrusion id="${e.id}" Name="${e.name}" Dissectable="true" DissectableChildren="${e.sketch_id}" DissectableRoot="true"/>
+@endtext
+@else
 @if $e.first
 @text utf8 final=no
 <Extrusion id="${e.id}" Name="${e.name}" Type="Boss-Extrude"><Dimension Name="D1">${e.depth_text}</Dimension></Extrusion>
@@ -18,6 +23,7 @@ hex 86                                  # not decoded; the same in every fixture
 @text utf8 final=no
 <Extrusion id="${e.id}" Name="${e.name}" Dissectable="true" DissectableChildren="${e.sketch_id}" DissectableRoot="true"><Dimension Name="D1">${e.depth_text}</Dimension></Extrusion>
 @endtext
+@endif
 @endif
 @endfor
 # The fixed features of the part template, by id as text: 1, 10 to 19, 2, 21 to 25, 3, 4, 6 to 9.

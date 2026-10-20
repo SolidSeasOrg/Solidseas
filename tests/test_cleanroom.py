@@ -173,6 +173,42 @@ def test_the_output_shares_no_long_run_with_a_solidworks_made_file():
                 pytest.fail(f"{name} at {i} repeats {RUN} bytes of a SOLIDWORKS-made fixture: {w.hex()}")
 
 
+def _hole_unlike_any_fixture(variant: int = 0):
+    """The SPEC_CONSTANTS shape of a box with a hole (README 15.0.7): a box and a circle inside
+    it, cut through all in both directions, of sizes no fixture has, and the same shape with
+    every value changed."""
+    from solidseas.nativewrite import ir
+
+    gen, doc, ident = _unlike_any_fixture(variant)
+    (cx, cy, r) = ((0.0181, 0.0102, 0.0041), (0.0133, 0.0219, 0.0057))[variant]
+    circle = ir.Sketch("s2", "Sketch2", ir.Plane.named("xy"), [ir.Point("c", cx, cy)],
+                       [ir.Curve("k1", "circle", ["c"], radius=r)])
+    cut = ir.Extrude("e2", "Hole", "s2", 0.0, operation="cut", direction="midplane", end="through_all")
+    return gen, ir.Document(name=doc.name, features=[*doc.features, circle, cut]), ident
+
+
+@pytest.mark.skipif(not GENERATE.exists(), reason="the generator is not written yet")
+def test_a_box_with_a_hole_shares_no_long_run_with_a_solidworks_made_file():
+    """The same rule for the cut's records (15.5.12, 15.5.13), once the generator writes them."""
+    gen, doc, ident = _hole_unlike_any_fixture(0)
+    _, doc2, ident2 = _hole_unlike_any_fixture(1)
+    try:
+        first = _members(gen.write_part(doc, identity=ident))
+    except gen.NativeWriteUnsupported:
+        pytest.skip("the generator does not write a hole yet")
+    other = _members(gen.write_part(doc2, identity=ident2))
+    spec_constants = set(getattr(gen, "SPEC_CONSTANTS", ()))
+    windows = _fixture_windows()
+    for name, data in first.items():
+        assert len(other[name]) == len(data), f"{name} changed length with the values"
+        for i in range(0, max(0, len(data) - RUN + 1)):
+            w = data[i : i + RUN]
+            if w != other[name][i : i + RUN]:
+                continue
+            if w in windows and not any(w in c for c in spec_constants):
+                pytest.fail(f"{name} at {i} repeats {RUN} bytes of a SOLIDWORKS-made fixture: {w.hex()}")
+
+
 @pytest.mark.skipif(not GENERATE.exists(), reason="the generator is not written yet")
 def test_the_output_carries_no_personal_information():
     from solidseas.formats.solidworks import open_document

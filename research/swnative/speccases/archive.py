@@ -99,12 +99,18 @@ def _cstring(data: bytes, at: int) -> str:
     return data[k:k + 2 * n].decode("utf-16-le")
 
 
-def extract(fx: Fixture, slots: dict, listings: list[tuple[str, str]]) -> dict:
-    """``slots`` with every identity and free slot of ``READ`` read from ``fx``."""
+def extract(fx: Fixture, slots: dict, listings: list[tuple[str, str]], assemble=None, read=READ) -> dict:
+    """``slots`` with every identity and free slot of ``READ`` read from ``fx``. ``assemble``,
+    when given, replaces the assembly of ``listings``: it is called with the slots and the
+    notes list and assembles with a :class:`_Probe` (:mod:`.cut` uses it for records that
+    start inside a member)."""
     slots = copy.deepcopy(slots)
     for _ in range(20):  # a string changes the layout after it: read it, assemble again
         notes: list = []
-        _assemble(listings, slots, notes)
+        if assemble is None:
+            _assemble(listings, slots, notes)
+        else:
+            assemble(slots, notes)
         done: set = set()
         changed = False
         halves: dict = {}
@@ -121,7 +127,7 @@ def extract(fx: Fixture, slots: dict, listings: list[tuple[str, str]]) -> dict:
                 path, k = tok[1:], 0
             else:
                 continue
-            if not any(fnmatch.fnmatchcase(path, p) for p in READ):
+            if not any(fnmatch.fnmatchcase(path, p) for p in read):
                 continue
             box, key = _walk(env, path)
             ident = (id(box), key)

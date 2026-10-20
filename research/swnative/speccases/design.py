@@ -44,7 +44,7 @@ IDENTITY = (
     *(f"fixed.{k}.time" for k in FIXED_KEYS), "fixed.origin.regen",
 )
 FEATURE_IDENTITY = ("created", "modified", "time", "cache_memo", "regen", "cache_text",
-                    "counter_marks", "counter_favorite", "counter_face1", "counter_face2")
+                    "counter_marks", "counter_favorite", "counter_face1", "counter_face2", "counter_end")
 BODY_IDENTITY = ("regen", "time")
 
 TEXTURE = "<SystemTexture>\\graphics\\materials\\color.p2m"
@@ -89,6 +89,17 @@ def _rectangle(sid: str, name: str, x0: float, y0: float, x1: float, y1: float) 
     if (x0, y0) == (0.0, 0.0):
         cons.append(ir.Constraint("c5", "coincident", points=["p1", ir.ORIGIN]))
     return ir.Sketch(sid, name, ir.Plane.named("xy"), pts, lines, cons)
+
+
+def circle_sketch(sid: str, name: str, cx: float, cy: float, r: float) -> ir.Sketch:
+    """A circle on the Front Plane, by its centre and radius (15.6.2)."""
+    return ir.Sketch(sid, name, ir.Plane.named("xy"), [ir.Point("c", cx, cy)],
+                     [ir.Curve("k1", "circle", ["c"], radius=r)])
+
+
+def through_cut(eid: str, name: str, sketch: str) -> ir.Extrude:
+    """A cut through all in both directions (15.6.2); the depth is not used."""
+    return ir.Extrude(eid, name, sketch, 0.0, operation="cut", direction="midplane", end="through_all")
 
 
 # The file custom properties each fixture was given (its kit instructions), as the IR holds them.
@@ -215,34 +226,100 @@ def _corners(s: ir.Sketch) -> tuple[list[float], bool]:
     return [x0, y0, x1, y1], (x0, y0) == (0.0, 0.0)
 
 
+def is_circle(s) -> bool:
+    """A sketch whose curves are exactly one circle (15.6.2)."""
+    return isinstance(s, ir.Sketch) and len(s.curves) == 1 and s.curves[0].kind == "circle"
+
+
+def _circle(s: ir.Sketch) -> tuple[float, float, float]:
+    """The centre and radius of a circle sketch, or the reason it is refused (15.6.2)."""
+    if s.plane.base != "xy" or s.suppressed:
+        raise ValueError(f"{s.name}: sketch on a plane other than the Front Plane, or suppressed")
+    c = s.curves[0]
+    if c.construction:
+        raise ValueError(f"{s.name}: sketch is not a single circle")
+    pts = {p.id: (p.x, p.y) for p in s.points}
+    pts[ir.ORIGIN] = (0.0, 0.0)
+    cx, cy = pts[c.points[0]]
+    r = float(c.radius)
+    if not r > 0:
+        raise ValueError(f"{s.name}: degenerate circle")
+    return float(cx), float(cy), r
+
+
 def depth_text(depth: float) -> str:
     """15.1.2.2: the depth in millimetres, rounded to 8 decimals, without trailing zeros."""
     return f"{round(depth * 1000, 8):.8f}".rstrip("0").rstrip(".") or "0"
 
 
+# 15.5.13 and 15.6.2: the box faces a cut's ring names, in order: (end face?, face number).
+RING = ((False, 4), (True, 1), (False, 3), (True, 0), (False, 1))
+
+
 def features_of(doc: ir.Document) -> list[dict]:
-    """The design and derived fields of the ``features`` items (15.6.2)."""
+    """The design and derived fields of the ``features`` items (15.6.2): corner rectangles
+    each extruded blind, then at most one circle cut through all in both directions."""
     items: list[dict] = []
     timeline = list(doc.features)
     if len(timeline) % 2:
         raise ValueError("sketch not followed by its extrusion")
     uid = 26
+    boxes: list[dict] = []
+    cuts = 0
     for k in range(len(timeline) // 2):
         s, e = timeline[2 * k], timeline[2 * k + 1]
         if not isinstance(s, ir.Sketch) or not isinstance(e, ir.Extrude) or e.sketch != s.id:
             raise ValueError(f"{s.name}: sketch not followed by its extrusion")
-        if e.end != "blind" or e.direction != "forward" or e.suppressed:
+        if e.suppressed:
+            raise ValueError(f"{e.name}: suppressed extrusion")
+        n_sketch = k + 1
+        if len(s.curves) > 1 and all(c.kind == "circle" for c in s.curves):
+            raise ValueError(f"{s.name}: a sketch with more than one circle is not written yet")
+        if is_circle(s):
+            cx, cy, r = _circle(s)
+            if e.operation != "cut":
+                raise ValueError(f"{e.name}: a circle is written only as the profile of a cut")
+            if e.end != "through_all" or e.direction != "midplane":
+                raise ValueError(f"{e.name}: only a cut through all in both directions is written")
+            if e.profile is not None and e.profile != [[s.curves[0].id]]:
+                raise ValueError(f"{e.name}: profile is not the whole circle")
+            if cuts or len(boxes) != 1 or 2 * k + 2 != len(timeline):
+                raise ValueError(
+                    f"{e.name}: a cut is written only as the last feature of a part with one box")
+            box = boxes[0]
+            x0, y0, x1, y1 = box["corners"]
+            if not (x0 < cx - r and cx + r < x1 and y0 < cy - r and cy + r < y1):
+                raise ValueError(f"{e.name}: the circle is not inside the box's rectangle")
+            sketch = {"name": f"Sketch{n_sketch}", "sketch": True, "circle": True, "log_modified": False,
+                      "id": uid,
+                      "centre": [cx, cy], "radius": r, "start": [cx + r, cy], "at_origin": False}
+            uid += 6 if n_sketch == 1 else 7
+            cuts += 1
+            ext = {
+                "name": f"Cut-Extrude{cuts}", "sketch": False, "cut": True, "log_modified": False, "id": uid,
+                "sketch_name": sketch["name"], "sketch_id": sketch["id"], "first": False, "merge": False,
+                "centre": box["centre"], "diagonal": box["diagonal"],
+                "body_id": 101 + len(boxes), "body_label": f"body{len(boxes) + 1}",
+                "target_id": box["body_id"], "target_label": box["body_label"], "target_uid": box["id"],
+                "ring": [{"end": end, "uid": box["id"], "face": face} for end, face in RING],
+            }
+            uid += 1
+            items += [sketch, ext]
+            continue
+        if e.end != "blind" or e.direction != "forward":
             raise ValueError(f"{e.name}: only blind extrusions towards the sketch normal are written")
         if k == 0 and e.operation == "cut" or k > 0 and e.operation != "new_body":
             raise ValueError(f"{e.name}: operation {e.operation} is not written")
         corners, at_origin = _corners(s)
         x0, y0, x1, y1 = corners
-        sketch = {"name": f"Sketch{k + 1}", "sketch": True, "id": uid, "corners": corners,
+        sketch = {"name": f"Sketch{n_sketch}", "sketch": True, "circle": False, "log_modified": True,
+                  "id": uid,
+                  "corners": corners,
                   "at_origin": at_origin}
-        uid += 6 if at_origin else 7
+        uid += 6 if n_sketch == 1 else 7
         depth = float(e.depth)
         ext = {
-            "name": f"Boss-Extrude{k + 1}", "sketch": False, "id": uid,
+            "name": f"Boss-Extrude{k + 1}", "sketch": False, "cut": False, "log_modified": False, "id": uid,
             "sketch_name": sketch["name"], "sketch_id": sketch["id"], "depth": depth,
             "depth_text": depth_text(depth), "corners": list(corners), "first": k == 0, "merge": k == 0,
             "centre": [(x0 + x1) / 2, (y0 + y1) / 2, depth / 2],
@@ -250,8 +327,42 @@ def features_of(doc: ir.Document) -> list[dict]:
             "body_id": 101 + k, "body_label": f"body{k + 1}",
         }
         uid += 1
+        boxes.append(ext)
         items += [sketch, ext]
     return items
+
+
+def bodies_of(features: list[dict]) -> list[dict]:
+    """The ``bodies`` items (15.6.4), identity fields aside: one per extrusion; a cut's body
+    is made from the body it cuts, which it uses up."""
+    bodies: list[dict] = []
+    by_id: dict[int, dict] = {}
+    for f in features:
+        if f["sketch"]:
+            continue
+        b = {"id": f["body_id"], "name": f["name"], "label": f["body_label"], "feature": f["id"],
+             "last": f["id"], "changed": [], "live": True, "from": [], "into": []}
+        if f["cut"]:
+            old = by_id[f["target_id"]]
+            old["live"], old["into"] = False, old["into"] + [b["id"]]
+            b["from"] = [old["id"]]
+        bodies.append(b)
+        by_id[b["id"]] = b
+    return bodies
+
+
+def builds_of(bodies: list[dict]) -> list[dict]:
+    """15.2.7.5: one item per feature that made or changed a body, with that body's time,
+    ordered by the feature's creation number modulo 17, and of two with the same remainder
+    the later first."""
+    items = [(f, b["time"]) for b in bodies for f in [b["feature"], *b["changed"]]]
+    order = sorted(range(len(items)), key=lambda k: (items[k][0] % 17, -k))
+    return [{"feature": items[k][0], "time": items[k][1]} for k in order]
+
+
+def body_links(bodies: list[dict]) -> list[dict]:
+    """15.2.7.4: each body a cut made, with the body it was made from."""
+    return [{"new": b["id"], "old": old} for b in bodies for old in b["from"]]
 
 
 # ------------------------------------------------------------------ 15.6.3: the model box, sphere and planes
@@ -341,7 +452,9 @@ def generator_identity(doc: ir.Document, ident: Identity) -> dict:
     for f in features_of(doc):
         item = {"created": unix, "time": ft, "cache_memo": 0.0}
         if f["sketch"]:
-            item.update(modified=unix, regen=103)
+            item.update(modified=unix, regen=102 if f["circle"] else 103)
+        elif f["cut"]:
+            item.update(counter_marks=14, counter_face1=0, counter_face2=0, counter_end=0)
         else:
             item.update(cache_text=f["corners"][2] * 0.2, counter_marks=7, counter_favorite=0,
                         counter_face1=0, counter_face2=0)
@@ -396,17 +509,25 @@ def design_slots(doc: ir.Document, identity: dict) -> dict:
     for f, extra in zip(features, identity["features"], strict=True):
         f.update({k: extra[k] for k in FEATURE_IDENTITY if k in extra})
     exts = [f for f in features if not f["sketch"]]
-    bodies = [{"id": f["body_id"], "name": f["name"], "label": f["body_label"], "feature": f["id"]}
-              for f in exts]
+    by_id = {f["id"]: f for f in features}
+    for f in exts:  # 15.6.2: a cut names its box's faces by the box's own creation time
+        if f["cut"]:
+            f["target_created"] = by_id[f["target_uid"]]["created"]
+            for e in f["ring"]:
+                e["created"] = by_id[e["uid"]]["created"]
+    bodies = bodies_of(features)
     for b, extra in zip(bodies, identity["bodies"], strict=True):
         b.update({k: extra[k] for k in BODY_IDENTITY})
     s["features"] = features
     s["sketches"] = [f for f in features if f["sketch"]]
     s["bodies"] = bodies
+    s["live_bodies"] = [b for b in bodies if b["live"]]
+    s["body_links"] = body_links(bodies)
+    s["builds"] = builds_of(bodies)
 
-    # 15.6.3: the model box, the bounding sphere and the planes' display
+    # 15.6.3: the model box, the bounding sphere and the planes' display: the boxes alone
     boxes = [([f["corners"][0], f["corners"][1], 0.0], [f["corners"][2], f["corners"][3], f["depth"]])
-             for f in exts]
+             for f in exts if not f["cut"]]
     solid = bool(boxes)
     lo = [min(b[0][k] for b in boxes) for k in range(3)] if solid else [0.0, 0.0, 0.0]
     hi = [max(b[1][k] for b in boxes) for k in range(3)] if solid else [0.0, 0.0, 0.0]

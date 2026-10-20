@@ -59,9 +59,11 @@ u32 350108
 @end
 
 # A sketch point record (15.5.7): its number, whether it is tied to the origin point
-# (0 or 1, as an expression), and x and y in metres in the sketch's frame.
+# (0 or 1, as an expression), and x and y in metres in the sketch's frame. A corner
+# rectangle's point ends with u16 0 and 2; a circle's points end otherwise (15.5.12), so
+# the record is written as its core and that end.
 @section 15.5.7
-@define point ID TIED X Y
+@define pointcore ID TIED X Y
 u32 %ID 0x1FFFFF
 u8 3
 i32 -1 -1
@@ -76,6 +78,10 @@ rep 7 00
 f64 1.0 0.0
 u16 30
 f64 %X %Y
+@end
+
+@define point ID TIED X Y
+@use pointcore ID=%ID TIED=%TIED X=%X Y=%Y
 u16 0 2
 @end
 
@@ -97,4 +103,35 @@ u16 0
 i32 -2
 rep 42 00
 @use point ID=%ID TIED=0 X=%X Y=%Y
+@end
+
+# A face reference list's head (15.5.8, 15.5.13): KIND is the face's surface, 6 a plane and
+# 5 a cylinder; FLAGS is 768 or 0; COUNTER is a free counter (15.5.9). Two doubles 1e100
+# (an unset value) and u16 0 follow, then the list.
+@section 15.5.13
+@define faceref KIND FLAGS COUNTER
+class moFaceRef_c 1
+u32 1 0 %KIND %FLAGS %COUNTER
+f64bits 0x54B249AD2594C37D 0x54B249AD2594C37D
+rep 2 00
+@end
+
+# One face of a box, item E of a cut's ring (15.5.13): an end face (a cap; face 0 on the
+# sketch plane, 1 at the far end) or a side (the face of sketch line `face`) of the
+# extrusion whose creation number is `uid`, made at `created`. L labels the entry.
+@define cutface E L
+@if $%E.end
+class moEndFaceSurfIdRep_c 1 as %L
+rep 2 00
+class moFR_c 1
+objref ext_obj
+u32 $%E.uid $%E.created $%E.face
+u32 0
+@else
+class moFromSktEntSurfIdRep_c 1 as %L
+rep 2 00
+class moFR_c 1
+objref ext_obj
+u32 $%E.uid $%E.created $%E.face
+@endif
 @end
