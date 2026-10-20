@@ -15,7 +15,9 @@ sheet's lower left and y up. Three layers:
 
 :func:`to_compact` and :func:`from_compact` turn a :class:`Sheet` into the
 ``.ssdrw``'s compact ``sheet`` member and back: lengths in integer micrometres,
-every item a list led by its tag, so a released drawing reproduces exactly.
+every item a list led by its tag, so a released drawing reproduces exactly. A
+drawing of several sheets is one compact member: the first sheet, holding the others
+in its ``continuation`` (:func:`sheets_of` lists them all).
 """
 
 from __future__ import annotations
@@ -502,7 +504,10 @@ PAINTED = (Stroke, Fill, TextRun, ImageRun)
 class Sheet:
     """One laid-out sheet: its size name and millimetres, the drawing's scale, the
     views' placements, the geometry already on the sheet, the annotations and the
-    painted layer."""
+    painted layer. The first sheet of a drawing holds the sheets that continue it in
+    ``continuation`` (sheet 2 onward, each with no ``continuation`` of its own): an
+    assembly's parts list too long for the first goes on there. A drawing of one
+    sheet has none, and its compact form is the same as before there could be any."""
 
     name: str
     width: float
@@ -512,6 +517,15 @@ class Sheet:
     geometry: tuple[Any, ...] = ()
     annotations: tuple[Any, ...] = ()
     painted: tuple[Any, ...] = ()
+    continuation: tuple[Sheet, ...] = ()
+
+
+def sheets_of(sheet: Any) -> tuple[Sheet, ...]:
+    """Every sheet of a drawing from its first: ``sheet`` and the sheets that continue
+    it, in order (none for anything but a :class:`Sheet`)."""
+    if not isinstance(sheet, Sheet):
+        return ()
+    return (sheet, *(s for s in sheet.continuation if isinstance(s, Sheet)))
 
 
 # --------------------------------------------------------------------------- the compact form
@@ -556,8 +570,13 @@ _NOT_LENGTH = frozenset(
     {"start_deg", "end_deg", "ratio", "t0", "t1", "knots", "weights", "angle_deg", "grey", "value", "scale"}
 )
 _COUNTS = frozenset({"degree", "columns", "rows", "precision", "cap", "join", "number", "body"})
+# Fields at the end of an item that its compact form leaves out while they hold their
+# default, so that an item written before the field existed reads the same and is
+# written the same: a one-sheet drawing's sheet has no ``continuation``.
+_OPTIONAL_TAIL: dict[type, tuple[str, ...]] = {Sheet: ("continuation",)}
 SCHEMA = "solidseas.drawing-sheet/1"
 MAX_DEPTH = 32
+MAX_SHEETS = 64  # the sheets one compact form holds, the first included
 
 
 def _bad(message: str) -> InvalidArgumentError:
@@ -586,9 +605,11 @@ def _encode(obj: Any) -> dict:
     tag = _TAGS.get(type(obj))
     if tag is None:
         raise _bad(f"a sheet cannot hold a {type(obj).__name__}")
-    values = [
-        _enc(getattr(obj, f.name), f.name not in _NOT_LENGTH and f.name not in _COUNTS) for f in fields(obj)
-    ]
+    names = list(fields(obj))
+    for name in reversed(_OPTIONAL_TAIL.get(type(obj), ())):
+        if names and names[-1].name == name and getattr(obj, name) == names[-1].default:
+            names.pop()
+    values = [_enc(getattr(obj, f.name), f.name not in _NOT_LENGTH and f.name not in _COUNTS) for f in names]
     return {"k": tag, "v": values}
 
 
@@ -631,8 +652,9 @@ def _decode(item: dict, depth: int) -> Any:
     if cls is None or not isinstance(values, list):
         raise _bad("the sheet holds an item it does not know")
     names = fields(cls)
-    if len(values) != len(names):
+    if not len(names) - len(_OPTIONAL_TAIL.get(cls, ())) <= len(values) <= len(names):
         raise _bad(f"a {item['k']} item has the wrong number of values")
+    names = names[: len(values)]  # the optional fields left out keep their defaults
     kwargs = {
         f.name: _dec(v, f.name not in _NOT_LENGTH and f.name not in _COUNTS, depth)
         for f, v in zip(names, values, strict=True)
@@ -650,6 +672,11 @@ def from_compact(data: Any) -> Sheet:
     sheet = _dec(data["sheet"], True, 0)
     if not isinstance(sheet, Sheet):
         raise _bad("not a compact sheet")
+    more = sheet.continuation
+    if not isinstance(more, tuple) or not all(isinstance(s, Sheet) and s.continuation == () for s in more):
+        raise _bad("the sheets that continue the first must be sheets of their own")
+    if len(more) + 1 > MAX_SHEETS:
+        raise _bad(f"a drawing has at most {MAX_SHEETS} sheets")
     return sheet
 
 
@@ -694,5 +721,6 @@ __all__ = [
     "VirtualSharp",
     "from_compact",
     "place",
+    "sheets_of",
     "to_compact",
 ]

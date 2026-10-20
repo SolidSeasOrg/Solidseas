@@ -2414,6 +2414,8 @@ def _say_drawing(data: dict[str, Any]) -> None:
         else:
             what = f"drawing {number}, revision {d['revision'] or '-'}: {c['shown']} dimensions in"
         sheet = f"sheet {d['options']['sheet']} at {d['options']['scale']}"
+        if c.get("sheets", 1) > 1:  # a parts list going on past the first sheet
+            sheet = f"{c['sheets']} {d['options']['sheet']} sheets at {d['options']['scale']}"
         _say(f"{d['status']} {what} {c['views']} views, {sheet}")
         if data["action"] == "show":
             for key, field_ in d["title"].items():

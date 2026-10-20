@@ -182,7 +182,9 @@ action fills what it has and leaves the rest null or empty: `files` for `new`,
 `settings` for `settings`; `model_check` for `check --model`. The drawing summary
 carries no path; `files` carry absolute paths, as `file_written` does. Its
 `model.format` is `sldprt` or `sldasm`, and an assembly's `counts.items` and
-`counts.balloons` count its parts list's lines and balloons. `check --model` of
+`counts.balloons` count its parts list's lines and balloons. `counts.sheets` is
+the drawing's sheets: 1, more for an assembly whose parts list goes on past the
+first, and 0 for a drawing with no laid-out sheet. `check --model` of
 an assembly reads it with its parts: an assembly file whose parts have changed is
 not the drawing's model.
 

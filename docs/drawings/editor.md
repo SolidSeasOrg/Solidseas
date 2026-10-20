@@ -22,7 +22,16 @@ where Drawing Settings... saves.
 | Right: Properties | for a dimension: the measured value (read-only, to more places than any drawing shows), precision ("from its role" or 0 to 4) and the band it falls in, prefix and suffix lines, a value override with its warning, the tolerance, the feature control frame (characteristic, zone, Ø, modifier, up to three datums; Apply, Remove, Reset), Reset Position and Flip. For a note: its text. With nothing selected: the title fields |
 | Add Dimension (D) | the features picked on the sheet or ticked in a list, and the planner's candidates for them with their values |
 | Bottom: Checks | the checklist of 20.1: level, code, whether it blocks release, the message. Selecting a row selects what it is about; its fixes are buttons |
-| Status bar | the status and revision (`PRELIMINARY, revision A`), and the model: "Model unchanged", "The model has changed. Update Drawing", "Model not found. Find..."; the last two are buttons |
+| Status bar | the status and revision (`PRELIMINARY, revision A`), and the model: "Model unchanged", "The model has changed. Update Drawing", "Model not found. Find..."; the last two are buttons. For a drawing of several sheets, which is shown ("Sheet 2 of 3") |
+
+A drawing of several sheets (an assembly's parts list going on past the first,
+DRAWINGS.md 11.7) shows one sheet at a time. Drawing > Next Sheet and Previous
+Sheet (Ctrl+Page Down and Ctrl+Page Up, on the toolbar too) page through them;
+they are shown only for such a drawing (`show_sheet(n)`, `page`, `sheets`).
+Every edit concerns the first sheet, where everything but the rest of the parts
+list is, and selecting a dimension, a note or a view, from the lists or a check,
+shows the first sheet again. An edit keeps the sheet shown when the drawing still
+has it.
 
 Every word a drawing carries is shown as plain text: a `.ssdrw` can arrive by email.
 

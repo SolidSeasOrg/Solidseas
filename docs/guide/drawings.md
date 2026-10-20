@@ -22,7 +22,11 @@ built, including [the viewer's entries](../drawings/viewer.md) and
 
 An assembly's drawing has its views, a parts list on the title block giving
 each item's own drawing number, and an item balloon on each part, and no
-dimensions ([assemblies.md](../drawings/assemblies.md)). SOLIDWORKS drawings,
+dimensions ([assemblies.md](../drawings/assemblies.md)). A parts list too long
+for the first sheet goes on to more sheets of the same size, each with the title
+block and the list's headings, and every title block says which sheet it is
+(SHEET 2 OF 3). The PDF then has a page for each sheet, and the DXF has the
+sheets side by side. SOLIDWORKS drawings,
 files of other formats and parts stored inside an assembly cannot be drawn yet;
 the entry is off and says why.
 
@@ -123,6 +127,10 @@ the dimensions by view, Properties, and the checklist with its fixes.
 - Add one between features you pick.
 - Change its precision, tolerance or text.
 - Undo and Redo hold every edit.
+- On a drawing of more than one sheet, **Drawing > Next Sheet** and **Previous
+  Sheet** (Ctrl+Page Down and Ctrl+Page Up) page through them, and the status
+  bar says which one you are looking at. You make your edits on the first
+  sheet; choosing a dimension or a note takes you back to it.
 
 **The model:** the status bar says whether the part has changed. A changed part
 leaves the drawing view-only until **Update Drawing**, which keeps your edits and

@@ -155,8 +155,21 @@ would stand taller than 60% of the field above the title block
 (`partslist.PARTS_SHARE`): each column has its own headings at the bottom, the
 first stands on the title block and the items go on, column by column,
 leftward. As many columns stand side by side as three quarters of the border's
-width holds; a list longer still makes its columns taller. Each column is a
-parts list annotation of its own, and the checks read them all.
+width holds. Each column is a parts list annotation of its own, and the checks
+read them all.
+
+**A list longer than those columns hold** goes on to more sheets
+(`partslist.continued`, `docs/DRAWINGS.md` 11.7). The first sheet's columns are
+filled, and the rest of the list goes on sheets of the same size after it: each
+with the title block, the border and the stamps, and the list standing on the
+title block as on the first, in as many columns as the border's width holds,
+each as tall as the field above the title block and each with its headings, so
+a reader picking up any sheet sees what the columns are. The last sheet's
+columns share its lines evenly. Every title block says SHEET n OF m, the first
+sheet's too. The views, balloons, notes and revision block stay on the first
+sheet. A drawing goes to at most `DrawingLimits.sheets` sheets (16), its last
+taking every line left; one held to a single sheet (`sheets=1`) stands its
+columns taller instead.
 
 **A stacked balloon.** A balloon with no clear place of its own stacks on a balloon
 already drawn in its view whose part's point is within 20 mm of its own
@@ -200,6 +213,14 @@ each balloon (its item, circle and leader), with the compact tags `parts` and
 DXF and the screen draw the painted layer, so the parts list and balloons are
 lines, circles and text in each (the DXF on the `TITLE` and `NOTES` layers).
 
+A drawing whose list goes on to more sheets keeps them in the same `sheet`
+member, as the first sheet's `continuation`; a drawing of one sheet is written
+exactly as before. The PDF has a page for each sheet, in order. The DXF is one
+file with the sheets side by side in model space, left to right, an inch of
+paper apart, each with its own border and title block, since model space is what
+every DXF reader shows. The SVG writer gives a file for each sheet
+(`svg.to_svgs`).
+
 ## The checks
 
 An assembly's drawing has no dimensions, so the checks of a part's dimensions,
@@ -211,8 +232,8 @@ no view to carry a dimension. Its own:
 
 | Id | Says | Level |
 |---|---|---|
-| `ASM.parts` | the sheet has no parts list | error |
-| `ASM.balloons` | an item of the parts list has no balloon (no view on the sheet shows an edge of it, visible or hidden); a balloon names no item of the list (an error) | warning |
+| `ASM.parts` | the sheet has no parts list (the first sheet always carries its start) | error |
+| `ASM.balloons` | an item of the parts list, on any of its sheets, has no balloon (no view on the sheet shows an edge of it, visible or hidden); a balloon names no item of the list (an error) | warning |
 
 ## Editing and Update from Model
 
@@ -227,9 +248,11 @@ unchanged.
 
 `drawing new`, `check`, `update`, `export` and `show` take an assembly as a part.
 The summary says `PRELIMINARY assembly drawing NUMBER, revision A: 7 items and 6
-balloons in 4 views, sheet C at 1:1`. In `drawing_result` the drawing's
+balloons in 4 views, sheet C at 1:1`, and for a list on more sheets `... in 4
+views, 3 A sheets at 1:4`. In `drawing_result` the drawing's
 `model.format` is `sldasm` (`sldprt` for a part), `counts.items` and
-`counts.balloons` count the parts list's lines and the balloons, and `coverage`
+`counts.balloons` count the parts list's lines (on every sheet) and the
+balloons, `counts.sheets` the sheets, and `coverage`
 is null, since an assembly has no features to cover.
 
 ## The viewer
@@ -250,7 +273,11 @@ is null, since an assembly has no features to cover.
   offset from the point its leader ends on (the `balloons` option, in the file
   only when one was moved), so it follows its part when the views move; one put
   on something, or with its leader outside 15 to 75 degrees, is reported by the
-  checks as a balloon layout places would be.
+  checks as a balloon layout places would be. A drawing of several sheets is
+  paged through with Drawing > Next Sheet and Previous Sheet (Ctrl+Page Down and
+  Ctrl+Page Up, also on the toolbar), the status bar saying which sheet is shown;
+  edits are made on the first sheet, which a selected dimension, note or view
+  brings back.
 - **The self-test's dry run** draws an assembly as it draws a part, leaving out
   removing a dimension, and checks that the sheet carries the parts list and a
   balloon.
@@ -259,7 +286,7 @@ is null, since an assembly has no features to cover.
 
 - A balloon's own edits beyond moving it (a second leader, stacking by hand).
 - Exploded views, sections of assemblies.
-- A parts list continued on a second sheet: a drawing has one sheet, so a list
-  longer than the columns hold makes them taller.
+- Views on a second sheet: only the parts list goes on to more sheets.
+- The wizard's preview shows the first sheet alone.
 - A reference dimension to the tip of a curved face (the overall size is then a
   note).

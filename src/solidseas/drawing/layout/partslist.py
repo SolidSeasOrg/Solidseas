@@ -15,8 +15,12 @@ too long for its cell is cut with an ellipsis.
 when its texts need the room, to :data:`MAX_GROW` times that width, and, when it
 would stand taller than :data:`PARTS_SHARE` of the field above the title block,
 continues in columns to its left, each with its own headings at the bottom and
-the items going on from where the column to its right ends, as many as the
-sheet's width holds; a list longer still stands taller than that.
+the items going on from where the column to its right ends, as many as
+:data:`MOST_ACROSS` of the border's width holds. A list longer still goes on to
+sheets of its own (:func:`continued`), the same size, each with the title block
+and as many columns as the field above it holds, standing on it the same way and
+each with its headings; a drawing held to one sheet (:func:`shape` without
+``more``) stands taller instead.
 
 **A balloon** is a circle round its item number, the number at the notes' height,
 on a leader that ends in an arrowhead on the visible edge the plan chose. The
@@ -58,12 +62,14 @@ def row_height(h: float) -> float:
 @dataclass(frozen=True)
 class Shape:
     """How a parts list stands on one sheet: its columns side by side, the lines in
-    each (the last may hold fewer), each column's width and the tallest's height."""
+    each (the last may hold fewer), each column's width, the tallest's height, and how
+    many of the list's lines the sheet holds (the rest go on to the next)."""
 
     columns: int = 0
     per_column: int = 0
     width: float = 0.0
     height: float = 0.0
+    lines: int = 0
 
     @property
     def total_width(self) -> float:
@@ -83,22 +89,54 @@ def natural_width(rows, h: float, columns=COLUMNS, narrow=None) -> float:
 
 
 def shape(
-    rows, h: float, title_width: float, room: float, across: float, columns=COLUMNS, narrow=None
+    rows,
+    h: float,
+    title_width: float,
+    room: float,
+    across: float,
+    columns=COLUMNS,
+    narrow=None,
+    *,
+    more: bool = False,
 ) -> Shape:
     """The parts list's shape on a sheet whose title block is ``title_width`` wide, with
     ``room`` millimetres of field above the title block and ``across`` millimetres of
-    border width (see the module notes)."""
+    border width (see the module notes). With ``more`` a list longer than the columns
+    hold fills them and leaves the rest to the sheets after (``lines`` says how many
+    this one holds); without, its columns stand taller."""
     n = len(rows)
     if not n:
         return Shape()
     rh = row_height(h)
     width = min(max(title_width, natural_width(rows, h, columns, narrow)), title_width * MAX_GROW)
     fit = max(1, int(room * PARTS_SHARE // rh) - 1)
+    most = int(across * MOST_ACROSS // width) or 1
     count = math.ceil(n / fit)
-    count = max(1, min(count, int(across * MOST_ACROSS // width) or 1))
+    if more and count > most:
+        return Shape(most, fit, width, (fit + 1) * rh, most * fit)
+    count = max(1, min(count, most))
     per = math.ceil(n / count)
     count = math.ceil(n / per)
-    return Shape(count, per, width, (per + 1) * rh)
+    return Shape(count, per, width, (per + 1) * rh, n)
+
+
+def continued(n: int, h: float, width: float, room: float, across: float, *, last: bool = False) -> Shape:
+    """The shape of a parts list's ``n`` lines still to go on a sheet of their own, in
+    columns ``width`` wide (the first sheet's), with ``room`` millimetres of field above
+    the title block and ``across`` millimetres of border width: as many columns as the
+    width holds, each as tall as the field. It holds what fits, the lines balanced
+    across its columns when they all do; the ``last`` sheet a drawing may have holds
+    every line left, its columns taller than the field when they must be."""
+    if n <= 0:
+        return Shape()
+    rh = row_height(h)
+    fit = max(1, int(room // rh) - 1)
+    most = max(1, int(across // width))
+    lines = n if last else min(n, most * fit)
+    count = max(1, min(math.ceil(lines / fit), most))
+    per = math.ceil(lines / count)
+    count = math.ceil(lines / per)
+    return Shape(count, per, width, (per + 1) * rh, lines)
 
 
 def height(lines, h: float) -> float:
@@ -331,7 +369,9 @@ def paint_balloon(pen: Pen, item: str, centre, end, anchor, r: float, h: float, 
 
 __all__ = [
     "COLUMNS",
+    "Shape",
     "cells",
+    "continued",
     "height",
     "paint_balloon",
     "parts_list",
@@ -339,5 +379,6 @@ __all__ = [
     "stacked_balloon",
     "radius",
     "row_height",
+    "shape",
     "widths",
 ]

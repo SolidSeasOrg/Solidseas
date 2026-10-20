@@ -529,6 +529,41 @@ def test_an_assembly_drawing_has_its_parts_list_and_no_dimension_actions(place, 
     bom.close()
 
 
+def test_the_sheets_of_a_long_parts_list_are_paged_through(place, opened, tmp_path):
+    from test_drawing_assembly import long_list
+
+    path = tmp_path / "SS-8.ssdrw"
+    path.write_bytes(document.dumps(long_list().drawing))  # its model is not beside it: view-only
+    editor, said = opened(path)
+    a = editor.actions_by_name
+    assert len(editor.sheets) == 3 and editor.page == 0
+    assert editor.sheet_label.text() == "Sheet 1 of 3" and a["next_sheet"].isVisible()
+    assert a["next_sheet"].isEnabled() and not a["previous_sheet"].isEnabled()
+    assert {"balloon-1", "parts", "title"} <= set(editor.scene.owners())
+    a["next_sheet"].trigger()
+    assert editor.page == 1 and editor.sheet_label.text() == "Sheet 2 of 3"
+    assert editor.scene.sheet is editor.sheets[1]
+    owners = set(editor.scene.owners())
+    assert {"parts", "title", "border"} <= owners and "balloon-1" not in owners
+    editor.show_sheet(5)  # kept within the sheets
+    assert editor.page == 2 and not a["next_sheet"].isEnabled() and a["previous_sheet"].isEnabled()
+    # a dimension chosen in the list is on the first sheet, which is shown again
+    reference = editor.drawing.dimensions[0].id
+    editor.select(reference)
+    assert editor.page == 0 and editor.selected == reference
+    a["next_sheet"].trigger()
+    a["previous_sheet"].trigger()
+    assert editor.page == 0 and editor.scene.sheet is editor.drawing.sheet
+    assert said.asked == []
+
+
+def test_a_drawing_of_one_sheet_shows_no_sheet_paging(place, opened, tmp_path):
+    editor, _said = opened(drawing_file(place, tmp_path))
+    a = editor.actions_by_name
+    assert len(editor.sheets) == 1 and editor.sheet_label.text() == ""
+    assert not a["next_sheet"].isVisible() and not a["previous_sheet"].isVisible()
+
+
 # --------------------------------------------------------------------------- Add Dimension
 def test_add_dimension_on_the_four_holes_plate(place, opened, tmp_path):
     from solidseas_app.viewer import drawingeditor as E

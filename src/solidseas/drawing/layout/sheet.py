@@ -1,6 +1,7 @@
 """The sheet: size, border, zones and the areas set aside for the title block,
 revision block, notes and an assembly's parts list (``docs/DRAWINGS.md`` 11.1,
-11.4), and the order sheets and scales are tried in.
+11.4), the sheets a long parts list goes on to (:func:`continuation_frame`, 11.7),
+and the order sheets and scales are tried in.
 
 **Scale and sheet (C24, the slice's answer, the default until the VM decides):** on
 each sheet, smallest first, the largest preferred scale at which the views and
@@ -11,7 +12,7 @@ does better the first fit is kept and the cramped features are reported.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from .. import standards
 from .index import Box
@@ -88,6 +89,28 @@ def frame(
     return SheetFrame(name, w, h, m, cols, rows, border, title, revision, notes, stamp, plot, parts)
 
 
+def continuation_frame(
+    name: str, settings, *, parts_height: float = 0.0, parts_width: float = 0.0
+) -> SheetFrame:
+    """A sheet that continues a drawing's first, holding the rest of a parts list too
+    long for it: the same size, border and title block, the parts list on the title
+    block as on the first, and no revision block or notes, which the first sheet
+    carries for the drawing."""
+    f = frame(name, settings, parts_height=parts_height, parts_width=parts_width)
+    top = f.border.y1
+    return replace(
+        f,
+        revision=Box(f.border.x1, top, f.border.x1, top),
+        notes=Box(f.notes.x0, f.notes.y0, f.notes.x1, f.notes.y0),
+    )
+
+
+def continuation_room(f: SheetFrame) -> float:
+    """The height of the field above the title block of a continuation sheet ``f``,
+    which its parts list may take whole."""
+    return f.border.y1 - GAP - f.title.y1
+
+
 def sheet_order(options, settings) -> list[str]:
     """The sheets to try: the drawing's, else the Settings', else every size smallest
     first."""
@@ -112,4 +135,12 @@ def scale_order(options, settings) -> list[tuple[int, int]]:
     return sorted(out, key=lambda sc: -standards.scale_factor(sc))
 
 
-__all__ = ["MIN_SPAN_MM", "SheetFrame", "frame", "scale_order", "sheet_order"]
+__all__ = [
+    "MIN_SPAN_MM",
+    "SheetFrame",
+    "continuation_frame",
+    "continuation_room",
+    "frame",
+    "scale_order",
+    "sheet_order",
+]

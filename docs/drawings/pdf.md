@@ -19,7 +19,9 @@ out = pdf.to_pdf(sheet, title="PLATE, MOUNTING")         # PdfOutput(data, probl
 
 `write_pdf(drawing_or_sheet, fh, *, title=None, limits=DEFAULT_LIMITS,
 problems=None)` takes a `Drawing` (it writes the drawing's `sheet`) or a
-`display.Sheet`, writes one page of PDF 1.7 to a binary file object and returns
+`display.Sheet`, writes PDF 1.7 to a binary file object, a page for each sheet
+(one, unless an assembly's parts list goes on to more sheets, DRAWINGS.md 11.7,
+when each is a page in order; one sheet gives the same bytes it always did), and returns
 the number of bytes written. `solidseas.drawing.write_pdf` reaches it through
 the pipeline's entry point. `to_pdf` makes the same bytes without a file and
 returns them with the problems met. Anything but a drawing with a sheet, or a

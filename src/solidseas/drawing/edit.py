@@ -150,17 +150,24 @@ def _run_checks(drawing: types.Drawing, planned: Any, result: Any, *, at_release
 
 
 def adopt(
-    drawing: types.Drawing, source: Any, model: Any, features: Any, done: Any, fields: Any = None
+    drawing: types.Drawing,
+    source: Any,
+    model: Any,
+    features: Any,
+    done: Any,
+    fields: Any = None,
+    *,
+    limits: DrawingLimits = DEFAULT_LIMITS,
 ) -> types.Drawing:
     """``drawing`` laid out from its records, with its checks, and the run that made it
     (``done``, an ``orchestrate.Orchestrated``) kept beside it for editing. The
     pipeline calls this after its assemble stage: the plan stage lays the sheet out
     before the drawing's records exist, so the revision row and DRAWN's date are filled
-    here, from the same plan."""
+    here, from the same plan, within the run's ``limits``."""
     live = Live(source, model, features, tuple(done.views), _view_key(drawing.options))
     live.planned, live.key = done.raw or done.planned, _plan_key(drawing)
     _keep(drawing.id, live)
-    return relayout(drawing)[0]
+    return relayout(drawing, limits=limits)[0]
 
 
 def attach(

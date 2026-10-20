@@ -274,6 +274,7 @@ class PdfDocument:
     trailer: dict = field(default_factory=dict)
     objects: dict[int, Any] = field(default_factory=dict)
     startxref: int = 0
+    page_index: int | None = None  # the page read, from 0; None: the file must have one
 
     def __post_init__(self) -> None:
         d = self.data
@@ -362,10 +363,16 @@ class PdfDocument:
         return self.resolve(self.trailer["Root"])
 
     @property
+    def page_count(self) -> int:
+        return len(self.get(self.get(self.catalog, "Pages"), "Kids"))
+
+    @property
     def page(self) -> dict:
         kids = self.get(self.get(self.catalog, "Pages"), "Kids")
+        if self.page_index is not None:
+            return self.resolve(kids[self.page_index])
         if len(kids) != 1:
-            raise PdfError("the reader takes one page")
+            raise PdfError("the reader takes one page unless it is given page_index")
         return self.resolve(kids[0])
 
     def resources(self, kind: str) -> dict:

@@ -220,7 +220,9 @@ def run(
         # the checks of 20.1 on the new drawing, and the run kept beside it for editing
         from . import edit
 
-        drawing = edit.adopt(drawing, made["source"], made["model"], made["features"], done, fields)
+        drawing = edit.adopt(
+            drawing, made["source"], made["model"], made["features"], done, fields, limits=limits
+        )
     if drawing is not None and hasattr(drawing, "seconds") and not getattr(drawing, "seconds", ()):
         from dataclasses import replace
 

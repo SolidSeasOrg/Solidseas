@@ -31,6 +31,24 @@ while the project takes shape.
   still working on is never offered, and the MCP server leaves these runs to
   the assistant window.
 
+- **A long parts list goes on to more sheets.** An assembly drawing whose parts
+  list is longer than its columns on the first sheet hold used to stand those
+  columns ever taller, often forcing a larger sheet. The list now fills the
+  first sheet's columns and goes on to sheets of the same size after it, each
+  with the title block, the border and the stamps, and the list in as many
+  columns as the sheet holds, every column with its headings. Every title block
+  says which sheet it is (SHEET 2 OF 3), the first sheet's too. The views,
+  balloons, notes and revision block stay on the first sheet. The PDF has a
+  page for each sheet; the DXF has the sheets side by side in one drawing, left
+  to right, so every reader shows them all as soon as it opens the file. The
+  drawing editor pages through the sheets with Drawing > Next Sheet and
+  Previous Sheet (Ctrl+Page Down and Ctrl+Page Up), and the status bar says
+  which one is shown. `solidseas drawing` reports the sheets in its summary and
+  as `counts.sheets` in its JSON. A drawing of one sheet, and its file, PDF and
+  DXF, are exactly as before, and drawing files from earlier versions open
+  unchanged. Opened in an earlier version of SolidSeas, a drawing of several
+  sheets opens without its laid-out sheet until it is laid out again.
+
 - **Assemblies in a batch get their Parasolid file too.** `solidseas batch`
   used to write Parasolid files for parts only. It now writes each assembly in
   the folder as `solidseas parasolid` does, one `.x_b` file (and an `.x_t` file

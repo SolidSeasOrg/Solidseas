@@ -95,6 +95,17 @@ set at its origin's place: **views are at true size**, so a 0.1 m edge drawn at
 `DIMLFAC` 1. The border, title block, notes and stamp sit round the views at
 `1/s` of their paper size.
 
+A drawing of several sheets (an assembly's parts list going on past the first,
+DRAWINGS.md 11.7) is one file with its sheets side by side in model space, left
+to right from the first, `SHEET_GAP` (an inch of paper) apart, each with its own
+border and title block saying SHEET n OF m. The extents, the limits and the
+`*Active` view take them all in, so the file opens showing every sheet. Model
+space was chosen over a paper space layout for each sheet because it is what every
+reader shows: LibreCAD and most viewers draw only model space, and a program
+that shows layouts opens on one, so a sheet in a layout of its own is easily
+missed. Block names run on across the sheets, so they stay unique. A drawing of
+one sheet is written exactly as before.
+
 A view placed at another scale (a detail) keeps the look it has on paper,
 magnified against the others. Its dimensions carry their value as explicit text
 and `DIMLFAC` = sheet scale / view scale (0.25 for a 2:1 detail on a 1:2 sheet)

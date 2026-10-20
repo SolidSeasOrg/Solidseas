@@ -188,6 +188,7 @@ def run(
             revisions=revisions,
             status=status,
             signed=signed,
+            sheets=limits.sheets,
         )
 
     raw = planned

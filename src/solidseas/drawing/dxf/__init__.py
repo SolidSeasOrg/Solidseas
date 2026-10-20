@@ -28,12 +28,22 @@ only it holds):
 - **Everything else painted** (border, title block, notes, hatching, centre
   marks): replayed on its layer at ``1/scale``; furniture with nothing painted
   on its layer is drawn from the semantic layer. The logo is not written.
+
+**A drawing of several sheets** (an assembly's parts list going on past the first,
+:attr:`.display.Sheet.continuation`) is one file: the sheets stand side by side in
+model space, left to right from the first, :data:`SHEET_GAP` sheet millimetres
+apart, each with its own border and title block (SHEET n OF m), and the header's
+extents and the opening view take them all in. Model space is what every DXF
+reader shows, LibreCAD and the simpler viewers included, whereas a reader that
+shows paper space at all shows one layout first and some show none past it, so a
+sheet in a layout of its own could be missed. A drawing of one sheet is written
+exactly as before.
 """
 
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
 from ...errors import InvalidArgumentError
@@ -50,6 +60,7 @@ GEOMETRY_LAYERS = frozenset({"visible", "hidden", "tangent", "centre", "phantom"
 CAPTURE_LAYERS = frozenset({"dimensions", "notes"})
 CAPTURE_MARGIN = 0.75  # millimetres round an annotation's outline
 SAME_PATH = 0.005  # millimetres within which a painted stroke is a geometry path
+SHEET_GAP = 25.4  # sheet millimetres between a drawing's sheets standing side by side
 FURNITURE_LAYER = {
     D.Border: "border",
     D.TitleBlock: "title",
@@ -298,7 +309,11 @@ def _sort(sheet: D.Sheet, ctx: E.Context, dims: dict[str, int]) -> Sorted:
 # --------------------------------------------------------------------------- the content
 
 
-def _content(sheet: D.Sheet, ctx: E.Context) -> tuple[list[Block], list[E.Ent]]:
+def _content(
+    sheet: D.Sheet, ctx: E.Context, counts: dict[str, int] | None = None
+) -> tuple[list[Block], list[E.Ent]]:
+    """One sheet's blocks and model space entities; ``counts`` numbers the blocks on from
+    those of the sheets written before it."""
     placements = {p.view: p for p in sheet.views if isinstance(p, D.ViewPlacement)}
     dims: dict[str, int] = {}  # a measuring dimension's id: the first annotation with it
     for i, a in enumerate(sheet.annotations):
@@ -315,7 +330,7 @@ def _content(sheet: D.Sheet, ctx: E.Context) -> tuple[list[Block], list[E.Ent]]:
         model += E.from_painted(item, ctx)
     painted_layers = {item.layer for item in sorted_.general}
 
-    counts = {"D": 0, "FCF": 0, "DATUM": 0}
+    counts = {"D": 0, "FCF": 0, "DATUM": 0} if counts is None else counts
 
     def insert_block(kind: str, ents: list[E.Ent], at) -> None:
         counts[kind] += 1
@@ -373,17 +388,22 @@ def _content(sheet: D.Sheet, ctx: E.Context) -> tuple[list[Block], list[E.Ent]]:
 # --------------------------------------------------------------------------- the file
 
 
-def _serialise(sheet: D.Sheet, ctx: E.Context, blocks: list[Block], model: list[E.Ent]) -> bytes:
+def _serialise(
+    sheet: D.Sheet, ctx: E.Context, blocks: list[Block], model: list[E.Ent], span: float | None = None
+) -> bytes:
+    """The file; ``span`` is how many sheet millimetres the sheets standing side by side
+    take across, by default the first sheet's width."""
     from ... import __version__
 
     counter = [0]
     handles = T.Handles()
     structure = T.allocate(handles, [b.name for b in blocks])
     k = ctx.k
-    width, height = float(sheet.width) * k, float(sheet.height) * k
+    across = float(sheet.width) if span is None else float(span)
+    width, height = across * k, float(sheet.height) * k
     body = TagWriter(ctx.limits, counter)
     T.write_classes(body)
-    view = ((width / 2.0, height / 2.0), height * 1.05, sheet.width / sheet.height)
+    view = ((width / 2.0, height / 2.0), height * 1.05, across / sheet.height)
     T.write_tables(body, structure, unit=ctx.unit, sheet_scale=ctx.sheet_scale, view=view)
 
     body.tags([(0, "SECTION"), (2, "BLOCKS")])
@@ -443,10 +463,21 @@ def dxf_bytes(
     if not isinstance(symbol_words, bool):
         raise _bad("symbol_words must be true or false", "symbol_words")
     sheet, unit = _sheet_and_unit(drawing_or_sheet, units)
-    _check_sheet(sheet)
+    pages = D.sheets_of(sheet)
+    for page in pages:
+        _check_sheet(page)
     ctx = E.Context(unit, _sheet_scale(sheet), symbol_words, limits)
+    blocks: list[Block] = []
+    model: list[E.Ent] = []
+    counts = {"D": 0, "FCF": 0, "DATUM": 0}
+    x = 0.0
     try:
-        blocks, model = _content(sheet, ctx)
+        for n, page in enumerate(pages):
+            if n:  # the next sheet stands to the right of the one before, a gap between
+                x += float(pages[n - 1].width) + SHEET_GAP
+            got_blocks, got_model = _content(page, replace(ctx, dx=x), counts)
+            blocks += got_blocks
+            model += got_model
     except InvalidArgumentError:
         raise
     except (TypeError, ValueError, AttributeError, IndexError, KeyError) as exc:
@@ -454,7 +485,8 @@ def dxf_bytes(
         raise _bad(
             f"the sheet holds an item the DXF writer cannot write ({type(exc).__name__})", "sheet"
         ) from None
-    return _serialise(sheet, ctx, blocks, model)
+    span = None if len(pages) == 1 else x + float(pages[-1].width)
+    return _serialise(sheet, ctx, blocks, model, span)
 
 
 def write_dxf(

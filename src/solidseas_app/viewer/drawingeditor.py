@@ -26,7 +26,11 @@ under 15.5.
   Dimension, Remove Dimension, Reset Position and Tolerance Block are off, their
   tooltips saying why; the title fields,
   notes, sheet and scale, units, signing, release and Update from Model are as for a
-  part.
+  part. When its parts list goes on past the first sheet, Drawing > Next Sheet and
+  Previous Sheet (Ctrl+Page Down and Ctrl+Page Up, also on the toolbar, shown only
+  then) page through the sheets and the status bar says which is shown; everything
+  but the rest of the list is on the first sheet, and selecting a dimension, a note
+  or a view goes back to it.
 * **Status bar:** the status and revision, and the model: "Model unchanged", "The
   model has changed. Update Drawing", "Model not found. Find...".
 
@@ -478,6 +482,7 @@ class DrawingEditor(QMainWindow):
         self._attached = False  # whether the child has the model now
         self._unsaved = False  # a change outside the undo stack (outputs, release)
         self._selected = ""  # a dimension id, a note id, or "" for the title
+        self._page = 0  # the sheet shown, from 0: the first, where everything but a long parts list is
         self._edit_log: list[str] = []
         self._reports: list[str] = []
         self._queue: deque[_Step] = deque()
@@ -549,6 +554,10 @@ class DrawingEditor(QMainWindow):
         self.model_button = QPushButton(MODEL_LOOKING)
         self.model_button.setFlat(True)
         self.model_button.clicked.connect(self._model_clicked)
+        self.sheet_label = _plain("")
+        self.sheet_label.setWordWrap(False)
+        self.sheet_label.setVisible(False)
+        self.statusBar().addPermanentWidget(self.sheet_label)
         self.statusBar().addPermanentWidget(self.status_label)
         self.statusBar().addPermanentWidget(self.model_button)
         self._actions()
@@ -623,10 +632,29 @@ class DrawingEditor(QMainWindow):
         a["release"] = self._action(status, "&Release...", self.release)
         a["revision"] = self._action(status, "Start &Revision...", self.start_revision)
 
+        # a drawing whose parts list goes on past its first sheet has more; shown only then
+        self.sheets_separator = dwg.addSeparator()
+        a["previous_sheet"] = self._action(
+            dwg,
+            "Previous Sheet",
+            lambda: self.show_sheet(self._page - 1),
+            QKeySequence("Ctrl+PgUp"),
+            tip="Show the sheet before this one",
+        )
+        a["next_sheet"] = self._action(
+            dwg,
+            "Next Sheet",
+            lambda: self.show_sheet(self._page + 1),
+            QKeySequence("Ctrl+PgDown"),
+            tip="Show the sheet after this one",
+        )
+
         tools = self.addToolBar("Drawing")
         tools.setObjectName("Drawing")
         for key in ("save", "undo", "redo", "add", "update", "sign", "release", "pdf", "email"):
             tools.addAction(a[key])
+        tools.addAction(a["previous_sheet"])
+        tools.addAction(a["next_sheet"])
         self.actions_by_name = a
 
     # ------------------------------------------------------------------ what asks the user
@@ -963,11 +991,7 @@ class DrawingEditor(QMainWindow):
     def _show(self, drawing: Any) -> None:
         """Show ``drawing``: the sheet, the lists, the properties, the bar."""
         self.drawing = drawing
-        if drawing.sheet is not None:
-            try:
-                self.scene.set_sheet(drawing.sheet)
-            except InvalidArgumentError as exc:
-                self._say(f"The sheet cannot be shown: {exc}")
+        self._set_page(self._page)
         self._fill_dimensions()
         self._fill_checks()
         self.add_panel.fill()
@@ -979,6 +1003,41 @@ class DrawingEditor(QMainWindow):
         self._update_title()
         self._update_actions()
         self.changed.emit()
+
+    # ------------------------------------------------------------------ the sheets
+    @property
+    def sheets(self) -> tuple:
+        """The drawing's sheets, from the first (more than one when its parts list goes
+        on past the first)."""
+        return D.sheets_of(self.drawing.sheet) if self.drawing is not None else ()
+
+    @property
+    def page(self) -> int:
+        """The sheet shown, from 0."""
+        return self._page
+
+    def show_sheet(self, number: int) -> None:
+        """Show sheet ``number`` (from 0), kept within the drawing's sheets. Everything
+        but the rest of a long parts list is on the first, so editing works there."""
+        self._set_page(number)
+        self._update_actions()
+
+    def _set_page(self, number: int) -> None:
+        sheets = self.sheets
+        self._page = max(0, min(int(number), len(sheets) - 1)) if sheets else 0
+        if sheets:
+            try:
+                self.scene.set_sheet(sheets[self._page])
+            except InvalidArgumentError as exc:
+                self._say(f"The sheet cannot be shown: {exc}")
+        many = len(sheets) > 1
+        self.sheet_label.setText(f"Sheet {self._page + 1} of {len(sheets)}" if many else "")
+        self.sheet_label.setVisible(many)
+
+    def _first_sheet(self) -> None:
+        """Back to the first sheet, where the views, dimensions and notes are."""
+        if self._page:
+            self.show_sheet(0)
 
     def _set_current(self, drawing: Any) -> None:
         """A change that is not an edit (files written, saved): shown, outside Undo."""
@@ -1045,6 +1104,12 @@ class DrawingEditor(QMainWindow):
         )
         a["find"].setEnabled(have)
         a["revision"].setEnabled(released and self.model_state in (*_MODEL_OK, "changed"))
+        count = len(self.sheets)
+        for key in ("previous_sheet", "next_sheet"):
+            a[key].setVisible(count > 1)
+        self.sheets_separator.setVisible(count > 1)
+        a["previous_sheet"].setEnabled(self._page > 0)
+        a["next_sheet"].setEnabled(self._page < count - 1)
         self.properties.setEnabled(edit)
 
     # ------------------------------------------------------------------ the lists
@@ -1205,6 +1270,8 @@ class DrawingEditor(QMainWindow):
     def select(self, ident: str) -> None:
         """Select a dimension or a note by id ("" for the title fields): on the sheet, in
         the list and in Properties."""
+        if ident:
+            self._first_sheet()  # dimensions and notes are all on the first sheet
         self._selected = ident or ""
         self.scene.select(self._owners_of(ident) if ident else ())
         self._filling = True
@@ -1230,6 +1297,8 @@ class DrawingEditor(QMainWindow):
         if self.dimension(item) is not None or any(nid == item for nid, _n in self.drawing.notes):
             self.select(item)
             return
+        if self.scene.item(item) is None:
+            self._first_sheet()  # a view or feature: on the first sheet
         owners = self.scene.owners_of_feature(item) if item.startswith("f-") else ()
         if not owners and self.scene.item(item) is not None:
             owners = (item,)

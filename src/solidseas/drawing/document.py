@@ -1533,7 +1533,10 @@ class _Reader:
                 "sheet_bytes", "the laid-out sheet is larger than a drawing file holds"
             )
         try:
-            return display.from_compact(raw)
+            sheet = display.from_compact(raw)
+            if len(display.sheets_of(sheet)) > self.limits.sheets:
+                raise InvalidArgumentError(f"the drawing has more than {self.limits.sheets} sheets")
+            return sheet
         except (InvalidArgumentError, TypeError, ValueError) as exc:
             self.problem("sheet", exc, "the drawing opens without its laid-out sheet, which is kept as it is")
             self.unknown.append(("sheet", raw))  # bounded by sheet_bytes, not unknown_bytes

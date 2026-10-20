@@ -40,7 +40,7 @@ the sheet is compact on a line of its own.
 | `notes` | id, origin (`template` or `user`), text and inline frames |
 | `status`, `signatures`, `accepted`, `revisions`, `outputs` | see [release.md](release.md); `accepted` lists what Release accepted with the typed reasons (an addition to 13.1's example) |
 | `next_id` | the next free number of feature, dimension, note and view ids |
-| `sheet` | the laid-out display list, so the drawing reopens view-only and exports without the model |
+| `sheet` | the laid-out display list, so the drawing reopens view-only and exports without the model. A drawing of several sheets (an assembly's long parts list, DRAWINGS.md 11.7) keeps them all here: the first sheet's item has a ninth value listing the sheets after it, written only when there are any, so a drawing of one sheet writes what it always did. More sheets than `DrawingLimits.sheets` (16) leave the drawing without its sheet, written back as it came |
 
 A removed generated dimension stays in `dimensions` with state `removed`, so the
 editor can restore it and regeneration keeps it removed; a deleted user

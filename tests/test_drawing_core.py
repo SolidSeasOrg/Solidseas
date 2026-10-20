@@ -24,13 +24,22 @@ def test_the_default_limits_are_the_designs():
         150_000,
         400_000,
     )
-    assert DEFAULT_LIMITS.seconds_total == 150.0 and DEFAULT_LIMITS.views == 12 and DEFAULT_LIMITS.sheets == 1
+    assert (
+        DEFAULT_LIMITS.seconds_total == 150.0 and DEFAULT_LIMITS.views == 12 and DEFAULT_LIMITS.sheets == 16
+    )
     assert DEFAULT_LIMITS.settings_bytes == 256 * 1024 and DEFAULT_LIMITS.json_depth == 32
 
 
 @pytest.mark.parametrize(
     "kw",
-    [{"faces": 0}, {"faces": 10**9}, {"faces": 2.5}, {"faces": True}, {"seconds_views": "90"}, {"sheets": 2}],
+    [
+        {"faces": 0},
+        {"faces": 10**9},
+        {"faces": 2.5},
+        {"faces": True},
+        {"seconds_views": "90"},
+        {"sheets": 65},
+    ],
 )
 def test_limits_are_checked_when_made(kw):
     with pytest.raises(InvalidArgumentError):

@@ -7,6 +7,11 @@ downward axis; numbers have three decimals, so the goldens compare within a
 hundredth of a millimetre. Every string is escaped as XML text and nothing in
 the file is active: no script, link or external reference, and the logo is an
 inline PNG.
+
+SVG has no pages, so a drawing of several sheets (an assembly's parts list going
+on past the first, :attr:`.display.Sheet.continuation`) is a file for each sheet:
+:func:`to_svg` and :func:`write_svg` draw the one sheet they are given (the first
+alone for a drawing's sheet), and :func:`to_svgs` gives every sheet's, in order.
 """
 
 from __future__ import annotations
@@ -132,10 +137,17 @@ class SvgPainter:
 
 
 def to_svg(sheet: D.Sheet, title: str = "") -> str:
-    """A sheet's painted layer as SVG text."""
+    """A sheet's painted layer as SVG text: that sheet alone, never those that
+    continue it."""
     p = SvgPainter(title)
     paint(sheet, p)
     return p.text_out()
+
+
+def to_svgs(sheet: D.Sheet, title: str = "") -> list[str]:
+    """Every sheet of a drawing whose first sheet is ``sheet`` as SVG text, a file each,
+    from the first."""
+    return [to_svg(page, title) for page in D.sheets_of(sheet)]
 
 
 def write_svg(sheet: D.Sheet, fh: IO[bytes], title: str = "") -> int:
@@ -165,4 +177,4 @@ def close_enough(a: str, b: str, tol: float = 0.01) -> bool:
     return len(na) == len(nb) and all(math.isclose(x, y, abs_tol=tol) for x, y in zip(na, nb, strict=True))
 
 
-__all__ = ["SvgPainter", "close_enough", "numbers", "to_svg", "write_svg"]
+__all__ = ["SvgPainter", "close_enough", "numbers", "to_svg", "to_svgs", "write_svg"]

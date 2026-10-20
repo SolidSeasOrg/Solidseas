@@ -2014,7 +2014,9 @@ def drawing_summary_data(drawing: Any) -> dict[str, Any]:
     states = [getattr(d, "state", "shown") for d in drawing.dimensions]
     attention = sum(1 for d in drawing.dimensions if "needs_attention" in getattr(d, "flags", ()))
     annotations = sheet.annotations if sheet is not None else ()
-    items = sum(len(a.rows) for a in annotations if isinstance(a, display.PartsList))
+    pages = display.sheets_of(sheet)
+    lists = [a for page in pages for a in page.annotations if isinstance(a, display.PartsList)]
+    items = sum(len(a.rows) for a in lists)
     balloons = sum(1 for a in annotations if isinstance(a, display.Balloon))
     created = getattr(drawing, "created", None)
     modified = getattr(drawing, "modified", None)
@@ -2065,6 +2067,7 @@ def drawing_summary_data(drawing: Any) -> dict[str, Any]:
                 "views": len(sheet.views) if sheet is not None else len(views),
                 "items": items,
                 "balloons": balloons,
+                "sheets": len(pages),
             },
             "outputs": [
                 {
@@ -3509,6 +3512,11 @@ _DRAWING_SCHEMA = _obj(
                         "views": _INT,
                         "items": _INT,
                         "balloons": _INT,
+                        "sheets": {
+                            "type": "integer",
+                            "description": "the drawing's sheets: 1, more when its parts list goes on "
+                            "past the first, 0 when it has no laid-out sheet",
+                        },
                     }
                 ),
                 "outputs": _arr(

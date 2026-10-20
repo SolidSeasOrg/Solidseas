@@ -33,7 +33,7 @@ _BOUNDS: dict[str, tuple[float, float]] = {
     "requirements": (5000, 50_000),
     "dimensions": (2000, 20_000),
     "views": (12, 24),
-    "sheets": (1, 1),
+    "sheets": (16, 64),
     "title_chars": (256, 256),
     "note_chars": (2000, 2000),
     "string_chars": (4096, 4096),
@@ -73,7 +73,7 @@ class DrawingLimits:
     requirements: int = 5000
     dimensions: int = 2000
     views: int = 12
-    sheets: int = 1
+    sheets: int = 16  # a drawing's sheets: the first, and those a long parts list goes on to
     title_chars: int = 256
     note_chars: int = 2000
     string_chars: int = 4096

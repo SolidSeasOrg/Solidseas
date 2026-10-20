@@ -683,3 +683,184 @@ def test_an_assembly_with_no_part_hidden_draws_no_hidden_lines():
     assert run.orchestrated.views == run.views
     assert not [g for g in run.drawing.sheet.geometry if g.style == "hidden"]
     assert drawn().orchestrated.views == drawn().views  # o16, whose parts all show
+
+
+# --------------------------------------------------------------------------- a parts list on more sheets
+
+
+@functools.cache
+def long_list(lines: int = 70, sheets: int | None = None):
+    """A synthetic assembly of ``lines`` small plates, a parts list line each, drawn on
+    A sheets: too long a list for the first, so it goes on to more (at most ``sheets``
+    in all, by default the limit's)."""
+    from drawing_parts import MM, box
+
+    parts = [
+        (
+            str(k + 1),
+            f"plate{k + 1:03d}",
+            box(20 * MM, 10 * MM, 5 * MM),
+            ((k % 8) * 25 * MM, (k // 8) * 15 * MM, 0),
+        )
+        for k in range(lines)
+    ]
+    limits = DrawingLimits(bodies=256) if sheets is None else DrawingLimits(bodies=256, sheets=sheets)
+    return pipeline.run(
+        None,
+        settings=_settings(),
+        fields=FIELDS,
+        options=T.DrawingOptions(sheet="A"),
+        stages={"source": _synthetic_assembly(parts)},
+        limits=limits,
+    )
+
+
+def _title(sheet) -> dict:
+    return dict(next(a for a in sheet.annotations if isinstance(a, D.TitleBlock)).fields)
+
+
+def _lists(sheet):
+    return [a for a in sheet.annotations if isinstance(a, D.PartsList)]
+
+
+def test_a_parts_list_too_long_for_its_sheet_goes_on_to_more_sheets():
+    from solidseas.drawing.layout import partslist as PL
+
+    d = long_list().drawing
+    sheets = D.sheets_of(d.sheet)
+    assert len(sheets) == 3 and sheets[0] is d.sheet
+    assert [_title(s)["sheet"] for s in sheets] == ["1 OF 3", "2 OF 3", "3 OF 3"]
+    assert {(s.name, s.width, s.height, s.scale) for s in sheets} == {("A", 279.4, 215.9, d.sheet.scale)}
+    # every line of the list once, in order, across the sheets; each column with its headings
+    rows = [r for s in sheets for pl in _lists(s) for r in pl.rows]
+    assert [r[0] for r in rows] == [str(n) for n in range(1, 71)]
+    assert all(pl.columns == PL.COLUMNS for s in sheets for pl in _lists(s))
+    assert 0 < sum(len(pl.rows) for pl in _lists(sheets[0])) < 70
+    # the sheets after the first: the list, the title block, the border and the stamps; no views
+    for s in sheets[1:]:
+        assert s.views == () and s.geometry == () and s.continuation == ()
+        assert not [a for a in s.annotations if isinstance(a, (D.Balloon, D.Dimension, D.NotesBlock))]
+        assert {type(a) for a in s.annotations} >= {D.TitleBlock, D.PartsList, D.Border, D.Stamp, D.PlotStamp}
+        assert not [p for p in s.painted if p.owner == "revisions"], "the revision block is on the first"
+        tb = next(a for a in s.annotations if isinstance(a, D.TitleBlock))
+        for pl in _lists(s):  # standing on the title block, inside the border
+            assert pl.at[1] == pytest.approx(tb.at[1] + tb.height)
+            assert pl.at[1] + pl.height <= s.height - 9.0
+    assert _title(sheets[1])["title"] == _title(sheets[0])["title"]
+    # the checks read the list across its sheets: every balloon names an item of it
+    found = [
+        c for c in d.checks if c.code in ("ASM.parts", "ASM.balloons", "R8.sheet") and c.level == "error"
+    ]
+    assert not found, found
+    assert sum(1 for s in sheets for a in s.annotations if isinstance(a, D.Balloon)) == 70
+
+
+def test_the_sheets_after_the_first_are_filled_and_the_last_balanced():
+    from solidseas.drawing.layout import partslist as PL
+
+    h = 3.5
+    rows = tuple((str(n), f"P-{n:03d}", f"P-{n:03d}", "PLATE", "1") for n in range(1, 61))
+    # held to one sheet, as before: three columns, each taller than its share
+    one = PL.shape(rows, h, 178.0, 200.0, 800.0)
+    assert (one.columns, one.per_column, one.lines) == (3, 20, 60)
+    # with more sheets: the columns as tall as their share, the rest left for the next sheet
+    fit = int(200.0 * PL.PARTS_SHARE // PL.row_height(h)) - 1
+    many = PL.shape(rows, h, 178.0, 200.0, 800.0, more=True)
+    assert (many.columns, many.per_column, many.lines) == (3, fit, 3 * fit)
+    assert many.height <= 200.0 * PL.PARTS_SHARE
+    # a list that fits is shaped the same either way
+    assert PL.shape(rows[:20], h, 178.0, 200.0, 800.0, more=True) == PL.shape(
+        rows[:20], h, 178.0, 200.0, 800.0
+    )
+    # a sheet of its own: columns as tall as the field and as many as the width holds
+    tall = int(150.0 // PL.row_height(h)) - 1
+    full = PL.continued(100, h, 178.0, 150.0, 400.0)
+    assert (full.columns, full.per_column, full.lines) == (2, tall, 2 * tall)
+    assert PL.continued(15, h, 178.0, 150.0, 400.0) == PL.Shape(1, 15, 178.0, 16 * PL.row_height(h), 15)
+    balanced = PL.continued(tall + 3, h, 178.0, 150.0, 400.0)
+    assert (balanced.columns, balanced.per_column) == (2, -(-(tall + 3) // 2))
+    last = PL.continued(100, h, 178.0, 150.0, 400.0, last=True)
+    assert last.lines == 100 and last.per_column > tall, "the last sheet a drawing may have takes the rest"
+    assert PL.continued(0, h, 178.0, 150.0, 400.0) == PL.Shape()
+
+
+def test_a_drawing_held_to_one_sheet_stands_its_list_taller():
+    d = long_list(sheets=1).drawing
+    assert D.sheets_of(d.sheet) == (d.sheet,) and _title(d.sheet)["sheet"] == "1 OF 1"
+    assert [r[0] for pl in _lists(d.sheet) for r in pl.rows] == [str(n) for n in range(1, 71)]
+    # at the most sheets a drawing may have, the last takes every line left
+    two = long_list(sheets=2).drawing
+    assert [_title(s)["sheet"] for s in D.sheets_of(two.sheet)] == ["1 OF 2", "2 OF 2"]
+    rows = [r[0] for s in D.sheets_of(two.sheet) for pl in _lists(s) for r in pl.rows]
+    assert rows == [str(n) for n in range(1, 71)]
+
+
+def test_a_drawing_of_several_sheets_is_saved_and_read_back():
+    d = long_list().drawing
+    data = document.dumps(d)
+    back, problems = document.loads(data)
+    assert problems == [] and len(D.sheets_of(back.sheet)) == 3
+    assert document.dumps(back) == data
+    # a one-sheet drawing's compact sheet is as before: eight values, no continuation
+    one = document.loads(document.dumps(drawn().drawing))[0]
+    assert len(D.to_compact(one.sheet)["sheet"]["v"]) == 8 and one.sheet.continuation == ()
+    many = D.to_compact(d.sheet)
+    assert len(many["sheet"]["v"]) == 9 and len(many["sheet"]["v"][8]) == 2
+    # a sheet that continues another has none of its own; a drawing has at most the limit
+    with pytest.raises(InvalidArgumentError):
+        D.from_compact(D.to_compact(replace(d.sheet, continuation=(d.sheet,))))
+    few, problems = document.loads(data, limits=DrawingLimits(sheets=2))
+    assert few.sheet is None and "more than 2 sheets" in " ".join(problems)
+    assert document.dumps(few) == data, "the sheet is kept as it is"
+
+
+def test_a_drawing_of_several_sheets_writes_a_page_each():
+    import dxf_reader
+    from solidseas.drawing import svg
+    from solidseas.drawing.dxf import SHEET_GAP, dxf_bytes
+    from solidseas.model import drawing_summary_data
+
+    d = long_list().drawing
+    sheets = D.sheets_of(d.sheet)
+    pdf = io.BytesIO()
+    write_pdf(d, pdf)
+    assert PdfDocument(pdf.getvalue()).page_count == 3
+    for n in range(3):
+        page = PdfDocument(pdf.getvalue(), page_index=n)
+        words = [r.text for r in page.text_runs()]
+        assert f"{n + 1} OF 3" in words and "ITEM" in words
+        assert {r[0] for pl in _lists(sheets[n]) for r in pl.rows} <= set(words)
+        assert page.media_box()[2] == pytest.approx(279.4 * 72 / 25.4, abs=0.01)
+    # the first page is what a drawing of the first sheet alone writes
+    alone = io.BytesIO()
+    write_pdf(replace(d.sheet, continuation=()), alone)
+    assert PdfDocument(alone.getvalue()).content() == PdfDocument(pdf.getvalue(), page_index=0).content()
+    # the DXF: the sheets side by side in model space, every part number on its sheet once
+    doc = dxf_reader.read(dxf_bytes(d))
+    handles = doc.handles()
+    assert len(handles) == len(set(handles))
+    texts = [e for e in doc.entities if e.type in ("TEXT", "MTEXT")]
+    numbered = [e for e in texts if e.text.endswith(" OF 3")]
+    assert [e.text for e in numbered] == ["1 OF 3", "2 OF 3", "3 OF 3"]
+    for n in range(1, 71):
+        assert [e.text for e in texts].count(f"PLATE{n:03d}") == 2, n  # its part number and drawing's
+    k = d.sheet.scale[1] / d.sheet.scale[0]  # model millimetres a sheet millimetre
+    assert float(doc.var("$EXTMAX")) == pytest.approx((3 * 279.4 + 2 * SHEET_GAP) * k, abs=1e-6)
+    xs = [e.point(10)[0] for e in numbered]
+    assert xs[1] - xs[0] == pytest.approx((279.4 + SHEET_GAP) * k, abs=1e-3)
+    assert xs[2] - xs[1] == pytest.approx((279.4 + SHEET_GAP) * k, abs=1e-3)
+    # an SVG a sheet
+    svgs = svg.to_svgs(d.sheet)
+    assert len(svgs) == 3 and svgs[0] == svg.to_svg(d.sheet) and "3 OF 3" in svgs[2]
+    # the summary counts every line and the sheets
+    counts = drawing_summary_data(d)["counts"]
+    assert counts["items"] == 70 and counts["sheets"] == 3
+    assert drawing_summary_data(drawn().drawing)["counts"]["sheets"] == 1
+
+
+def test_an_edit_lays_the_sheets_out_again():
+    d = long_list().drawing
+    moved, _checks = edit.move_balloon(d, "1", 30.0, 30.0)
+    sheets = D.sheets_of(moved.sheet)
+    assert [_title(s)["sheet"] for s in sheets] == ["1 OF 3", "2 OF 3", "3 OF 3"]
+    assert sheets[1:] == D.sheets_of(d.sheet)[1:], "the sheets after the first are as they were"

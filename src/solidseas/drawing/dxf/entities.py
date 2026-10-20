@@ -92,12 +92,15 @@ def in_block(ent: Ent) -> Ent:
 
 @dataclass(frozen=True)
 class Context:
-    """How one sheet maps to model space, and what its strings need."""
+    """How one sheet maps to model space, and what its strings need. ``dx`` moves the
+    sheet to the right by that many sheet millimetres: a drawing's later sheets stand
+    beside its first."""
 
     unit: str  # "mm" or "in"
     sheet_scale: float  # sheet millimetres per model millimetre
     words: bool = False
     limits: DrawingLimits = DrawingLimits()
+    dx: float = 0.0
 
     @property
     def k(self) -> float:
@@ -116,6 +119,8 @@ class Context:
         if not (math.isfinite(x) and math.isfinite(y)):
             raise _bad("a sheet point must be finite")
         k = self.k
+        if self.dx:
+            x += self.dx
         return (x * k, y * k)
 
     def size(self, d: float) -> float:

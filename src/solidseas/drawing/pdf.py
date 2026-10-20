@@ -1,6 +1,8 @@
 """The PDF writer (``docs/DRAWINGS.md`` 12.1, 12.4, 17.2, 18).
 
-One page of PDF 1.7, written in pure Python. The page is the sheet: its
+PDF 1.7, written in pure Python, a page for each sheet: one for most drawings, and
+for one whose parts list goes on to more sheets (:attr:`.display.Sheet.continuation`)
+a page for each, in order. A page is its sheet: its
 MediaBox is the sheet's size in points (72 to the inch, so a millimetre is
 72/25.4 points) and the content is the sheet's painted layer, replayed through
 :func:`.painter.paint` on a :class:`PdfPainter`, the same call the SVG
@@ -422,7 +424,8 @@ def to_pdf(
     drawing_or_sheet: Any, *, title: str | None = None, limits: DrawingLimits = DEFAULT_LIMITS
 ) -> PdfOutput:
     """The sheet of a :class:`~.types.Drawing`, or a :class:`~.display.Sheet`, as the
-    bytes of a one-page PDF with what was left out in words. ``title`` replaces the
+    bytes of a PDF with what was left out in words: one page, or a page for each sheet
+    of a drawing that has several, in order. ``title`` replaces the
     title block's title in the document information. The file is at most
     ``limits.output_bytes``; a larger one raises ``SldLimitError``."""
     if not isinstance(limits, DrawingLimits):
@@ -435,9 +438,12 @@ def to_pdf(
             raise limits.exceeded("title_chars", "the title is longer than a drawing's title may be")
     shown_title = _clean_title(_title_of(sheet, drawing) if title is None else title, limits.title_chars)
 
-    painter = PdfPainter(limits=limits)
-    paint(sheet, painter)
-    return painted_pdf(painter, shown_title, limits=limits)
+    painters = []
+    for page in D.sheets_of(sheet):  # a page for each sheet, the first first
+        painter = PdfPainter(limits=limits)
+        paint(page, painter)
+        painters.append(painter)
+    return painted_pdf(painters, shown_title, limits=limits)
 
 
 def painted_pdf(
@@ -540,7 +546,8 @@ def write_pdf(
     problems: list[str] | None = None,
 ) -> int:
     """Write the sheet of a :class:`~.types.Drawing`, or a :class:`~.display.Sheet`,
-    as a one-page PDF to the binary file object ``fh``; returns the bytes written.
+    as a PDF of a page for each of its sheets (one for a drawing of one sheet) to the
+    binary file object ``fh``; returns the bytes written.
 
     Nothing is written unless the whole file is made: a sheet the writer refuses
     (text outside WinAnsi, a value that is not finite) raises

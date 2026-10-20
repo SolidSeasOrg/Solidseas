@@ -1743,6 +1743,7 @@ def _r8_sheet(s: _In, out: _Out) -> None:
                 "revisions",
                 ("Lay Out Again",),
             )
+    _r8_numbered(s, out)
     if s.layout is not None:
         return  # the layout's own checks say what lies outside the border or in a block
     edge = Box(std.margin, std.margin, right, top).grow(0.01)
@@ -1768,6 +1769,29 @@ def _r8_sheet(s: _In, out: _Out) -> None:
                     owner or "sheet",
                     ("Move",),
                 )
+
+
+def _r8_numbered(s: _In, out: _Out) -> None:
+    """Every sheet of the drawing the first's size, with a title block saying which of
+    how many it is (SHEET n OF m)."""
+    sheets = D.sheets_of(s.sheet)
+    m = len(sheets)
+    for n, sheet in enumerate(sheets, 1):
+        if n > 1 and (sheet.name, sheet.width, sheet.height) != (s.sheet.name, s.sheet.width, s.sheet.height):
+            out.add("R8.sheet", f"sheet {n} is not the size of the first", "sheet", ("Lay Out Again",))
+        tb = next((a for a in sheet.annotations if isinstance(a, D.TitleBlock)), None)
+        if tb is None:
+            if n > 1:
+                out.add("R8.sheet", f"sheet {n} has no title block", "title", ("Lay Out Again",))
+            continue
+        said = " ".join(str(dict(tb.fields).get("sheet") or "").upper().split())
+        if said and said != f"{n} OF {m}":
+            out.add(
+                "R8.sheet",
+                f"sheet {n}'s title block says SHEET {said}; the drawing has {m} sheet{'s' if m > 1 else ''}",
+                "title",
+                ("Lay Out Again",),
+            )
 
 
 def _union(a, b) -> tuple[float, float, float, float]:
@@ -2545,7 +2569,9 @@ def _asm_parts(s: _In, out: _Out) -> None:
     if not lists:
         out.add("ASM.parts", "the sheet has no parts list", "parts", ("Lay Out Again",))
         return
-    rows = [r for pl in lists for r in pl.rows if r]  # a long list's columns, in order
+    # a long list's columns, in order, and those of the sheets it goes on to
+    lists += [a for more in s.sheet.continuation for a in more.annotations if isinstance(a, D.PartsList)]
+    rows = [r for pl in lists for r in pl.rows if r]
     items = {r[0] for r in rows}
     shown: set[str] = set()
     for b in (a for a in s.annotations if isinstance(a, D.Balloon)):

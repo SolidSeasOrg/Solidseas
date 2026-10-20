@@ -247,7 +247,8 @@ Turned parts, auxiliary views, other source formats, automatic details,
 broken-out sections, chain dimensioning, hole tables, ISO, mesh sources,
 `BLENDED_EDGE` recognition as blends, DXF R12, SVG export, REST routes,
 free-pick Add Dimension, Settings import and export, Key coverage and critical
-flags, the geometry cache, several sheets, `.SLDDRW`.
+flags, the geometry cache, several sheets (built since for an assembly's long
+parts list alone, 11.7), `.SLDDRW`.
 
 ### 3.5 Stage 2: release 1.1
 
@@ -283,7 +284,8 @@ hole tables; mesh sources with "REFERENCE ONLY - NOT FOR MANUFACTURE";
 DXF R12; SVG export; REST routes and `ssdrw_summary`; free-pick Add Dimension;
 Settings import and export and a Presentation page; Key coverage, critical and
 inspection marks, and the print file named in printed notes; the geometry
-cache; the DXF TOLERANCE entity; dual dimensions; several sheets; PDF/A with an
+cache; the DXF TOLERANCE entity; dual dimensions; several sheets (views on a
+second sheet; a long parts list's sheets are built, 11.7); PDF/A with an
 embedded single-stroke font; the Windows Share sheet; email routes for the CLI;
 Hole Wizard records; STEP AP242 PMI; sheet metal; assemblies (views, balloons,
 the BOM table); and the OCCT hidden-line accelerator question (section 25).
@@ -1481,6 +1483,29 @@ lines crossing (a warning), row spacing, items outside the drawing area or in
 reserved areas, text under the minimum height, leaders outside 15 to 75
 degrees, moved placements that had to be reset, cramped features.
 
+### 11.7 More than one sheet
+
+A drawing has one sheet, except an assembly's whose parts list is longer than
+the columns its first sheet holds (`docs/drawings/assemblies.md`). The first
+sheet then fills those columns and the list goes on to sheets of the same size
+after it, as many as it needs and at most `DrawingLimits.sheets` in all. Each of
+those sheets has the border with its zones, the PRELIMINARY stamp while the
+drawing is unreleased, the plot stamp, the title block and the rest of the list
+in columns standing on the title block, each column with its headings, as many
+columns as the border's width holds, each as tall as the field above the title
+block; the last sheet's columns share its lines evenly. The views, balloons,
+notes and revision block stay on the first sheet. Every title block says SHEET n
+OF m, the first sheet's too (`1 OF 3`); a drawing of one sheet says `1 OF 1` as
+before. A drawing at the limit puts every line left on its last sheet, its
+columns taller than the field when they must be, and a drawing held to one sheet
+(`DrawingLimits(sheets=1)`) stands its columns taller instead, as every drawing
+did before.
+
+The sheets after the first are `display.Sheet.continuation` of the first
+(`display.sheets_of` lists them all), so everything that carries a drawing's
+sheet carries them, and a layout lays them out again with the first. `R8.sheet`
+checks each is the first's size with a title block numbering it among the rest.
+
 ## 12. Writers and where files go
 
 ### 12.1 PDF (`dwg-pdf`)
@@ -1491,7 +1516,8 @@ Béziers; optional content groups (Visible, Hidden, Centre lines, Dimensions,
 Notes, Title block, Stamp); the logo as an image XObject with a soft mask;
 metadata without paths or user names; a deterministic `/ID`; nothing active (no
 JavaScript, actions or forms). Typed text outside WinAnsi is refused at entry.
-PDF/A is stage 4.
+PDF/A is stage 4. A page for each sheet, in order (11.7); a drawing of one sheet
+is the one page it always was, byte for byte.
 
 ### 12.2 DXF (`dwg-dxf`)
 
@@ -1500,6 +1526,15 @@ dimension blocks). Views at true size in model space with the furniture scaled
 by 1/scale, so DIMENSION entities measure their true values with `DIMLFAC` 1;
 one DIMSTYLE per unit; layers by role (VISIBLE, HIDDEN, CENTER, PHANTOM, DIM,
 HATCH, BORDER, TITLE, NOTES); line types matching `acad.lin`.
+
+A drawing of several sheets (11.7) is one file with the sheets side by side in
+model space, left to right from the first, an inch of paper apart, each with its
+border and title block, and the header's extents and the opening view taking
+them all in. Model space is the one place every DXF reader shows: LibreCAD and
+most viewers show only model space, and a program that shows layouts opens on
+one of them, so a sheet in a paper space layout of its own is easily missed.
+Side by side, every sheet is on screen the moment the file opens. A drawing of
+one sheet is written as before, byte for byte.
 
 What a user gets, said in these words in the docs and the UI:
 
@@ -1537,7 +1572,9 @@ it passes, the UI says that inside SOLIDWORKS the editable route is the stage 3
 ### 12.3 SVG (core 2, internal)
 
 The reference writer of the painted layer, used for previews, docs and goldens.
-Not offered as a user export in stage 1.
+Not offered as a user export in stage 1. SVG has no pages, so it writes a file
+for each sheet: `svg.to_svg` draws the one sheet it is given (a drawing's first
+alone), and `svg.to_svgs` gives every sheet's, in order (11.7).
 
 ### 12.4 Determinism and goldens
 
@@ -1683,7 +1720,17 @@ Members:
 - `sheet`: the laid-out display list in compact form, so the drawing reopens
   view-only and exports without the model, and a released revision reproduces
   exactly in later SolidSeas versions. The geometry cache for editing without
-  the model is stage 4.
+  the model is stage 4. A drawing of several sheets (11.7) keeps them all in
+  this one member: the first sheet's item takes a ninth value, the list of the
+  sheets after it, each a `sheet` item of its own without one. The ninth value is
+  written only when there are more sheets, so a drawing of one sheet writes the
+  eight values it always did, and a file from before reads as a drawing of one
+  sheet. The schema stays `solidseas.drawing/1`: nothing a reader of one-sheet
+  files needs has changed, and a SolidSeas from before multi-sheet drawings
+  meets a sheet item with nine values as it meets a compact tag it does not know
+  (the parts list's, for one), opening the drawing without its laid-out sheet and
+  writing that member back as it came. A file with more sheets than
+  `DrawingLimits.sheets` opens the same way, the reason in its problems.
 
 A reader accepts schema major 1, refuses a higher major with a clear message,
 keeps unknown members (bounded) and never interprets them, so a newer
@@ -1915,6 +1962,12 @@ A `QMainWindow` per drawing, with the operations of section 10.12:
   DXF..., Email PDF, Update from Model, Sign..., Release..., Start Revision,
   Sheet and Scale, Units, Tolerance Block, Notes, Add Detail View, Add Section,
   Use Current Drawing Settings, Drawing Settings, Undo and Redo (`QUndoStack`).
+- **Sheets:** a drawing of several sheets (11.7) shows one at a time, the status
+  bar saying which ("Sheet 2 of 3"); Next Sheet and Previous Sheet (Ctrl+Page
+  Down, Ctrl+Page Up, on the Drawing menu and the toolbar, shown only for such a
+  drawing) page through them. Every edit is about the first sheet, which holds
+  everything but the rest of the parts list, and selecting a dimension, a note or
+  a view shows it again.
 
 Nothing geometric runs on the UI thread.
 
@@ -2011,7 +2064,7 @@ copy of the sheet format is asked each time (Q13).
 | seconds | source 30, tessellation 30, features 20, views 90 in all, plan 20, layout 20; 150 in total | worst measured before the fixes: 185.6 s for a 19,064-face part |
 | model extent | 1 µm to 100 m | |
 | requirements; generated dimensions | 5,000; 2,000 | |
-| views a sheet; sheets | 12; 1 | the corpus drawings have at most 6 views and one sheet |
+| views a sheet; sheets | 12; 16 (at most 64) | the corpus drawings have at most 6 views and one sheet; more sheets hold only a long parts list (11.7) |
 | title field; note; any string | 256; 2,000; 4,096 characters | |
 | settings file; drawing file; its sheet; unknown members | 256 KiB; 16 MiB; 12 MiB; 1 MiB | |
 | logo stored | 512 KiB, 1,200 px a side | |
@@ -2173,7 +2226,7 @@ once the user has installed them; Email PDF with the user's webmail.
 | R6.material | material mapped to an entry with callout and specification, or accepted as typed; finish explicit; heat treatment answered when asked | error at release |
 | R6.signatures | rows Settings require are signed at release; signatures match the current content | error at release |
 | R7.callouts | callout grammar and order; THRU only with both ends open; a thread only when confirmed; `into_bore` ends confirmed | error |
-| R8.sheet | size, margins, frame, zones, block positions | error |
+| R8.sheet | size, margins, frame, zones, block positions; every sheet the first's size and numbered SHEET n OF m | error |
 | R9.lines | two widths 2:1; styles by role; centre marks and lines | warning |
 | R10.text | heights at or above the minimum; labels larger; upper case; no compressed text | error |
 | R11.collisions | no hard conflict | error |

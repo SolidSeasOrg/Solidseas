@@ -5578,7 +5578,7 @@ are null or empty, never left out.
              "options": {"process": "machined", "scheme": "datum", "units": "mm",
                          "views": ["front", "top", "isometric"], "sheet": "A", "scale": "2:1"},
              "counts": {"features": 3, "dimensions": 6, "shown": 6, "removed": 0, "needs_attention": 0,
-                        "notes": 4, "views": 3, "items": 0, "balloons": 0},
+                        "notes": 4, "views": 3, "items": 0, "balloons": 0, "sheets": 1},
              "outputs": [{"kind": "pdf", "name": "1234-001 A PRELIMINARY.pdf", "sha256": "...",
                           "revision": "A", "released": false}],
              "created": "2026-10-07T09:14:03-04:00", "modified": "2026-10-07T09:14:03-04:00"},

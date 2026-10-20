@@ -11,7 +11,9 @@ dropped silently: an item with no clear place is put at its best and reported.
 
 The result is a :class:`~solidseas.drawing.display.Sheet` (geometry, annotations
 and the painted layer) and the layout checks. Placement is deterministic: stable
-sort keys and no randomness.
+sort keys and no randomness. An assembly's parts list too long for the sheet's
+columns goes on to sheets after it (``docs/DRAWINGS.md`` 11.7), the sheet's
+``continuation``: the title block, border, stamps and the rest of the list.
 """
 
 from __future__ import annotations
@@ -23,6 +25,7 @@ from dataclasses import dataclass, field, replace
 
 from .. import display as D
 from .. import standards
+from ..limits import DEFAULT_LIMITS
 from ..plan import Planned
 from ..plan.gdt import frame_item
 from ..plan.notes import upper
@@ -198,7 +201,9 @@ class _Run:
         revisions,
         status,
         signed,
+        sheets=DEFAULT_LIMITS.sheets,
     ):
+        self.sheets = sheets  # the most sheets the drawing may take
         self.planned = planned
         self.plan = planned.plan
         self.detail = planned.detail
@@ -337,7 +342,25 @@ class _Run:
             return PL.Shape()
         heads, narrow, rows = self.parts_rows()
         room = f.revision.y0 - f.title.y1
-        return PL.shape(rows, self.h, f.title.width, room, f.border.width, heads, narrow)
+        more = self.sheets > 1
+        return PL.shape(rows, self.h, f.title.width, room, f.border.width, heads, narrow, more=more)
+
+    def continuation_shapes(self, name: str) -> list[PL.Shape]:
+        """The parts list on the sheets after the first of size ``name``: each sheet's
+        shape, for the lines the first does not hold (none when it holds them all)."""
+        first = self.parts_shape(sheet.frame(name, self.settings))
+        left = len(self.plan.bom) - first.lines
+        out: list[PL.Shape] = []
+        if left <= 0:
+            return out
+        f = sheet.continuation_frame(name, self.settings)
+        room = sheet.continuation_room(f)
+        while left > 0:
+            last = len(out) + 2 >= self.sheets
+            got = PL.continued(left, self.h, first.width, room, f.border.width, last=last)
+            out.append(got)
+            left -= got.lines
+        return out
 
     def _frame_w(self, cell) -> float:
         return A.frame_width(self.ctx, cell)
@@ -385,6 +408,8 @@ class _Run:
             self.index.add(VIEW, s.outline, v)
         for r in f.reserved:
             self.index.add(HARD, r, "reserved")
+        more = self.continuation_shapes(f.name) if self.plan.bom else []
+        self.sheet_count = 1 + len(more)
         self.paint_views()
         self.paint_bands()
         self.paint_datums()
@@ -402,6 +427,7 @@ class _Run:
             tuple(self.geometry),
             tuple(self.annotations),
             tuple(painted),
+            self.paint_continuation(sc, more),
         )
         found = C.run(self.pen, f, leaders=self.leaders, unplaced=self.unplaced, cramped=self.cramped)
         return LayoutResult(result_sheet, found, deep, f, time.perf_counter() - t0, sc, dict(self.views))
@@ -1301,50 +1327,87 @@ class _Run:
 
     # ------------------------------------------------------------------ furniture
 
-    def paint_furniture(self, sc) -> None:
-        f = self.frame
-        ctx = self.ctx
+    def title_fields(self, sc, number: int) -> dict[str, str]:
+        """The title block's fields on sheet ``number`` of the drawing's ``self.sheet_count``."""
         fields = {k: v for k, v in self.plan.title}
-        fields["size"] = f.name
+        fields["size"] = self.frame.name
         fields["scale"] = standards.scale_text(sc)
-        fields["sheet"] = "1 OF 1"
+        fields["sheet"] = f"{number} OF {self.sheet_count}"
         fields["status"] = self.status
         fields.setdefault("cage", self.settings.company.cage)
         if self.settings.standard.upper_case_notes:
             # lettered in capitals as the notes are, what was typed too; the MODEL cell
             # names the model as its file does
             fields = {k: (v if k == "model" else upper(v)) for k, v in fields.items()}
-        rows = tuple(self.settings.people.rows)
-        self.annotations += titleblock.title_block(
-            self.pen,
-            f.title,
-            unit=ctx.unit,
-            fields=fields,
+        return fields
+
+    def paint_title(self, pen: Pen, box: Box, sc, number: int) -> list:
+        """The title block in ``box`` on sheet ``number``, painted with ``pen``."""
+        return titleblock.title_block(
+            pen,
+            box,
+            unit=self.ctx.unit,
+            fields=self.title_fields(sc, number),
             tolerance_lines=self.plan.tolerance_block,
-            rows=rows,
+            rows=tuple(self.settings.people.rows),
             signed=self.signed,
             company=self.settings.company,
             logo=self.logo,
             logo_sha=self.logo_sha,
         )
+
+    def paint_stamps(self, pen: Pen, f: sheet.SheetFrame) -> list:
+        """The border, its zones and the stamps of sheet frame ``f``."""
+        out = stamps.border(pen, f, self.settings.sheets.zones, stamped=self.status != "RELEASED")
+        name = getattr(self.source, "name", "") or ""
+        configuration = getattr(self.source, "configuration", None)
+        out += stamps.stamps(
+            pen, f, released=self.status == "RELEASED", file_name=name, configuration=configuration
+        )
+        return out
+
+    def paint_furniture(self, sc) -> None:
+        f = self.frame
+        ctx = self.ctx
+        self.annotations += self.paint_title(self.pen, f.title, sc, 1)
         self.annotations += titleblock.revision_block(self.pen, f.revision, self.revisions)
         if f.parts is not None:
             heads, narrow, rows = self.parts_rows()
-            per = self.parts_shape(sheet.frame(f.name, self.settings)).per_column
-            self.annotations += PL.parts_list(self.pen, f.parts, rows, self.h, heads, narrow, per)
+            shape = self.parts_shape(sheet.frame(f.name, self.settings))
+            self.annotations += PL.parts_list(
+                self.pen, f.parts, rows[: shape.lines], self.h, heads, narrow, shape.per_column
+            )
         self.annotations += N.notes_block(
             self.pen, self.index, ctx, f.notes, self.plan.notes, self.h, self._frame_w
         )
-        self.annotations += stamps.border(
-            self.pen, f, self.settings.sheets.zones, stamped=self.status != "RELEASED"
-        )
-        name = getattr(self.source, "name", "") or ""
-        configuration = getattr(self.source, "configuration", None)
-        self.annotations += stamps.stamps(
-            self.pen, f, released=self.status == "RELEASED", file_name=name, configuration=configuration
-        )
+        self.annotations += self.paint_stamps(self.pen, f)
         if ctx.process == "printed":
             self._build_arrows()
+
+    def paint_continuation(self, sc, shapes: list[PL.Shape]) -> tuple[D.Sheet, ...]:
+        """The sheets after the first, one for each of ``shapes``: the rest of the parts
+        list, each column with its headings, on the title block (its SHEET n OF m), in
+        the border with its zones and stamps. No views, revision block or notes: the
+        first sheet carries those for the drawing."""
+        if not shapes:
+            return ()
+        heads, narrow, rows = self.parts_rows()
+        start = self.parts_shape(sheet.frame(self.frame.name, self.settings)).lines
+        out = []
+        for number, shape in enumerate(shapes, 2):
+            f = sheet.continuation_frame(
+                self.frame.name, self.settings, parts_height=shape.height, parts_width=shape.total_width
+            )
+            pen = Pen()
+            annotations = self.paint_title(pen, f.title, sc, number)
+            if f.parts is not None:
+                chunk = rows[start : start + shape.lines]
+                annotations += PL.parts_list(pen, f.parts, chunk, self.h, heads, narrow, shape.per_column)
+            start += shape.lines
+            annotations += self.paint_stamps(pen, f)
+            made = tuple(annotations)
+            out.append(D.Sheet(f.name, f.width, f.height, sc, annotations=made, painted=tuple(pen.items)))
+        return tuple(out)
 
     def _build_arrows(self) -> None:
         """The build-direction arrow on the isometric and on each view that carries Z
@@ -1391,8 +1454,10 @@ def layout(
     revisions=(),
     status: str = "PRELIMINARY",
     signed: dict[str, tuple[str, str]] | None = None,
+    sheets: int = DEFAULT_LIMITS.sheets,
 ) -> LayoutResult:
-    """Lay a plan out on a sheet (11)."""
+    """Lay a plan out on a sheet (11), and on the sheets after it an assembly's parts
+    list too long for the first goes on to, at most ``sheets`` in all."""
     run = _Run(
         planned,
         options,
@@ -1404,6 +1469,7 @@ def layout(
         revisions=tuple(revisions),
         status=status,
         signed=dict(signed or {}),
+        sheets=sheets,
     )
     return run.run()
 
