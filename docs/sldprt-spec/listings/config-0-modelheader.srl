@@ -1,0 +1,5 @@
+# Contents/Config-0-ModelHeader: the same bytes as Header2 (section 15.2.2).
+# Proved on o01, o02, o03, o07 and o12.
+@member Contents/Config-0-ModelHeader
+@section 15.2.2
+@include model-header.srl

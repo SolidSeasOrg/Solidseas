@@ -1,0 +1,168 @@
+# Contents/CMgr: the configuration manager (section 15.2.7).
+# One CArchive of its own. Proved on o01, o02, o03, o07 and o12.
+@member Contents/CMgr
+@include visual-properties.srl
+@section 15.2.7.1
+# The configuration data the manager and its configuration both write (15.2.7.2)
+@define cfgdata
+u32 101                            # not decoded, constant (as in CMgrHdr2)
+rep 13 00
+u32 17000                          # the saving version
+rep 8 00
+u32 2024016                        # the saving build's date code (docs/FORMAT.md 7.3)
+u16 0
+cstr ""
+u8 0
+u16 0xFFFF 0
+u8 3
+i32 -1 -1
+f32 -1.0
+rep 14 00
+u32 1
+rep 6 00
+i32 -1
+u32 =$cmgr.created//4294967296     # when the configuration was made: a FILETIME,
+u32 =$cmgr.created%4294967296      #   high word first (15.2.7.2)
+u16 2
+u32 0x0005579C                     # not decoded, constant
+u32 1
+@end
+
+@archive start 1
+class moConfigurationMgr_c 1
+u16 0
+hex 00 00 00 00 00 00 00 40        # not decoded, constant
+i32 -1
+u32 0
+cstr ""
+rep 14 00
+@use cfgdata
+
+@section 15.2.7.3
+class moPartConfiguration_c 1      # the one configuration
+class moNodeName_c 1
+cstr "Default"
+hex 00 00 00 00 00 00 00 40        # not decoded, constant
+hex 00 00 00 00 00 02 00 00        # not decoded, constant
+cstr ""
+u32 0
+@use visualprops TEXTURE=$cmgr.texture N=3
+rep 8 00
+@use cfgdata
+cstr ""
+i32 -1
+u32 0x80400180                     # flags, not decoded, constant (as in CMgrHdr2)
+cstr ""
+u32 =$hdr.next_id-1                # the newest node's id (15.2.2.3)
+u32 $doc.stamp                     # the document's change stamp (15.2.2.4)
+rep 100 00
+u32 1
+rep 40 00
+cstr ""
+cstr ""
+rep 28 00
+f64 1.0 0.0 0.0                    # a rotation, the identity
+f64 0.0 1.0 0.0
+f64 0.0 0.0 1.0
+u32 1
+u16 0
+u32 0x259EE3D0                     # not decoded, constant
+u32 0
+
+@section 15.2.7.4
+# The solid bodies (15.2.7.4): one per boss extrusion, in timeline order
+u32 =len($bodies)
+u32 0
+u32 17000
+u32 1
+rep 6 00
+u32 1
+rep 8 00
+u32 1
+f32 -1.0 -1.0
+rep 8 00
+u32 1
+rep 28 00
+u32 1
+rep 4 00
+i32 -1
+u32 1
+rep 12 00
+u32 =len($bodies)
+@for b in $bodies
+u32 $b.id                          # the body's id
+u32 0
+@endfor
+rep 40 00
+u32 =len($bodies)
+@for b in $bodies
+u32 $b.id
+class moLinkedAtomIdNode_c 1
+u32 $b.id
+u16 1
+u32 $b.feature                     # the node id of the feature that made the body
+rep 18 00
+@endfor
+rep 16 00
+u32 2                              # not decoded, constant
+rep 14 00
+u32 1
+i32 -1
+rep 44 00
+f64 -1.0
+rep 18 00
+i32 -1
+u32 =len($bodies)
+@for b in $bodies reversed
+u32 $b.id
+u32 0
+@endfor
+rep 8 00
+i32 -1 -1
+rep 8 00
+u16 4                              # not decoded, constant
+u32 1
+u16 1 4
+
+@section 15.2.7.5
+@if =len($features)>0
+u32 1
+class moExtObject_c 1              # as in the model header (15.2.2.5)
+class moCStringHandle_c 1
+cstr ""
+class moCStringHandle_c 1
+cstr $doc.name
+hex 02 00 00                       # not decoded, constant
+u32 $doc.created
+cstr ""
+cstr ""
+cstr ""
+rep 18 00
+cstr "Default"
+rep 16 00
+@else
+u32 0                              # none in the empty part
+@endif
+rep 4 00
+cstr ""
+rep 4 00
+class suObList 1                   # an empty list
+u16 0
+u32 =len($bodies)
+@for b in $bodies reversed
+u32 $b.feature
+u32 =$b.time//4294967296           # when the body was last built: a FILETIME,
+u32 =$b.time%4294967296            #   high word first
+@endfor
+rep 8 00
+u32 1
+rep 8 00
+class suObList 1                   # a second empty list
+u16 0
+rep 26 00
+u32 2                              # not decoded, constant
+rep 4 00
+cstr ""
+rep 12 00
+i32 -1
+rep 4 00

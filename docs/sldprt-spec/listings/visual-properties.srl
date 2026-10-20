@@ -1,0 +1,42 @@
+# A moVisualProperties_c object: the part's default appearance (section 15.2.9).
+# Included by cmgr.srl and visualstates.srl, which use it with their own texture path.
+@section 15.2.9
+@define visualprops TEXTURE N
+class moVisualProperties_c 1
+u32 0x00EED1CA                     # the part colour, a COLORREF: red 202, green 209, blue 238
+u32 0 0
+cstr ""
+cstr "Steel"                       # the appearance's name in the template
+f64 1.0 1.0 0.5 0.3125             # not decoded, constant
+rep 20 00
+u32 1 0 1 1 1                      # not decoded, constant
+cstr ""
+u32 1 1 %N 0                       # not decoded: N is 3 in CMgr, 33 in VisualStates
+cstr "defaultplastic"              # the appearance's base material
+u8 3
+u32 0x00EED1CA                     # the colour again
+f32 1.0 0.0 0.0 0.0 1.0 0.0 0.0 0.0 0.0 1.0
+u32 1
+f32 0.15 0.0 -1.0 -1.0 -1.0 0.0 0.0 0.0
+cstr %TEXTURE                      # the appearance file (15.2.9)
+u32 0x00FFFFFF                     # not decoded, constant
+f32 0.6 1.0
+cstr ""
+f32 0.001 0.001 0.0
+u16 320 0                          # not decoded, constant
+f32 0.0 0.0 1.0 0.0 0.0 0.0 1.0 0.0 0.0 0.0 1.0 90.0 1.0 -1.0 -1.0
+cstr ""
+u32 0
+cstr ""
+cstr ""
+cstr ""
+rep 92 00                          # not decoded, constant
+cstr ""
+rep 8 00
+cstr ""
+u32 0 1
+cstr ""
+u32 0 1
+i32 -1
+rep 12 00
+@end

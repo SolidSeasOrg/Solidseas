@@ -1,0 +1,4 @@
+# Contents/OleItems: the count of embedded OLE objects. None.
+@member Contents/OleItems
+@section 15.1.7
+u32 0

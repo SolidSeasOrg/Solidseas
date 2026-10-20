@@ -1,0 +1,100 @@
+# Definitions shared by Contents/Config-0 (15.4) and its feature stream (15.5).
+# Every feature, folder, light and manager of the archive starts with the same
+# feature record: a head (flags, creation number, child list) and a tail (feature id,
+# version stamps, time). Section 15.4.2 gives each field.
+@section 15.4.2
+
+# The head of a feature record: reserved, flags, the feature's creation number,
+# reserved, an empty comment, six reserved bytes. The child list follows it: a u16
+# count, then each child (an object, or an objref when the child was written before).
+@define feathead FLAGS UID
+u32 0 %FLAGS %UID 0
+cstr ""
+rep 6 00
+@end
+
+# A named feature record: the name node (class moNodeName_c and the name), then the head.
+@define nodehead NAME FLAGS UID
+class moNodeName_c 1
+cstr %NAME
+@use feathead FLAGS=%FLAGS UID=%UID
+@end
+
+# The tail of a feature record, 111 bytes. ID is the feature id, STAMP is 1 when the
+# record carries the version it was made in (17000, build 2024016), MEMO is a length
+# SOLIDWORKS sometimes leaves there (15.5.9), TIME is a FILETIME written high word first.
+@define feattail ID STAMP MEMO TIME
+rep 12 00
+u32 %ID 0
+u8 0
+u32 =17000*%STAMP =2024016*%STAMP   # made in: version, build (0 0 when not stamped)
+u32 17000                           # saved in: version
+f64 %MEMO
+u32 2024016                         # saved in: build
+u16 0
+cstr ""
+u8 0
+i16 -1
+u16 0
+u8 3
+i32 -1 -1
+f32 -1
+rep 14 00
+u32 1
+rep 6 00
+i32 -1
+u32 =%TIME//4294967296 =%TIME%4294967296   # FILETIME, high word first
+u16 2
+u32 350108
+@end
+
+# The tail of a template record that SOLIDWORKS numbers and stamps once the part has a
+# feature (15.5.4): K is the record's place in the numbering, TIME its time.
+@define touchedtail K TIME
+@if $model.solid
+@use feattail ID==$fixed.id_base+%K STAMP=1 MEMO=0.0 TIME=%TIME
+@else
+@use feattail ID=101 STAMP=0 MEMO=0.0 TIME=%TIME
+@endif
+@end
+
+# A sketch point record (15.5.7): its number, whether it is tied to the origin point
+# (0 or 1, as an expression), and x and y in metres in the sketch's frame.
+@section 15.5.7
+@define point ID TIED X Y
+u32 %ID 0x1FFFFF
+u8 3
+i32 -1 -1
+f32 -1
+u32 =%TIED
+u16 0 =5-%TIED =1+%TIED
+u32 1
+f32 -1
+u16 0
+u32 4
+rep 7 00
+f64 1.0 0.0
+u16 30
+f64 %X %Y
+u16 0 2
+@end
+
+# A handle of sketch line LINE that carries no point.
+@define linehandle LINE
+class sgLineHandle 1
+u16 %LINE
+i32 -1
+u32 0
+@end
+
+# A handle of sketch line LINE that carries point ID at (X, Y).
+@define linepoint LINE ID X Y
+class sgLineHandle 1
+u16 %LINE
+i32 -1
+u32 0
+u16 0
+i32 -2
+rep 42 00
+@use point ID=%ID TIED=0 X=%X Y=%Y
+@end

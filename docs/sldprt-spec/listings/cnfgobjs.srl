@@ -1,0 +1,8 @@
+# Contents/CnfgObjs: per configuration, the objects a configuration overrides (parameter
+# values of its own). One record per configuration; a generated part has one, with none.
+@member Contents/CnfgObjs
+@section 15.1.7
+u16 0                                   # objects in this record: none
+u16 0                                   # not decoded
+cstr ""                                 # not decoded
+cstr ""                                 # not decoded

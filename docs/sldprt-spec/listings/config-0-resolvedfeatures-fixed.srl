@@ -1,0 +1,282 @@
+# Contents/Config-0-ResolvedFeatures, section 15.5.3: the template's top-level
+# features, Comments to Origin, with the history folder's entry for each feature of the
+# design (15.5.3); the numbering of 15.5.4.
+@section 15.5.3
+class moCommentsFolder_c 1
+@use nodehead NAME="Comments" FLAGS=0x40000000 UID=8
+u16 0  # children
+@use touchedtail K=0 TIME=$fixed.comments.time
+u32 1 0 0
+class moFavoriteFolder_c 1
+@use nodehead NAME="Favorites" FLAGS=0x40000000 UID=23
+u16 0  # children
+@use touchedtail K=1 TIME=$fixed.favorites.time
+u32 1 1 0 0 1
+class moHistoryFolder_c 1
+@use nodehead NAME="Folder " FLAGS=0x40000000 UID=24
+u16 0  # children
+@use touchedtail K=2 TIME=$fixed.history.time
+u32 1 1 0
+u16 =len($features)   # history entries
+@for f in $features
+# One history entry per feature: its creation number and time.
+class moHistoryFeatItemData_c 1
+u16 0
+u32 1 0x40000000
+i32 -1
+u32 0
+cstr ""
+class moCompFeature_c 1
+class moUnitComponent_c 1
+u16 2
+rep 41 00
+i32 -1 -1 -1 -1
+rep 20 00
+u32 17000 $f.id $f.created   # version, the feature's creation number, Unix time
+@endfor
+class moSelectionSetFolder_c 1
+@use nodehead NAME="Selection Sets" FLAGS=0x40000000 UID=25
+u16 0  # children
+@use touchedtail K=3 TIME=$fixed.selsets.time
+u32 1 1
+rep 6 00
+u32 1
+class moSensorFolder_c 1
+@use nodehead NAME="Sensors" FLAGS=0x40000000 UID=22
+u16 0  # children
+@use feattail ID=101 STAMP=0 MEMO=0.0 TIME=$fixed.sensors.time
+u32 1 1 0
+class moDocsFolder_c 1
+@use nodehead NAME="Design Binder" FLAGS=0x40000000 UID=7
+u16 0  # children
+@use touchedtail K=4 TIME=$fixed.binder.time
+u32 1 1 0
+class moDetailCabinet_c 1
+@use nodehead NAME="Annotations" FLAGS=0x40000000 UID=1
+u16 2  # children
+class moNotesAreaFtrFolder_c 1 as notes
+@use nodehead NAME="Notes" FLAGS=0x40000000 UID=17
+u16 0  # children
+@use feattail ID=101 STAMP=0 MEMO=0.0 TIME=$fixed.notes.time
+u32 1 1 0
+class moNotesAreaFtrFolder_c 1 as notes_end
+@use nodehead NAME="Notes1___EndTag___" FLAGS=0x40000000 UID=18
+u16 0  # children
+@use feattail ID=101 STAMP=0 MEMO=0.0 TIME=$fixed.notes_end.time
+u32 1 1 0
+objref notes
+u32 0 0 1 1 1 0 1 1
+objref notes_end
+@use touchedtail K=5 TIME=$fixed.annotations.time
+u32 1
+rep 6 00
+f64 1.0 1.0
+rep 10 00
+class moSurfaceBodyFolder_c 1
+@use nodehead NAME="Surface Bodies" FLAGS=0x40000000 UID=10
+u16 0  # children
+@use touchedtail K=6 TIME=$fixed.surface.time
+u32 1 1
+rep 16 00
+class moSolidBodyFolder_c 1
+@use nodehead NAME="Solid Bodies" FLAGS=0x40000000 UID=9
+u16 0  # children
+@use touchedtail K=7 TIME=$fixed.solid.time
+u32 1 1
+rep 16 00
+objref env_folder
+class moInkMarkupFolder_c 1
+@use nodehead NAME="Markups" FLAGS=0x40000000 UID=21
+u16 0  # children
+@use feattail ID=101 STAMP=0 MEMO=0.0 TIME=$fixed.markups.time
+u32 1 1 0
+class moEqnFolder_c 1
+@use nodehead NAME="Equations" FLAGS=0x40000000 UID=16
+u16 0  # children
+@use feattail ID=101 STAMP=0 MEMO=0.0 TIME=0x1da7f0beab12577
+u32 1 1 0
+class moMaterialFolder_c 1
+@use nodehead NAME="Material <not specified>" FLAGS=0x40000000 UID=11
+u16 0  # children
+@use touchedtail K=9 TIME=$fixed.material.time
+u32 1 1 0
+cstr ""
+u32 0
+class moRefPlane_c 1
+@use nodehead NAME="Front Plane" FLAGS=0xc0000000 UID=2
+u16 0  # children
+@use feattail ID=101 STAMP=0 MEMO=0.0 TIME=$fixed.front.time
+# The plane's display: a rectangle around the model (15.5.5): label corner, rectangle, centre.
+u32 1
+rep 38 00
+u32 1
+rep 16 00
+u32 1
+rep 54 00
+f64 =$model.centre.0-$planes.front.hu =$model.centre.1+$planes.front.hv 0.0   # label corner
+u32 5
+rep 10 00
+class moDefaultRefPlnData_c 1
+rep 40 00
+f64 1.0
+rep 25 00
+f64 1.0
+u8 0
+f64 $planes.front.hu =-$planes.front.hu $planes.front.hv =-$planes.front.hv   # rectangle
+rep 6 00
+i32 -4 -4
+u8 0
+f64 $model.centre.0 $model.centre.1 0.0   # centre
+u32 1
+rep 12 00
+class moRefPlane_c 1
+@use nodehead NAME="Top Plane" FLAGS=0xc0000000 UID=3
+u16 0  # children
+@use feattail ID=101 STAMP=0 MEMO=0.0 TIME=$fixed.top.time
+# The plane's display (15.5.5).
+u32 1
+rep 38 00
+u32 1
+rep 16 00
+u32 1
+rep 54 00
+f64 =$model.centre.0-$planes.top.hu 0.0 =$model.centre.2-$planes.top.hv
+u32 5
+rep 10 00
+class moDefaultRefPlnData_c 1
+rep 32 00
+f64 1.0
+u32 0 0 1
+u8 0
+f32 1.875
+rep 32 00
+f64 1.0
+u32 0 0
+f64 -1.0
+rep 32 00
+f64 1.0
+u8 0
+f64 $planes.top.hu =-$planes.top.hu $planes.top.hv =-$planes.top.hv
+rep 6 00
+i32 -4 -4
+u8 0
+f64 $model.centre.0 0.0 $model.centre.2
+u32 1
+rep 12 00
+class moRefPlane_c 1
+@use nodehead NAME="Right Plane" FLAGS=0xc0000000 UID=4
+u16 0  # children
+@use feattail ID=101 STAMP=0 MEMO=0.0 TIME=$fixed.right.time
+# The plane's display (15.5.5).
+u32 1
+rep 38 00
+u32 1
+rep 16 00
+u32 1
+rep 54 00
+f64 0.0 =$model.centre.1+$planes.right.hv =$model.centre.2+$planes.right.hu
+u32 5
+rep 10 00
+class moDefaultRefPlnData_c 1
+rep 24 00
+f64 1.0
+rep 16 00
+u32 1 0 128
+rep 5 00
+f64 1.0
+rep 7 00
+u32 128
+u8 0
+f32 1.875
+u32 0 0
+f64 -1.0
+rep 40 00
+f64 1.0
+u8 0
+f64 $planes.right.hu =-$planes.right.hu $planes.right.hv =-$planes.right.hv
+rep 6 00
+i32 -4 -4
+u8 0
+f64 0.0 $model.centre.1 $model.centre.2
+u32 1
+rep 12 00
+class moOriginProfileFeature_c 1
+@use nodehead NAME="Origin" FLAGS=0xc0000000 UID=5
+u16 0  # children
+@use touchedtail K=10 TIME=$fixed.origin.time
+u32 1
+rep 14 00
+class sgSketch 1
+u32 1
+rep 2 00
+u32 $model.origin_refs   # sketches tied to the origin point
+u32 1
+u32 0x1FFFFF
+u8 3
+i32 -1 -1
+f32 -1
+u32 1
+u16 0 4 2
+u32 1
+f32 -1
+rep 2 00
+u32 4
+u32 $model.origin_refs
+rep 3 00
+f64 1.0
+u32 0 0 31
+rep 14 00
+u32 1
+rep 6 00
+i32 -2
+rep 92 00
+u32 1
+rep 6 00
+i32 -1
+rep 16 00
+u32 17 2
+rep 2 00
+u32 65534
+class sgPointHandle 1
+i32 -65536
+u32 65535
+rep 16 00
+class suObList 1
+rep 14 00
+u32 65538
+u32 =1+$model.origin_refs
+u32 2 1 1 1 1 1 1 1
+u32 1 1 1 1 1 0 1 0
+u32 0
+cstr ""
+u32 65535
+i32 -16512
+u32 131071
+i32 -65536
+u32 65535
+rep 22 00
+u32 1
+rep 32 00
+class suObList 1
+rep 40 00
+u32 3 1
+rep 7 00
+u32 100000 0
+class moCompRefPlane_c 1
+class moUnitComponent_c 1
+u32 2
+rep 39 00
+i32 -1 -1 -1 -1
+rep 20 00
+u32 17000 2
+u32 $tpl.unix
+rep 2 00
+u32 3
+rep 25 00
+f64 1.0
+rep 3 00
+u32 4
+i32 -7
+u32 0
+u32 $fixed.origin.regen   # free (15.5.9)
+rep 12 00

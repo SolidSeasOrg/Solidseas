@@ -1,0 +1,61 @@
+# SwDocContentMgr/SwDocContentMgrInfo: an MFC archive of one moBCModeInfo_c object, a
+# summary of the document per configuration: material, active configuration, solid bodies,
+# change stamp, density (15.1.6). A generated part has one configuration, Default, and no material.
+@member SwDocContentMgr/SwDocContentMgrInfo
+@section 15.1.6
+class moBCModeInfo_c 1
+cstr ""                                 # not decoded; empty in every fixture
+u32 $doc.created                        # creation time, Unix seconds
+cstr ""                                 # not decoded; empty in every fixture
+u32 0                                   # not decoded
+u16 0                                   # not decoded
+u32 1                                   # map 1, configuration to material name: one entry
+cstr "Default"
+cstr "Material <not specified>"
+u32 1                                   # map 2, configuration to material reference: one entry
+cstr "Default"
+cstr "Steel"                            # with no material assigned (15.1.6)
+u32 1                                   # map 3, configuration name to id: one entry
+cstr "Default"
+u32 0                                   # configuration id
+cstr "Default"                          # the active configuration
+class su_CStringArray 0
+u16 0                                   # the string array's count: empty
+u32 $doc.changed                       # when the model last changed, Unix seconds
+u32 1                                   # map 4, configuration to text: one entry
+cstr "Default"
+cstr ""
+u32 0 4 1                               # not decoded; the same in every fixture
+u32 1                                   # map 5, configuration to solid bodies: one entry
+cstr "Default"
+u32 =len($bodies)                  # solid bodies
+@if =len($bodies)>0
+u32 =len($bodies)                  # again, written only when there is a body
+@for b in $bodies
+u32 $b.id                               # body id
+cstr $b.name                            # body name
+@endfor
+@endif
+u32 1                                   # map 6, configuration to body ids: one entry
+cstr "Default"
+u32 =len($bodies)
+@if =len($bodies)>0
+u32 =len($bodies)
+@for b in $bodies
+u32 $b.id
+u32 1                                   # not decoded
+@endfor
+@endif
+u32 $doc.stamp                          # the document's change stamp
+u32 1                                   # map 7, configuration to flags: one entry
+cstr "Default"
+u32 0x80400180                          # the configuration flags, as in swXmlContents/Features
+u32 1                                   # map 8, configuration to density: one entry
+cstr "Default"
+f64 -1.0                                # density in kg/m3; -1 with no material
+u32 1                                   # map 9: one entry
+cstr "Default"
+u32 0                                   # not decoded
+u32 1                                   # map 10: one entry
+cstr "Default"
+u32 0                                   # not decoded

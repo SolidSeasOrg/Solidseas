@@ -1,0 +1,16 @@
+# _MO_VERSION_17000/History: the versions the document has been saved in (docs/FORMAT.md 7.2).
+# One entry: version 17000, build 2024016 (SOLIDWORKS 2024 SP1).
+@member _MO_VERSION_17000/History
+@section 15.1.7
+class moVersionHistory_c 1
+u32 1                                   # entries
+u16 0 0 0                               # not decoded
+u32 1711409212                          # when the document first reached the version (15.1.7)
+cstr ""
+u32 17000                               # the version
+class moDateCodeHistory_c 1
+u32 1                                   # build codes
+u32 0x011EE250                          # flag 0x01 (not decoded), build date code 2024016 (0x1EE250)
+u32 0                                   # trailer, 22 bytes, not decoded
+u32 0xFFFFFFFF
+rep 14 00

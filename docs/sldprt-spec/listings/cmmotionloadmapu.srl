@@ -1,0 +1,9 @@
+# ThirdPty/CMMotionLoadMapU: motion studies and the member each is stored in. One study,
+# "Motion Study 1", in ThirdPty/CM_MOTION_LOAD_1 (which is empty).
+@member ThirdPty/CMMotionLoadMapU
+@section 15.1.7
+u32 1                                   # motion studies
+u32 14                                  # the study name's length in UTF-16 units
+utf16 "Motion Study 1"
+u32 16                                  # the member name's length in bytes
+latin1 "CM_MOTION_LOAD_1"

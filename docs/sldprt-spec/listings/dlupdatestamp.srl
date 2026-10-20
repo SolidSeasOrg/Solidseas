@@ -1,0 +1,5 @@
+# _DL_VERSION_17000/DLUpdateStamp: the change stamp the display data was last made at.
+@member _DL_VERSION_17000/DLUpdateStamp
+@section 15.1.7
+u32 $doc.stamp
+u16 0                                   # not decoded

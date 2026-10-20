@@ -1,0 +1,94 @@
+# Contents/Config-0-LWDATA: the configuration's light-weight data (section 15.2.5).
+# Proved on o01, o02, o03, o07 and o12.
+@member Contents/Config-0-LWDATA
+@section 15.2.5.1
+u32 $doc.stamp                     # the document's change stamp (15.2.2.4)
+# The model's bounding sphere and box, the cache of 15.2.2.6
+@if $model.solid
+f64 $model.sphere.0 $model.sphere.1 $model.sphere.2   # the bounding sphere's centre (15.2.2.6)
+f64 $model.max.0 $model.max.1 $model.max.2       # the box's far corner
+f64 $model.min.0 $model.min.1 $model.min.2       # the box's near corner
+f64 $model.sphere.3                              # the bounding sphere's radius
+@else
+f64 0.0 0.0 0.0                    # no body: centre at the origin,
+f64 -1.0 -1.0 -1.0                 #   a far corner below
+f64 1.0 1.0 1.0                    #   the near corner (an empty box)
+f64 -2.0                           #   and a negative radius
+@endif
+f64 1000.0                         # not decoded, constant
+
+@section 15.2.5.2
+@archive start 1
+class gcXhatch_c 1                 # the section view's crosshatch, with no material
+cstr "ANSI31 (Iron BrickStone)"    #   the pattern
+f64 0.0                            #   angle (HYPOTHESIS)
+f64 1.0                            #   scale (HYPOTHESIS)
+f64 0.0
+u32 1                              #   not decoded, constant
+i32 -1 -1
+u32 0
+u16 3                              # the number of plane records
+
+@section 15.2.5.3
+# A reference plane's display rectangle, a cache (15.2.5.3). P names its slots (planes.*, 15.6.3).
+@define planebox P
+f64 $%P.centre.0 $%P.centre.1 $%P.centre.2       # the rectangle's centre, model space
+f64 $%P.max.0 $%P.max.1 $%P.max.2                # its far corner
+f64 $%P.min.0 $%P.min.1 $%P.min.2                # its near corner
+f64 $%P.radius                                   # half its diagonal
+@end
+@define planetail P
+u32 32764                          # not decoded, constant
+f64 0.0 0.0 0.0
+f64 1.0
+f64 0.0
+i32 -4                             # not decoded, constant
+f64 $%P.hu =-$%P.hu               # half the rectangle's width, both ways
+f64 $%P.hv =-$%P.hv               # half its height, both ways
+cstr "moDefaultRefPlnData_c"       # the class of the plane's display data
+@end
+class moLWPlaneNodeData_c 1
+cstr "moRefPlane_c"                # the plane feature's class
+cstr "Front Plane"
+u32 2                              # the plane's node id (15.2.2.2)
+u32 0 1                            # not decoded, constant
+f64 0.0 0.0 0.0                    # the plane's origin
+f64 0.0 0.0 1.0                    # its normal
+@use planebox P=planes.front
+f64 1.0 0.0 0.0                    # its axes, as rows
+f64 0.0 1.0 0.0
+f64 0.0 0.0 1.0
+u32 1                              # not decoded, constant (0 for the other planes)
+@use planetail P=planes.front
+class moLWPlaneNodeData_c 1
+cstr "moRefPlane_c"
+cstr "Top Plane"
+u32 3
+u32 0 1
+f64 0.0 0.0 0.0
+f64 0.0 1.0 0.0
+@use planebox P=planes.top
+f64 1.0 0.0 0.0
+f64 0.0 0.0 1.0
+f64 0.0 -1.0 0.0
+u32 0
+@use planetail P=planes.top
+class moLWPlaneNodeData_c 1
+cstr "moRefPlane_c"
+cstr "Right Plane"
+u32 4
+u32 0 1
+f64 0.0 0.0 0.0
+f64 1.0 0.0 0.0
+@use planebox P=planes.right
+f64 -0.0 0.0 1.0
+f64 -0.0 1.0 0.0
+f64 -1.0 0.0 0.0
+u32 0
+@use planetail P=planes.right
+
+@section 15.2.5.4
+rep 6 00
+u32 =len($features)>0              # 1 once the part has a sketched feature (HYPOTHESIS)
+u32 $lw.flag                       # not decoded: 0 in o01, o02, o03, o07; 1 in o12 (15.2.5.4)
+rep 8 00

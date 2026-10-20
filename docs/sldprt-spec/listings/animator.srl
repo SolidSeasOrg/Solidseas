@@ -1,0 +1,25 @@
+# ThirdPty/Animator: the motion studies, here the template's one empty study (section 15.2.8).
+# Proved on o01, o02, o03, o07 and o12.
+@member ThirdPty/Animator
+@section 15.2.8
+u32 17000                          # the saving version (docs/FORMAT.md 7.5)
+@archive start 1
+class moAnimationManager_c 1
+i32 -1                             # not decoded, constant
+u32 1                              # the number of motion studies
+class moAnimKeyData_c 1            # the study
+cstr "Motion Study 1"              #   its name
+cstr $anim.guid                    #   its id: a GUID in braces, upper case (15.2.8)
+cstr ""
+rep 24 00                          #   not decoded, constant
+i32 -1
+u32 6                              #   not decoded, constant
+rep 26 00
+f64 -1.0 -1.0                      #   not decoded, constant
+rep 33 00
+u32 4                              #   not decoded, constant
+rep 6 00
+u32 1
+rep 12 00
+u16 1                              # not decoded, constant
+cstr "Motion Study 1"              # the study shown: the one above

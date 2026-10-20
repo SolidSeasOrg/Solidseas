@@ -1,0 +1,79 @@
+# _MO_VERSION_17000/Biography: one record per session that saved the document (section 15.2.10).
+# One CArchive of its own. Proved on o01, o02, o03, o07 and o12.
+@member _MO_VERSION_17000/Biography
+@section 15.2.10.1
+@archive start 1
+class moBiography_c 1
+u32 2                              # the number of records: the creation and the save
+
+# A record's head: the saving release and the machine's Windows version (15.2.10.2)
+@define head
+u32 17000                          # the saving version
+u32 2024016                        # the saving build's date code (docs/FORMAT.md 7.3)
+u32 1 9 12                         # not decoded, constant
+u32 $bio.os.platform               # Windows: platform id,
+u32 $bio.os.major                  #   major version,
+u32 $bio.os.minor                  #   minor version,
+u32 $bio.os.build                  #   build number
+cstr ""                            # the service pack: none
+u16 $bio.locale                    # the user interface's locale id
+@end
+
+# One folder entry: a path, then 12 bytes (15.2.10.3). An empty entry is all zero.
+@define entry PATH X
+cstr %PATH
+u32 3                              # not decoded, constant
+u64 %X                             # not decoded: the same in every entry of a group
+@end
+
+@section 15.2.10.2
+# Record 1: the document's creation from the part template
+@use head
+u64 0                              # an empty group: no time,
+u32 0
+cstr ""                            #   and six empty entries
+u32 0
+u64 0
+cstr ""
+u32 0
+u64 0
+cstr ""
+u32 0
+u64 0
+cstr ""
+u32 0
+u64 0
+cstr ""
+u32 0
+u64 0
+cstr ""
+u32 0
+u64 0
+u64 $bio.made.time                 # the template's own time, a FILETIME (15.2.10.2)
+u32 $bio.made.tag                  # not decoded (15.2.10.3)
+@use entry PATH=$bio.made.system X=$bio.made.x    # the Windows system folder
+@use entry PATH=$bio.made.windows X=$bio.made.x   # the Windows folder
+@use entry PATH=$bio.made.work X=$bio.made.x      # the working folder
+@use entry PATH=$bio.made.temp X=$bio.made.x      # the temporary folder
+@use entry PATH=$bio.made.temp X=$bio.made.x      #   again
+@use entry PATH=$bio.made.template X=$bio.made.x  # the part template the document was made from
+
+@section 15.2.10.3
+# Record 2: the session that saved it
+@use head
+u64 $bio.open.time                 # when the session began work on the document, a FILETIME
+u32 $bio.open.tag                  # not decoded (15.2.10.3)
+@use entry PATH=$bio.open.system X=$bio.open.x
+@use entry PATH=$bio.open.windows X=$bio.open.x
+@use entry PATH=$bio.open.work X=$bio.open.x
+@use entry PATH=$bio.open.temp X=$bio.open.x
+@use entry PATH=$bio.open.temp X=$bio.open.x
+@use entry PATH=$bio.open.template X=$bio.open.x
+u64 $bio.save.time                 # when it was saved, a FILETIME
+u32 $bio.save.tag                  # not decoded (15.2.10.3)
+@use entry PATH="*" X=$bio.save.x                 # "*": unchanged
+@use entry PATH="*" X=$bio.save.x
+@use entry PATH=$bio.save.folder X=$bio.save.x    # the folder saved to
+@use entry PATH="*" X=$bio.save.x
+@use entry PATH="*" X=$bio.save.x
+@use entry PATH=$bio.save.file X=$bio.save.x      # the file saved

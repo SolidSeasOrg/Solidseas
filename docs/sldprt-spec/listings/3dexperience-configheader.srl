@@ -1,0 +1,69 @@
+# Contents/3DExperienceExchange_ConfigHeader: an UnQLite database of three pages (section 15.3).
+# Proved on o01, o02, o03, o07 and o12.
+@member Contents/3DExperienceExchange_ConfigHeader
+@section 15.3.2
+# Page 0: the database header, one 4096-byte page
+latin1 "unqlite"                 # the database signature, 7 bytes
+u32be 0xDB7C2712                 # the database magic number
+# the creation time, MS-DOS date and time packed as UnQLite packs them (15.3.2): UTC, month from 0
+u16be =($exch.time.year-1980)*512+($exch.time.month-1)*32+$exch.time.day
+u16be =$exch.time.hour*2048+$exch.time.minute*32+$exch.time.second//2
+u32be 512                        # sector size
+u32be 4096                       # page size
+u16be 4                          # length of the storage engine's name
+latin1 "hash"                    # the storage engine: linear hash
+rep 4067 00                      # the rest of the page
+
+@section 15.3.3
+# Page 1: the linear-hash engine's header and its bucket map
+u32be 0xFA782DCB                 # the engine's magic number
+u32be 0x03F523F5                 # the key hash of "chm@symisc", which names the hash function (15.3.3)
+u64be 0                          # first page of the free-page list: none
+u64be 0                          # split bucket
+u64be 1                          # maximum split bucket
+u64be 0                          # next page of the bucket map: none
+u32be 1                          # entries in this page of the bucket map
+u64be 0                          # logical bucket 0
+u64be 2                          #   is page 2
+rep 4036 00                      # the rest of the page
+
+# One cell (record) of a bucket page: its header, then the key, then the value.
+@define cell HASH KEYLEN DATALEN NEXT
+u32be %HASH                      # the key's hash (15.3.3)
+u32be %KEYLEN                    # key length in bytes
+u64be %DATALEN                   # value length in bytes
+u16be %NEXT                      # offset in the page of the next cell in the chain, 0 at its end
+u64be 0                          # overflow page: none
+@end
+
+@section 15.3.4
+# Page 2: bucket 0, holding one cell
+u16be 0x000C                     # offset of the first cell
+u16be 0x008F                     # offset of the first free block
+u64be 0                          # slave page: none
+
+@section 15.3.8
+# Cell at 0x000c: the configuration header record, 69 bytes of MessagePack
+@use cell HASH=$exch.hash.config KEYLEN=36 DATALEN=69 NEXT=0
+utf8 $exch.config                # the key: the record's GUID as text
+u8 0x84                          # a map of 4 pairs
+u8 0xa5                          # key, fixstr of 5
+utf8 "class"
+u8 0xb0                          # fixstr of 16
+utf8 "dmConfigHeader_c"
+u8 0xba                          # key, fixstr of 26
+utf8 "configHeaderfamilyMemberID"
+u8 0xfe                          # negative fixint -2
+u8 0xa2                          # key, fixstr of 2
+utf8 "id"
+u8 0                             # positive fixint
+u8 0xa4                          # key, fixstr of 4
+utf8 "name"
+u8 0xa7                          # fixstr of 7
+utf8 "Default"
+
+@section 15.3.4
+# The free block: the rest of the page
+u16be 0                          # next free block: none
+u16be 0x0F71                     # this block's size, to the end of the page
+rep 3949 00

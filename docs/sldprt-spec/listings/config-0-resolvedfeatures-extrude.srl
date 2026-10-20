@@ -1,0 +1,481 @@
+# Contents/Config-0-ResolvedFeatures, section 15.5.8: one boss extrusion, blind, from
+# the Front Plane towards +Z, the features item $f. The first extrusion of a part is a
+# moExtrusion_c; every later one is a moICE_c with merge off, whose face references
+# are the 3Int classes. The two forms differ up to the extrusion's box record.
+@section 15.5.8
+@if $f.first
+class moExtrusion_c 1 as $f.name
+@use nodehead NAME=$f.name FLAGS=0x40000140 UID=$f.id
+u16 1  # children
+objref $f.sketch_name
+@use feattail ID==$fixed.id_base+11+$f_index STAMP=1 MEMO=$f.cache_memo TIME=$f.time
+u32 1
+rep 10 00
+u32 1
+hex 01
+u8 0
+objref $f.body_label
+rep 6 00
+u32 1
+u32 $f.body_id   # the body this extrusion makes (15.4.6)
+u32 3 0 1 65537
+class moPerBodyChooserData_c 1
+hex 02
+u8 0
+class moFaceRef_c 1
+u32 1 0 6 768
+rep 2 00
+f32 -253
+hex 94 25 AD 49 B2 54
+u64 0x54B249AD2594C37D
+rep 2 00
+class moEndFaceSurfIdRep_c 1 as face_end1
+rep 2 00
+class moFR_c 1
+class moExtObject_c 1 as ext_obj
+class moCStringHandle_c 1
+cstr ""
+class moCStringHandle_c 1
+cstr $doc.name
+hex 02
+rep 2 00
+u32 $doc.created
+cstr ""
+cstr ""
+cstr ""
+rep 18 00
+cstr "Default"
+rep 16 00
+u32 $f.id $f.created
+u32 0 0
+class moFromSktEntSurfIdRep_c 1 as side1
+rep 2 00
+class moFR_c 1
+objref ext_obj
+u32 $f.id $f.created
+u32 4
+class moFromSktEntSurfIdRep_c 1 as side2
+rep 2 00
+class moFR_c 1
+objref ext_obj
+u32 $f.id $f.created
+u32 3
+class moFromSktEntSurfIdRep_c 1 as side3
+rep 2 00
+class moFR_c 1
+objref ext_obj
+u32 $f.id $f.created
+u32 2
+class moFromSktEntSurfIdRep_c 1 as side4
+rep 2 00
+class moFR_c 1
+objref ext_obj
+u32 $f.id $f.created
+u32 1
+rep 10 00
+u32 17000 0 0
+class moFaceRef_c 1
+u32 1 0 6 768
+rep 2 00
+f32 -253
+hex 94 25 AD 49 B2 54
+u64 0x54B249AD2594C37D
+rep 2 00
+class moEndFaceSurfIdRep_c 1 as face_end2
+rep 2 00
+class moFR_c 1
+objref ext_obj
+u32 $f.id $f.created
+u32 1 0
+class moFromSktEntSurfIdRep_c 1 as side5
+rep 2 00
+class moFR_c 1
+objref ext_obj
+u32 $f.id $f.created
+u32 4
+class moFromSktEntSurfIdRep_c 1 as side6
+rep 2 00
+class moFR_c 1
+objref ext_obj
+u32 $f.id $f.created
+u32 1
+class moFromSktEntSurfIdRep_c 1 as side7
+rep 2 00
+class moFR_c 1
+objref ext_obj
+u32 $f.id $f.created
+u32 2
+class moFromSktEntSurfIdRep_c 1 as side8
+rep 2 00
+class moFR_c 1
+objref ext_obj
+u32 $f.id $f.created
+u32 3
+rep 10 00
+u32 17000
+rep 10 00
+hex 01
+u8 0
+@else
+class moICE_c 1 as $f.name
+@use nodehead NAME=$f.name FLAGS=0x40000140 UID=$f.id
+u16 1  # children
+objref $f.sketch_name
+@use feattail ID==$fixed.id_base+11+$f_index STAMP=1 MEMO=$f.cache_memo TIME=$f.time
+u32 1
+rep 10 00
+u32 1
+hex 01
+u8 0
+objref $f.body_label
+rep 6 00
+u32 1
+u32 $f.body_id
+u32 3 0 1 65537
+class moPerBodyChooserData_c 1
+hex 02
+u8 0
+class moFaceRef_c 1
+u32 1 0 6 768
+u32 $f.counter_face1   # free (15.5.9)
+u64 0x54B249AD2594C37D 0x54B249AD2594C37D
+rep 2 00
+class moEndFace3IntSurfIdRep_c 1 as face_end1
+rep 2 00
+class moFR_c 1
+objref ext_obj
+u32 $f.id $f.created
+rep 12 00
+class moFromSktEnt3IntSurfIdRep_c 1 as side1
+rep 2 00
+class moFR_c 1
+objref ext_obj
+u32 $f.id $f.created
+u32 4
+i32 -1
+u32 0
+class moFromSktEnt3IntSurfIdRep_c 1 as side2
+rep 2 00
+class moFR_c 1
+objref ext_obj
+u32 $f.id $f.created
+u32 3
+i32 -1
+u32 0
+class moFromSktEnt3IntSurfIdRep_c 1 as side3
+rep 2 00
+class moFR_c 1
+objref ext_obj
+u32 $f.id $f.created
+u32 2
+i32 -1
+u32 0
+class moFromSktEnt3IntSurfIdRep_c 1 as side4
+rep 2 00
+class moFR_c 1
+objref ext_obj
+u32 $f.id $f.created
+u32 1
+i32 -1
+rep 14 00
+u32 17000 0 0
+class moFaceRef_c 1
+u32 1 0 6 768
+u32 $f.counter_face2   # free (15.5.9)
+u64 0x54B249AD2594C37D 0x54B249AD2594C37D
+rep 2 00
+class moEndFace3IntSurfIdRep_c 1 as face_end2
+rep 2 00
+class moFR_c 1
+objref ext_obj
+u32 $f.id $f.created
+u32 1 0 0
+class moFromSktEnt3IntSurfIdRep_c 1 as side5
+rep 2 00
+class moFR_c 1
+objref ext_obj
+u32 $f.id $f.created
+u32 4
+i32 -1
+u32 0
+class moFromSktEnt3IntSurfIdRep_c 1 as side6
+rep 2 00
+class moFR_c 1
+objref ext_obj
+u32 $f.id $f.created
+u32 1
+i32 -1
+u32 0
+class moFromSktEnt3IntSurfIdRep_c 1 as side7
+rep 2 00
+class moFR_c 1
+objref ext_obj
+u32 $f.id $f.created
+u32 2
+i32 -1
+u32 0
+class moFromSktEnt3IntSurfIdRep_c 1 as side8
+rep 2 00
+class moFR_c 1
+objref ext_obj
+u32 $f.id $f.created
+u32 3
+i32 -1
+rep 14 00
+u32 17000
+rep 10 00
+hex 01
+u8 0
+@endif
+# The extrusion's box: centre and diagonal (15.5.8), and references to the extrusion.
+class moBBoxCenterData_c 1
+u32 1
+f64 $f.centre.0 $f.centre.1 $f.centre.2 $f.diagonal
+rep 8 00
+@if $f.merge
+u32 1
+@endif
+rep 6 00
+objref $f.name
+u32 65537
+rep 2 00
+objref $f.name
+u32 1 65537
+class moPerBodyChooserData_c 1
+hex 02
+u8 0
+class moFaceRef_c 1
+u32 1 0 6 768
+rep 2 00
+f32 -253
+hex 94 25 AD 49 B2 54
+u64 0x54B249AD2594C37D
+rep 2 00
+objref face_end1
+objref side1
+objref side2
+objref side3
+objref side4
+rep 10 00
+u32 17000 0 0
+class moFaceRef_c 1
+u32 1 0 6 768
+rep 2 00
+f32 -253
+hex 94 25 AD 49 B2 54
+u64 0x54B249AD2594C37D
+rep 2 00
+objref face_end2
+objref side5
+objref side6
+objref side7
+objref side8
+rep 10 00
+u32 17000
+rep 10 00
+hex 01
+u8 0
+class moBBoxCenterData_c 1
+u32 1
+f64 $f.centre.0 $f.centre.1 $f.centre.2 $f.diagonal
+rep 8 00
+@if $f.merge
+u32 1
+@endif
+rep 6 00
+objref $f.name
+rep 10 00
+u32 1
+class moPMarkRecord_c 1
+u16 $f.counter_marks   # free (15.5.9)
+rep 64 00
+# moEndSpec_c: the end condition (blind is the only one seen; its field is not decoded).
+class moEndSpec_c 1
+rep 2 00
+u32 1
+rep 18 00
+class moDisplayDistanceDim_c 1
+rep 16 00
+u32 65535
+i32 -253
+u32 255
+u8 0
+f32 -1
+rep 14 00
+u32 17000 0 524416
+rep 83 00
+f64 1.0
+u32 256 51200
+rep 20 00
+f64 -1.0
+u32 0 1
+rep 2 00
+f32 -1
+u32 0 1
+rep 2 00
+f32 -1
+rep 12 00
+i32 -1 -1
+u32 0 1
+rep 6 00
+f32 -1
+rep 16 00
+u32 4
+rep 96 00
+u32 2 0 0
+f64 1.0
+rep 16 00
+f64 1.0
+u32 0 0
+cstr ""
+rep 24 00
+u32 18
+rep 30 00
+f64 1.0
+rep 16 00
+f64 1e-06 1e-06
+rep 18 00
+f64 1.0
+u32 0 1
+class moFeatureDimHandle_c 1
+rep 42 00
+i32 -1 -1 -1 -1
+rep 20 00
+u32 17000
+rep 15 00
+i32 -1
+rep 6 00
+class ParallelPlaneDistanceDim_c 1
+u32 1
+class moLengthParameter_c 1
+# D1, the depth: a moLengthParameter_c whose value drives the extrusion (15.5.8), with
+# the dimension's witness points at the rectangle's second corner (x1, y1).
+class moNodeName_c 1
+cstr "D1"
+f64 2.0
+i32 -1
+u32 0
+cstr ""
+rep 2 00
+f64 $f.depth   # D1, metres
+rep 3 00
+u32 =$f.sketch_id+1   # creation number of the sketch's first line
+rep 16 00
+f64 $f.corners.2 $f.corners.3
+u32 0 0
+f64 $f.corners.2 $f.corners.3 $f.depth
+rep 24 00
+u32 1
+rep 14 00
+f64 1.0 1.0
+rep 16 00
+u32 65537
+rep 3 00
+f32 1.875
+rep 32 00
+f64 1.0
+u32 0 0
+f64 -1.0
+u32 0 0
+f64 =-$f.corners.2
+u32 0 0
+f64 =-$f.corners.3
+f64 1.0
+rep 3 00
+u32 65537
+rep 2 00
+cstr ""
+cstr ""
+cstr ""
+cstr ""
+f64 1.0
+rep 16 00
+f64 0.5
+f64 $f.cache_text   # cache (15.5.9)
+u32 0 0
+f64 -1.0
+rep 56 00
+f64 =-$f.depth
+rep 16 00
+f64 =-$f.depth
+rep 42 00
+u32 131077 131075 0 0
+f64 -1.0
+rep 36 00
+u32 131074
+hex 27
+u32 8388612
+rep 7 00
+cstr ""
+u32 0
+i32 -1
+f64 $f.depth
+u32 8 16 1 1
+f64 $f.depth
+cstr ""
+class moFavoriteHandle_c 1
+u32 0
+i32 -1
+u32 0
+f64 -1.0
+u32 65537
+hex FD
+u32 14737985
+rep 41 00
+u32 114745 0
+f64 1.0
+rep 24 00
+f64 1.0
+rep 24 00
+f64 1.0
+u32 1
+rep 28 00
+f64 1.0
+u32 0 0
+f64 1.0
+cstr ""
+cstr ""
+cstr ""
+cstr ""
+u32 0
+i32 -1
+u32 1
+rep 6 00
+u32 1002101
+rep 18 00
+u32 1 1 0 0 1
+rep 32 00
+cstr ""
+cstr ""
+i32 -1
+u32 0 0
+cstr ""
+u32 0
+u32 $f.counter_favorite   # free (15.5.9)
+rep 32 00
+cstr ""
+rep 56 00
+hex 01
+rep 2 00
+u32 1
+rep 55 00
+u32 =int($f.merge)
+u32 0 0
+@if $f.first
+class moFromEndSpec_c 1
+u32 0
+hex 52
+u32 9808418
+u8 0
+f32 137
+hex FE 42 80
+u32 207138
+rep 11 00
+i32 -1
+@else
+class moFromEndSpec_c 1
+u32 0
+hex 40 1F 6D 48 B1 A8 33 23 4C 31 96 95 70 FA
+u32 94813
+rep 14 00
+@endif

@@ -1,0 +1,7 @@
+# docProps/OpenTime.xml: open counters, all unset in a part that was never opened. Constant.
+@member docProps/OpenTime.xml
+@section 15.1.4
+@text utf8 eol=crlf
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/SolidworksOpenTime" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes"><count xmlns="">0</count><TotalFileOpenTime xmlns="">-1</TotalFileOpenTime><LWcount xmlns="">0</LWcount><LWTotalFileOpenTime xmlns="">-1</LWTotalFileOpenTime></Properties>
+@endtext

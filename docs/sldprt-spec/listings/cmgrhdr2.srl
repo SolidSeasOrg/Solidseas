@@ -1,0 +1,27 @@
+# Contents/CMgrHdr2: the configuration manager's header (section 15.2.3).
+# One CArchive of its own. Proved on o01, o02, o03, o07 and o12.
+@member Contents/CMgrHdr2
+@section 15.2.3.1
+@archive start 1
+class dmConfigMgrHeader_c 1
+u16 1                              # the number of configurations
+class dmConfigHeader_c 1           # the one configuration
+u32 1                              # not decoded, constant
+cstr "Default"                     # the configuration's name
+u32 0
+u32 $doc.stamp                     # the document's change stamp (15.2.2.4)
+cstr "Default"                     # the name again
+i32 -1
+u32 0
+cstr ""
+cstr ""
+u32 0x80400180                     # flags, not decoded, constant
+u32 0
+u32 =101+len($features)            # the configuration's change count (15.2.3.2)
+u32 101                            # not decoded, constant
+@if =len($features)>0              # when the configuration last changed (15.2.2.4)
+u32 $doc.unix
+@else
+u32 $tpl.unix2                     #   the empty part keeps the template's time
+@endif
+u32 2                              # not decoded, constant

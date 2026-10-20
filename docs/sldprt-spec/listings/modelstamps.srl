@@ -1,0 +1,6 @@
+# ModelStamps: the creation time and the document's two change stamps.
+@member ModelStamps
+@section 15.1.7
+u32 $doc.created                        # creation time, Unix seconds
+u32 $doc.stamp                          # the document's change stamp
+u32 $doc.stamp2                         # the second change stamp

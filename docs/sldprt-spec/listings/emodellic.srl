@@ -1,0 +1,4 @@
+# Contents/eModelLic: one u32, 2 in every fixture. Not decoded.
+@member Contents/eModelLic
+@section 15.1.7
+u32 2

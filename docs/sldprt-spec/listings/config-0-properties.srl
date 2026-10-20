@@ -1,0 +1,8 @@
+# docProps/Config-0-Properties.xml: properties of configuration 0 (Default). A generated
+# part has none, so only the code page entries are written. Constant.
+@member docProps/Config-0-Properties.xml
+@section 15.1.4
+@text utf8 eol=crlf
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<ConfigProperties xmlns="http://www.solidworks.com/config-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes"><propertySection xmlns="" name="DocumentSummaryInformation" fmtid="{D5CDD502-2E9C-101B-9397-08002B2CF9AE}"><propertyNameDictionaryElement name="" pid="0"></propertyNameDictionaryElement></propertySection><propertySection xmlns="" name="UserDefinedProperties" fmtid="{D5CDD505-2E9C-101B-9397-08002B2CF9AE}"><property name="" pid="1" TypeID="0"><vt:i2>65001</vt:i2></property><propertyNameDictionaryElement name="" pid="0"></propertyNameDictionaryElement></propertySection></ConfigProperties>
+@endtext

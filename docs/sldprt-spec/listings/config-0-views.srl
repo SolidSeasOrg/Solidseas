@@ -1,0 +1,190 @@
+# Contents/Config-0, section 15.4.8: the list of the ten named views (*Normal To,
+# *Front, *Back, *Left, *Right, *Top, *Bottom, *Isometric, *Trimetric, *Dimetric), each a
+# moView_c with its orientation, and the feature colour table.
+class suObList 1
+rep 2 00
+class moView_c 1
+cstr "*Normal To"
+rep 25 00
+f64 1.0
+rep 26 00
+f64 1.0
+rep 3 00
+i32 -1
+f64 -1.0
+rep 40 00
+class moView_c 1
+cstr "*Front"
+rep 25 00
+f64 1.0
+rep 26 00
+f64 1.0
+rep 3 00
+i32 -1
+f64 -1.0
+u32 0 1
+rep 32 00
+class moView_c 1
+cstr "*Back"
+u32 1
+u8 0
+f32 -1.875
+u32 0 0
+f64 6.982962677686267e-15
+rep 7 00
+u32 128
+u8 0
+f32 1.875
+u32 0 0
+f64 -6.982962677686267e-15
+rep 7 00
+u32 128
+u8 0
+f32 -1.875
+rep 24 00
+f64 1.0
+rep 26 00
+f64 1.0
+rep 3 00
+i32 -1
+f64 -1.0
+u32 0 2
+rep 32 00
+class moView_c 1
+cstr "*Left"
+i32 -511
+hex FF FF
+u32 12382207
+rep 6 00
+u32 128
+u8 0
+f32 -1.875
+u32 0 0
+f64 1.0
+rep 7 00
+u32 128
+u8 0
+f32 1.875
+u32 0 0
+f64 -3.5527136788005e-15
+rep 24 00
+f64 1.0
+rep 26 00
+f64 1.0
+rep 3 00
+i32 -1
+f64 -1.0
+u32 0 3
+rep 32 00
+class moView_c 1
+cstr "*Right"
+i32 -511
+hex FF FF
+u32 12382207
+rep 7 00
+f64 1.0
+u32 0 0
+f64 1.0
+u32 0 0
+f64 -1.0
+u32 0 0
+f64 -3.5527136788005e-15
+rep 24 00
+f64 1.0
+rep 26 00
+f64 1.0
+rep 3 00
+i32 -1
+f64 -1.0
+u32 0 4
+rep 32 00
+class moView_c 1
+cstr "*Top"
+u32 1
+u8 0
+f32 1.875
+rep 7 00
+u32 128
+rep 13 00
+f64 -3.5527136788005e-15 1.0
+rep 7 00
+u32 128
+u8 0
+f32 -1.875
+f64 -3.5527136788005e-15
+rep 24 00
+f64 1.0
+rep 26 00
+f64 1.0
+rep 3 00
+i32 -1
+f64 -1.0
+u32 0 5
+rep 32 00
+class moView_c 1
+cstr "*Bottom"
+u32 1
+u8 0
+f32 1.875
+rep 24 00
+f64 -3.5527136788005e-15 -1.0
+u32 0 0
+f64 1.0 -3.5527136788005e-15
+rep 24 00
+f64 1.0
+rep 26 00
+f64 1.0
+rep 3 00
+i32 -1
+f64 -1.0
+u32 0 6
+rep 32 00
+class moView_c 1
+cstr "*Isometric"
+hex 01
+f64 0.7071067811865464 -0.4082040559113551 0.5773815451999837
+u32 0
+f32 0.015625
+f64 0.8165408118857499 0.5772877120855426 -0.7071067811865488 -0.4082040559113538 0.5773815451999819
+rep 24 00
+f64 1.0
+rep 26 00
+f64 1.0
+rep 3 00
+i32 -1
+f64 -1.0
+u32 0 7
+rep 32 00
+class moView_c 1
+cstr "*Trimetric"
+hex 01
+f64 0.8844181216774213 -0.24036589468392133 0.400036026779314
+rep 6 00
+hex 70 3C
+f64 0.8571673007021341 0.5150380749100181 -0.4666953889300622 -0.4555090068042732 0.7580942940502868
+rep 24 00
+f64 1.0
+rep 26 00
+f64 1.0
+rep 3 00
+i32 -1
+f64 -1.0
+u32 0 8
+rep 32 00
+class moView_c 1
+cstr "*Dimetric"
+hex 01
+f64 0.9354143467241411 -0.11785113014268137 0.33333333326677816
+rep 6 00
+hex 60 3C
+f64 0.942809041610104 0.33333333325402237 -0.35355339051216605 -0.31180478216719176 0.8819171037433291
+rep 24 00
+f64 1.0
+rep 26 00
+f64 1.0
+rep 3 00
+i32 -1
+f64 -1.0
+u32 0 9
+rep 33 00
+u32 50 108

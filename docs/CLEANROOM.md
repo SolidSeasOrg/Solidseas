@@ -13,8 +13,8 @@ people and to agents alike.
 | | Analysis | Implementation |
 |---|---|---|
 | Who | Agents or people who study SOLIDWORKS files | A separate agent or person, who has not done analysis on this format |
-| May read | Files made through the published SOLIDWORKS API on a licensed copy, SolidSeas' readers and `research/`, hex dumps, diffs, SOLIDWORKS' public API documentation, open-source projects whose provenance is clean (section 3) | This document, `docs/NATIVE_SLDPRT_WRITER.md` section 15 (the generation specification), `docs/FORMAT.md`, the IR (`ir.py`), the container writer (`container.py`), and the results of the generator's tests |
-| Must not read | Anything section 3 forbids | Any SOLIDWORKS-made file or fixture, any dump or diff of one, `research/`, `tests/fixtures/`, `src/solidseas/formats/solidworks/` beyond its public API, the seed writer |
+| May read | Files made through the published SOLIDWORKS API on a licensed copy, SolidSeas' readers and `research/`, hex dumps, diffs, SOLIDWORKS' public API documentation, open-source projects whose provenance is clean (section 3) | This document, the generation specification (`docs/sldprt-spec/`, section 15 of `docs/NATIVE_SLDPRT_WRITER.md`), `docs/FORMAT.md`, the IR (`ir.py`), the container writer (`container.py`), and the results of the generator's tests |
+| Must not read | Anything section 3 forbids | Any SOLIDWORKS-made file or fixture, any dump or diff of one, `research/`, `tests/fixtures/`, `tests/test_sldprt_spec.py`, `src/solidseas/formats/solidworks/` beyond its public API, the seed writer, the rest of `docs/NATIVE_SLDPRT_WRITER.md` |
 | Writes | The specification: grammars, constants with their evidence, which fields come from the design and which are defaults, and the questions still open | `src/solidseas/nativewrite/generate/` and its unit tests |
 | Hands over | Specification text, and for a failing test, a description of the difference in specification terms ("the extrusion record's end condition field is 1, the specification says 0 for blind") | Questions about the specification, which analysis answers by amending it |
 

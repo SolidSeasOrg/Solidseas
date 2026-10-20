@@ -1,0 +1,7 @@
+# docProps/app.xml: OPC extended properties. Company and TotalTime are slots (15.1.2).
+@member docProps/app.xml
+@section 15.1.4
+@text utf8 eol=crlf
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes"><Template>Normal.dotm</Template><TotalTime>${meta.total_time}</TotalTime><Application>SOLIDWORKS</Application><DocSecurity>0</DocSecurity><Company>${meta.company}</Company><LinksUpToDate>false</LinksUpToDate><SharedDoc>false</SharedDoc><HyperlinksChanged>false</HyperlinksChanged><AppVersion>23.0000</AppVersion></Properties>
+@endtext

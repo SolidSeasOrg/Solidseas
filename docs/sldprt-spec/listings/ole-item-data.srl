@@ -1,0 +1,4 @@
+# OleItemInformation/OLE_Item_Data: the count of OLE item records. None.
+@member OleItemInformation/OLE_Item_Data
+@section 15.1.7
+u32 0

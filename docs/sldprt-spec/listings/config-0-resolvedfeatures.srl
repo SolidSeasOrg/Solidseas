@@ -1,0 +1,20 @@
+# Contents/Config-0-ResolvedFeatures: the feature tree (section 15.5). It continues the
+# archive of Contents/Config-0 (15.0.4). Proved on o01, o02, o03, o07 and o12.
+@member Contents/Config-0-ResolvedFeatures
+@include config-0-macros.srl
+@section 15.5.1
+@archive continue
+@archive set header
+u32 $_archive.header      # the archive's next index after Contents/Config-0
+u16 =17+len($features)    # top-level features: the template's 17, then the design's
+@include config-0-resolvedfeatures-fixed.srl
+@section 15.5.6
+@for f in $features
+@if $f.sketch
+@include config-0-resolvedfeatures-sketch.srl
+@else
+@include config-0-resolvedfeatures-extrude.srl
+@endif
+@endfor
+@section 15.5.1
+u32 0   # the end of the feature list

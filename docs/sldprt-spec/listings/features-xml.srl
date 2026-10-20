@@ -1,0 +1,8 @@
+# swXmlContents/Features: the part's XML tree: its own file entry, its model and its
+# configurations. Every ${...} is XML-escaped by the generator (15.1.2).
+@member swXmlContents/Features
+@section 15.1.5
+@text utf8 eol=crlf
+<?xml version="1.0" encoding="UTF-8"?>
+<swSolidWorks xmlns="http://www.solidworks.com/sw2003/schema" swObjCount="3" swVersion="17000"><swHeader swObjCount="1"><swFile id="3" swDocType="PART" swCreationTime="${doc.created}" swPath="${meta.file_stem}.sldprt"/></swHeader><swModelList swObjCount="1"><swModel id="2" swName="${meta.file_stem}" swConfigurationName="Default" swConfigurationId="0" swLastModifiedStamp="${doc.stamp}" swConfigurationFlags="-2143288960" swFileRef="3"/></swModelList><swConfigurationList swObjCount="1"><swConfiguration id="1" swName="Default" swID="0" swReference="${doc.name}" swMostRecentConfiguration="YES" swConfigurationNeedsUpdate="NO" swDefeatureConfiguration="NO" swModelRef="2"/></swConfigurationList><swExtFeatureList swObjCount="0"/></swSolidWorks>
+@endtext

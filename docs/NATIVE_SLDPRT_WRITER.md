@@ -52,7 +52,8 @@ features are what remain (section 13).
 | `src/solidseas/nativewrite/container.py` | Reads a document's members with their stored bytes and directory fields; `build_container` lays them out again; `patch_in_place` rewrites only changed members; `write_new_file` never replaces a file |
 | `src/solidseas/nativewrite/ir.py` | `ParametricDocumentIR`: schema, validation, JSON |
 | `src/solidseas/nativewrite/solidcraft.py` | SolidCraft's document (JSON or its ZIP container) into the IR |
-| `src/solidseas/nativewrite/generate/` | To come: the clean-room generator, IR to `.sldprt` (`docs/CLEANROOM.md`, section 15) |
+| `src/solidseas/nativewrite/generate/` | The clean-room generator, IR to `.sldprt` (`docs/CLEANROOM.md`, section 15) |
+| `research/swnative/listing.py`, `research/swnative/speccases/` | Analysis: the reference assembler of the specification's listings, and the cases that prove each listing gives a fixture's member byte for byte (`tests/test_sldprt_spec.py`) |
 | `research/swnative/features.py` | Analysis: class records, named nodes, driving parameters, sketch points and the object map of a feature stream; edits doubles in place |
 | `research/swnative/experiments.py` | Analysis: the candidate parts and `judge`, the verdict on a check's report |
 | `research/swnative/objdiff.py` | Analysis: object-level differences of two parts' feature streams, each run classified (section 4.8) |
@@ -601,3 +602,12 @@ python scripts/exchange/xchg.py request --kind solidworks-check --ref main --par
 On a Windows machine with a licensed SOLIDWORKS and no other SOLIDWORKS
 session that matters, `python scripts/sw-checks/native-writer.py --json`
 from a fresh checkout runs the whole check by itself.
+
+## 15. The generation specification
+
+The specification the clean-room generator is written from is the folder
+`docs/sldprt-spec/`: its README is section 15.0 (conventions, the listing
+language, the members a generated part holds, the generator's interface), and
+sections 15.1 to 15.6 cover the container and text members, the binary header
+streams, the 3DEXPERIENCE exchange members, `Config-0`, the feature stream,
+and how a design becomes the slot values.

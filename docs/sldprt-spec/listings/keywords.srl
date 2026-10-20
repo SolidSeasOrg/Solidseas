@@ -1,0 +1,41 @@
+# swXmlContents/KeyWords: a search index of the part's configurations, features, sketches
+# and driving dimensions. One byte 86, then UTF-8 XML. Elements are grouped by tag in the
+# order Configuration, Extrusion, Feature, Sketch, and ordered within a tag by their id
+# compared as text (15.1.5). Every ${...} is XML-escaped by the generator (15.1.2).
+@member swXmlContents/KeyWords
+@section 15.1.5
+hex 86                                  # not decoded; the same in every fixture
+@text utf8 eol=crlf final=no
+<?xml version="1.0" encoding="UTF-8"?>
+<Keywords id="${doc.created}" Name="${doc.name}"><Configuration id="0" Name="Default" Type="ConfigurationManager" Material="Material &lt;not specified&gt;"/>
+@endtext
+@for e in $meta.kw_extrusions
+@if $e.first
+@text utf8 final=no
+<Extrusion id="${e.id}" Name="${e.name}" Type="Boss-Extrude"><Dimension Name="D1">${e.depth_text}</Dimension></Extrusion>
+@endtext
+@else
+@text utf8 final=no
+<Extrusion id="${e.id}" Name="${e.name}" Dissectable="true" DissectableChildren="${e.sketch_id}" DissectableRoot="true"><Dimension Name="D1">${e.depth_text}</Dimension></Extrusion>
+@endtext
+@endif
+@endfor
+# The fixed features of the part template, by id as text: 1, 10 to 19, 2, 21 to 25, 3, 4, 6 to 9.
+@text utf8 final=no
+<Feature id="1" Name="Annotations" Type="Annotations"/><Feature id="10" Name="Surface Bodies" Type="Surface Bodies"/><Feature id="11" Name="Material &lt;not specified&gt;" Type="SOLIDWORKS Materials"/><Feature id="12" Name="Ambient" Type="Ambient"/><Feature id="13" Name="Directional1" Type="Directional"/><Feature id="14" Name="Directional2" Type="Directional"/><Feature id="15" Name="Directional3" Type="Directional"/><Feature id="16" Name="Equations" Type="Equations"/><Feature id="17" Name="Notes" Type="Notes"/><Feature id="18" Name="Notes1___EndTag___" Type="Notes"/><Feature id="19" Name="" Type="Exploded Views"/><Feature id="2" Name="Front Plane" Type="Plane"/><Feature id="21" Name="Markups" Type="Markups"/><Feature id="22" Name="Sensors" Type="Sensors"/><Feature id="23" Name="Favorites" Type="Favorites"/><Feature id="24" Name="Folder " Type="History"/><Feature id="25" Name="Selection Sets" Type="Selection Sets"/><Feature id="3" Name="Top Plane" Type="Plane"/><Feature id="4" Name="Right Plane" Type="Plane"/><Feature id="6" Name="Lights and Cameras" Type="Lights and Cameras"/><Feature id="7" Name="Design Binder" Type="Design Binder"/><Feature id="8" Name="Comments" Type="Comments"/><Feature id="9" Name="Solid Bodies" Type="Solid Bodies"/>
+@endtext
+# The sketches and the origin (id 5), by id as text.
+@for s in $meta.kw_sketches
+@if $s.origin
+@text utf8 final=no
+<Sketch id="5" Name="Origin" Type="Origin"/>
+@endtext
+@else
+@text utf8 final=no
+<Sketch id="${s.id}" Name="${s.name}" Dissectable="true"/>
+@endtext
+@endif
+@endfor
+@text utf8 eol=crlf
+</Keywords>
+@endtext

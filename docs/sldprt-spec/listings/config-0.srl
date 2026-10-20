@@ -1,0 +1,370 @@
+# Contents/Config-0: the document's settings archive (section 15.4).
+# One MFC CArchive with Contents/Config-0-ResolvedFeatures (15.0.4). Proved on o01, o02,
+# o03, o07 and o12 (15.4.12).
+@member Contents/Config-0
+@include config-0-macros.srl
+@section 15.4.1
+@archive start 2
+class moPart_c 1
+@sized u32 settings_size   # the settings run: bytes from the next field to the size field of uoModelData_c (15.4.1)
+u32 0 17000
+# The document node: the part's internal name (15.6.1).
+class moNodeName_c 1
+cstr $doc.name
+u32 0 0x40000000 0 =256+32*int($model.solid)   # flags: 0x20 once the part has a body
+cstr ""
+u32 0
+
+@section 15.4.3
+# moVisualProperties_c: the part's appearance, the same object as in Contents/CMgr
+# (15.2.9), with the same appearance file.
+@include visual-properties.srl
+@use visualprops TEXTURE=$cmgr.texture N=3
+
+@section 15.4.4
+# The units table: moUnitsTable_c and one record per kind of unit (length, angle,
+# number, density and so on), the template's MMGS units.
+class moUnitsTable_c 1
+hex 10
+u8 0
+class moLengthUserUnits_c 1
+u32 2 1
+f64 0.254
+u32 4 1
+f64 0.78539816339745
+u32 0 0 1 1
+f64 $config0.length_memo   # free (15.4.10): 0 in a part never reopened
+u32 0 0
+class moLengthUserUnits_c 1
+u32 2 1
+f64 1.0
+u32 1 1
+f64 0.78539816339745
+u32 2 0 1 1
+rep 14 00
+u32 3
+class moAngleUserUnits_c 1
+u32 2 1
+f64 0.01
+u32 10 1
+f64 0.78539816339745
+u32 1 0 1 1
+rep 16 00
+class moNumberUserUnits_c 1
+u32 2 1
+f64 0.01
+u32 10 1
+f64 0.78539816339745
+u32 1 0 1 1
+rep 14 00
+class moDensityUnits_c 1
+u32 2 1
+f64 0.01
+u32 10 1
+f64 0.78539816339745
+u32 1 0 1 1
+rep 14 00
+u32 65539 768
+rep 3 00
+class moFloatNumberUserUnits_c 1
+u32 2 1
+f64 0.01
+u32 10 1
+f64 0.78539816339745
+u32 1 0 1 1
+rep 14 00
+class moSpringConstantUnits_c 1
+u32 2 1
+f64 0.01
+u32 10 1
+f64 0.78539816339745
+u32 1 0 1 1
+rep 14 00
+class moUnitSysUnits_c 1
+u32 2 1
+f64 0.01
+u32 10 1
+f64 0.78539816339745
+u32 1 0 1 1
+rep 14 00
+hex 04
+u8 0
+class moForceUnits_c 1
+u32 2 1
+f64 0.01
+u32 10 1
+f64 0.78539816339745
+u32 1 0 1 1
+rep 14 00
+hex 02
+u8 0
+class moStressUnits_c 1
+u32 2 1
+f64 0.01
+u32 10 1
+f64 0.78539816339745
+u32 1 0 1 1
+rep 14 00
+class moGravityUnits_c 1
+u32 2 1
+f64 0.01
+u32 10 1
+f64 0.78539816339745
+u32 1 0 1 1
+rep 14 00
+class moLinearMotorUnits_c 1
+u32 2 1
+f64 0.01
+u32 10 1
+f64 0.78539816339745
+u32 1 0 1 1
+rep 14 00
+class moRotaryMotorUnits_c 1
+u32 2 1
+f64 0.01
+u32 10 1
+f64 0.78539816339745
+u32 1 0 1 1
+rep 14 00
+class moPowerUnits_c 1
+u32 2 1
+f64 0.01
+u32 10 1
+f64 0.78539816339745
+u32 1 0 1 1
+rep 16 00
+class moEnergyUnits_c 1
+u32 2 1
+f64 0.01
+u32 10 1
+f64 0.78539816339745
+u32 1 0 1 1
+rep 16 00
+class moTimeUnits_c 1
+u32 2 1
+f64 0.01
+u32 10 1
+f64 0.78539816339745
+u32 1 0 1 1
+rep 16 00
+class moFrequencyUserUnits_c 1
+u32 2 1
+f64 0.01
+u32 10 1
+f64 0.78539816339745
+u32 1 0 1 1
+rep 14 00
+class moUnitComponent_c 1
+u32 2 0 0
+
+@section 15.4.5
+# moUnitComponent_c's curvature object: present once the part has a body.
+@if $model.solid
+class gcCurvatureObject_c 1
+f64 1000.0
+hex 9A 99 99 99 99
+u32 4210585
+rep 3 00
+f32 2.25
+f64 1.2 1.0
+u64 $config0.curvature_time
+@else
+u16 0   # no object
+@endif
+
+# moTransRefPlaneData_c: the stored box of the model and its bounding sphere.
+class moTransRefPlaneData_c 1
+u32 1 1 16221267 6759173 95 0
+@if $model.solid
+u8 1
+f64 $model.sphere.0 $model.sphere.1 $model.sphere.2   # bounding sphere: centre
+f64 $model.max.0 $model.max.1 $model.max.2
+f64 $model.min.0 $model.min.1 $model.min.2
+f64 $model.sphere.3                                   # bounding sphere: radius
+@else
+u8 0
+@endif
+rep 22 00
+f64 2.0
+hex 8F 40
+f64 1e-08
+u32 2
+rep 2 00
+hex AA AA AA AA BB
+u32 12303291
+rep 3 00
+u32 =int($model.solid)
+rep 78 00
+u32 =101+len($features)   # 101 and one for each feature (15.4.5)
+rep 2 00
+class gcXhatch_c 1
+cstr "ANSI31 (Iron BrickStone)"
+u32 0 0
+f64 1.0
+u32 0 0 1
+i32 -1 -1
+u32 0
+class moMaterial_c 1
+# moDensityParameter_c: the material's density, a parameter like 15.5.8's D1.
+class moDensityParameter_c 1
+u16 0
+u32 0 0x40000000
+i32 -1
+u32 0
+cstr ""
+u16 0
+f64 1000.0   # density, kg/m3: no material (2700 with 1060 Alloy in o05)
+u8 0
+
+@section 15.4.6
+# uoModelData_c: the bodies of the part, one moAtom_c each, newest first.
+class uoModelData_c 1
+rep 34 00
+@endsized
+@sized u32 tail_size   # the tail: bytes from the next field to the end of the member (15.4.1)
+rep 6 00
+u32 =100+len($bodies) =len($bodies)   # the newest body's id, the number of bodies
+@for b in $bodies reversed
+class moAtom_c 1 as $b.label
+u16 0
+u32 1 0x40000000
+i32 -1
+u32 0
+cstr ""
+rep 12 00
+u32 $b.id 0                # body id: 101 for the first body, then 102 ...
+u32 $b.feature $b.feature        # creation number of the feature that made the body
+rep 12 00
+u32 1
+i32 -1
+u32 $b.regen 1 $b.regen 6  # free (15.4.10)
+@endfor
+@if $model.solid
+u32 17000 10001
+hex 01
+rep 2 00
+u32 2560288 5120
+rep 5 00
+i32 -1
+u32 1
+i32 -1
+u32 0 0
+@else
+u32 17000 10000
+hex 00 00 00 10
+@endif
+
+@section 15.4.7
+@include config-0-settings.srl
+
+@section 15.4.8
+@include config-0-lights.srl
+@include config-0-views.srl
+
+@section 15.4.9
+class moFeatColorTab_c 0
+rep 6 00
+u32 10 0 0
+class moSketchBlockMgr_c 1 as sketch_blocks
+rep 2 00
+@use feathead FLAGS=0x40000000 UID=0xFFFFFFFF
+u16 0  # children
+@use feattail ID=101 STAMP=0 MEMO=0.0 TIME=$config0.sketch_blocks_time
+u32 1
+hex 69 0C B1 59 72 52 4B 4B A8 3A 09 51 0F
+u32 13113814
+rep 3 00
+objref sketch_blocks
+u32 0 0
+# The annotation views: one ("*Top") once the part has a dimension.
+class suObList 1
+u16 =int($model.solid)
+@if $model.solid
+class moAnnotationView_c 1
+cstr "*Top"
+u32 1
+u8 0
+f32 1.875
+rep 32 00
+f64 1.0
+rep 7 00
+u32 128
+u8 0
+f32 -1.875
+rep 7 00
+u32 128
+rep 21 00
+f64 1.0
+rep 26 00
+f64 1.0
+rep 3 00
+i32 -1
+f64 -1.0
+u32 0 200
+rep 58 00
+u32 1
+i32 -65536
+u32 65535
+i32 -65536 -1
+hex FF FF
+@endif
+u32 =199+int($model.solid) 199 1 199   # the next annotation view's number, then constants
+rep 30 00
+@if $model.solid
+class moPMarkRecord_c 1
+u32 3
+@else
+u16 0   # no object
+@endif
+u32 1
+rep 12 00
+u32 20 0 20
+rep 16 00
+class suObList 1
+rep 6 00
+cstr ""
+cstr ""
+class moCThreadRefMgr_c 1
+# moCThreadRefMgr_c: the mass properties of the bodies, a cache SOLIDWORKS keeps once
+# they have been evaluated (15.4.11). The generator writes the empty form.
+rep 23 00
+@if $config0.mass_block
+u32 1 1 =len($bodies)
+@for b in $bodies
+u32 $b.id =$doc.stamp2-2*(len($bodies)-1-$b_index)   # body id, mass tag (15.4.9)
+f64 1.0
+@endfor
+f64 $config0.mass.0 $config0.mass.1 $config0.mass.2      # centre of mass
+f64 $config0.mass.3 $config0.mass.4 $config0.mass.5      # volume, area, mass
+f64 $config0.mass.6 $config0.mass.7 $config0.mass.8      # moments of inertia
+f64 $config0.mass.9 $config0.mass.10 $config0.mass.11    # products of inertia
+u32 1
+rep 16 00
+f64 0.995
+rep 16 00
+cstr ""
+cstr ""
+rep 28 00
+f64 1.0
+rep 24 00
+f64 1.0
+rep 24 00
+f64 1.0
+u32 1
+rep 6 00
+@else
+u32 0 0 0
+@endif
+class moPrtExplViewManager_c 1
+rep 2 00
+@use feathead FLAGS=0x40000000 UID=19
+u16 0  # children
+@use feattail ID=101 STAMP=0 MEMO=0.0 TIME=0x0
+u32 1
+rep 12 00
+i32 -1 -1
+rep 2 00
+u32 20 1
+rep 16 00
+u32 101 0 0
+@endsized   # the end of the tail run, and of the member

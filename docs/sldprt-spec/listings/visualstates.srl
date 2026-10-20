@@ -1,0 +1,76 @@
+# ThirdPtyStore/VisualStates: the display state's per-node visibility and appearance
+# (section 15.2.6). Proved on o01, o02, o03, o07 and o12.
+@member ThirdPtyStore/VisualStates
+@include visual-properties.srl
+@section 15.2.6.1
+u32 17000                          # the saving version (docs/FORMAT.md 7.5)
+u32 0
+@archive start 1
+class visStateKeyData_c 1          # the display state
+u32 5 0 1 0 1 1 1 1                # not decoded, constant
+cstr "<Default>_Display State 1"   # its name
+rep 16 00
+u32 =5+len($sketches)          # the number of components below: the holder and its nodes
+
+# A component's unit data, the same in every component
+@define unit
+class moUnitComponent_c 1
+rep 43 00                          # not decoded, constant
+i32 -1 -1 -1 -1
+rep 20 00
+@end
+
+@section 15.2.6.2
+class moCompHolder_c 1             # the part itself
+@use unit
+u32 17000
+u32 1 1 2                          # not decoded, constant
+class visStateVisualPropertiesAttribute_c 1
+u32 1
+@use visualprops TEXTURE="<SystemTexture>\\graphics\\materials\\color.p2m" N=33
+class visStateVisualStateAttribute_c 1 as shown    # visible
+u32 1 1 6 1 0
+
+@section 15.2.6.3
+# One record per node: the sketches, newest first, then the origin and the three planes.
+# The first record writes the appearance attribute the others refer to.
+@define node ID TIME
+class moCompFeature_c 1
+@use unit
+u32 17000
+u32 %ID                            # the node's id (15.2.2.2)
+u32 %TIME                          # the node's creation time
+u32 1 1 2                          # not decoded, constant
+@end
+@for f in $sketches reversed
+@use node ID=$f.id TIME=$f.created
+@if =$f_index==0
+class visStateVisualPropertiesAttribute_c 1 as plain
+u32 1
+u16 0                              # no appearance of its own: a null object
+@else
+objref plain
+@endif
+objref shown
+@endfor
+@use node ID=5 TIME=$tpl.unix      # Origin, with the template's time
+@if =len($sketches)==0
+class visStateVisualPropertiesAttribute_c 1 as plain
+u32 1
+u16 0
+@else
+objref plain
+@endif
+objref shown
+@use node ID=4 TIME=$tpl.unix      # Right Plane
+objref plain
+class visStateVisualStateAttribute_c 1 as hidden   # hidden
+u32 1 0 6 1 0
+@use node ID=3 TIME=$tpl.unix      # Top Plane
+objref plain
+objref hidden
+@use node ID=2 TIME=$tpl.unix      # Front Plane
+objref plain
+objref hidden
+u16 0                              # no further component: a null object
+rep 6 00

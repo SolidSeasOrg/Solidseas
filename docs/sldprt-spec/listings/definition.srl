@@ -1,0 +1,205 @@
+# Contents/Definition: the document type, the view at save, the drafting standard's line
+# styles and fonts, the user model environment and the design journal (section 15.2.11).
+# Proved on o01, o02, o03, o07 and o12.
+@member Contents/Definition
+@section 15.2.11.1
+u32 7 0 50 1 1                     # not decoded, constant
+# The document type: {83A33D30-27C5-11CE-BFD4-00400513BB57}, a part (docs/FORMAT.md 6)
+u32 0x83A33D30
+u16 0x27C5 0x11CE
+u8 0xBF 0xD4 0x00 0x40 0x05 0x13 0xBB 0x57
+rep 3 00
+u8 1
+
+@section 15.2.11.2
+# The view at save (15.2.11.2), a free value: a rotation, a translation, a scale, then the
+# view's centre and zoom
+@define view
+f64 $def.view.r.0 $def.view.r.1 $def.view.r.2    # the rotation, by rows
+f64 $def.view.r.3 $def.view.r.4 $def.view.r.5
+f64 $def.view.r.6 $def.view.r.7 $def.view.r.8
+f64 0.0 0.0 0.0                    # the translation
+f64 1.0                            # the scale
+u16 0
+f64 $def.view.c.0 $def.view.c.1 $def.view.c.2    # the centre of the window, model space
+f64 $def.view.zoom                 # the zoom
+u8 0
+u16 3 1                            # not decoded, constant
+@end
+@use view
+hex 02 FA 8C A6 3F 09 14 00 78     # not decoded, constant
+
+@section 15.2.11.3
+@archive start 1
+class moISO_c 1                    # the drafting standard's line styles
+u32 7                              # the number of line styles
+class moLineStyle_c 1
+cstr "CONTINUOUS"
+cstr "Solid"
+u16 1
+f64 12.0
+u8 0
+class moLineStyle_c 1
+cstr "HIDDEN"
+cstr "Dashed"
+u16 2
+f64 0.25 -0.125
+u8 0
+class moLineStyle_c 1
+cstr "PHANTOM"
+cstr "Phantom"
+u16 6
+f64 1.25 -0.25 0.25 -0.25 0.25 -0.25
+u8 0
+class moLineStyle_c 1
+cstr "CHAIN"
+cstr "Chain"
+u16 4
+f64 1.25 -0.25 0.25 -0.25
+u8 0
+class moLineStyle_c 1
+cstr "CENTER"
+cstr "Center"
+u16 4
+f64 3.0 -0.25 0.25 -0.25
+u8 0
+class moLineStyle_c 1
+cstr "STITCH"
+cstr "Stitch"
+u16 2
+f64 0.0 -0.125
+u8 0
+class moLineStyle_c 1
+cstr "CHAIN_THICK"
+cstr "Thin/Thick Chain"
+u16 4
+f64 1.25 -0.25 0.25 -0.25
+u8 1
+class uiLineFontMgr_c 1            # the line font for each kind of entity
+u16 40                             # the number of entries
+# One entry: the kind of entity, then its line font. A and B are not decoded (0, 1 or 2).
+@define lf KEY STYLE A B
+cstr %KEY
+class uiLFConfig_c 1
+cstr %STYLE
+u16 %A
+f32 -1.0                           # the line weight: the default
+u16 %B
+@end
+@use lf KEY="Sketch" STYLE="CONTINUOUS" A=0 B=0
+@use lf KEY="Auxilliary" STYLE="HIDDEN" A=0 B=0
+@use lf KEY="ChamferDim" STYLE="CONTINUOUS" A=0 B=0
+@use lf KEY="LinearDim" STYLE="CONTINUOUS" A=0 B=0
+@use lf KEY="LinearDimExt" STYLE="CONTINUOUS" A=0 B=0
+@use lf KEY="ArcLenDim" STYLE="CONTINUOUS" A=0 B=0
+@use lf KEY="Hidden" STYLE="HIDDEN" A=0 B=0
+@use lf KEY="CosmeticThread" STYLE="DUMMYTHREAD" A=0 B=0
+@use lf KEY="Explodelines" STYLE="PHANTOM" A=0 B=0
+@use lf KEY="Callout" STYLE="CONTINUOUS" A=0 B=0
+@use lf KEY="BendDown" STYLE="HIDDEN" A=0 B=0
+@use lf KEY="AngOrdinateDim" STYLE="CONTINUOUS" A=0 B=0
+@use lf KEY="Visible" STYLE="CONTINUOUS" A=1 B=0
+@use lf KEY="Detail" STYLE="CONTINUOUS" A=0 B=0
+@use lf KEY="Section" STYLE="PHANTOM" A=2 B=0
+@use lf KEY="Dimensions" STYLE="CONTINUOUS" A=0 B=0
+@use lf KEY="BreakLines" STYLE="HIDDEN" A=0 B=0
+@use lf KEY="OrdinateDimExt" STYLE="CONTINUOUS" A=0 B=0
+@use lf KEY="ChamferDimExt" STYLE="CONTINUOUS" A=0 B=0
+@use lf KEY="Crosshatch" STYLE="CONTINUOUS" A=0 B=0
+@use lf KEY="ViewArrow" STYLE="PHANTOM" A=2 B=0
+@use lf KEY="EmphasizedOutline" STYLE="CONTINUOUS" A=2 B=2
+@use lf KEY="AngleDimExt" STYLE="CONTINUOUS" A=0 B=0
+cstr "Adjoining Component"
+class uiLFConfig_c 1
+cstr "PHANTOM"
+u16 0
+f32 -1.0
+u16 0
+@use lf KEY="TanHidden" STYLE="HIDDEN" A=0 B=0
+@use lf KEY="ArcLenDimExt" STYLE="CONTINUOUS" A=0 B=0
+@use lf KEY="AngleDim" STYLE="CONTINUOUS" A=0 B=0
+@use lf KEY="DiameterDim" STYLE="CONTINUOUS" A=0 B=0
+@use lf KEY="EnvelopComponent" STYLE="PHANTOM" A=0 B=0
+@use lf KEY="DiameterDimExt" STYLE="CONTINUOUS" A=0 B=0
+@use lf KEY="OrdinateDim" STYLE="CONTINUOUS" A=0 B=0
+@use lf KEY="CalloutExt" STYLE="CONTINUOUS" A=0 B=0
+@use lf KEY="AngOrdinateDimExt" STYLE="CONTINUOUS" A=0 B=0
+@use lf KEY="TanVisible" STYLE="PHANTOM" A=0 B=0
+@use lf KEY="RadialDim" STYLE="CONTINUOUS" A=0 B=0
+@use lf KEY="Centerlines" STYLE="CENTER" A=0 B=0
+@use lf KEY="DetailBorder" STYLE="CONTINUOUS" A=0 B=0
+@use lf KEY="RadialDimExt" STYLE="CONTINUOUS" A=0 B=0
+@use lf KEY="SpeedpakVisible" STYLE="CONTINUOUS" A=0 B=0
+@use lf KEY="BendUp" STYLE="CONTINUOUS" A=0 B=0
+
+@section 15.2.11.4
+u16 1
+class uiUserModelEnv_c 1           # the user model environment
+cstr $doc.author                   # the saving account (15.2.11.4)
+u16 1 1
+u16 1230 10 3392 10                # not decoded, constant
+u32 0
+u8 1
+@use view
+f64 -1.0
+cstr ""
+u32 3391 227                       # not decoded, constant
+u16 2
+u32 1
+u16 1180 227 10                    # not decoded, constant
+i32 -1
+# Two identical records, not decoded
+@define envrec
+rep 25 00
+f64 1.0
+rep 26 00
+f64 1.0
+u8 0
+u32 0xFFFF
+f64 -1.0
+cstr ""
+@end
+@use envrec
+@use envrec
+rep 12 00
+u32 96
+rep 20 00
+i32 -1 -1
+hex 35 20 01 00 00                 # not decoded, constant
+
+@section 15.2.11.5
+class moBomInfoMgr_c 1             # the bill of materials settings
+u32 0
+u16 1
+u32 38284 0 515                    # not decoded, constant
+class uoJournal_c 0                # the design journal
+cstr "Design Journal.doc"          # its file name, a constant
+rep 10 00
+u32 1
+u16 0
+u32 1
+rep 9 00
+u32 1
+rep 3 00
+u32 1025
+rep 7 00
+cstr ""
+u16 0
+cstr ""
+u16 0
+cstr ""
+rep 32 00
+u32 100 5
+rep 8 00
+u32 1
+rep 12 00
+u32 1
+rep 8 00
+u32 1 1 0 1
+rep 6 00
+u32 1 1
+rep 12 00
+u32 2
+rep 14 00
+u32 3 1 0
+f64 1000.0                         # not decoded, constant

@@ -1,0 +1,231 @@
+# The model header: the body Header2 and Contents/Config-0-ModelHeader share (section 15.2.2).
+# One CArchive of its own. Proved on o01, o02, o03, o07 and o12, through header2.srl and
+# config-0-modelheader.srl.
+@archive start 1
+@section 15.2.2.1
+class moHeader_c 1
+u32 1                              # not decoded, constant
+class su_CStringArray 0            # the accounts that saved the document
+u16 1                              #   one
+cstr $doc.author                   #   the saving account (15.2.2.1)
+class su_CStringArray 0            # a second string array, meaning not decoded
+u16 1
+cstr ""
+
+@section 15.2.2.2
+# The log: one moLogs_c per tree node with when it was created and modified.
+# The template's nodes carry the template's own time, $tpl.unix (15.2.2.2).
+@define created T
+class moStamp_c 1
+u16 0                              # 0: created
+u32 0
+u32 %T
+cstr "Created"
+@end
+@define modified T
+class moStamp_c 1
+u16 1                              # 1: modified
+u32 0
+u32 %T
+cstr "Modified"
+@end
+class suObList 1
+u16 =24+len($features)             # the number of logged nodes
+# The nodes the template holds, with the template's times
+class moLogs_c 1
+u16 1
+@use created T=$tpl.unix
+u32 0
+cstr "Part1^Assem1"
+class moLogs_c 1
+u16 1
+@use created T=$tpl.unix
+u32 1
+cstr "Annotations"
+class moLogs_c 1
+u16 2
+@use created T=$tpl.unix
+@use modified T=$tpl.unix
+u32 2
+cstr "Front Plane"
+class moLogs_c 1
+u16 2
+@use created T=$tpl.unix
+@use modified T=$tpl.unix
+u32 3
+cstr "Top Plane"
+class moLogs_c 1
+u16 2
+@use created T=$tpl.unix
+@use modified T=$tpl.unix
+u32 4
+cstr "Right Plane"
+class moLogs_c 1
+u16 2
+@use created T=$tpl.unix
+@use modified T=$tpl.unix
+u32 5
+cstr "Origin"
+class moLogs_c 1
+u16 1
+@use created T=$tpl.unix
+u32 6
+cstr "Lights and Cameras"
+class moLogs_c 1
+u16 1
+@use created T=$tpl.unix
+u32 7
+cstr "Design Binder"
+class moLogs_c 1
+u16 1
+@use created T=$tpl.unix
+u32 8
+cstr "Comments"
+class moLogs_c 1
+u16 1
+@use created T=$tpl.unix
+u32 9
+cstr "Solid Bodies"
+class moLogs_c 1
+u16 1
+@use created T=$tpl.unix
+u32 10
+cstr "Surface Bodies"
+class moLogs_c 1
+u16 2
+@use created T=$tpl.unix
+@use modified T=$tpl.unix
+u32 11
+cstr "Material <not specified>"
+class moLogs_c 1
+u16 1
+@use created T=$tpl.unix
+u32 12
+cstr "Ambient"
+class moLogs_c 1
+u16 1
+@use created T=$tpl.unix
+u32 13
+cstr "Directional1"
+class moLogs_c 1
+u16 1
+@use created T=$tpl.unix
+u32 14
+cstr "Directional2"
+class moLogs_c 1
+u16 1
+@use created T=$tpl.unix
+u32 15
+cstr "Directional3"
+class moLogs_c 1
+u16 1
+@use created T=$tpl.unix
+u32 16
+cstr "Equations"
+# The nodes made with the document, at its creation time
+class moLogs_c 1
+u16 1
+@use created T=$doc.created
+u32 17
+cstr "Notes"
+class moLogs_c 1
+u16 1
+@use created T=$doc.created
+u32 18
+cstr "Notes1___EndTag___"
+class moLogs_c 1
+u16 1
+@use created T=$doc.created
+u32 21
+cstr "Markups"
+class moLogs_c 1
+u16 1
+@use created T=$doc.created
+u32 22
+cstr "Sensors"
+class moLogs_c 1
+u16 1
+@use created T=$doc.created
+u32 23
+cstr "Favorites"
+class moLogs_c 1
+u16 1
+@use created T=$doc.created
+u32 24
+cstr "Folder "                     # sic, with the trailing space
+class moLogs_c 1
+u16 1
+@use created T=$doc.created
+u32 25
+cstr "Selection Sets"
+# The features, in timeline order (15.2.2.3): a sketch is logged created and modified
+@for f in $features
+class moLogs_c 1
+@if $f.sketch
+u16 2
+@use created T=$f.created
+@use modified T=$f.modified
+@else
+u16 1
+@use created T=$f.created
+@endif
+u32 $f.id
+cstr $f.name
+@endfor
+u32 $tpl.unix2                     # a second template time (15.2.2.3)
+u32 $hdr.next_id                   # the next node id (15.2.2.3)
+u16 0
+u32 $doc.stamp                     # the document's change stamp (15.2.2.4)
+
+@section 15.2.2.5
+class moExtObject_c 1
+class moCStringHandle_c 1
+cstr ""
+class moCStringHandle_c 1
+cstr $doc.name                     # the internal document name
+hex 02 00 00                       # not decoded, constant
+u32 $doc.created
+cstr ""
+cstr ""
+cstr ""
+u16 0
+@if =len($features)>0               # when the configuration last changed (15.2.2.4)
+u32 $doc.unix
+@else
+u32 $tpl.unix2                     #   the empty part keeps the template's time
+@endif
+u32 1 0                            # not decoded, constant
+i32 -1
+cstr "Default"                     # the configuration's name
+rep 16 00
+u32 $doc.stamp2                    # a second change stamp (15.2.2.4)
+u32 0 0
+u32 $doc.created
+rep 18 00
+u32 2                              # not decoded, constant
+@if =len($features)>0               # when the model was last rebuilt (15.2.2.4)
+u32 $doc.unix
+@else
+u32 $tpl.unix                      #   the empty part keeps the template's time
+@endif
+class suObList 1                   # an empty list
+u16 0
+u32 0 0
+
+@section 15.2.2.6
+# The model's bounding sphere and box, a cache (15.2.2.6)
+@if $model.solid
+u32 1
+f64 $hdr.centre.0 $hdr.centre.1 $hdr.centre.2    # the bounding sphere's centre, metres
+f64 $model.max.0 $model.max.1 $model.max.2       # the box's far corner
+f64 $model.min.0 $model.min.1 $model.min.2       # the box's near corner
+f64 $model.sphere.3                              # the bounding sphere's radius
+@else
+u32 0                              # no box: the empty part's form
+@endif
+i32 -1 -1 -1
+u32 1
+rep 40 00
+u32 1
+rep 16 00
+u32 1
