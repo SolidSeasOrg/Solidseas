@@ -102,7 +102,7 @@ def test_the_text_says_what_was_written_and_that_solidworks_has_not_opened_it(ca
     assert "left out" not in text
     assert text.rstrip().endswith(cli.NATIVE_PART_NOTE)
     note = cli.NATIVE_PART_NOTE
-    assert "without SOLIDWORKS" in note and "not been opened in SOLIDWORKS" in note
+    assert "without SOLIDWORKS" in note and "open in SOLIDWORKS 2024" in note
 
 
 def test_without_o_the_part_goes_to_the_current_folder(capsys, design, out, monkeypatch):

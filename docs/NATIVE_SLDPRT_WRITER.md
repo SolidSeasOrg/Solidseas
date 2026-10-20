@@ -28,6 +28,7 @@ UNKNOWN. "Offline" below means checked by code with no SOLIDWORKS.
 | A source-agnostic IR and a SolidCraft adapter | Done for sketches on any plane, extrusions, revolves, fillets, chamfers, holes, patterns and mirrors (sections 8, 9) |
 | SolidCraft to IR to a native file | VERIFIED in SOLIDWORKS for one extruded rectangle (p1, p2: 40 x 30 x 10 mm, native, depth editable), through the seed (section 10) |
 | The archive's object numbering, which new records must follow | VERIFIED offline (section 4.6) |
+| Parts from the clean-room generator (section 15) | VERIFIED in SOLIDWORKS 2024 for three boxes: opens with its feature tree, rebuilds to an edited depth (section 6.2) |
 | Authoring new sketches, relations, dimensions and features | Not started: needs each class's field layout (4.6.1) and dimensioned fixtures |
 
 On 2026-10-19 SOLIDWORKS 2024 SP1 (revision 32.1.0) opened all 17
@@ -410,6 +411,31 @@ The bridge reports the measured volume as `measure.mass.volume_m3`; `judge`
 read the wrong key on the PC, so the check's own summary said `native` for
 all 17 until the reading was fixed. The full report is kept with the
 result (`20261019T074854Z-83dc0c13ba7c`).
+
+### 6.2 Parts from the generator (2026-10-20)
+
+Five parts written by `solidseas sldprt` from the clean-room generator
+(section 15), with no SOLIDWORKS involved, were opened by hand in SOLIDWORKS
+2024: an empty part, one 40 x 30 x 10 mm box, two boxes, one box whose
+corner is off the origin, and three 20 x 20 mm boxes 10, 20 and 30 mm deep.
+They were reported as good. The three-box part was looked at closely:
+
+- It opened with Solid Bodies (3) and Boss-Extrude1 to Boss-Extrude3 under
+  the Front, Top and Right planes and the origin, nothing imported, and the
+  bodies in their places.
+- Editing an extrusion showed Blind from the sketch plane with its depth;
+  a new depth on Boss-Extrude2 rebuilt to a longer body, and the sketch
+  showed as under-defined, as expected with no driving dimensions.
+- File > Properties showed Last Saved By SolidSeas, Last Saved With
+  SOLIDWORKS 2024, and Created and Last Saved at the identity's instant in
+  local time. Author is empty: the generator writes no `dc:creator`, as a
+  part SOLIDWORKS saves leaves it empty until someone fills it in.
+
+So three or more bodies, the neutral account and history values, and a
+part with no partition, display lists or previews are accepted on open and
+rebuild. This was a check by hand, not `native-writer` (section 7): no
+volumes or What's Wrong lists were recorded, and the part off the origin
+was not looked at as closely.
 
 ## 7. The check on the PC
 

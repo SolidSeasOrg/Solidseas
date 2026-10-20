@@ -104,8 +104,9 @@ another plane, nothing is written and the message lists every item. With
 left out, and it ends with exit code 4 so a script can tell. A file that is
 already there is never replaced, and the part is not written next to the design
 unless you add `--allow-source-dir`. SolidSeas reads each part back before it
-writes it, but these parts have not yet been opened in SOLIDWORKS itself, so
-open an important one there before you rely on it.
+writes it. Parts like these open in SOLIDWORKS 2024 with their feature tree and
+rebuild when you change a depth; other versions have not been tried, so open an
+important one there before you rely on it.
 
 ## Other 3D formats
 

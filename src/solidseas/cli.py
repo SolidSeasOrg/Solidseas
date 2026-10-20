@@ -944,8 +944,9 @@ def cmd_convert(args: argparse.Namespace, doc: Document) -> int:
 # --------------------------------------------------------------------------- native parts
 DESIGN_FORMATS = {".solidcraft": "solidcraft", ".json": "ir"}
 NATIVE_PART_NOTE = (
-    "SolidSeas made this part without SOLIDWORKS and checked it, but it has not been opened in "
-    "SOLIDWORKS yet: open it there before you rely on it."
+    "SolidSeas made this part without SOLIDWORKS and checked it. Parts like it open in "
+    "SOLIDWORKS 2024 and rebuild when you change a depth; open an important one there before "
+    "you rely on it."
 )
 
 

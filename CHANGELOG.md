@@ -26,8 +26,9 @@ while the project takes shape.
   is written. With `--allow-partial` the part is written without them, every
   item left out is listed, and the command exits 4. It never replaces a file,
   and `--json` prints the new `sldprt_written` result. SolidSeas reads each
-  part back before writing it, but these parts have not yet been opened in
-  SOLIDWORKS itself, so check an important one there before you rely on it.
+  part back before writing it. Parts like these open in SOLIDWORKS 2024 with
+  their feature tree and rebuild when you change a depth; other versions have
+  not been tried, so check an important one there before you rely on it.
 
 - **A run SolidSeas did not get to finish is offered again.** If SolidSeas
   closed during an Automatic run, or before you chose Keep or Revert, the
