@@ -185,7 +185,7 @@ try {
             'It is a separate program that the video helper starts; it can be replaced by any other build',
             'of FFmpeg with the same command line, put in its place in the package folder.',
             '',
-            'The exact source of this build: ' + $FfmpegSource.Trim(),
+            ('The exact source of this build: ' + $FfmpegSource.Trim()),
             'FFmpeg itself: https://ffmpeg.org/download.html',
             '',
             'ffmpeg -version reports:',
@@ -270,6 +270,12 @@ try {
         $ErrorActionPreference = 'Stop'
         if ($code -ne 0) { throw 'PyInstaller could not build solidseas-occt.exe' }
         Get-ChildItem -LiteralPath (Join-Path $dist 'solidseas-occt') | Move-Item -Destination $folder
+        # PyInstaller collects the wheel's DLLs beside the program as well as where --add-binary
+        # puts them; the helper loads the cadquery_ocp_novtk.libs copies, so drop the others.
+        $libsIn = Join-Path $folder '_internal\cadquery_ocp_novtk.libs'
+        Get-ChildItem -LiteralPath $libsIn -Filter '*.dll' | ForEach-Object {
+            Remove-Item -LiteralPath (Join-Path $folder "_internal\$($_.Name)") -Force -ErrorAction SilentlyContinue
+        }
         # The helper must start on its own and name the Open CASCADE it carries.
         $ErrorActionPreference = 'Continue'
         $ready = ('{"id": 1, "op": "shutdown"}' | & (Join-Path $folder 'solidseas-occt.exe') | Out-String)
@@ -298,11 +304,11 @@ try {
             'Each of these libraries is a separate file in this package''s folder and can be replaced by',
             'another build of it with the same interface, put in its place.',
             '',
-            'The exact source of Open CASCADE Technology 7.9.3, OCP 7.9.3.1 and the other libraries: ' + $OcctSource.Trim(),
+            ('The exact source of Open CASCADE Technology 7.9.3, OCP 7.9.3.1 and the other libraries: ' + $OcctSource.Trim()),
             'Open CASCADE Technology: https://github.com/Open-Cascade-SAS/OCCT/releases/tag/V7_9_3',
             'OCP: https://github.com/CadQuery/OCP/releases/tag/7.9.3.1',
             '',
-            'The wheels this package was built from: ' + ($wheels -join ', ')
+            ('The wheels this package was built from: ' + ($wheels -join ', '))
         ) | Set-Content -LiteralPath $about -Encoding UTF8
         $pythonLicence = Join-Path $work 'Python-LICENSE.txt'
         $ErrorActionPreference = 'Continue'

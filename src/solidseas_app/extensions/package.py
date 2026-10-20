@@ -157,9 +157,10 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "build":
             notices = []
             for path in args.notice:
-                # utf-8-sig: a byte order mark, which Windows PowerShell writes, is not text
+                # utf-8-sig: a byte order mark, which Windows PowerShell writes, is not text;
+                # the FSF's licence texts break pages with form feeds, which are not either
                 with open(path, encoding="utf-8-sig") as fh:
-                    notices.append(fh.read())
+                    notices.append(fh.read().replace("\f", ""))
             path = build_package(
                 args.id,
                 args.folder,

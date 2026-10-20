@@ -475,6 +475,26 @@ def test_a_notice_file_with_a_byte_order_mark_is_carried_without_it(tmp_path):
     assert notices == ("The licences are in THIRD-PARTY-LICENSES.txt in this package.\n",)
 
 
+def test_the_lgpl_text_is_carried_as_a_notice_without_its_form_feeds(tmp_path):
+    from pathlib import Path
+
+    from solidseas_app.extensions import package
+
+    lgpl = Path(__file__).resolve().parents[1] / "licenses" / "LGPL-2.1.txt"
+    assert "\f" in lgpl.read_text(encoding="utf-8")  # the FSF's text breaks pages with them
+    folder = tmp_path / "video"
+    folder.mkdir()
+    (folder / "solidseas-video.exe").write_bytes(HELPER)
+    out = tmp_path / "out"
+    built_ok = package.main(
+        ["build", "--id", "video", "--from", str(folder), "--out", str(out), "--notice", str(lgpl)]
+    )
+    assert built_ok == 0
+    built = next(out.glob("video-*.zip"))
+    (notice,) = X.check_package(str(built), accepted=_accept(built)).manifest.notices
+    assert "\f" not in notice and "GNU LESSER GENERAL PUBLIC LICENSE" in notice
+
+
 def test_packages_that_came_beside_the_viewer_are_added_once_and_left_off(tmp_path):
     from pathlib import Path
 
