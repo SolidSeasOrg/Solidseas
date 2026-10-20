@@ -112,6 +112,7 @@ DRAWING_SHOWN = (
     "The document shown is a SOLIDWORKS drawing. " + PARTS_ONLY,
 )
 ONE_WIZARD = "A New Drawing wizard is already open: finish it or close it first."
+ONE_GUIDED = "A Guided drawing is already open: finish it or close it first."
 NOT_HERE = "{what} is not in this viewer, so drawings cannot be {done} here."
 STARTS = ("express", "guided", "expert")  # how a drawing can start (drawingmode.MODES)
 
@@ -280,6 +281,7 @@ class DrawingController(QObject):
         self.window = window
         self.worker: Any = None  # the window's drawing process, made on first use
         self.wizard: Any = None  # the New Drawing wizard, or the Guided one, while it is open
+        self.wizard_mode = "expert"  # which of the two it is: ``expert`` or ``guided``
         self.editors: list[tuple[str, Any]] = []  # (the drawing's path as compared, its editor)
         self.make_wizard: Callable[..., Any] | None = None
         self.make_guided: Callable[..., Any] | None = None
@@ -572,8 +574,9 @@ class DrawingController(QObject):
             return self._done({"ok": False, "closed": True})
         if self.wizard is not None and _open(self.wizard):
             self._raise(self.wizard)
-            self._status(ONE_WIZARD, 8000)
-            return self._done({"ok": False, "busy": True, "note": ONE_WIZARD})
+            note = ONE_GUIDED if self.wizard_mode == "guided" else ONE_WIZARD
+            self._status(note, 8000)
+            return self._done({"ok": False, "busy": True, "note": note})
         if self.express is not None and not self.express.finished:
             from .drawingmode import EXPRESS_BUSY
 
@@ -690,6 +693,7 @@ class DrawingController(QObject):
         )
         wizard.drawing_written.connect(self._written)
         self.wizard = wizard
+        self.wizard_mode = mode
         wizard.show()
         return self._done(
             {

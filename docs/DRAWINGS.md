@@ -1132,18 +1132,24 @@ the wizard's. The questions, in order:
 | Which views should the sheet show? | the projected views and the isometric, starting from Drawing Settings' Default Views for the manufacturing type; a change is the user's choice, kept when the purpose changes, as in the wizard |
 | Which unit should the sizes be in? | `units`: Inch or Millimetre, starting at Drawing Settings' fixed unit, else the unit the part states, else the guess when its evidence leans one way (`UnitGuess.decided`); an unclear guess waits for a click, and no preview is made before it. The unit the part or Settings give anyway is sent as `part` |
 | How much should the drawing dimension? | `detail`, as the first answer set it; the scheme is `plusminus` below Fully defined and Drawing Settings' scheme for the manufacturing type at Fully defined |
+| Are any of these holes threaded? | the thread answers of the wizard's page 5, for the thread candidates the preview finds (`drawing_thread_candidates`: holes and hole patterns whose diameter is a tap drill). Each hole is "No, a plain hole" or "Yes" with one of the threads its drill taps, written to the wizard's own thread table as Plain or Tapped, so the request carries the same `confirm_thread` edits (with no thread depth) as the wizard's. Asked only when the preview shows a candidate: before the first preview the page waits, saying so, and once a preview shows none it is skipped. If the preview fails, the page says the holes could not be checked and lets the user go on |
 | What should the title block say? | the wizard's own title block page |
 | Ready to make the drawing | nothing: it says what will be made (the answers, and the title block as the preview shows it), where the files go, with a button for another folder, and ticks for a PDF (on) and a DXF (off) beside the `.ssdrw`. Finish writes them under 12.6's rules and opens the drawing in the editor |
 
-An assembly is not asked what it is for or how much to dimension: its drawing
-has its views, its parts list and balloons, and its overall size for reference.
-Hidden lines, tangent edges, the front, the sheet and the scale are left to
-Drawing Settings and SolidSeas, as for Express. Guided does not ask the
-questions of the wizard's page 5: a hole whose size is a tap drill is drawn as
-a plain hole, since a thread is called out only once confirmed there, and a hole
-end that needs confirming is confirmed from the editor's checklist. A Guided
+An assembly is not asked what it is for, how much to dimension or about
+threads: its drawing has its views, its parts list and balloons, and its overall
+size for reference. Hidden lines, tangent edges, the front, the sheet and the
+scale are left to Drawing Settings and SolidSeas, as for Express. Of the wizard's
+page 5, Guided asks only the thread question: a thread's depth is not asked (the
+callout gives none), and a hole end that needs confirming is confirmed from the
+editor's checklist. The summary lists the holes answered as threaded. A Guided
 drawing's options carry no mode: it is an ordinary drawing, and its file is the
 one the wizard would write for the same choices.
+
+The viewer has one New Drawing wizard open at a time, Expert or Guided. Starting
+another drawing while one is open brings it forward and says which is open: "A
+New Drawing wizard is already open" for Expert, "A Guided drawing is already
+open" for Guided.
 
 ### 10.5 Tolerancing schemes
 

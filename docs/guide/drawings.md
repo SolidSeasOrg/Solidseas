@@ -75,18 +75,28 @@ Guided asks, in this order:
    otherwise you choose.
 4. **How much should the drawing dimension?** The first answer chose this;
    change it here if you need more or fewer sizes.
-5. **What should the title block say?** The same title block fields as the
+5. **Are any of these holes threaded?** Asked only when the part has holes the
+   size of a tap drill, which may be meant to take a screw. Each is listed with
+   its size, and you choose "No, a plain hole" or the thread it is tapped to,
+   such as M6 x 1. The drawing calls out a thread only when you choose one, and
+   a thread cannot be added in the editor later, so check with whoever designed
+   the part if you are not sure. If the preview is still being made, the page
+   waits for it.
+6. **What should the title block say?** The same title block fields as the
    wizard. Leave one empty to use the part's own value.
-6. **Ready to make the drawing.** What will be made, the title block as the
-   preview shows it, and where the files go, with a button to choose another
-   folder. A PDF is saved beside the drawing unless you untick it, and a DXF if
-   you tick it. **Finish** saves them and opens the drawing in the editor.
+7. **Ready to make the drawing.** What will be made, including any threaded
+   holes, the title block as the preview shows it, and where the files go, with
+   a button to choose another folder. A PDF is saved beside the drawing unless
+   you untick it, and a DXF if you tick it. **Finish** saves them and opens the
+   drawing in the editor.
 
 An assembly is asked only about its views, unit and title block: its drawing
 has its views, a parts list and balloons. Guided leaves the rest (hidden lines,
-the sheet, the scale) to your Drawing Settings, and does not ask about tapped
-holes: a hole sized as a tap drill is drawn as a plain hole. Use Expert to call
-out its thread.
+the sheet, the scale) to your Drawing Settings. A threaded hole's callout gives
+no depth; use Expert to give one.
+
+Only one drawing can be set up at a time. If you start another while Guided is
+open, SolidSeas brings it forward and says a Guided drawing is already open.
 
 ## The New Drawing wizard
 

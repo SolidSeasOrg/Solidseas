@@ -402,7 +402,9 @@ def test_new_drawing_opens_the_wizard_on_the_part_shown(viewer, models):
     # One wizard at a time: pressed again, the open one is brought forward.
     c.new_action.trigger()
     assert len(v.wizards) == 1 and c.last["busy"]
-    assert "already open" in v.window.statusBar().currentMessage()
+    assert v.window.statusBar().currentMessage() == (
+        "A New Drawing wizard is already open: finish it or close it first."
+    )
 
 
 def test_the_list_offers_make_drawing_beside_3d_print_once_the_menu_opens(viewer, models):
@@ -894,6 +896,8 @@ def test_guided_opens_the_guided_wizard_and_can_be_remembered(viewer, models, tm
     # Pressed again while it is open: it is brought forward, and nothing is asked.
     c.new_action.trigger()
     assert len(guided) == 1 and c.last["busy"] and len(v.mode_asked) == 1
+    assert c.last["note"] == "A Guided drawing is already open: finish it or close it first."
+    assert v.window.statusBar().currentMessage() == c.last["note"]
     # What it writes opens in the editor, as the wizard's does.
     path = str(tmp_path / "out" / "O02.ssdrw")
     wizard.drawing_written.emit(path, True)

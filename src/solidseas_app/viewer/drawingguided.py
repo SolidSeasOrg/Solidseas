@@ -25,8 +25,14 @@ The questions, in order:
    level below Fully defined is drawn with plus and minus tolerances; Fully defined
    takes the tolerancing scheme Drawing Settings give the way the part is made. An
    assembly skips this question.
-5. **The title block**, the wizard's page.
-6. **What will be made**: the answers, the title block as the preview shows it, where
+5. **Are any of these holes threaded?** Asked only of a part with thread candidates:
+   the holes and hole patterns whose size is a tap drill, as the preview finds them
+   (the wizard's page 5 lists the same). Each is a plain hole or one of the threads
+   its drill taps, and the answer is set on the wizard's own thread table, so the
+   ``confirm_thread`` edits are the wizard's. The page waits while the preview is
+   being made, and is skipped once it shows no candidate. An assembly skips it.
+6. **The title block**, the wizard's page.
+7. **What will be made**: the answers, the title block as the preview shows it, where
    the files go, a PDF or DXF beside the drawing if ticked, and a button for another
    folder.
 
@@ -54,6 +60,7 @@ from PySide6.QtWidgets import (
 )
 
 from .drawingwizard import (
+    ANSWERS,
     MANUFACTURING,
     OUTPUT,
     PAGE_WIDTH,
@@ -70,8 +77,8 @@ from .drawingwizard import (
 )
 
 # The guided pages' ids, past the wizard's six (whose title block page is shown too)
-PURPOSE, VIEWS, UNITS, DETAIL, SUMMARY = 10, 11, 12, 13, 14
-ORDER = (PURPOSE, VIEWS, UNITS, DETAIL, TITLE, SUMMARY)
+PURPOSE, VIEWS, UNITS, DETAIL, SUMMARY, THREADS = 10, 11, 12, 13, 14, 15
+ORDER = (PURPOSE, VIEWS, UNITS, DETAIL, THREADS, TITLE, SUMMARY)
 
 
 @dataclass(frozen=True)
@@ -168,6 +175,11 @@ QUESTIONS = {
         "Your first answer chose this. Fewer sizes make a drawing quicker to read; more make it "
         "complete enough to make the part from.",
     ),
+    THREADS: (
+        "Are any of these holes threaded?",
+        "These holes are the size of a tap drill, so they may be meant to take a screw. The drawing "
+        "calls out a thread only when you choose one here; otherwise each is made as a plain hole.",
+    ),
     TITLE: (
         "What should the title block say?",
         "The title block in the corner of the sheet names the part, its drawing number and revision, "
@@ -189,6 +201,27 @@ ISOMETRIC_WORDS = "Isometric: a 3D picture that helps someone see the part at a 
 PRELIMINARY_WORDS = "Everything is written as PRELIMINARY until you release the drawing in the editor."
 NOBODY = "Drawn by: nobody yet (add people in Drawing Settings)"
 NO_PROCESS = "Add a printing process under Drawing Settings > Printing to choose this."
+NO_THREAD = "No, a plain hole"
+THREADS_WAITING = "Looking for holes that may be threaded, while the preview is made. This takes a moment."
+THREADS_NONE = "No hole in this part is the size of a tap drill, so there is nothing to answer here."
+THREADS_FAILED = (
+    "The holes could not be checked, because the preview was not made. They will be drawn as plain "
+    "holes; use Expert to call out a thread."
+)
+THREADS_NOTE = (
+    "Choose a thread only when the hole is meant to be tapped: the shop cuts the thread you choose. "
+    "Not sure? Ask whoever designed the part, since a thread cannot be added in the editor later."
+)
+
+
+def hole_words(candidate: Any, unit: str | None) -> str:
+    """A thread candidate in words, its size in the drawing's unit: ``4 holes, Ø5.00 mm
+    (f-1)``."""
+    count = int(candidate.get("count", 1) or 1)
+    mm = float(candidate.get("diameter_mm", 0.0))
+    size = f"{mm / 25.4:.3f} in" if unit == "in" else f"{mm:.2f} mm"
+    what = f"{count} holes" if count != 1 else "1 hole"
+    return f"{what}, Ø{size} ({candidate.get('feature', '')})"
 
 
 def views_words(ticked: list[str], isometric: bool) -> str:
@@ -350,6 +383,26 @@ class DetailPage(GuidedPage):
         self.scheme_label.setText(self.w.scheme_words())
 
 
+class ThreadsPage(GuidedPage):
+    def __init__(self, wizard: GuidedWizard) -> None:
+        super().__init__(wizard, THREADS)
+        self.status_label = _label(note=True)
+        self.holes = QWidget()
+        self.form = QFormLayout(self.holes)
+        self.form.setContentsMargins(0, 0, 0, 0)
+        self.note_label = _label(THREADS_NOTE, note=True)
+        layout = QVBoxLayout(self)
+        layout.addWidget(self.status_label)
+        layout.addWidget(self.holes)
+        layout.addWidget(self.note_label)
+        layout.addStretch(1)
+        self.boxes: dict[str, QComboBox] = {}  # by feature id: a plain hole, or the thread chosen
+        self.shown: tuple | None = None  # the unit and candidates the rows were made for
+
+    def enter(self) -> None:
+        self.w.show_threads()
+
+
 class SummaryPage(GuidedPage):
     def __init__(self, wizard: GuidedWizard) -> None:
         super().__init__(wizard, SUMMARY)
@@ -413,12 +466,14 @@ class GuidedWizard(DrawingWizard):
         self.guided_views_page = ViewsPage(self)
         self.units_page = UnitsPage(self)
         self.detail_page = DetailPage(self)
+        self.threads_page = ThreadsPage(self)
         self.summary_page = SummaryPage(self)
         self.guided_pages = (
             self.purpose_page,
             self.guided_views_page,
             self.units_page,
             self.detail_page,
+            self.threads_page,
             self.summary_page,
         )
         for page in self.guided_pages:
@@ -435,8 +490,13 @@ class GuidedWizard(DrawingWizard):
 
     # ------------------------------------------------------------------ the order
     def order(self) -> tuple[int, ...]:
-        """The questions in turn: an assembly is not asked how much to dimension."""
-        return tuple(i for i in ORDER if not (self.is_assembly and i == DETAIL))
+        """The questions in turn: an assembly is not asked how much to dimension or about
+        threads, and a part is not asked about threads once the preview shows no hole that
+        may be threaded."""
+        skip = {DETAIL, THREADS} if self.is_assembly else set()
+        if self.thread_candidates() == ():
+            skip.add(THREADS)
+        return tuple(i for i in ORDER if i not in skip)
 
     def nextId(self) -> int:  # noqa: N802 (Qt's name)
         order = self.order()
@@ -587,6 +647,8 @@ class GuidedWizard(DrawingWizard):
     # ------------------------------------------------------------------ what each page lacks
     def guided_problems(self, index: int) -> list[str]:
         """Why guided page ``index`` cannot go on, in words; empty when it can."""
+        if index == THREADS and self.thread_candidates() is None and self.preview_error is None:
+            return ["the holes are still being checked"]
         if index == PURPOSE:
             out = self.part_problems()
             mp = self.manufacturing_page
@@ -608,6 +670,75 @@ class GuidedWizard(DrawingWizard):
                 return True
             self.folder_changed()
         return not self.guided_problems(index)
+
+    # ------------------------------------------------------------------ threads
+    def thread_candidates(self) -> tuple | None:
+        """The holes and patterns whose size is a tap drill, as the latest preview found
+        them (the wizard's thread table); None while no preview has been made."""
+        if self.answer is None:
+            return None
+        return tuple(self.answer.thread_candidates)
+
+    def tapped_holes(self) -> list[tuple[str, str]]:
+        """The holes answered Tapped on the wizard's thread table: (feature id, thread)."""
+        return [
+            (fid, thread_box.currentText())
+            for fid, (answer_box, thread_box, _depth) in self.dimensions_page.rows.items()
+            if answer_box.currentData() == "tapped"
+        ]
+
+    def thread_chosen(self, fid: str, thread: str | None) -> None:
+        """A hole is plain (``thread`` None) or tapped with ``thread``: set on the wizard's
+        own thread table, whose answers become the drawing's ``confirm_thread`` edits."""
+        row = self.dimensions_page.rows.get(fid)
+        if row is None:
+            return
+        answer_box, thread_box, _depth = row
+        if thread is not None:
+            thread_box.setCurrentIndex(max(thread_box.findText(thread), 0))
+        answer_box.setCurrentIndex(ANSWERS.index("tapped" if thread is not None else "plain"))
+
+    def show_threads(self) -> None:
+        """The threads page as the latest preview and the answers stand: a row for each
+        candidate, made again only when the candidates or the unit change."""
+        tp = self.threads_page
+        candidates = self.thread_candidates()
+        if candidates is None:
+            tp.status_label.setText(THREADS_FAILED if self.preview_error is not None else THREADS_WAITING)
+        else:
+            tp.status_label.setText("" if candidates else THREADS_NONE)
+        tp.status_label.setVisible(bool(tp.status_label.text()))
+        tp.holes.setVisible(bool(candidates))
+        tp.note_label.setVisible(bool(candidates))
+        unit = self.chosen_unit()
+        shown = (
+            unit,
+            tuple(
+                (c.get("feature"), tuple(c.get("threads", ())), c.get("count"), c.get("diameter_mm"))
+                for c in candidates or ()
+            ),
+        )
+        if shown != tp.shown:
+            tp.shown = shown
+            while tp.form.rowCount():
+                tp.form.removeRow(0)
+            tp.boxes = {}
+            for cand in candidates or ():
+                fid = str(cand.get("feature", ""))
+                box = QComboBox()
+                box.addItem(NO_THREAD, None)
+                for thread in cand.get("threads", ()):
+                    box.addItem(f"Yes, {thread}", str(thread))
+                box.currentIndexChanged.connect(
+                    lambda _i, f=fid, b=box: self.thread_chosen(f, b.currentData())
+                )
+                tp.form.addRow(hole_words(cand, unit), box)
+                tp.boxes[fid] = box
+        tapped = dict(self.tapped_holes())
+        for fid, box in tp.boxes.items():
+            box.blockSignals(True)
+            box.setCurrentIndex(max(box.findData(tapped[fid]), 0) if fid in tapped else 0)
+            box.blockSignals(False)
 
     # ------------------------------------------------------------------ the wizard's hooks
     def _probed(self, result: dict) -> None:
@@ -639,6 +770,10 @@ class GuidedWizard(DrawingWizard):
             problems = self.page_problems(PART)
             if problems:
                 self.preview_status.setText(f"No preview yet: {problems[0]}.")
+
+    def _show_dimensions(self, answer: Any) -> None:
+        super()._show_dimensions(answer)
+        self.show_threads()
 
     def accept(self) -> None:
         super().accept()
@@ -686,6 +821,10 @@ class GuidedWizard(DrawingWizard):
         lines.append(f"Unit: {UNIT_NAMES[unit]}" if unit in UNIT_NAMES else "Unit: not chosen yet")
         if not self.is_assembly:
             lines.append(f"Dimensions: {DETAIL_NAMES.get(mp.detail.currentData(), '')}")
+            if self.thread_candidates():
+                tapped = self.tapped_holes()
+                words = ", ".join(f"{fid} as {thread}" for fid, thread in tapped)
+                lines.append(f"Threaded holes: {words or 'none, all drawn plain'}")
         return lines
 
     def title_lines(self) -> list[str]:
@@ -725,5 +864,6 @@ __all__ = [
     "ORDER",
     "PURPOSES",
     "GuidedWizard",
+    "hole_words",
     "views_words",
 ]

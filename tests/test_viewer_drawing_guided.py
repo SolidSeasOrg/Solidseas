@@ -29,7 +29,16 @@ from solidseas.drawing import settings as S
 from solidseas.drawing.numbers import UnitGuess
 from solidseas_app.viewer.drawingproc import AssemblyProbe
 from support import fixture_path
-from test_viewer_drawing_wizard import GUESSED, PDF, StandIn, answer_of, people_settings, probe_of, settle
+from test_viewer_drawing_wizard import (
+    GUESSED,
+    PDF,
+    StandIn,
+    answer_of,
+    holes_answer,
+    people_settings,
+    probe_of,
+    settle,
+)
 
 
 @pytest.fixture(scope="module")
@@ -64,14 +73,15 @@ def made(tmp_path_factory):
 
 @pytest.fixture
 def open_guided(app, G, tmp_path):
-    """``open_guided(worker, settings=None)``: a Guided wizard of a copy of o02 in the
-    test's folder, shown and with its part read; closed after the test."""
+    """``open_guided(worker, settings=None, source="o02_boxA.SLDPRT", name="bracket.SLDPRT")``:
+    a Guided wizard of a copy of ``source`` under ``name`` in the test's folder, shown and
+    with its part read; closed after the test."""
     made_wizards = []
-    part = tmp_path / "parts" / "bracket.SLDPRT"
-    part.parent.mkdir()
-    shutil.copyfile(fixture_path("o02_boxA.SLDPRT"), part)
+    (tmp_path / "parts").mkdir()
 
-    def make(worker, settings=None):
+    def make(worker, settings=None, source="o02_boxA.SLDPRT", name="bracket.SLDPRT"):
+        part = tmp_path / "parts" / name
+        shutil.copyfile(fixture_path(source), part)
         w = G.GuidedWizard(
             None,
             worker,
@@ -352,6 +362,129 @@ def test_a_refused_part_stops_on_the_first_question(app, open_guided, made, G):
     w.next()
     settle(app, w)
     assert w.currentId() == G.PURPOSE
+
+
+def test_holes_sized_as_tap_drills_are_asked_about(app, open_guided, made, G):
+    worker = StandIn(holes_answer(made))
+    w = open_guided(worker)
+    shown = walk(app, w, G.SUMMARY)
+    assert shown == [G.PURPOSE, G.VIEWS, G.UNITS, G.DETAIL, G.THREADS, 1, G.SUMMARY]
+    tp = w.threads_page
+    assert tp.title() == "Are any of these holes threaded?"
+    assert "tap drill" in tp.subTitle() and "plain hole" in tp.subTitle()
+    assert list(tp.boxes) == ["f-1", "f-2", "f-3"]
+    assert [tp.form.itemAt(k, tp.form.ItemRole.LabelRole).widget().text() for k in range(3)] == [
+        "4 holes, Ø5.00 mm (f-1)",
+        "1 hole, Ø5.11 mm (f-2)",
+        "1 hole, Ø3.30 mm (f-3)",
+    ]
+    box = tp.boxes["f-1"]
+    assert [box.itemText(i) for i in range(box.count())] == ["No, a plain hole", "Yes, M6 x 1"]
+    assert all(b.currentIndex() == 0 for b in tp.boxes.values()), "plain until a thread is chosen"
+    assert "Threaded holes: none, all drawn plain" in w.summary_page.answers_label.text().splitlines()
+    w.back()
+    w.back()
+    settle(app, w)
+    assert w.currentId() == G.THREADS
+    assert tp.note_label.isVisibleTo(w) and not tp.status_label.isVisibleTo(w)
+    box.setCurrentIndex(1)
+    tp.boxes["f-2"].setCurrentIndex(0)
+    settle(app, w)
+    # the answer is the wizard's own: its thread table, its edits, the request it sends
+    dp = w.dimensions_page
+    assert dp.rows["f-1"][0].currentData() == "tapped" and dp.rows["f-1"][1].currentText() == "M6 x 1"
+    assert w.thread_answers == {"f-1": ("tapped", "M6 x 1", 0.0)}
+    assert request(w).edits == (("confirm_thread", ("f-1", "M6 x 1-6H", None)),)
+    assert ("edit", "confirm_thread", ["f-1", "M6 x 1-6H", None]) in worker.calls
+    # the answer stays when the preview comes back, and No takes it back
+    assert tp.boxes["f-1"].currentIndex() == 1
+    tp.boxes["f-1"].setCurrentIndex(0)
+    settle(app, w)
+    assert dp.rows["f-1"][0].currentData() == "plain" and request(w).edits == ()
+    tp.boxes["f-1"].setCurrentIndex(1)
+    walk(app, w, G.SUMMARY)
+    assert "Threaded holes: f-1 as M6 x 1" in w.summary_page.answers_label.text().splitlines()
+
+
+def test_a_part_without_tap_drill_holes_is_not_asked(app, open_guided, made, G):
+    w = open_guided(StandIn(answer_of(made)))
+    assert w.thread_candidates() == () and G.THREADS not in w.order()
+    walk(app, w, G.SUMMARY)
+    assert not any(line.startswith("Threaded") for line in w.summary_page.answers_label.text().splitlines())
+
+
+def test_the_holes_wait_for_the_preview(app, open_guided, made, G):
+    unclear = {**GUESSED, "evidence": UnitGuess("in", 20, 6, 6, 0, 47, False)}
+    worker = StandIn(holes_answer(made), probe_of(**unclear))
+    w = open_guided(worker)
+    assert w.thread_candidates() is None and G.THREADS in w.order(), "not known before the preview"
+    w.show_threads()
+    assert not w.threads_page.isComplete()
+    assert w.threads_page.status_label.text().startswith("Looking for holes that may be threaded")
+    walk(app, w, G.UNITS)
+    w.units_page.inch.click()
+    settle(app, w)
+    walk(app, w, G.THREADS)
+    tp = w.threads_page
+    assert tp.isComplete() and tp.boxes["f-2"].itemText(1) == "Yes, 1/4-20 UNC"
+    labels = [tp.form.itemAt(k, tp.form.ItemRole.LabelRole).widget().text() for k in range(3)]
+    assert labels[1] == "1 hole, Ø0.201 in (f-2)", "sized in the drawing's unit"
+
+
+def test_holes_not_checked_say_so_and_go_on(app, open_guided, made, G):
+    class Failing(StandIn):
+        def make(self, part, options, fields, settings, progress=None):
+            self.calls.append(("make", part, options, dict(fields), settings))
+            raise RuntimeError("the drawing process stopped")
+
+    w = open_guided(Failing(holes_answer(made)))
+    walk(app, w, G.THREADS)
+    tp = w.threads_page
+    assert tp.isComplete() and tp.status_label.text().startswith("The holes could not be checked")
+    assert not tp.holes.isVisibleTo(w)
+
+
+def test_an_assembly_is_not_asked_about_threads(app, open_guided, made, G):
+    probe = probe_of(assembly=AssemblyProbe(2, 2), bodies=())
+    w = open_guided(StandIn(holes_answer(made), probe))
+    assert G.THREADS not in walk(app, w, G.SUMMARY)
+
+
+def test_the_real_child_threads_a_tap_drill_hole(app, open_guided, G, tmp_path):
+    """o10's 5 mm hole is a tap drill for M6 x 1, as the wizard's thread table finds it."""
+    from solidseas_app.viewer.drawingproc import DrawingWorker
+
+    worker = DrawingWorker()
+    try:
+        w = open_guided(worker, source="o10_import_step_cut.SLDPRT", name="plate.SLDPRT")
+        w.purpose_page.buttons["quote"].click()
+        walk(app, w, G.THREADS)
+        settle(app, w)
+        tp = w.threads_page
+        assert list(tp.boxes) == ["f-1"] and tp.boxes["f-1"].itemText(1) == "Yes, M6 x 1"
+        tp.boxes["f-1"].setCurrentIndex(1)
+        settle(app, w)
+        assert request(w).edits == (("confirm_thread", ("f-1", "M6 x 1-6H", None)),)
+        walk(app, w, 1)
+        w.title_page.edits["number"].setText("SS-2")
+        walk(app, w, G.SUMMARY)
+        settle(app, w)
+        assert "Threaded holes: f-1 as M6 x 1" in w.summary_page.answers_label.text()
+        w.accept()
+        settle(app, w, lambda: not w.isVisible(), timeout=120)
+        saved = tmp_path / "parts" / "SS-2.ssdrw"
+        d = document.read(saved).drawing
+        assert dict(d.features[0].decisions)["thread"].upper() == "M6 X 1-6H"
+        assert "M6 X 1-6H" in saved.read_text(encoding="utf-8").upper(), "called out on the sheet"
+    finally:
+        worker.close()
+
+
+def test_hole_words(G):
+    hole = {"feature": "f-2", "count": 1, "diameter_mm": 5.1054}
+    assert G.hole_words(hole, "mm") == "1 hole, Ø5.11 mm (f-2)"
+    assert G.hole_words(hole, None) == "1 hole, Ø5.11 mm (f-2)"
+    assert G.hole_words({**hole, "count": 4}, "in") == "4 holes, Ø0.201 in (f-2)"
 
 
 def test_the_real_child_makes_a_guided_drawing_end_to_end(app, open_guided, G, tmp_path):

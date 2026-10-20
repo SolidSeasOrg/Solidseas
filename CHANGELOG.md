@@ -51,12 +51,15 @@ while the project takes shape.
   sentence on why it matters: what the drawing is for (to show a customer or get
   a quote, to 3D print the part, to make it from plain sizes, or to have it
   machined in a shop), which views to show, which unit, how much to dimension,
-  and what the title block says. Each answer starts from the part and your
-  Drawing Settings, Back and Next move between them, and the preview beside them
-  shows the drawing as it takes shape. The last page says what will be made and
-  where it goes, with a PDF beside it unless you untick it. Finish saves the
-  drawing and opens it in the editor. Remember My Choice and Settings > Drawings
-  offer Guided like the other two.
+  whether holes the size of a tap drill are threaded and to which size (asked
+  only when the part has such holes), and what the title block says. Each
+  answer starts from the part and your Drawing Settings, Back and Next move
+  between them, and the preview beside them shows the drawing as it takes
+  shape. The last page says what will be made and where it goes, with a PDF
+  beside it unless you untick it. Finish saves the drawing and opens it in the
+  editor. Remember My Choice and Settings > Drawings offer Guided like the other
+  two. Starting another drawing while Guided is open brings it forward and says
+  a Guided drawing is already open.
 
 - **Express drawings.** Pressing Drawing now asks how you would like to make the
   drawing. Express goes straight to the editor with a simple drawing for showing
