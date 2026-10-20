@@ -474,7 +474,8 @@ throughout (metres, radians). JSON through `to_json` and `from_json`;
 
 | Object | Fields |
 |---|---|
-| `Document` | `name`, `features` (timeline order), `parameters`, `source` (system, format, file) |
+| `Document` | `name`, `features` (timeline order), `parameters`, `properties`, `source` (system, format, file) |
+| `Property` | a file custom property: `name`, `type` (text, number, date, yesno), `value` (a string, a number, a `YYYY-MM-DD` string, or true or false) |
 | `Parameter` | `name`, `value`, `unit` (length, angle, number), `expression` (the source's text), `driving` |
 | `Sketch` | `id`, `name`, `plane`, `points`, `curves`, `constraints`, `dimensions`, `suppressed` |
 | `Plane` | `origin`, `x_dir`, `y_dir` (model frame), `base` (`xy`, `xz`, `yz` for a base plane) |

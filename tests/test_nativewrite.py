@@ -374,6 +374,19 @@ def test_ir_validation_catches_broken_references():
         ir.validate(doc)
 
 
+def test_ir_file_properties_round_trip_and_are_checked():
+    props = [ir.Property("PartNo", "SS-1001"), ir.Property("Qty", 42, "number"),
+             ir.Property("Released", "2026-10-20", "date"), ir.Property("Bought", False, "yesno")]
+    doc = ir.from_json(ir.to_json(ir.Document("bracket", properties=props)))
+    assert doc.properties == props
+    for bad in ([ir.Property("PartNo", "a"), ir.Property("partno", "b")], [ir.Property(" ", "a")],
+                [ir.Property("Qty", "42", "number")], [ir.Property("Qty", math.inf, "number")],
+                [ir.Property("Released", "10/20/2026", "date")], [ir.Property("Bought", "No", "yesno")],
+                [ir.Property("Colour", "red", "colour")], [ir.Property("Name", 3)]):
+        with pytest.raises(ir.IRError):
+            ir.validate(ir.Document("bad", properties=bad))
+
+
 def test_seed_writer_refuses_what_it_cannot_hold_and_writes_the_rest_when_asked():
     doc = SC.read_ir(RECT_SAMPLE)
     with pytest.raises(W.NativeWriteUnsupported) as e:

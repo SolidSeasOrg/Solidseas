@@ -19,6 +19,7 @@ caller asked for a partial document and says so to the user.
 ``docs/NATIVE_SLDPRT_WRITER.md`` section 8 is the schema in prose.
 """
 
+import datetime
 import json
 import math
 from dataclasses import asdict, dataclass, field
@@ -65,6 +66,7 @@ ANGLE_DIMENSIONS = ("angle",)
 OPERATIONS = ("new_body", "join", "cut")
 DIRECTIONS = ("forward", "reverse", "midplane")
 ENDS = ("blind", "through_all")
+PROPERTY_TYPES = ("text", "number", "date", "yesno")
 ORIGIN = "origin"  # every sketch's origin point id, never listed in points
 MAX_ITEMS = 100_000
 
@@ -80,6 +82,19 @@ class Parameter:
     unit: str = "length"  # length, angle or number
     expression: str | None = None  # the source's own text, kept for a writer that can carry equations
     driving: bool = True
+
+
+@dataclass
+class Property:
+    """A file custom property: what a part number or a description is kept in.
+
+    ``value`` is a ``str`` for text, an ``int`` or ``float`` for a number, a
+    ``YYYY-MM-DD`` ``str`` for a date and a ``bool`` for yes or no.
+    """
+
+    name: str
+    value: str | float | bool
+    type: str = "text"  # text, number, date or yesno
 
 
 @dataclass
@@ -291,6 +306,7 @@ class Document:
     name: str
     features: list[Feature] = field(default_factory=list)
     parameters: list[Parameter] = field(default_factory=list)
+    properties: list[Property] = field(default_factory=list)  # file custom properties, in order
     source: dict[str, Any] = field(default_factory=dict)  # system, format, file: provenance only
     format: str = FORMAT
 
@@ -364,11 +380,35 @@ def _validate_sketch(s: Sketch) -> None:
             raise IRError(f"{s.id}.{d.id}: a length dimension is not negative")
 
 
+def _validate_properties(props: list[Property]) -> None:
+    seen = set()
+    for p in props:
+        if not isinstance(p.name, str) or not p.name.strip():
+            raise IRError(f"property {p.name!r}: needs a name")
+        if p.name.casefold() in seen:
+            raise IRError(f"property {p.name!r} repeated")
+        seen.add(p.name.casefold())
+        if p.type not in PROPERTY_TYPES:
+            raise IRError(f"property {p.name!r}: type {p.type!r}")
+        v = p.value
+        if p.type == "text" and not isinstance(v, str):
+            raise IRError(f"property {p.name!r}: a text property needs a string")
+        if p.type == "number":
+            _finite(v, f"property {p.name!r}")
+        if p.type == "yesno" and not isinstance(v, bool):
+            raise IRError(f"property {p.name!r}: a yes or no property needs true or false")
+        if p.type == "date":
+            try:
+                datetime.date.fromisoformat(v if isinstance(v, str) and len(v) == 10 else "")
+            except ValueError:
+                raise IRError(f"property {p.name!r}: a date needs YYYY-MM-DD") from None
+
+
 def validate(doc: Document) -> Document:
     """Raise :class:`IRError` unless ``doc`` is well formed; return it."""
     if doc.format != FORMAT:
         raise IRError(f"format {doc.format!r}, this reader takes {FORMAT}")
-    if len(doc.features) > MAX_ITEMS or len(doc.parameters) > MAX_ITEMS:
+    if max(len(doc.features), len(doc.parameters), len(doc.properties)) > MAX_ITEMS:
         raise IRError("too many items")
     names = set()
     for prm in doc.parameters:
@@ -378,6 +418,7 @@ def validate(doc: Document) -> Document:
             raise IRError(f"parameter {prm.name!r}: unit {prm.unit!r}")
         _finite(prm.value, prm.name)
         names.add(prm.name)
+    _validate_properties(doc.properties)
     ids: dict[str, Feature] = {}
     for f in doc.features:
         if not f.id or f.id in ids:
@@ -514,6 +555,7 @@ def from_json(text: str | bytes) -> Document:
             name=d["name"],
             features=[_feature(f) for f in d.get("features", [])],
             parameters=[Parameter(**p) for p in d.get("parameters", [])],
+            properties=[Property(**p) for p in d.get("properties", [])],
             source=d.get("source", {}),
             format=d.get("format", ""),
         )
