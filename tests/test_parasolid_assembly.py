@@ -7,7 +7,10 @@ placed body's box against SOLIDWORKS' box of that component, every part's volume
 and the assembly's volume and centre of mass."""
 
 import copy
+import csv
+import json
 import shutil
+from pathlib import Path
 
 import pytest
 
@@ -376,3 +379,116 @@ def test_cli_parasolid_options_for_the_other_kind_of_document(capsys, tmp_path):
     assert code == 2 and env["error"]["detail"]["parameter"] == "--raw"
     code, env = _run(capsys, "parasolid", part, "-o", str(tmp_path))
     assert code == 0 and env["data"]["assembly"] is None
+
+
+# --------------------------------------------------------------------------- batch
+def _batch_folder(tmp_path) -> Path:
+    """A folder of the three test assemblies with every part beside them."""
+    src = tmp_path / "in"
+    src.mkdir()
+    for p in FIXTURES.iterdir():
+        if p.suffix.upper() in (".SLDPRT", ".SLDASM"):
+            shutil.copyfile(p, src / p.name)
+    return src
+
+
+def _batch_report(out: Path) -> tuple[dict, dict]:
+    """Each row of report.csv and each line of report.jsonl, by file name."""
+    with open(out / "report.csv", newline="", encoding="utf-8") as fh:
+        rows = {r["file"]: r for r in csv.DictReader(fh)}
+    text = (out / "report.jsonl").read_text(encoding="utf-8")
+    return rows, {d["file"]: d for d in map(json.loads, text.splitlines())}
+
+
+@pytest.mark.parametrize("reading", [["--in-process"], ["--jobs", "2"]])
+def test_batch_writes_each_assembly_as_the_parasolid_command_does(capsys, tmp_path, reading):
+    """An assembly in a batch gets the one transmit `solidseas parasolid` writes, and a
+    refusal is that document's error row, naming the component, with nothing written."""
+    src = _batch_folder(tmp_path)
+    out = tmp_path / "out"
+    code, env = _run(capsys, "batch", str(src), "-o", str(out), "--no-preview", *reading)
+    assert validate(env, model.envelope_schema("batch_summary"), strict=True) == []
+    data = env["data"]
+    assert code == 4 and data["status_counts"] == {"error": 1, "ok": 16}  # o16, as the command refuses it
+    assert data["parasolid_left_out"] == 0
+    rows, lines = _batch_report(out)
+    o16 = rows[O16]
+    assert o16["status"] == "error" and o16["error"].startswith("NotRepresentableError: ")
+    assert "o06_boxA_props_mat_cfg-1" in o16["error"] and o16["doc_type"] == "assembly"
+    assert lines[O16]["parasolid"] is None and not list(out.glob(O16 + "*"))
+    for name, bodies in ((O08, 2), (O15, 2)):
+        row = rows[name]
+        assert (row["status"], row["parasolid_bodies"], row["parasolid_files"]) == ("ok", str(bodies), "1")
+        assert row["parasolid_left_out"] == "0"
+        result = lines[name]["parasolid"]
+        (written,) = result["written"]
+        assert written["output"] == f"{name}_Default.x_b" and written["source"] == "assembly"
+        assert result["assembly"]["counts"]["instances"] == bodies and result["assembly"]["skipped"] == []
+        # the transmit the parasolid command writes for it; only the file's key differs
+        code, single = _run(capsys, "parasolid", str(src / name), "-o", str(tmp_path / name))
+        assert code == 0 and single["data"]["assembly"]["instances"] == result["assembly"]["instances"]
+        mine = ps.split_header((out / written["output"]).read_bytes())[1]
+        theirs = ps.split_header(Path(single["data"]["written"][0]["output"]).read_bytes())[1]
+        assert mine == theirs
+    assert rows["o02_boxA.SLDPRT"]["parasolid_left_out"] == ""  # a part has no components
+
+
+def test_batch_takes_the_assembly_choices_of_the_parasolid_command(capsys, tmp_path):
+    src = _batch_folder(tmp_path)
+    out = tmp_path / "partial"
+    code, env = _run(capsys, "batch", str(src), "-o", str(out), "--no-preview", "--text", "--allow-partial")
+    data = env["data"]
+    assert code == 4 and data["status_counts"] == {"ok": 17}  # partial: o16 left a component out
+    assert data["parasolid_left_out"] == 1
+    rows, lines = _batch_report(out)
+    o16 = rows[O16]
+    assert (o16["parasolid_bodies"], o16["parasolid_files"], o16["parasolid_left_out"]) == ("11", "2", "1")
+    asm = lines[O16]["parasolid"]["assembly"]
+    assert [s["id"] for s in asm["skipped"]] == ["o06_boxA_props_mat_cfg-1"]
+    assert "parasolid_instances_left_out" in {w["code"] for w in asm["warnings"]}
+    assert (out / f"{O16}_Default.x_b").exists()
+    with open_model(out / f"{O16}_Default.x_t") as doc:
+        assert len(doc.scene().items) == 11
+    assert cli.main(["batch", str(src), "-o", str(tmp_path / "said"), "--no-preview", "--allow-partial"]) == 4
+    assert "components left out of assembly Parasolid files: 1 in 1 assembly" in capsys.readouterr().out
+
+    # --configuration and --other-configurations: an assembly without that
+    # configuration is that document's error, as the command refuses it
+    out = tmp_path / "lite"
+    argv = ["--no-preview", "--configuration", "Lite", "--other-configurations", "--in-process"]
+    code, env = _run(capsys, "batch", str(src), "-o", str(out), *argv)
+    rows, lines = _batch_report(out)
+    assert code == 4 and env["data"]["status_counts"] == {"error": 2, "ok": 15}
+    assert rows[O16]["status"] == "ok" and rows[O16]["parasolid_left_out"] == "0"
+    assert lines[O16]["parasolid"]["assembly"]["configuration"] == "Lite"
+    assert (out / f"{O16}_Lite.x_b").exists()
+    for name in (O08, O15):
+        assert rows[name]["error"].startswith("ConfigurationNotFoundError: ")
+    # the assembly choices leave the parts as they are: every configuration's bodies
+    assert all(r["status"] == "ok" for n, r in rows.items() if n.endswith(".SLDPRT"))
+    assert rows["o02_boxA.SLDPRT"]["parasolid_files"] == "1"
+
+    # --include-hidden reaches the export (no test assembly hides a body)
+    out = tmp_path / "hidden"
+    code, env = _run(capsys, "batch", str(src), "-o", str(out), "--no-preview", "--include-hidden")
+    assert code == 4 and _batch_report(out)[0][O08]["parasolid_bodies"] == "2"
+
+    argv = ["--no-parasolid", "--allow-partial"]
+    code, env = _run(capsys, "batch", str(src), "-o", str(tmp_path / "x"), *argv)
+    assert code == 2 and env["error"]["detail"]["parameter"] == "--allow-partial"
+    assert not (tmp_path / "x").exists()
+
+
+def test_batch_never_writes_an_assembly_over_a_file_already_there(capsys, tmp_path):
+    src = _batch_folder(tmp_path)
+    out = tmp_path / "out"
+    out.mkdir()
+    (out / f"{O08}_Default.x_b").write_bytes(b"mine")
+    code, env = _run(capsys, "batch", str(src), "-o", str(out), "--no-preview", "--allow-partial")
+    rows, _ = _batch_report(out)
+    assert code == 4 and rows[O08]["status"] == "refused" and "already exists" in rows[O08]["error"]
+    assert (out / f"{O08}_Default.x_b").read_bytes() == b"mine"
+    assert rows[O15]["status"] == "ok"
+    code, env = _run(capsys, "batch", str(src), "-o", str(out), "--no-preview", "--allow-partial", "--force")
+    assert code == 4 and env["data"]["status_counts"] == {"ok": 17}
+    assert (out / f"{O08}_Default.x_b").read_bytes() != b"mine"

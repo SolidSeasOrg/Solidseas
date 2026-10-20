@@ -4518,7 +4518,9 @@ One configuration of an assembly as a single Parasolid transmit: a root ASSEMBLY
 whose INSTANCEs place every part instance by a TRANSFORM, each part's bodies
 copied in once however many instances place it, written as text (`.x_t`) or
 binary (`.x_b`). No SOLIDWORKS is needed. A part's own bodies are written by
-`Document.parasolid()` (3.2) and the `parasolid` command.
+`Document.parasolid()` (3.2) and the `parasolid` command. The `parasolid`
+command writes this file for one assembly, and `batch` (7.1) for each assembly
+in a folder.
 
 ```python
 from solidseas import open_document
@@ -4994,8 +4996,10 @@ they describe.
   assembly's `configuration` and null `body`, `body_type`, `configuration_id`
   and `transmit`.
 - `batch_summary`: `{"files", "status_counts", "report_csv", "report_jsonl",
-  "previews", "parasolid_files", "walk"}`, where `walk` holds the walker's
-  counts (section 3.7). Row statuses are `ok`, `error`, `locked`, `refused`,
+  "previews", "parasolid_files", "parasolid_left_out", "walk"}`, where `walk`
+  holds the walker's counts (section 3.7) and `parasolid_left_out` (new) the
+  components the assemblies' Parasolid files left out with `--allow-partial`
+  (7.1). Row statuses are `ok`, `error`, `locked`, `refused`,
   `skipped` (a lock file, or a FIFO, socket or device), `placeholder` and
   `link` (a link or mount point). A placeholder or link row is never opened.
 
@@ -5684,7 +5688,7 @@ it.
 | `parasolid FILE -o DIR` | `--text`, `--raw` and `--local-bodies fallback` (default), `always` or `never` (a part), `--configuration NAME`, `--allow-partial`, `--other-configurations` and `--include-hidden` (an assembly), `--max-mb N`, `--force`, `--allow-source-dir` | `parasolid_result` |
 | `export FILE --format 3mf\|stl\|step` | `-o FILE` (or a folder that exists; default: the document's name in the current folder), `--configuration NAME`, `--chord MM` (0.0001 to 10) and `--merge` (3MF and STL), `--sheets`, `--allow-partial`, `--exact-only` and `--include-hidden` (STEP), `--max-mb N`, `--force`, `--allow-source-dir` | `export_result` (provisional) |
 | `list FOLDER` | `--formats solidworks\|all\|IDS` (default `solidworks`), `--recursive`, `--include properties,configurations`, `--preview none`, `meta` (default) or `inline`, `--max-depth N`, `--limit N`, `--max-examined N`, `--timeout SECONDS`, `--file-timeout SECONDS` (default 30), `--memory-mb N` (default 2048), `--in-process` | `listing` |
-| `batch FOLDER -o DIR` | `--no-recurse`, `--no-preview`, `--no-parasolid`, `--text`, `--max-mb N`, `--jobs N` (1 to 64, default 1), `--file-timeout SECONDS` (default 300), `--memory-mb N` (default 2048), `--in-process`, `--max-examined N`, `--force`, `--allow-source-dir` | `batch_summary` |
+| `batch FOLDER -o DIR` | `--no-recurse`, `--no-preview`, `--no-parasolid`, `--text`, `--configuration NAME`, `--allow-partial`, `--other-configurations` and `--include-hidden` (assemblies), `--max-mb N`, `--jobs N` (1 to 64, default 1), `--file-timeout SECONDS` (default 300), `--memory-mb N` (default 2048), `--in-process`, `--max-examined N`, `--force`, `--allow-source-dir` | `batch_summary` |
 | `serve` | `--root ID=DIR` (repeatable), `--library ID=DIR`, `--port N` (default 8765; 0 picks a free port), `--bind ADDRESS` (default 127.0.0.1), `--token-file PATH`, `--workers N`, `--allow-remote`, `--allowed-host NAME`, `--catalog`, `--catalog-rescan SECONDS` (default 300), `--formats solidworks\|all\|IDS` (default `solidworks`) | `serve_started`, one compact line when it is ready; then it serves until stopped (section 8) |
 | `index FOLDER...` | `--root ID=DIR`, `--library DIR` or `ID=DIR` (each repeatable), `--catalog NAME`, `--db FILE` or `--in-project`, `--formats IDS`, `--hash all\|duplicates\|none`, `--no-previews`, `--part-number-property NAME`, `--workers N` (default 2), `--file-timeout SECONDS` (default 30), `--timeout SECONDS` | `catalog_scan` (provisional) |
 | `where-used FILE` | `--configuration NAME`, `--direct`, `--max-depth N` (default 32), `--catalog NAME`, `--db FILE` or `--in-project` | `where_used` (provisional) |
@@ -5717,6 +5721,28 @@ files and FIFOs, sockets or devices are skipped, and each document is opened
 any cell that starts with `=`, `+`, `-`, `@`, a tab or a carriage return, so a
 spreadsheet never runs a value from a file as a formula; `report.jsonl` holds
 one strict JSON line per document, with its `document_summary` data.
+
+**Parasolid in a `batch`.** Each part's bodies are written as `parasolid`
+writes them, one file per body and configuration. Each assembly is written as
+`parasolid` writes it (3.25): one `.x_b` (and with `--text` one `.x_t`) of every
+part instance of the active configuration, or of the one `--configuration`
+names, found in the assembly's own folder. `--configuration`,
+`--allow-partial`, `--other-configurations` and `--include-hidden` mean what
+they mean there and apply to every assembly of the run; they change nothing for
+a part. A file's name starts with the document's file name, extension included,
+as every file `batch` writes does: `frame.SLDASM_Default.x_b`. An assembly that
+cannot be written (a component missing or unreadable, a part without the bodies
+of its configuration, a configuration the assembly does not have) is that
+document's row: status `error`, the error naming the components, no Parasolid
+file, and the run goes on and exits 4. With `--allow-partial` such an assembly
+is written without those components: its row's `parasolid_left_out` column
+(the report's last) counts them, its `report.jsonl` line holds the `parasolid_result` data with the
+`assembly` object (what was placed, what was left out and why, the warnings),
+the summary's `parasolid_left_out` adds them up, and the run exits 4. Files are
+written under the same guards as every other `batch` file: never over a file
+already there unless `--force` (such a document gets status `refused`), and
+every path is checked before any is written. Combining these options with
+`--no-parasolid` is refused (exit 2).
 
 **`list` and `batch` read each document in a worker process** (section 3.13),
 as the service does, so a hostile or broken file costs one entry, never the
@@ -5900,7 +5926,7 @@ and a root that does not exist exits 1 (`not_found`).
 | 1 | Failed: the document could not be read, something asked for is absent, the service could not listen, or an internal error | `permission_denied`, `address_unavailable`, `not_found`, `configuration_not_found`, `stream_not_found`, `no_preview`, `not_in_catalog`, `nothing_to_export`, `not_representable`, `placeholder_file`, `unknown_format`, `format_not_supported`, `damaged_file`, `limit_exceeded`, `file_too_large`, `locked`, `internal`, `worker_crashed`, `not_implemented`, `busy`, `root_unavailable`, `timeout`, `drawing_invalid`, `drawing_too_complex`, `model_not_found` |
 | 2 | Usage: the arguments are wrong | `invalid_argument`, `unknown_parameter`, `duplicate_parameter` |
 | 3 | Refused by a safety rule | `path_refused`, `link_refused`, `feature_disabled`, `output_refused`, `bind_refused`, `token_file_refused`, `catalog_incompatible`, `drawing_released` |
-| 4 | Partial: a folder listing or batch run finished, and at least one item failed (for a batch, also a folder that could not be read or a walk cut short by its limits); a reference resolution whose folder index a limit cut short; an incomplete path report; an incomplete bill of materials; an export that left out instances of an assembly; an assembly's Parasolid that left out components (`--allow-partial`); a STEP export that left bodies out (`--allow-partial`); a catalog index run in which a file could not be read, or that a limit or a cancel stopped; or a `drawing check` that found an error-level check (with `--strict`, a warning too) or a model that is not the drawing's | |
+| 4 | Partial: a folder listing or batch run finished, and at least one item failed (for a batch, also a folder that could not be read, a walk cut short by its limits, or an assembly's Parasolid that left out components); a reference resolution whose folder index a limit cut short; an incomplete path report; an incomplete bill of materials; an export that left out instances of an assembly; an assembly's Parasolid that left out components (`--allow-partial`); a STEP export that left bodies out (`--allow-partial`); a catalog index run in which a file could not be read, or that a limit or a cancel stopped; or a `drawing check` that found an error-level check (with `--strict`, a warning too) or a model that is not the drawing's | |
 | 130 | Interrupted | `interrupted` |
 
 The exit for a failure comes from its error code, through

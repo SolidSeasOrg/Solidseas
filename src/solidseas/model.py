@@ -1636,8 +1636,11 @@ def build_batch_summary(
     previews: int,
     parasolid_files: int,
     walk: dict[str, Any],
+    parasolid_left_out: int = 0,
 ) -> dict[str, Any]:
-    """``batch_summary`` data: what a ``batch`` run did, and what its folder walk saw."""
+    """``batch_summary`` data: what a ``batch`` run did, and what its folder walk saw.
+    ``parasolid_left_out`` counts the components the assemblies' Parasolid files left out
+    (``--allow-partial``)."""
     return to_json_data(
         {
             "files": files,
@@ -1646,6 +1649,7 @@ def build_batch_summary(
             "report_jsonl": report_jsonl,
             "previews": previews,
             "parasolid_files": parasolid_files,
+            "parasolid_left_out": parasolid_left_out,
             "walk": walk,
         }
     )
@@ -3124,6 +3128,7 @@ _BATCH_SCHEMA = _obj(
         "report_jsonl": _STR,
         "previews": _INT,
         "parasolid_files": _INT,
+        "parasolid_left_out": _INT,
         "walk": _ref("walk"),
     }
 )

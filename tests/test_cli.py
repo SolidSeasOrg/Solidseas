@@ -375,7 +375,8 @@ def test_batch_with_worker_processes(tmp_path, capsys):
         capsys, "batch", str(src), "-o", str(tmp_path / "out"), "--jobs", "2", "--no-preview"
     )
     assert code == 0 and summary["status_counts"] == {"ok": 3, "skipped": 1}
-    assert summary["previews"] == 0 and summary["parasolid_files"] == 2
+    # two parts' bodies and the assembly's one transmit (tests/test_parasolid_assembly.py)
+    assert summary["previews"] == 0 and summary["parasolid_files"] == 3
 
 
 def test_batch_refuses_output_inside_input(tmp_path, capsys):
@@ -415,6 +416,16 @@ def _report(out: Path) -> tuple[dict[str, dict], list[dict]]:
         rows = {r["file"]: r for r in csv.DictReader(fh)}
     text = (out / "report.jsonl").read_text(encoding="utf-8")
     return rows, [json.loads(line, parse_constant=_no_constants) for line in text.splitlines()]
+
+
+def _timeless(report: tuple[dict[str, dict], list[dict]]) -> tuple[dict[str, dict], list[dict]]:
+    """The report without the time an assembly's Parasolid took, which no two runs share."""
+    rows, lines = report
+    for line in lines:
+        asm = (line.get("parasolid") or {}).get("assembly")
+        if asm:
+            asm.pop("seconds")
+    return rows, lines
 
 
 def _files_below(folder: Path) -> list[Path]:
@@ -457,14 +468,15 @@ def test_list_and_batch_read_documents_in_worker_processes(tmp_path, capsys, mon
     assert {k: v for k, v in summary.items() if not k.startswith("report_")} == {
         k: v for k, v in again.items() if not k.startswith("report_")
     }
-    assert _report(tmp_path / "w") == _report(tmp_path / "p")
+    assert _timeless(_report(tmp_path / "w")) == _timeless(_report(tmp_path / "p"))
     rows, _ = _report(tmp_path / "w")
     error = rows[os.path.join("sub", "empty.SLDPRT")]["error"]
     as_given = os.path.join(folder, "sub", "empty.SLDPRT")
     assert error.startswith(f"UnknownFormatError: {as_given}: "), error
     written = _files_below(tmp_path / "w")
     assert written == _files_below(tmp_path / "p")
-    assert len(written) == 2 + 3 + 2 * 2  # the reports, three previews, two parts' x_b and x_t
+    # the reports, three previews, and the x_b and x_t of two parts and the assembly
+    assert len(written) == 2 + 3 + 3 * 2
 
 
 HOSTILE_JOBS = {"listing_entry": "worker_jobs:listing_entry", "batch_document": "worker_jobs:batch_document"}

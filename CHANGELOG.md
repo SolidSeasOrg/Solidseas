@@ -16,6 +16,22 @@ while the project takes shape.
 
 ### Added
 
+- **Assemblies in a batch get their Parasolid file too.** `solidseas batch`
+  used to write Parasolid files for parts only. It now writes each assembly in
+  the folder as `solidseas parasolid` does, one `.x_b` file (and an `.x_t` file
+  with `--text`) named after the assembly, such as
+  `frame.SLDASM_Default.x_b`. The same choices are there: `--configuration`,
+  `--allow-partial`, `--other-configurations` and `--include-hidden`, applied
+  to every assembly in the run. An assembly that cannot be written, because a
+  component is missing or a part lacks the bodies of its configuration, now
+  gets an error row in the report naming the components, and the run ends with
+  exit code 4 while the rest of the folder is still written. With
+  `--allow-partial` the report's new `parasolid_left_out` column counts the
+  components each assembly left out, `report.jsonl` names them, and the summary
+  adds them up. As with every file a batch writes, an existing file is only
+  replaced with `--force`. Pass `--no-parasolid` to skip Parasolid files
+  altogether, as before.
+
 - **Assemblies as Parasolid files.** `solidseas parasolid` now takes an
   assembly too, and writes one `.x_b` file (and an `.x_t` file with `--text`)
   holding every part of a configuration where the assembly places it: each part

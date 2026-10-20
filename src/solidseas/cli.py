@@ -643,31 +643,45 @@ _ASSEMBLY_PARASOLID_FLAGS = (
 )
 
 
-def _parasolid_assembly(args: argparse.Namespace, doc: Document) -> int:
-    """``parasolid`` for an assembly: one transmit of every part instance of one
-    configuration (``solidseas.parasolid``), as .x_b and, with ``--text``, .x_t."""
+def _write_assembly_parasolid(
+    doc: Document,
+    prefix: str,
+    name: str,
+    out_dir: str,
+    sources: list[str],
+    *,
+    configuration: str | None,
+    allow_partial: bool,
+    other_configurations: bool,
+    include_hidden: bool,
+    text: bool,
+    max_bytes: int,
+    allow_source_dir: bool,
+    force: bool,
+) -> tuple[Any, list[dict[str, Any]]]:
+    """An assembly's one transmit (``solidseas.parasolid``), written to ``out_dir`` as
+    ``<prefix>_<configuration>.x_b`` and, with ``text``, .x_t, under the write guards:
+    every path is checked before anything is written. ``name`` names the top assembly
+    inside the file. ``parasolid`` and ``batch`` both write an assembly through this.
+    Returns the :class:`~solidseas.parasolid.AssemblyParasolid` and the files written."""
     from .formats.solidworks.parasolid import _safe
     from .parasolid import assembly_parasolid
 
-    for flag, given in (("--raw", args.raw), ("--local-bodies", args.local_bodies != "fallback")):
-        if given:
-            raise InvalidArgumentError(f"{flag} is for a part", detail={"parameter": flag})
-    stem = os.path.splitext(os.path.basename(args.file))[0]
     m = assembly_parasolid(
         doc,
-        args.configuration,
-        name=stem,
-        allow_partial=args.allow_partial,
-        other_configurations=args.other_configurations,
-        include_hidden=args.include_hidden,
-        max_bytes=int(args.max_mb * (1 << 20)),
+        configuration,
+        name=name,
+        allow_partial=allow_partial,
+        other_configurations=other_configurations,
+        include_hidden=include_hidden,
+        max_bytes=max_bytes,
     )
-    base = f"{stem}_{_safe(m.configuration)}" if m.configuration else stem
-    jobs = [(os.path.join(args.output, base + ".x_b"), "x_b")]
-    if args.text:
-        jobs.append((os.path.join(args.output, base + ".x_t"), "x_t"))
+    base = f"{prefix}_{_safe(m.configuration)}" if m.configuration else prefix
+    jobs = [(os.path.join(out_dir, base + ".x_b"), "x_b")]
+    if text:
+        jobs.append((os.path.join(out_dir, base + ".x_t"), "x_t"))
     jobs = [
-        (check_output_file(path, [args.file], allow_source_dir=args.allow_source_dir, force=args.force), kind)
+        (check_output_file(path, sources, allow_source_dir=allow_source_dir, force=force), kind)
         for path, kind in jobs
     ]
     written = []
@@ -685,6 +699,31 @@ def _parasolid_assembly(args: argparse.Namespace, doc: Document) -> int:
                 "valid": m.valid,
             }
         )
+    return m, written
+
+
+def _parasolid_assembly(args: argparse.Namespace, doc: Document) -> int:
+    """``parasolid`` for an assembly: one transmit of every part instance of one
+    configuration (``solidseas.parasolid``), as .x_b and, with ``--text``, .x_t."""
+    for flag, given in (("--raw", args.raw), ("--local-bodies", args.local_bodies != "fallback")):
+        if given:
+            raise InvalidArgumentError(f"{flag} is for a part", detail={"parameter": flag})
+    stem = os.path.splitext(os.path.basename(args.file))[0]
+    m, written = _write_assembly_parasolid(
+        doc,
+        stem,
+        stem,
+        args.output,
+        [args.file],
+        configuration=args.configuration,
+        allow_partial=args.allow_partial,
+        other_configurations=args.other_configurations,
+        include_hidden=args.include_hidden,
+        text=args.text,
+        max_bytes=int(args.max_mb * (1 << 20)),
+        allow_source_dir=args.allow_source_dir,
+        force=args.force,
+    )
     if not args.json:
         for w in written:
             _say(f"wrote {w['output']} ({w['bytes']} bytes)")
@@ -1277,6 +1316,8 @@ REPORT_FIELDS = [
     "parasolid_files",
     "parasolid_problems",
     "warnings",
+    # Added last, so a reader that goes by column position still finds the others.
+    "parasolid_left_out",
 ]
 _FORMULA_START = ("=", "+", "-", "@", "\t", "\r")
 _ITEM_ERRORS = ("error", "locked", "refused")
@@ -1349,6 +1390,33 @@ def batch_row(
                     parasolid_problems=len(res.problems),
                 )
                 result = model.build_parasolid_result(len(res.bodies), written, res.problems)
+                for w in result["written"]:
+                    w["output"] = os.path.relpath(w["output"], out_dir)
+                detail["parasolid"] = result
+            elif opts["parasolid"] and summary["doc_type"] == "assembly":
+                # As `solidseas parasolid` writes it; a refusal is this document's error.
+                m, written = _write_assembly_parasolid(
+                    doc,
+                    name,
+                    os.path.splitext(name)[0],
+                    target_dir,
+                    [path],
+                    configuration=opts.get("configuration"),
+                    allow_partial=bool(opts.get("allow_partial")),
+                    other_configurations=bool(opts.get("other_configurations")),
+                    include_hidden=bool(opts.get("include_hidden")),
+                    text=opts["text"],
+                    max_bytes=opts["max_bytes"],
+                    allow_source_dir=opts["allow_source_dir"],
+                    force=opts["force"],
+                )
+                row.update(
+                    parasolid_bodies=m.counts["bodies_placed"],
+                    parasolid_files=len(written),
+                    parasolid_problems=0,
+                    parasolid_left_out=len(m.skipped),
+                )
+                result = model.build_parasolid_result(m.counts["bodies_placed"], written, [], assembly=m)
                 for w in result["written"]:
                     w["output"] = os.path.relpath(w["output"], out_dir)
                 detail["parasolid"] = result
@@ -1433,6 +1501,13 @@ def cmd_batch(args: argparse.Namespace) -> int:
     for p in (report_csv, report_jsonl):
         if os.path.exists(p) and not args.force:
             raise _refused(f"{p} already exists; pass --force to overwrite it", "exists")
+    if args.no_parasolid:
+        for flag, attr in _ASSEMBLY_PARASOLID_FLAGS:
+            if getattr(args, attr):
+                raise InvalidArgumentError(
+                    f"{flag} is for the Parasolid files, which --no-parasolid leaves out",
+                    detail={"parameter": flag},
+                )
     opts = {
         "preview": not args.no_preview,
         "parasolid": not args.no_parasolid,
@@ -1440,6 +1515,10 @@ def cmd_batch(args: argparse.Namespace) -> int:
         "max_bytes": int(args.max_mb * (1 << 20)),
         "allow_source_dir": args.allow_source_dir,
         "force": args.force,
+        "configuration": args.configuration,
+        "allow_partial": args.allow_partial,
+        "other_configurations": args.other_configurations,
+        "include_hidden": args.include_hidden,
     }
     # One walk, in order: documents to read, and rows for what the walk itself decided.
     plan: list[tuple[str, Any]] = []
@@ -1510,13 +1589,26 @@ def cmd_batch(args: argparse.Namespace) -> int:
         report_jsonl=report_jsonl,
         previews=sum(1 for r in results if r["preview"]),
         parasolid_files=sum(int(r["parasolid_files"] or 0) for r in results),
+        parasolid_left_out=sum(int(r["parasolid_left_out"] or 0) for r in results),
         walk=walk.stats.to_dict(),
     )
-    # Partial: some document failed, a folder could not be read, or a walk limit cut the run short.
-    partial = folder_errors or walk.stats.truncated or any(counts.get(s) for s in _ITEM_ERRORS)
+    # Partial: some document failed, a folder could not be read, a walk limit cut the run
+    # short, or an assembly's Parasolid left components out (--allow-partial).
+    partial = (
+        folder_errors
+        or walk.stats.truncated
+        or any(counts.get(s) for s in _ITEM_ERRORS)
+        or data["parasolid_left_out"]
+    )
     if not args.json:
         _say(f"{len(results)} documents: " + ", ".join(f"{k} {v}" for k, v in sorted(counts.items())))
         _say(f"previews written: {data['previews']}, Parasolid files written: {data['parasolid_files']}")
+        if data["parasolid_left_out"]:
+            assemblies = sum(1 for r in results if r["parasolid_left_out"])
+            _say(
+                f"components left out of assembly Parasolid files: {data['parasolid_left_out']} "
+                f"in {assemblies} assembl{'y' if assemblies == 1 else 'ies'} (see the report)"
+            )
         if folder_errors:
             _say(f"folders that could not be read: {folder_errors}")
         if walk.stats.truncated:
@@ -2815,6 +2907,26 @@ def build_parser() -> argparse.ArgumentParser:
             help="allow writing into (or below) the folder that holds the source",
         )
 
+    def add_assembly_parasolid_flags(sp: argparse.ArgumentParser, configuration_help: str) -> None:
+        sp.add_argument("--configuration", help=configuration_help)
+        sp.add_argument(
+            "--allow-partial",
+            action="store_true",
+            help="an assembly: leave out the components that cannot be written, and say which, "
+            "rather than write nothing",
+        )
+        sp.add_argument(
+            "--other-configurations",
+            action="store_true",
+            help="an assembly: for a part that does not store the bodies of the configuration "
+            "a component uses, write the bodies it does store, with a warning",
+        )
+        sp.add_argument(
+            "--include-hidden",
+            action="store_true",
+            help="an assembly: also write the bodies SOLIDWORKS hides",
+        )
+
     def add_max_mb(sp: argparse.ArgumentParser, what: str) -> None:
         sp.add_argument(
             "--max-mb",
@@ -3024,26 +3136,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sp.add_argument("-o", "--output", required=True, help="output folder")
     sp.add_argument("--text", action="store_true", help="also write text .x_t files")
-    sp.add_argument(
-        "--configuration", help="an assembly: configuration name (default: the active configuration)"
-    )
-    sp.add_argument(
-        "--allow-partial",
-        action="store_true",
-        help="an assembly: leave out the components that cannot be written, and say which, "
-        "rather than write nothing",
-    )
-    sp.add_argument(
-        "--other-configurations",
-        action="store_true",
-        help="an assembly: for a part that does not store the bodies of the configuration "
-        "a component uses, write the bodies it does store, with a warning",
-    )
-    sp.add_argument(
-        "--include-hidden",
-        action="store_true",
-        help="an assembly: also write the bodies SOLIDWORKS hides",
-    )
+    add_assembly_parasolid_flags(sp, "an assembly: configuration name (default: the active configuration)")
     sp.add_argument(
         "--raw", action="store_true", help="also write the raw partition (.p_b) and deltas (.d_b)"
     )
@@ -3157,6 +3250,11 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--no-preview", action="store_true", help="skip preview images")
     sp.add_argument("--no-parasolid", action="store_true", help="skip Parasolid extraction")
     sp.add_argument("--text", action="store_true", help="also write text .x_t files")
+    add_assembly_parasolid_flags(
+        sp,
+        "an assembly: the configuration to write (default: each assembly's active configuration); "
+        "an assembly without it gets an error row",
+    )
     sp.add_argument(
         "--max-mb",
         type=float,

@@ -63,6 +63,24 @@ does store, with a warning that they may not be the configuration the assembly
 uses. The files have not yet been opened in a Parasolid kernel such as
 SOLIDWORKS itself, so check an important one there before you send it.
 
+`solidseas batch` writes the same files for a whole folder, each assembly as
+one file next to its preview, named after the assembly with its extension, such
+as `frame.SLDASM_Default.x_b`:
+
+```bash
+solidseas batch D:\Jobs\Example -o D:\Exports --text --allow-partial
+```
+
+`--configuration`, `--allow-partial`, `--other-configurations` and
+`--include-hidden` work as they do for one assembly and apply to every assembly
+in the folder; parts are written as before. An assembly that cannot be written,
+or that does not have the configuration you named, gets an error row in
+`report.csv` that says which components or which configuration, and the rest of
+the folder is still done. With `--allow-partial` the `parasolid_left_out` column
+says how many components each assembly left out, and `report.jsonl` names them.
+Either way the run ends with exit code 4, so a script can tell. A file that is
+already in the output folder is never replaced unless you add `--force`.
+
 ## Other 3D formats
 
 SolidSeas also reads 3D files of other formats (provisional, API.md 3.20): STL,
