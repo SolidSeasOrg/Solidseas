@@ -200,7 +200,8 @@ def test_cli_solidworks_only_commands_say_not_implemented(folder, capsys, argv):
 def test_cli_refusals_for_model_files(folder, capsys, tmp_path):
     code, env = _run(capsys, "info", str(folder / "part.igs"))
     assert code == 1 and env["error"]["code"] == "format_not_supported"
-    assert env["error"]["detail"] == {"rule": "no_reader", "value": "iges"}
+    assert env["error"]["detail"] == {"rule": "needs_extension", "value": "iges"}
+    assert "OCCT backend extension" in env["error"]["reader_message"]
     code, env = _run(capsys, "preview", str(fixture_path("o02_boxA.SLDPRT")), "-o", str(tmp_path), "--render")
     assert code == 1 and env["error"]["code"] == "not_implemented"
     code, env = _run(capsys, "info", str(folder / "o02_boxA.STL"), "--nested", "x")
@@ -214,7 +215,7 @@ def test_cli_list_with_formats(folder, capsys):
     assert code == 0 and env["data"]["counts"]["unsupported"] == 2
     assert cli.main(["list", str(folder), "--formats", "stl,iges", "--in-process"]) == 0
     out = capsys.readouterr().out
-    assert "STL binary part" in out and "IGES: SolidSeas cannot read this format yet" in out
+    assert "STL binary part" in out and "IGES: IGES and BREP files open with the OCCT backend" in out
     assert "unsupported 1" in out
 
 

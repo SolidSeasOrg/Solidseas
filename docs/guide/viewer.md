@@ -43,7 +43,8 @@ https://github.com/SolidSeas/SolidSeas/issues.
   released its PDF and DXF carry the PRELIMINARY stamp), the modeling
   assistant, and the Gridfinity, video export, SolidCraft and SOLIDWORKS engine
   extensions.
-- **In development:** the OCCT backend extension.
+- **In development:** the OCCT backend extension, which reads IGES and BREP
+  files ([Every 3D format](formats.md#iges-and-brep-files)).
 - **On the command line,** `solidseas drawing` and the REST service's
   `/v1/bom`, the catalog routes (`--catalog`) and the other formats
   (`--formats`) are provisional and may change too.
@@ -90,8 +91,10 @@ The buttons come in this order:
    SolidSeas does not read those files yet, and lists them as not read.
 3. Grey, as the list shows their files, the formats it lists but cannot read
    yet (with View > Show > Files SolidSeas Cannot Read on): IGES (`.igs` and
-   `.iges` share a button), Alibre Design drawings and packages, Inventor,
-   Solid Edge, Fusion and eDrawings files by their kind, 3D XML and VRML.
+   `.iges` share a button) and BREP, which SolidSeas reads once the OCCT backend
+   extension is on (their buttons then take the colour of the formats it
+   reads), Alibre Design drawings and packages, Inventor, Solid Edge, Fusion and
+   eDrawings files by their kind, 3D XML and VRML.
 4. Any other type, in alphabetical order, on a grey badge that shows its
    extension (on two lines when it has five or six letters, and its first six
    when it has more; the tooltip names it in full).

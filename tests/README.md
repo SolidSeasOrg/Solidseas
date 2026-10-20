@@ -12,7 +12,7 @@ environment variable points them at something outside the repository.
 | Variable | Tests | What it names |
 |---|---|---|
 | `SOLIDSEAS_CORPUS_MANIFEST` | `test_corpus*.py`, `test_*_corpus.py`, `test_fixture_paths.py` (corpus names) | the private corpus manifest (`AGENTS.md`, scrub rules) |
-| `SOLIDSEAS_OCCT_PYTHON` | `test_occt_oracle.py`, and with the manifest `test_occt_corpus.py` | an interpreter where `import OCP` works: the OCCT oracle, below |
+| `SOLIDSEAS_OCCT_PYTHON` | `test_occt_oracle.py`, and with the manifest `test_occt_corpus.py`; `test_occt_backend.py`'s run of the OCCT backend's helper | an interpreter where `import OCP` works: the OCCT oracle, below |
 | `SOLIDSEAS_SW_TRUTH` | `test_occt_corpus.py` | SOLIDWORKS' own measurements of corpus parts, keyed by manifest row |
 
 `tests/fixtures/README.md` describes the fixtures and their ground truth.

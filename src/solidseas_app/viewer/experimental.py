@@ -8,8 +8,8 @@ never drifts between the menus, the wizard, the drawing editor and the Settings 
 * **Experimental**: it works and is on, but its results may be incomplete or wrong and it
   may change between versions. Drawings, the modeling assistant and the extensions whose
   front and package are built.
-* **In development**: parts of it are not built yet. The OCCT backend, whose package is
-  still to come.
+* **In development**: parts of it are not built yet. The OCCT backend, whose package has
+  not yet been built and checked on Windows.
 
 Released drawings are not marked here: a drawing's own PRELIMINARY stamp, on every PDF and
 DXF until it is released, is the drawing library's (``docs/DRAWINGS.md``).

@@ -78,8 +78,12 @@ def test_every_registry_entry_is_well_formed():
     # the formats of the design, with the readers the branches add already named
     for fid in ("stl", "3mf", "obj", "ply", "off", "gltf", "amf", "parasolid", "step", "alibre", "acis"):
         assert FORMATS[fid].reader is not None, fid
-    for fid in ("iges", "inventor", "solid_edge", "nx", "fusion", "3dxml", "edrawings", "vrml"):
+    for fid in ("inventor", "solid_edge", "nx", "fusion", "3dxml", "edrawings", "vrml"):
         assert FORMATS[fid].reader is None, fid
+    # IGES and BREP are read through the OCCT backend, only while it is available
+    for fid in ("iges", "occt_brep"):
+        assert FORMATS[fid].reader == "solidseas.formats.occt:open" and FORMATS[fid].backend == "occt", fid
+    assert all(f.backend is None for f in FORMATS.values() if f.id not in ("iges", "occt_brep"))
 
 
 def test_readable_finds_reader_modules_without_importing_them():
@@ -194,7 +198,17 @@ def test_open_model_refusals(tmp_path):
     iges.write_bytes(IGES)
     with pytest.raises(FormatNotSupportedError) as exc:
         open_model(iges)
-    assert exc.value.detail == {"rule": "no_reader", "value": "iges"}
+    assert exc.value.detail == {"rule": "needs_extension", "value": "iges"}
+    assert "OCCT backend extension" in str(exc.value) and "Tools > Extensions" in str(exc.value)
+    assert (
+        model.error_info(exc.value)["message"]
+        == model.RULE_MESSAGES[("format_not_supported", "needs_extension")]
+    )
+    vrml = tmp_path / "scene.wrl"
+    vrml.write_bytes(b"#VRML V2.0 utf8\n")
+    with pytest.raises(FormatNotSupportedError) as exc:
+        open_model(vrml)
+    assert exc.value.detail == {"rule": "no_reader", "value": "vrml"}
     assert (
         model.error_info(exc.value)["message"] == model.RULE_MESSAGES[("format_not_supported", "no_reader")]
     )

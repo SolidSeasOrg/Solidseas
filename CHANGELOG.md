@@ -49,6 +49,35 @@ while the project takes shape.
   unchanged. Opened in an earlier version of SolidSeas, a drawing of several
   sheets opens without its laid-out sheet until it is laid out again.
 
+- **IGES and BREP files, with the OCCT backend extension.** SolidSeas now reads
+  IGES files (`.igs`, `.iges`) and Open CASCADE's BREP files (`.brep`) through
+  the OCCT backend extension, a package you add in Tools > Extensions and switch
+  on. With it on, they open in the viewer and on the command line as STEP files
+  do: the 3D view, thumbnails, Export for 3D Printing, 3D Print and the index
+  all take them. An IGES file's loose surfaces are sewn into solids where they
+  meet within 0.01 mm; the ones that stay open are shown as surfaces, and a
+  warning says how many. The file's unit, the program that wrote it, its author
+  and its date come from its own header. Without the extension these files are
+  listed greyed, and the viewer, the command line and the error say what to add.
+  Open CASCADE runs only in the extension's own program, on a copy of each file;
+  a file that makes it stop fails on its own. The extension is marked In
+  development.
+- **`solidseas convert` writes IGES, BREP and STEP.** With the OCCT backend
+  extension on, `solidseas convert FILE --format iges|brep|step -o OUT` writes
+  an IGES, BREP or STEP file, a SOLIDWORKS part or assembly, or a Parasolid
+  file in another of those formats, in millimetres. A SOLIDWORKS document or a
+  Parasolid file goes through the STEP SolidSeas writes of it. IGES is written
+  in BRep mode, so solids stay solids, with a header that names no one. The
+  output follows the export's rules (`--force`, `--allow-source-dir`), and
+  `--json` prints a `file_written` document.
+- **The OCCT backend's package.** `scripts\build-extensions.ps1 -Only occt
+  -OcctSource URL` builds `occt-<version>.zip`: the helper with Python and OCP
+  7.9.3.1 (Open CASCADE 7.9.3, without VTK) from a wheel pinned by its SHA-256,
+  and the licences of everything it carries, Open CASCADE's LGPL 2.1 with its
+  exception, OCP's Apache License and each library the wheel brings
+  (`THIRD_PARTY_NOTICES.txt` section 3.4). The build stops for a library it has
+  no licence for, or a helper that does not start.
+
 - **Assemblies in a batch get their Parasolid file too.** `solidseas batch`
   used to write Parasolid files for parts only. It now writes each assembly in
   the folder as `solidseas parasolid` does, one `.x_b` file (and an `.x_t` file

@@ -337,6 +337,10 @@ RULE_MESSAGES: dict[tuple[str, str], str] = {
         "format_not_supported",
         "no_reader",
     ): "SolidSeas recognises this file's format but cannot read it yet.",
+    (
+        "format_not_supported",
+        "needs_extension",
+    ): "SolidSeas reads this file's format through an extension that is not added or not switched on.",
     ("not_implemented", "model_file"): "This operation is not available for this file's format yet.",
 }
 
@@ -1552,9 +1556,9 @@ def build_file_written(
     height: int | None = None,
     source: str | None = None,
 ) -> dict[str, Any]:
-    """``file_written`` data: one file the command line wrote (``dump`` and ``preview``).
-    ``source`` says where a preview came from: ``stored`` in the file, or ``rendered``
-    from its geometry."""
+    """``file_written`` data: one file the command line wrote (``dump``, ``preview`` and
+    ``convert``). ``source`` says where a preview came from (``stored`` in the file, or
+    ``rendered`` from its geometry), or which backend wrote a converted file (``occt``)."""
     return to_json_data(
         {
             "output": output,
@@ -2991,7 +2995,10 @@ _FILE_WRITTEN_SCHEMA = _obj(
         "mime": _STR_N,
         "width": _INT_N,
         "height": _INT_N,
-        "source": {"type": ["string", "null"], "description": "stored or rendered (an open set)"},
+        "source": {
+            "type": ["string", "null"],
+            "description": "stored or rendered for a preview, the backend for convert (an open set)",
+        },
     }
 )
 _PARASOLID_SCHEMA = _obj(
@@ -3796,7 +3803,7 @@ KINDS: dict[str, KindSpec] = {
             _FILE_WRITTEN_SCHEMA,
             (),
             build_file_written,
-            ("dump", "preview"),
+            ("dump", "preview", "convert"),
             None,
         ),
         _kind(

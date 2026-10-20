@@ -117,6 +117,7 @@ def test_the_table_is_complete_and_ordered():
         "ad_prt",
         "ad_asm",
         "iges",
+        "brep",
         "ad_drw",
         "ad_pkg",
         "ipt",

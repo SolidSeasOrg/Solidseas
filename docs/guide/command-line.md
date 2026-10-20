@@ -98,6 +98,30 @@ solidseas list FOLDER --formats all         # every 3D file, the ones not read y
 SolidSeas cannot read yet as `unsupported`. [Every 3D format](formats.md) lists
 what is read from each.
 
+### IGES and BREP
+
+IGES and BREP files are read, and written, through the OCCT backend extension
+([Every 3D format](formats.md#iges-and-brep-files)). Once its package is added
+and it is switched on in the viewer's Tools > Extensions, the command line reads
+these files as it reads STEP files, and `solidseas convert` writes them:
+
+```bash
+solidseas info part.igs                                   # read through Open CASCADE
+solidseas export part.igs --format 3mf -o D:\Prints       # sewn into solids, then printed
+solidseas convert bracket.SLDPRT --format iges -o D:\Out  # IGES (BRep mode) of the part
+solidseas convert part.igs --format step -o D:\Out\part.step
+solidseas convert part.step --format brep -o D:\Out       # Open CASCADE's own BREP
+```
+
+`convert` takes an IGES, BREP or STEP file, a SOLIDWORKS part or assembly, or a
+Parasolid file, and writes `--format iges`, `brep` or `step` in millimetres. A
+SOLIDWORKS document or a Parasolid file goes through the STEP SolidSeas writes
+of it first, so the same bodies are written. The output follows the export's
+rules: never next to the source unless you add `--allow-source-dir`, never over
+a file unless you add `--force`. Without the extension, these commands stop
+with a message that says what to add (`format_not_supported`, rule
+`needs_extension`).
+
 ## The REST service
 
 From another service, over HTTP on 127.0.0.1, with a bearer token from a file

@@ -25,6 +25,8 @@ MADE_BY_THE_BUILD = {
     "Python-LICENSE.txt",
     "BUNDLED-FILES.txt",
     "ffmpeg-build.txt",
+    # the OCCT package's build record (the wheels and where their exact source is)
+    "occt-build.txt",
     "THIRD-PARTY-LICENSES.txt",
     # what packaging/ffmpeg/build.sh writes beside ffmpeg.exe
     "COPYING.LGPLv2.1.txt",
@@ -65,7 +67,7 @@ def test_every_package_the_executable_carries_has_its_licence_texts():
 
 def test_every_licence_file_the_notices_name_is_in_the_repository():
     named = set(re.findall(r"\b[\w.-]+\.txt\b", notices())) - MADE_BY_THE_BUILD
-    named -= {"THIRD_PARTY_NOTICES.txt", "build-windows.txt"}
+    named -= {"THIRD_PARTY_NOTICES.txt", "build-windows.txt", "occt-helper.txt"}  # two in requirements/
     assert named
     for name in named:
         assert (LICENCES / name).is_file() or (ROOT / name).is_file(), name

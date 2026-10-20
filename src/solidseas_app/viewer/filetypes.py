@@ -5,8 +5,9 @@ order the buttons stand, SOLIDWORKS parts, assemblies and drawings first, then
 the exchange and mesh formats SolidSeas reads (STEP, STL, 3MF, Parasolid text and
 binary, ACIS binary, OBJ, PLY, OFF, glTF and GLB, AMF), then Alibre Design parts
 and assemblies, then, on grey buttons as the list draws their rows, the formats
-SolidSeas lists but cannot read (IGES, Alibre Design drawings and packages,
-Inventor, Solid Edge, Fusion, eDrawings, 3D XML, VRML). ACIS text has a grey button
+SolidSeas lists but cannot read (IGES and BREP while the OCCT backend extension is
+off, Alibre Design drawings and packages, Inventor, Solid Edge, Fusion, eDrawings, 3D
+XML, VRML). ACIS text has a grey button
 of its own beside ACIS binary's: the ACIS reader refuses it (:data:`NOT_READ`), so
 its files are listed as not read. Every format the registry
 (:mod:`solidseas.formats.registry`) lets a listing report has rows here,
@@ -100,6 +101,7 @@ FILE_TYPES: tuple[FileType, ...] = (
     FileType("ad_asm", "Alibre Design assembly", (".ad_asm",), ALIBRE, "assembly", BROWN, "AD", "assembly"),
     # Formats SolidSeas lists but cannot read: grey, as the list draws their rows.
     FileType("iges", "IGES", (".igs", ".iges"), ("iges",), "badge", GREY, "IGES"),
+    FileType("brep", "BREP", (".brep",), ("occt_brep",), "badge", GREY, "BREP"),
     FileType("ad_drw", "Alibre Design drawing", (".ad_drw",), ("alibre_drawing",), "badge", GREY, "AD_DRW"),
     FileType("ad_pkg", "Alibre Design package", (".ad_pkg",), ("alibre_package",), "badge", GREY, "AD_PKG"),
     FileType("ipt", "Inventor part", (".ipt",), ("inventor",), "badge", GREY, "IPT", "part"),
@@ -123,6 +125,20 @@ _BY_EXTENSION = {ext: t for t in FILE_TYPES for ext in t.extensions}
 def _extension_key(ext: str) -> str | None:
     key = ext.lstrip(".").lower()
     return key if _KEY.fullmatch(key) else None
+
+
+def shown_color(ft: FileType) -> str:
+    """The colour ``ft``'s button is drawn in now: a grey type whose formats a conversion
+    backend reads (IGES and BREP, the OCCT backend) takes its family's colour while that
+    backend is available, as the list draws its rows then."""
+    if ft.color != GREY or not ft.formats:
+        return ft.color
+    from solidseas.formats import registry
+
+    specs = [registry.FORMATS.get(f) for f in ft.formats]
+    if all(s is not None and s.backend is not None and registry.readable(s.id) for s in specs):
+        return {"exchange": PURPLE, "mesh": TEAL, "native": BROWN}.get(specs[0].family, ft.color)
+    return ft.color
 
 
 def file_type(entry: dict[str, Any]) -> str | None:

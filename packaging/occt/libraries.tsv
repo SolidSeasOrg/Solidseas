@@ -1,0 +1,29 @@
+# The DLLs the OCP wheel carries into the OCCT backend package, and the licence of each.
+# scripts\build-extensions.ps1 refuses to build the package when the wheel brings a DLL no
+# pattern here names; licenses/OCP-third-party.txt holds the licence texts.
+# pattern	component	licence
+TK*	Open CASCADE Technology	LGPL-2.1-only WITH OCCT-exception-1.0
+deflate	libdeflate	MIT
+FreeImage	FreeImage	FreeImage Public License 1.0
+freetype	FreeType	FTL
+Iex	OpenEXR	BSD-3-Clause
+IlmThread	OpenEXR	BSD-3-Clause
+OpenEXR	OpenEXR	BSD-3-Clause
+OpenEXRCore	OpenEXR	BSD-3-Clause
+Imath	Imath	BSD-3-Clause
+jpeg8	libjpeg-turbo	IJG AND BSD-3-Clause AND Zlib
+lcms2	Little CMS	MIT
+Lerc	LERC	Apache-2.0
+liblzma	liblzma from XZ Utils	0BSD
+libpng16	libpng	Libpng-2.0
+libsharpyuv	libwebp	BSD-3-Clause
+libwebp	libwebp	BSD-3-Clause
+libwebpmux	libwebp	BSD-3-Clause
+msvcp140	Microsoft Visual C++ runtime	Microsoft Distributable Code
+vcomp140	Microsoft Visual C++ runtime	Microsoft Distributable Code
+openjp2	OpenJPEG	BSD-2-Clause
+openjph	OpenJPH	BSD-2-Clause
+raw	LibRaw	LGPL-2.1-only
+tiff	libtiff	libtiff
+zlib	zlib	Zlib
+zstd	Zstandard	BSD-3-Clause

@@ -26,7 +26,7 @@ system can take as much or as little as it needs.
 | Version tracking | git history inside git repositories, SolidSeas snapshots everywhere else | 2026-09-30 |
 | Format work | Black-box analysis, published API, open-source prior art; no decompiling | 2026-09-30 |
 | Drawings | Made by SolidSeas from the part's B-rep in pure Python (`solidseas.drawing`): its own drawing file, a PDF and a DXF first, a SOLIDWORKS drawing later through the bridge (`docs/DRAWINGS.md`) | 2026-10-04 |
-| Open CASCADE | An opt-in test oracle now and an optional IGES backend later, always in child processes; never in the core library, the viewer executable or the default install (`docs/OCCT.md`) | 2026-10-04 |
+| Open CASCADE | An opt-in test oracle, and the OCCT backend extension for IGES and BREP (`docs/EXTENSIONS.md` section 9), always in child processes; never in the core library, the viewer executable or the default install (`docs/OCCT.md`) | 2026-10-04 |
 
 ## Layers
 
@@ -241,6 +241,7 @@ and write, and the engine picks the best available one.
 | Backend | Needs | Reads | Writes |
 |---|---|---|---|
 | native | nothing | SLDPRT, SLDASM, and every format `solidseas.formats` reads (STEP, Parasolid, STL, 3MF, OBJ, PLY, OFF, glTF, AMF, ACIS SAB, Alibre Design) | Parasolid extracted from a SOLIDWORKS file; STL and 3MF from any of them, tessellated from B-rep bodies or taken from the file's own triangles (`solidseas.export`); STEP of a part from its Parasolid bodies, a SOLIDWORKS part's or a Parasolid transmit file's (`solidseas.step`) |
+| occt | the OCCT backend extension (Open CASCADE, in a helper program of its own) | IGES, OCCT's BREP, STEP | IGES, BREP, STEP |
 | cadquery | CadQuery (OpenCASCADE) | STEP, CadQuery scripts | STEP, STL, 3MF, glTF |
 | solidworks | local SOLIDWORKS, Windows | SLDPRT, SLDASM, Parasolid, STEP | SLDPRT, SLDASM, Parasolid, STEP, STL, 3MF |
 
@@ -297,9 +298,12 @@ readers' B-rep builder (trimmed NURBS surfaces, curves on surfaces, manifold
 solids, subfigure assemblies, colours), ACIS SAT text and other ACIS versions,
 Alibre drawings and packages, and black-box studies of Solid Edge, NX,
 Inventor, Fusion and 3D XML files once samples are provided. For IGES the Open
-CASCADE evaluation (`docs/OCCT.md`) proposes an optional backend under CV-8,
-OCP only, run as worker jobs and offered only when it is installed; the
-library's own readers stay pure Python.
+CASCADE evaluation (`docs/OCCT.md`) proposed an optional backend under CV-8,
+OCP only and offered only when it is installed. It is built as the `occt`
+backend (`solidseas.convert`, `docs/EXTENSIONS.md` section 9): Open CASCADE runs
+in the OCCT extension's helper program, IGES and BREP files are converted there
+to STEP and read by SolidSeas' own STEP reader, and `solidseas convert` writes
+IGES, BREP and STEP through it. The library's own readers stay pure Python.
 
 ### 6. SOLIDWORKS automation: `solidseas.swapi`
 

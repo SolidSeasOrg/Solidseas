@@ -160,6 +160,15 @@ def filter_work(db: str, folder: str, text: str):
 def not_indexed_text(fmt: str) -> str:
     """What Where Used says for a 3D file of the format ``fmt`` (a registry id) that
     SolidSeas cannot read, which the index therefore does not hold."""
+    from solidseas.formats import registry
+
+    spec = registry.FORMATS.get(fmt)
+    if spec is not None and spec.backend is not None:
+        return (
+            f"SolidSeas reads {spec.name} files only with the OCCT backend extension, which is not on, so "
+            "they are not indexed: Where Used cannot say what uses this one, and the name filter finds "
+            "them by name alone."
+        )
     return (
         f"SolidSeas cannot read {_format_name(fmt)} files yet, so they are not indexed: Where Used "
         "cannot say what uses this one, and the name filter finds them by name alone."

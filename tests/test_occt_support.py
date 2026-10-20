@@ -482,8 +482,11 @@ def _imports(path: Path) -> set[str]:
 
 
 def test_the_library_never_imports_ocp():
+    # The OCCT backend's helper is the one module that does: it runs as a program of its own,
+    # in the extension's package or an interpreter of its own, and nothing imports it
+    # (tests/test_occt_backend.py checks both).
     offenders = [p.relative_to(SRC).as_posix() for p in SRC.rglob("*.py") if "OCP" in _imports(p)]
-    assert offenders == []
+    assert offenders == ["solidseas_app/extensions/occt_helper.py"]
     assert "OCP" not in _imports(HERE / "occt_support.py")
 
 

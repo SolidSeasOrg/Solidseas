@@ -110,6 +110,9 @@ EXCLUDES = [f"PySide6.{m}" for m in QT_MODULES_UNUSED] + [
     # Optional extras of the library that the viewer never imports.
     "PIL", "numpy", "cadquery", "httpx", "keyring", "win32com", "pythoncom",
     "tkinter", "pytest",
+    # Open CASCADE runs only in the OCCT backend extension's own helper program, never in
+    # the viewer (docs/OCCT.md): its bindings and its helper module stay out.
+    "OCP", "solidseas_app.extensions.occt_helper",
 ]
 
 # The only Qt plugins the viewer loads: the Windows platform, the offscreen

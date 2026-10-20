@@ -1,9 +1,9 @@
 # Every 3D format
 
 Besides SOLIDWORKS documents, SolidSeas reads STEP, Parasolid, Alibre Design,
-ACIS, 3MF, STL, OBJ, PLY, OFF, glTF and AMF files. This page says what the
-viewer reads from each, how such a file shows in the viewer, and which formats
-are listed but not read yet. For the same formats on the command line, see
+ACIS, 3MF, STL, OBJ, PLY, OFF, glTF and AMF files, and IGES and BREP files with
+the OCCT backend extension. This page says what the viewer reads from each, how
+such a file shows in the viewer, and which formats are listed but not read yet. For the same formats on the command line, see
 [The command line](command-line.md#other-3d-formats).
 
 ## In the file list
@@ -36,12 +36,46 @@ of these formats.
 | PLY, OFF | `.ply`, `.off` | ASCII and binary PLY with colours and comments; OFF text files |
 | glTF | `.gltf`, `.glb` | the node hierarchy, buffers embedded or in the same folder, base colours |
 | AMF | `.amf` | plain and zipped, constellations and colours |
+| IGES, with the OCCT backend extension | `.igs`, `.iges` | solids, and surfaces sewn into solids where they close; the unit, the program that wrote it, the author and the date from the file's header |
+| BREP (Open CASCADE's own), with the OCCT backend extension | `.brep` | solids, shells and faces, text or binary; millimetres are assumed, as a BREP file states no unit |
+
+## IGES and BREP files
+
+SolidSeas reads IGES files, and the BREP files of Open CASCADE, through the OCCT
+backend extension. It is a package you add once: get it from the releases page
+(Tools > Extensions > Get extensions), choose Add from file, and switch it on.
+Until then these files are listed greyed, with View > Show > Files SolidSeas
+Cannot Read on, and their Overview says what they need. Once it is on, open the
+folder again and they read like STEP files: the 3D view, thumbnails, Export for
+3D Printing, 3D Print and the index all take them.
+
+The extension uses Open CASCADE Technology, the open-source geometry kernel, in
+a program of its own beside the viewer. Each file goes to it as a copy, never
+your own file, and comes back as a STEP model that SolidSeas reads with its own
+STEP reader. An IGES file often holds loose surfaces rather than solids: they
+are sewn together where they meet within 0.01 mm, and the ones that close become
+solids. Surfaces that stay open are shown as surfaces, and the file's warnings
+say how many. If Open CASCADE's own check finds faults in the shape, a warning
+says that too. A file that makes Open CASCADE stop, or that takes it more than
+ten minutes, fails on its own with a message, and the next file starts afresh.
+
+The extension also writes these formats: `solidseas convert` on the command
+line writes an IGES, BREP or STEP file, a SOLIDWORKS part or assembly or a
+Parasolid file as IGES, BREP or STEP (see
+[The command line](command-line.md#iges-and-brep)).
+
+The OCCT backend extension is marked In development: check what it reads
+before you rely on it, and report anything wrong. Its package carries the
+licences of Open CASCADE Technology (the GNU LGPL 2.1 with the Open CASCADE
+exception) and of everything else it holds, shown under Details on the
+Extensions page and in its licenses folder, and says where their source is.
 
 ## Formats listed but not read yet
 
-IGES, Inventor, Solid Edge, Fusion, 3D XML, eDrawings, VRML and Alibre Design
+Inventor, Solid Edge, Fusion, 3D XML, eDrawings, VRML and Alibre Design
 drawings and packages are recognised but not read yet: View > Show > Files
-SolidSeas Cannot Read lists them, greyed, without opening them. ACIS text
+SolidSeas Cannot Read lists them, greyed, without opening them. So are IGES and
+BREP files while the OCCT backend extension is not on. ACIS text
 (`.sat`) is listed as not read too. An NX `.prt` is not listed at all, since
 other programs use that extension too.
 
@@ -72,7 +106,8 @@ about them, and the filter box finds them by their properties as well as their
 names. For an Alibre part or sub-assembly, Where Used lists the Alibre
 assemblies that place it. The index does not yet follow what a file of the
 other formats uses, so Where Used says so when nothing uses one. A format
-SolidSeas cannot read (IGES...) is not indexed, which Where Used says.
+SolidSeas cannot read (VRML...) is not indexed, which Where Used says, and nor
+are IGES and BREP files while the OCCT backend extension is off.
 
 The 3D view turns, pans and zooms as for a SOLIDWORKS document, with the view
 cube, Home, the turn about the point under the pointer, and the camera kept when

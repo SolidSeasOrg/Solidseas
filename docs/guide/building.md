@@ -23,7 +23,8 @@ python -m ruff check .
 [tests/README.md](../../tests/README.md) describes the opt-in tests, such as the
 private corpus sweeps and the OCCT oracle that checks STEP files against Open
 CASCADE. [OCCT.md](../OCCT.md) records how SolidSeas uses Open CASCADE: as a
-test oracle now and as an optional IGES backend later, never inside the library
+test oracle, and in the OCCT backend extension, whose helper program reads and
+writes IGES and BREP, never inside the library
 or the viewer.
 
 ## Building the Windows executable

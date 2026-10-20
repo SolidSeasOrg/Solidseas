@@ -58,7 +58,9 @@ class FormatSpec:
     hold_open, detection)``), or None for a format SolidSeas lists but cannot read.
     ``signature`` is the content test an extension shared with other programs needs
     before a file is listed as this format (``ole``), and ``needs_signature`` says
-    which extensions need it."""
+    which extensions need it. ``backend`` names the conversion backend
+    (:mod:`solidseas.convert`) that reads a format no reader of SolidSeas' own reads: the
+    format is readable only while that backend is available."""
 
     id: str
     name: str
@@ -71,6 +73,7 @@ class FormatSpec:
     mime: str | None = None
     needs_signature: tuple[str, ...] = ()
     signature: str | None = None
+    backend: str | None = None
 
     @property
     def module(self) -> str | None:
@@ -241,7 +244,29 @@ FORMATS: dict[str, FormatSpec] = {
             "solidseas.formats.acis:open",
             "y",
         ),
-        FormatSpec("iges", "IGES", (".igs", ".iges"), "exchange", "brep", up_axis="y", mime="model/iges"),
+        FormatSpec(
+            "iges",
+            "IGES",
+            (".igs", ".iges"),
+            "exchange",
+            "brep",
+            _caps("metadata", "brep", "properties", "units"),
+            "solidseas.formats.occt:open",
+            "y",
+            "model/iges",
+            backend="occt",
+        ),
+        FormatSpec(
+            "occt_brep",
+            "BREP",
+            (".brep",),
+            "exchange",
+            "brep",
+            _caps("brep"),
+            "solidseas.formats.occt:open",
+            "z",
+            backend="occt",
+        ),
         FormatSpec("alibre_drawing", "Alibre Design drawing", (".ad_drw",), "native", "mixed", up_axis="y"),
         FormatSpec("alibre_package", "Alibre Design package", (".ad_pkg",), "native", "mixed", up_axis="y"),
         FormatSpec("3dxml", "3D XML", (".3dxml",), "exchange", "mixed", up_axis="y"),
@@ -342,10 +367,17 @@ _READABLE: dict[str, bool] = {}
 
 def readable(format_id: str) -> bool:
     """Whether SolidSeas can read documents of ``format_id``: the entry has a reader and
-    its module is installed. The module is found, not imported."""
+    its module is installed, and for a format a conversion backend reads, that backend
+    is available now (:func:`solidseas.convert.unavailable`, which keeps its answer for
+    a moment). The module is found, not imported."""
     spec = FORMATS.get(format_id)
     if spec is None or spec.reader is None:
         return False
+    if spec.backend is not None:
+        from ..convert import unavailable
+
+        if unavailable(format_id) is not None:
+            return False
     hit = _READABLE.get(format_id)
     if hit is None:
         try:
@@ -480,6 +512,19 @@ def _sniff_iges(head: bytes, size: int | None, ext: str) -> str | None:
     return "" if len(line) == 80 and line[72:73] == b"S" and line[73:].strip().isdigit() else None
 
 
+def _sniff_occt_brep(head: bytes, size: int | None, ext: str) -> str | None:
+    """Open CASCADE's BREP: text (``CASCADE Topology V1`` or ``V3``, after an optional
+    ``DBRep_DrawableShape`` line) or binary (``Open CASCADE Topology V``)."""
+    text = head.lstrip()
+    if text.startswith(b"DBRep_DrawableShape"):
+        text = text[len(b"DBRep_DrawableShape") :].lstrip()
+    if text.startswith(b"CASCADE Topology V"):
+        return "text"
+    if text.startswith(b"Open CASCADE Topology V"):
+        return "binary"
+    return None
+
+
 def _sniff_ply(head: bytes, size: int | None, ext: str) -> str | None:
     if not (head.startswith(b"ply\n") or head.startswith(b"ply\r\n")):
         return None
@@ -539,6 +584,7 @@ _ORDER: tuple[tuple[str, Callable[[bytes, int | None, str], str | None]], ...] =
     ("parasolid", _sniff_parasolid),
     ("acis", _sniff_acis),
     ("iges", _sniff_iges),
+    ("occt_brep", _sniff_occt_brep),
     ("ply", _sniff_ply),
     ("off", _sniff_off),
     ("gltf", _sniff_gltf),
@@ -560,6 +606,7 @@ _SNIFF: dict[str, Callable[[bytes, int | None, str], str | None]] = {
     "alibre": _sniff_ole,
     "acis": _sniff_acis,
     "iges": _sniff_iges,
+    "occt_brep": _sniff_occt_brep,
     "alibre_drawing": _sniff_ole,
     "alibre_package": _sniff_ole,
     "inventor": _sniff_ole,

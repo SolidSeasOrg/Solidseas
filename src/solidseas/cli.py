@@ -883,6 +883,59 @@ def cmd_export(args: argparse.Namespace, doc: Document) -> int:
     return _emit(args, "export_result", model.build_export_result(result), code)
 
 
+def _convert_output(out: str | None, stem: str, fmt: str) -> str:
+    """``convert``'s output path, chosen as :func:`_export_output` chooses an export's."""
+    from .convert import EXTENSIONS
+
+    accepted = EXTENSIONS[fmt]
+    if out is None:
+        return os.path.join(os.getcwd(), stem + accepted[0])
+    if os.path.isdir(out):
+        return os.path.join(out, stem + accepted[0])
+    if out.endswith(("/", "\\")):
+        raise _refused(f"the folder {out} does not exist", "output_folder")
+    given = os.path.splitext(out)[1].lower()
+    if not given:
+        raise _refused(
+            f"-o names neither a folder that exists nor a file ending in {' or '.join(accepted)}: {out}",
+            "output_extension",
+        )
+    if given not in accepted and given not in PROTECTED_EXTENSIONS:  # a SOLIDWORKS name: its own rule
+        raise _refused(f"the file must end in {' or '.join(accepted)}, not {given}", "output_extension")
+    return out
+
+
+def cmd_convert(args: argparse.Namespace, doc: Document) -> int:
+    from .convert import MIME_TYPES, convert_document, target_format, target_name
+
+    fmt = target_format(args.format)
+    stem = os.path.splitext(os.path.basename(args.file))[0]
+    out = check_output_file(
+        _convert_output(args.output, stem, fmt),
+        [args.file],
+        allow_source_dir=args.allow_source_dir,
+        force=args.force,
+    )
+    result = convert_document(doc, out, args.format, overwrite=args.force)
+    if not args.json:
+        r = result.report
+        what = ", ".join(
+            f"{r[k]} {label}"
+            for k, label in (("solids", "solid(s)"), ("faces", "face(s)"))
+            if isinstance(r.get(k), int)
+        )
+        _say(f"wrote {result.path} ({result.bytes:,} bytes), {target_name(fmt)} through Open CASCADE: {what}")
+        left = int(r.get("open_shells") or 0) + int(r.get("free_faces") or 0)
+        if left:
+            _say(f"warning: {left} group(s) of surfaces did not close into a solid when sewn at 0.01 mm")
+        if r.get("valid") is False:
+            _say("warning: Open CASCADE's check found faults in the shape")
+    written = model.build_file_written(
+        result.path, result.bytes, mime=MIME_TYPES.get(fmt), source=result.backend
+    )
+    return _emit(args, "file_written", written)
+
+
 def _flags(node: dict[str, Any]) -> str:
     flags = [f for f in ("suppressed", "hidden", "virtual") if node[f]]
     if node["excluded_from_bom"]:
@@ -1269,7 +1322,13 @@ def _print_listing(args: argparse.Namespace, scan: Scan) -> int:
             variant = f" {m['variant']}" if m["variant"] else ""
             detail = f"  {m['format_name']}{variant} {e['doc_type'] or 'model'}{shown}"
         elif e["status"] == "unsupported":
-            detail = f"  {e['model']['format_name']}: SolidSeas cannot read this format yet"
+            spec = registry.FORMATS.get(e["model"]["format"])
+            if spec is not None and spec.backend is not None:
+                from .convert import unavailable
+
+                detail = f"  {e['model']['format_name']}: {unavailable(spec.id) or 'not read'}"
+            else:
+                detail = f"  {e['model']['format_name']}: SolidSeas cannot read this format yet"
         elif e["status"] == "ok" and e["type"] == "file":
             sv = e["saved_version"] or {}
             pv = e["preview"]
@@ -2744,6 +2803,7 @@ COMMANDS: dict[str, Command] = {
         Command("preview", "file_written", "file", cmd_preview, True),
         Command("parasolid", "parasolid_result", "file", cmd_parasolid),
         Command("export", "export_result", "file", cmd_export, True),
+        Command("convert", "file_written", "file", cmd_convert, True),
         Command("list", "listing", "folder", cmd_list),
         Command("batch", "batch_summary", "folder", cmd_batch),
         Command("index", "catalog_scan", "none", cmd_index),
@@ -3201,6 +3261,23 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="STEP: write the bodies SOLIDWORKS hides too (its own STEP leaves them out, and so does this "
         "by default)",
+    )
+    add_write_flags(sp)
+    sp = add(
+        "convert",
+        "write an IGES, BREP or STEP file, a SOLIDWORKS part or assembly or a Parasolid file as IGES, "
+        "BREP or STEP through the OCCT backend extension (Open CASCADE), in millimetres",
+        target="file",
+        models=True,
+    )
+    add_max_mb(sp, "a Parasolid transmit file larger than this many MiB is refused")
+    sp.add_argument("--format", required=True, choices=("iges", "brep", "step"), help="iges, brep or step")
+    sp.add_argument(
+        "-o",
+        "--output",
+        default=None,
+        help="output file ending in .igs, .iges, .brep, .step or .stp, or a folder that exists, for the "
+        "document's name with the format's extension (default: that name in the current folder)",
     )
     add_write_flags(sp)
     sp = add(

@@ -432,7 +432,7 @@ its bases, so existing `except` clauses catch exactly what they caught before.
 | `NotInCatalogError` | `SolidSeasError`, `LookupError` | `not_in_catalog`: the catalog holds no row for that file (3.18); provisional |
 | `CatalogIncompatibleError` | `SolidSeasError` | `catalog_incompatible`: not a catalog, written by a newer SolidSeas, or damaged (`detail["rule"]` says which, 3.18); provisional |
 | `BusyError` | `SolidSeasError` | `busy`: another process or scan is updating the catalog (3.18); provisional |
-| `FormatNotSupportedError` | `SolidSeasError` | `format_not_supported`: a 3D format SolidSeas knows but cannot read (`detail["rule"]` `no_reader`), or a feature of one file that stops it being read (3.20); `detail["value"]` names the format or the feature; provisional |
+| `FormatNotSupportedError` | `SolidSeasError` | `format_not_supported`: a 3D format SolidSeas knows but cannot read (`detail["rule"]` `no_reader`), one it reads only through an extension that is not added or not on (`needs_extension`, 3.20.10), or a feature of one file that stops it being read (3.20); `detail["value"]` names the format or the feature; provisional |
 | `UnsupportedOperationError` | `SolidSeasError`, `NotImplementedError` | `not_implemented`: an operation for SOLIDWORKS documents asked of another 3D file (`detail["rule"]` `model_file`, `detail["value"]` its format id, 3.20); provisional |
 | `DrawingInvalidError` | `InvalidArgumentError` | `drawing_invalid`: a `.ssdrw` refused whole (not a SolidSeas drawing, not strict JSON, a newer schema, outside the bounds); `detail["rule"]` is `drawing_invalid` and `detail["value"]` names the check; `solidseas.drawing.document.DrawingFileError` derives from it (3.24); provisional |
 | `DrawingTooComplexError` | `SldLimitError` | `drawing_too_complex`: a part or drawing past a bound of `DrawingLimits`, `detail["limit"]` naming it (3.24); provisional |
@@ -1294,7 +1294,7 @@ class WorkerPool:
                  reader_message: bool = True, refuse_hard_links: bool = False,
                  max_file_bytes: int | None = None, start_timeout_s: float = 60.0,
                  log: logging.Logger | None = None, priority: str = "normal",
-                 jobs: Mapping[str, str] | None = None) -> None
+                 jobs: Mapping[str, str] | None = None, helpers_per_worker: int = 0) -> None
     def run(self, kind: str, path, *, timeout: float | None = None, **params) -> dict
     def call(self, job: str, params: dict | None = None, *, timeout: float | None = None,
              max_result_bytes: int | None = None) -> WorkerResult
@@ -1352,7 +1352,10 @@ class WorkerPool:
   replacement and failed start is logged, with that count.
 - **A memory cap.** On Windows every worker is assigned, as it starts, to one
   Job Object with a per-process memory limit of `memory_mb`, an active-process
-  limit equal to the worker count (a worker cannot start another process),
+  limit equal to the worker count (a worker cannot start another process; with
+  `helpers_per_worker`, 0 to 4, each worker may start that many, which stay in
+  the Job Object under the same caps: the viewer's model pool allows one, the
+  OCCT backend's helper of 3.20.10),
   kill-on-close (closing the pool, or the parent dying, ends every worker) and
   die-on-unhandled-exception, and the worker calls `SetErrorMode` so a crash
   never opens a dialog. On Linux the worker sets `RLIMIT_AS` to `memory_mb` and
@@ -3446,8 +3449,9 @@ allocated.
 `components`, `properties`, `stored_preview`, `units`, `colors`,
 `external_references`), `reader` (the dotted path of the function that opens
 a document, or None for a format that is listed and never read), `up_axis`
-(`z` or `y`: the Home view of 3.21), `mime`, and for an extension other
-programs share, `needs_signature` and `signature`.
+(`z` or `y`: the Home view of 3.21), `mime`, for an extension other programs
+share, `needs_signature` and `signature`, and `backend`, the conversion backend
+that reads a format no reader of SolidSeas' own reads (3.20.10).
 
 | id | Extensions | Read | Up |
 |---|---|---|---|
@@ -3457,10 +3461,12 @@ programs share, `needs_signature` and `signature`.
 | `parasolid` | `.x_t`, `.x_b`, `.xmt_txt`, `.xmt_bin` | with its reader (3.20.6) | y |
 | `step` | `.step`, `.stp`, `.p21` | with its reader (3.20.7) | y |
 | `alibre`, `acis` | `.ad_prt`, `.ad_asm`, `.ad_smp`; `.sab`, `.sat` | with their reader (3.20.8) | y |
-| `iges`, `alibre_drawing`, `alibre_package`, `3dxml`, `fusion`, `inventor`, `solid_edge`, `nx`, `edrawings`, `vrml` | their extensions | never: listed as `unsupported` | |
+| `iges`, `occt_brep` | `.igs`, `.iges`; `.brep` | through the `occt` backend while it is available (3.20.10), else listed as `unsupported` | y; z |
+| `alibre_drawing`, `alibre_package`, `3dxml`, `fusion`, `inventor`, `solid_edge`, `nx`, `edrawings`, `vrml` | their extensions | never: listed as `unsupported` | |
 
 `readable(id)` says whether a format's reader module is installed, without
-importing it; `by_extension(name)`, `extensions(formats)` and
+importing it, and for a format a backend reads, whether that backend is
+available now; `by_extension(name)`, `extensions(formats)` and
 `select(formats)` (`"all"`, an id, comma-separated ids or a list) do what
 their names say.
 
@@ -3478,7 +3484,9 @@ member, Fusion and 3D XML by extension); GLB (`glTF`, version 2); STEP
 (`ISO-10303-21;` after an optional byte order mark and white space); Parasolid
 (the common header, a text transmit's `T<n> : TRANSMIT FILE` or a binary's
 `PS`); ACIS SAB (`ACIS BinaryFile`, `ASM BinaryFile`); IGES (an 80-column first
-line with `S` in column 73); PLY (`ply` and a line end); OFF (`OFF`, `COFF`,
+line with `S` in column 73); Open CASCADE's BREP (`CASCADE Topology V`, after an
+optional `DBRep_DrawableShape` line, variant `text`, or `Open CASCADE Topology
+V`, variant `binary`); PLY (`ply` and a line end); OFF (`OFF`, `COFF`,
 `NOFF`, `CNOFF`, `STOFF` first); glTF JSON (`{` and `"asset"`); OBJ (with
 `.obj` only); and STL, binary when the size is exactly 84 + 50 n for the count
 `n` at bytes 80 to 83, whatever the header says, else ASCII when the text
@@ -3969,6 +3977,56 @@ written to this interface so they can move here unchanged, and the Alibre
 reader's small Part 21 reader in `solidseas.formats.alibre._p21` and its
 mapping of ACIS bodies to Parasolid nodes in `solidseas.formats.acis._xt`
 (3.20.8), which the shared modules will replace.
+
+#### 3.20.10 IGES and BREP, and the conversion backends: `solidseas.convert`
+
+`solidseas.convert` is the conversion seam of `docs/ARCHITECTURE.md` section 5:
+a `Backend` names the registry ids it `reads` and `writes`, says why it cannot
+work here now (`unavailable()`, None when it can) and converts a file in memory
+(`convert_bytes(data, format_id, target, *, name=None)`, a `Converted` with the
+file's `data`, its `format` and the backend's `report`). The one backend so far
+is `occt` (`solidseas.convert.occt`): Open CASCADE, run in the helper program of
+the OCCT backend extension (`docs/EXTENSIONS.md` section 9, `docs/OCCT.md`
+tier 1), never in this process. It is available when
+`SOLIDSEAS_OCCT_HELPER_PYTHON` names a Python where OCP imports (a source
+checkout), or when the extension's package is added, it is switched on and the
+machine policy allows it; `unavailable(format_id)` gives the words otherwise.
+
+While it is available, `open_model` and `open_any` open `iges` and `occt_brep`
+files as an `OcctDocument` (`solidseas.formats.occt`). Its head is read in pure
+Python, nothing converted: an IGES file's global section gives `units` (its unit
+flag), `application` (the sending system and preprocessor version),
+`fields.title` (the product id), `fields.author`, `fields.last_saved_utc` (the
+file's date, naive) and the properties `product_id`, `file_name`,
+`originating_system`, `preprocessor_version`, `unit_name` and `organization`; a
+BREP file states no unit, so millimetres are assumed (`units_assumed`). The
+first full read (`tree`, `scene`, `bodies`) has the backend convert the file to
+a STEP model (an IGES file's loose faces sewn at 0.01 mm, the shells that close
+made solids) and reads that with the STEP reader of 3.20.7, so the document then
+behaves as a STEP document: `report` is what the backend said (solids read and
+sewn, open shells, loose faces, `valid`), `step_bytes` the STEP model, and the
+warnings `surfaces_not_closed` and `check_failed` say what stayed open and what
+Open CASCADE's check refused. While the backend is not available, opening such
+a file raises `FormatNotSupportedError` with `detail.rule` `needs_extension`
+and `detail.value` the format id, and its message says what to add.
+
+```python
+from solidseas import convert
+
+convert.convert("bracket.SLDPRT", "out/bracket.igs", "iges")   # a ConvertResult
+convert.convert_document(doc, "out/part.brep", "brep", overwrite=False)
+convert.unavailable("iges")   # None, or what to add
+```
+
+`convert(src, out, format, *, overwrite=False, within=None,
+max_file_bytes=None)` writes an IGES, BREP or STEP file, a SOLIDWORKS part or
+assembly, or a Parasolid file as `iges`, `brep` or `step` through the backend
+that writes it, a SOLIDWORKS document or a Parasolid file through the STEP of
+3.19 first; `convert_document` does the same for an open document. The output
+is created new as every export is (`OutputRefusedError` for a file that exists,
+unless `overwrite`), and a source no backend converts (a mesh) raises
+`UnsupportedOperationError` (rule `model_file`). `ConvertResult` holds `path`,
+`format`, `bytes`, `backend`, `source_format` and `report`.
 
 ### 3.21 Rendered previews: `solidseas.render` (provisional)
 
@@ -4679,7 +4737,7 @@ renaming or retyping one, or changing its meaning, does. The API version is 1.
 | `bom` | 1 | built, provisional | `bom` | `/v1/bom` |
 | `listing` | 1 | built | `list` | `/v1/list` |
 | `streams` | 1 | built | `streams` | |
-| `file_written` | 1 | built | `dump`, `preview` | |
+| `file_written` | 1 | built | `dump`, `preview`, `convert` | |
 | `parasolid_result` | 1 | built | `parasolid` | |
 | `export_result` | 1 | built, provisional | `export` | |
 | `batch_summary` | 1 | built | `batch` | |
@@ -4843,7 +4901,9 @@ The codes are in section 3.5.
   (`busy` from a catalog; the last a scan's read that found no worker free in
   a shared pool), and `not_a_catalog`, `too_new`, `damaged` and
   `unexpected_schema` (`catalog_incompatible`), `no_reader` (`format_not_supported`: a format
-  SolidSeas knows but cannot read yet) and `model_file` (`not_implemented`: an
+  SolidSeas knows but cannot read yet), `needs_extension` (`format_not_supported`: a
+  format SolidSeas reads or writes only through an extension that is not added or
+  not on, 3.20.10) and `model_file` (`not_implemented`: an
   operation for SOLIDWORKS documents asked of another 3D file). A `timeout`
   from a worker pool that had no worker free before the deadline carries the
   rule `no_free_worker` with the code's own message.
@@ -4977,11 +5037,12 @@ they describe.
 - `streams`: `{"format", "streams": [{"name", "size", "compressed_size",
   "codec"}]}`. Names are exact, so a legacy property set keeps its leading
   `\u0005`.
-- `file_written` (`dump`, `preview`): `{"output", "bytes", "stream", "raw",
-  "mime", "width", "height", "source"}`. `output` is the absolute path written;
-  fields a command does not set are null. `source` (provisional) says where a
-  preview came from: `stored` in the file, or `rendered` from a model file's
-  geometry (3.21); null for `dump`.
+- `file_written` (`dump`, `preview`, `convert`): `{"output", "bytes", "stream",
+  "raw", "mime", "width", "height", "source"}`. `output` is the absolute path
+  written; fields a command does not set are null. `source` (provisional) says
+  where a preview came from: `stored` in the file, or `rendered` from a model
+  file's geometry (3.21); for `convert`, the backend that wrote the file
+  (`occt`, 3.20.10); null for `dump`.
 - `parasolid_result`: `{"bodies", "written", "problems", "assembly"}`. Each
   written file is `{"output", "kind", "bytes", "body", "configuration",
   "configuration_id", "source", "body_type", "schema", "valid", "transmit"}`
@@ -5686,6 +5747,7 @@ it.
 | `dump FILE STREAM -o OUT` | `--raw`, `--force`, `--allow-source-dir` | `file_written` |
 | `preview FILE -o OUT` | `--prefer png` (default) or `dib`, `--nested STREAM`, `--render`, `--stored`, `--max-mb N`, `--force`, `--allow-source-dir` | `file_written` |
 | `parasolid FILE -o DIR` | `--text`, `--raw` and `--local-bodies fallback` (default), `always` or `never` (a part), `--configuration NAME`, `--allow-partial`, `--other-configurations` and `--include-hidden` (an assembly), `--max-mb N`, `--force`, `--allow-source-dir` | `parasolid_result` |
+| `convert FILE --format iges\|brep\|step` | `-o FILE` (or a folder that exists; default: the document's name in the current folder), `--max-mb N`, `--force`, `--allow-source-dir`; needs the OCCT backend extension (3.20.10) | `file_written` (provisional) |
 | `export FILE --format 3mf\|stl\|step` | `-o FILE` (or a folder that exists; default: the document's name in the current folder), `--configuration NAME`, `--chord MM` (0.0001 to 10) and `--merge` (3MF and STL), `--sheets`, `--allow-partial`, `--exact-only` and `--include-hidden` (STEP), `--max-mb N`, `--force`, `--allow-source-dir` | `export_result` (provisional) |
 | `list FOLDER` | `--formats solidworks\|all\|IDS` (default `solidworks`), `--recursive`, `--include properties,configurations`, `--preview none`, `meta` (default) or `inline`, `--max-depth N`, `--limit N`, `--max-examined N`, `--timeout SECONDS`, `--file-timeout SECONDS` (default 30), `--memory-mb N` (default 2048), `--in-process` | `listing` |
 | `batch FOLDER -o DIR` | `--no-recurse`, `--no-preview`, `--no-parasolid`, `--text`, `--configuration NAME`, `--allow-partial`, `--other-configurations` and `--include-hidden` (assemblies), `--max-mb N`, `--jobs N` (1 to 64, default 1), `--file-timeout SECONDS` (default 300), `--memory-mb N` (default 2048), `--in-process`, `--max-examined N`, `--force`, `--allow-source-dir` | `batch_summary` |

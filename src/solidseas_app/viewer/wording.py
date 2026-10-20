@@ -151,6 +151,10 @@ _MODEL_LONG = {
 # Why a format or a feature of a file is not read (FormatNotSupportedError's rule).
 _NOT_SUPPORTED = {
     "no_reader": "SolidSeas recognises this as {article} {value} file, but cannot read that format yet.",
+    "needs_extension": (
+        "SolidSeas opens {value} files with the OCCT backend extension. Add its package in Tools > "
+        "Extensions if it is not there, switch it on, and select the file again."
+    ),
     "required_extension": (
         "The file needs an extension of its format that SolidSeas does not read ({value}), so it is not "
         "opened rather than shown wrongly."
@@ -184,7 +188,7 @@ def not_supported_text(error: dict[str, Any] | None, fmt: str | None = None) -> 
     ``format_not_supported`` error."""
     detail = (error or {}).get("detail") or {}
     rule, value = detail.get("rule"), str(detail.get("value") or "")
-    if rule == "no_reader":
+    if rule in ("no_reader", "needs_extension"):
         from solidseas.formats import registry
 
         spec = registry.FORMATS.get(value)
@@ -273,8 +277,26 @@ def status_short(entry: dict[str, Any]) -> str:
     if status == "placeholder":
         return "Cloud placeholder"
     if status == "unsupported":
-        return "Format not read yet"
+        return "Needs the OCCT backend" if _needs_backend(entry) else "Format not read yet"
     return _words(status).capitalize()
+
+
+def _needs_backend(entry: dict[str, Any]) -> bool:
+    """Whether an entry the listing did not read is of a format a conversion backend reads
+    (IGES and BREP, through the OCCT backend extension)."""
+    from solidseas.formats import registry
+
+    fid = (entry.get("model") or {}).get("format") or entry.get("detected")
+    spec = registry.FORMATS.get(fid) if isinstance(fid, str) else None
+    return spec is not None and spec.backend is not None
+
+
+def _backend_format_name(entry: dict[str, Any]) -> str:
+    from solidseas.formats import registry
+
+    model = entry.get("model") or {}
+    spec = registry.FORMATS.get(model.get("format") or entry.get("detected") or "")
+    return model.get("format_name") or (spec.name if spec is not None else "these")
 
 
 def unread_text(entry: dict[str, Any], path: str | None = None) -> str:
@@ -305,6 +327,13 @@ def unread_text(entry: dict[str, Any], path: str | None = None) -> str:
         text = "This is not a regular file (a pipe, socket or device), so it was never opened."
     elif status == "skipped" and reason == "max_depth":
         text = "This folder is deeper than the listing goes, so it was not listed."
+    elif status == "unsupported" and _needs_backend(entry):
+        text = (
+            f"SolidSeas opens {_backend_format_name(entry)} files with the OCCT backend extension, which "
+            "is not on. Add its package in Tools > Extensions if it is not there, switch it on, and open "
+            "the folder again. Until then the file is listed so you can see it is here, and it was not "
+            "opened. Turn off View > Show > Files SolidSeas Cannot Read to hide such files."
+        )
     elif status == "unsupported":
         fmt = (entry.get("model") or {}).get("format_name") or entry.get("detected") or "this"
         article = "an" if fmt[:1].upper() in "AEIOU" else "a"

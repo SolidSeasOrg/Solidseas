@@ -170,7 +170,7 @@ def _fit(font_spec: str, letters: str, width4: int, cap4: int) -> tuple[int, int
 
 def paint_glyph(p: QPainter, rect: QRectF, ft: FileType) -> None:
     """Draw the glyph of ``ft`` in the square ``rect`` (logical pixels)."""
-    color = QColor(ft.color)
+    color = QColor(filetypes.shown_color(ft))
     s = rect.width()
     x, y = rect.left(), rect.top()
     p.save()

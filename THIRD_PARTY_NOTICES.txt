@@ -12,8 +12,9 @@ SolidSeas is distributed in three forms, each covered below:
 
   1. The library: the Python package solidseas, from source or as a wheel.
   2. SolidSeas Viewer: SolidSeasViewer.exe, one Windows program built with PyInstaller.
-  3. The extension packages: cad-bridge-<version>.zip, video-<version>.zip and
-     solidcraft-<version>.zip, added from the viewer's Extensions page.
+  3. The extension packages: cad-bridge-<version>.zip, video-<version>.zip,
+     solidcraft-<version>.zip and occt-<version>.zip, added from the viewer's Extensions
+     page.
 
 Where the licence texts are:
 
@@ -259,11 +260,54 @@ The package carries SolidCraft's portable release unchanged (checked by its SHA-
 all four of SolidCraft's licence files. Where a SolidCraft dependency offers a choice of
 licences that includes the LGPL or the GPL, the permissive choice applies.
 
-3.4 OCCT
+3.4 occt-<version>.zip (the OCCT backend)
 
-The planned OCCT package (docs/EXTENSIONS.md, docs/OCCT.md) is not built or distributed yet.
-Open CASCADE Technology is LGPL-2.1 with its exception; when the package is built it will
-carry those texts and the source location in the same way as the video package.
+The OCCT backend package of SolidSeas makes use of facilities provided by the Open CASCADE
+Technology software.
+
+  Component                   Licence                        Text
+  solidseas-occt.exe          Apache-2.0 (SolidSeas),        licenses/LICENSE, NOTICE,
+  (PyInstaller one-folder     PSF-2.0 (Python),              Python-LICENSE.txt,
+  program, Python's standard  GPL-2.0-or-later WITH          PyInstaller-COPYING.txt
+  library and OCP)            Bootloader-exception
+  OCP 7.9.3.1 (_internal\OCP, Apache-2.0                     OCP-LICENSE.txt
+  from cadquery-ocp-novtk
+  7.9.3.1.1)
+  Open CASCADE Technology     LGPL-2.1-only WITH             LGPL-2.1.txt,
+  7.9.3 (the TK*.dll          OCCT-exception-1.0             OCCT_LGPL_EXCEPTION.txt
+  libraries)
+  The other libraries the     as listed (FreeImage Public    OCP-third-party.txt
+  OCP wheel carries           License, FreeType License,
+  (FreeImage, FreeType,       BSD, MIT, Zlib, LGPL-2.1 for
+  OpenEXR, libjpeg-turbo,     LibRaw, Apache-2.0 for LERC
+  libpng, libtiff, libwebp,   and others)
+  OpenJPEG, zlib, zstd and
+  others)
+  Microsoft Visual C++ and    Microsoft Distributable Code   OCP-third-party.txt
+  OpenMP runtimes (msvcp140,  (not open source)
+  vcomp140), from the wheel
+
+The helper (src/solidseas_app/extensions/occt_helper.py) is SolidSeas' own code. It runs as a
+program of its own that SolidSeas starts and talks to over JSON lines; SolidSeas never loads
+OCP or Open CASCADE into its own process. scripts/build-extensions.ps1 builds it with
+PyInstaller from the cadquery-ocp-novtk 7.9.3.1.1 wheel for Windows, the build of OCP without
+VTK, which requirements/occt-helper.txt pins by its SHA-256. The build stops when the wheel
+carries a library that packaging/occt/libraries.tsv does not name with its licence, and
+OCP-third-party.txt holds the text of each of those licences. Where a library is offered under
+a choice of licences, the one named there applies (the FreeImage Public License for FreeImage,
+the FreeType License for FreeType, the LGPL 2.1 for LibRaw, BSD-3-Clause for Zstandard).
+occt-build.txt, written by each build, records the wheels it was built from and where their
+exact source is (the build is not made without it).
+
+What the LGPL 2.1 and its exception ask of SolidSeas for Open CASCADE Technology: ship the
+licence text and the exception with it (done), give the prominent notice above, say where
+its exact source is (occt-build.txt), and keep that source available for as long as the
+package is offered. The libraries are separate DLL files in the package's folder
+(_internal\cadquery_ocp_novtk.libs), so each can be replaced by another build of it with the
+same interface. The source of Open CASCADE Technology 7.9.3 is at
+https://github.com/Open-Cascade-SAS/OCCT/releases/tag/V7_9_3 and that of OCP 7.9.3.1 at
+https://github.com/CadQuery/OCP/releases/tag/7.9.3.1; the release that offers the package
+publishes the source archives the build names beside it.
 
 
 4. Build tools, not distributed

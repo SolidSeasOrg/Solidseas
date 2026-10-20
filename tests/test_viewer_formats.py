@@ -504,15 +504,26 @@ def test_what_cannot_be_read_is_said_plainly():
     def err(rule, value):
         return {"code": "format_not_supported", "detail": {"rule": rule, "value": value}}
 
-    assert "an IGES file" in wording.not_supported_text(err("no_reader", "iges"))
+    assert "a VRML file" in wording.not_supported_text(err("no_reader", "vrml"))
+    needs = wording.not_supported_text(err("needs_extension", "iges"))
+    assert "IGES files with the OCCT backend extension" in needs and "Tools > Extensions" in needs
     assert "not a STEP model" in wording.not_supported_text(err("private_schema", "ALIBRE_SCHEMA"))
     assert "schema file" in wording.not_supported_text(err("schema_not_embedded", "parasolid"))
     text = wording.error_message({"code": "damaged_file"}, path=r"C:\x\bracket.stp")
     assert "whole STEP file" in text and "SOLIDWORKS" not in text
     assert "SOLIDWORKS" in wording.error_message({"code": "damaged_file"}, path=r"C:\x\a.SLDPRT")
-    entry = {"path": "sheet.igs", "type": "file", "status": "unsupported", "model": {"format_name": "IGES"}}
+    entry = {"path": "scene.wrl", "type": "file", "status": "unsupported", "model": {"format_name": "VRML"}}
     assert wording.status_short(entry) == "Format not read yet"
     assert "cannot read that format yet" in wording.unread_text(entry)
+    iges = {
+        "path": "sheet.igs",
+        "type": "file",
+        "status": "unsupported",
+        "model": {"format": "iges", "format_name": "IGES"},
+    }
+    assert wording.status_short(iges) == "Needs the OCCT backend"
+    text = wording.unread_text(iges)
+    assert "IGES files with the OCCT backend extension" in text and "Tools > Extensions" in text
     ok = {"path": "a.stl", "type": "file", "status": "ok", "warnings": [{"code": "units_assumed"}]}
     assert wording.status_short(ok) == ""  # the unit an STL cannot state is not news on every row
 
@@ -803,9 +814,10 @@ def test_each_format_shows_the_details_that_fit_it(app, window, sample_folder):
     _wait(app, lambda: d.title.text() == "pair.AD_ASM" and w._details is None)
     w.change_settings(show_unreadable=True)
     _select(app, w, "sheet.igs")
-    assert "cannot read that format yet" in d.pages["Overview"].message_text
+    assert "IGES files with the OCCT backend extension" in d.pages["Overview"].message_text
     assert d.pages["Where Used"].message_text == wording_where_used.not_indexed_text("iges")
-    assert "cannot read IGES files yet, so they are not indexed" in d.pages["Where Used"].message_text
+    assert "only with the OCCT backend extension" in d.pages["Where Used"].message_text
+    assert "cannot read VRML files yet" in wording_where_used.not_indexed_text("vrml")
 
 
 @needs_qt
@@ -822,7 +834,7 @@ def test_opening_a_model_file_lists_its_format_first(app, window, sample_folder)
     w.open_path(str(sample_folder / "sheet.igs"))
     _wait(app, lambda: w.listing_info is not None and w.details.title.text() == "sheet.igs")
     assert w.settings.show_unreadable
-    assert "cannot read that format yet" in w.details.pages["Overview"].message_text
+    assert "OCCT backend extension" in w.details.pages["Overview"].message_text
 
 
 @needs_qt

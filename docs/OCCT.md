@@ -24,7 +24,7 @@ Use OCCT as a tool around SolidSeas, never inside it.
 | Test oracle for the STEP export | now, development only | 162 corpus STEP files and 13 fixtures written by SolidSeas read with no crash and no failed transfer. Volume against SOLIDWORKS' own values (140 parts): median 1.8e-14, 90th percentile 7.8e-6, max 1.9e-4, as close as SOLIDWORKS' own STEP round trip (90th percentile 6.3e-6, max 3.1e-4) |
 | Test oracle for the STEP reader and the tessellator | now, development only | exact area and volume per face and per shell; it found four kinds of reader defect (section 7) |
 | Cross-check for drawings (`dwg-views`) | development only | a three-way vote between SolidSeas' engine and OCCT's two hidden-line algorithms shows which one is wrong (section 8) |
-| IGES import and export | later: an optional backend with bead SolidSeas-e2z | SolidSeas lists IGES but cannot read it. Of 142 IGES files in the corpus folders (138 distinct) OCCT gets a shape from 134, 13 holding solids directly; of the 120 holding only surfaces, sewing at 0.01 mm closes 97 into solids, 6 partly, and 17 stay open. Fixture IGES files round-trip within 3.6e-11 |
+| IGES import and export | now: the OCCT backend extension (tier 1), with bead SolidSeas-e2z | SolidSeas lists IGES but cannot read it. Of 142 IGES files in the corpus folders (138 distinct) OCCT gets a shape from 134, 13 holding solids directly; of the 120 holding only surfaces, sewing at 0.01 mm closes 97 into solids, 6 partly, and 17 stay open. Fixture IGES files round-trip within 3.6e-11 |
 
 | Do not use for | Why |
 |---|---|
@@ -98,17 +98,33 @@ files reproduced are fixed, and OCCT and the reader now agree on those files.
   are.
 - It imports `OCP` directly, never `cadquery`: a converter has no use for
   casadi (LGPL-3.0-or-later), numba or scipy.
-- It runs as jobs in SolidSeas' own `WorkerPool`, which already has a Job
-  Object with kill on close, a process limit, a memory cap and die on an
-  unhandled exception, calls `SetErrorMode`, and uses `RLIMIT_AS` and
-  `PR_SET_PDEATHSIG` on Linux. When OCP lives in another interpreter (a
-  development setup), start that environment's base interpreter directly with
-  `__PYVENV_LAUNCHER__` set: the venv launcher's second process breaks a
-  one-process job.
+- It runs in a helper program of its own, the OCCT backend extension's
+  (`docs/EXTENSIONS.md` section 9), started through `solidseas.helpers.Helper`:
+  suspended, in a Job Object with kill on close, a memory cap and die on an
+  unhandled exception, with `SetErrorMode` called in the helper; elsewhere than
+  Windows the helper sets its own `RLIMIT_AS`, no core file and
+  `PR_SET_PDEATHSIG`. (The plan was jobs in SolidSeas' own `WorkerPool`; a
+  packaged helper keeps OCP and its 160 MB out of the viewer, which the worker
+  processes share.)
 - IGES: read, sew at 0.01 mm, run the validity check, and report the solids and
   any open shells that remain as they are. IGES manifold solids (entity 186)
   give solids directly. Export in BRep (MSBO) mode.
 - The rules of section 3 apply to every file.
+
+This tier is built: `solidseas_app/extensions/occt_helper.py` (the helper),
+`solidseas/convert` (the seam and the `occt` backend), `solidseas/formats/occt.py`
+(IGES and BREP documents: the IGES head read in pure Python, the geometry from
+the helper's STEP model read by SolidSeas' own STEP reader), `solidseas convert`,
+the package's build step in `scripts/build-extensions.ps1` and its notices
+(`THIRD_PARTY_NOTICES.txt` section 3.4), and `tests/test_occt_backend.py`. It
+differs from the plan above in three ways. It reads into STEP, not into
+SolidSeas' own Parasolid bodies directly, so an IGES or BREP file is then read
+exactly as a STEP file is. The package carries OCP from the `cadquery-ocp-novtk`
+wheel, which drops VTK: the evaluation could not install it on the PC, but its
+Windows wheel exists for 7.9.3.1.1. And it reads STEP only as a source to
+convert (`solidseas convert part.step --format iges`); SolidSeas' own STEP reader
+stays the one that opens STEP files. The first Windows build of the package, and
+the security review of row 15 (section 9), are still to come.
 
 ### Tier 2, later and separate
 
@@ -407,9 +423,9 @@ damaged STEP files it never crashed or hung, refusing 61 cleanly, the slowest in
 
 ### 7.9 Other readers and the tessellator
 
-- IGES and VRML are registered with no reader ("SolidSeas cannot read IGES
-  files yet"); there are no VRML files in the corpus. OCCT's BREP format is
-  unknown to SolidSeas (one corpus file).
+- IGES and VRML were registered with no reader; there are no VRML files in
+  the corpus. OCCT's BREP format was unknown to SolidSeas (one corpus file).
+  Both IGES and BREP are now read through the OCCT backend extension (tier 1).
 - Parasolid blend faces (`BLENDED_EDGE`) were refused by the tessellator as
   `unsupported_surface`, in 4 of 34 sampled parts, leaving holes in the 3D
   view, in STL and 3MF, and in drawings. **Fixed:** the tessellator draws them
@@ -452,9 +468,9 @@ beside each.
 | 6 | STEP export: split closed faces at their seams (6.1) | P2 | fixed: cut as SOLIDWORKS cuts them; the seams OCCT adds went from 587 in 65 corpus files to 6 in 6; the leftovers of 6.1 remain |
 | 7 | STEP export: leave hidden bodies out (6.2) | P2 | fixed for the STEP export; unmarked imported bodies are still all written, with the warning; the tessellator still includes hidden bodies, so they still appear in the 3D view and in 3MF and STL prints; row 89, sheets beside a hidden solid and now exported as its sheets, stops at the export's 300 s limit |
 | 8 | Tessellate Parasolid blend faces (7.9) | P2 | fixed: 3,185 of 4,280 rolling-blend faces drawn on 222 corpus parts; their prints are slower (median 6.4 s against 4.4 s) |
-| 9 | IGES import and export through an optional OCCT backend (tier 1, under SolidSeas-e2z) | P2 | remains |
+| 9 | IGES import and export through an optional OCCT backend (tier 1, under SolidSeas-e2z) | P2 | built (tier 1): IGES and BREP read and written through the OCCT backend extension; its package's first Windows build remains |
 | 10 | Explain the body only SolidSeas seemed to draw (7.5) | P3 | answered (7.5) |
-| 11 | Decide the OCCT extra and its notices: `[cad]` with `cadquery-ocp` only or its `novtk` variant, a separate CadQuery workspace extra, a `NOTICE` entry, never in the executable, Linux wheels checked; ties into hash-locked dependencies (SolidSeas-oib) | P3 | remains |
+| 11 | Decide the OCCT extra and its notices: `[cad]` with `cadquery-ocp` only or its `novtk` variant, a separate CadQuery workspace extra, a `NOTICE` entry, never in the executable, Linux wheels checked; ties into hash-locked dependencies (SolidSeas-oib) | P3 | in part: the OCCT package carries `cadquery-ocp-novtk` 7.9.3.1.1, hash-pinned, with its notices (`THIRD_PARTY_NOTICES.txt` 3.4), never in the executable; its Linux wheel imports and passes the tests; the `[cad]` extra is unchanged |
 | 12 | Profile the STEP reader on large files (7.7) | P3 | remains |
 | 13 | Settle the remaining STEP export differences (6.4): re-measure the thirteen parts and the sheet part in SOLIDWORKS at its highest mass-property accuracy | P3 | remains; PC only, in SolidSeas' own SOLIDWORKS through the bridge, never the user's session; the bridge's `mass_properties` has no per-call accuracy setting yet (`src/solidseas/swapi/README.md`, known issues) |
 | 14 | Drawings: keep the three-way OCCT cross-check as a development tool (section 8) | P3 | remains, with `dwg-views` |

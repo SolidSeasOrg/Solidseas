@@ -1,0 +1,14 @@
+# What the OCCT backend's helper is built with, beside PyInstaller from build-windows.txt:
+# OCP from the cadquery-ocp-novtk wheel (no VTK), pinned by its SHA-256 for each CPython it
+# is built for on 64-bit Windows. scripts/build-extensions.ps1 installs it with
+# pip install --require-hashes --no-deps --only-binary :all: --target <folder>.
+# A new OCP is taken by changing the version and every hash together, and the oracle's pin
+# (tests/occt_support.py PINNED) with them.
+cadquery-ocp-novtk==7.9.3.1.1 \
+    --hash=sha256:3390be6d8199a50b01ae0137a60f56d0cfecd8753dbee08532bbbeb8b7169682 \
+    --hash=sha256:46ca650c78372a05d91db79c66a4f28d5cd7ec674f5347ddbf94e927ef6e4090 \
+    --hash=sha256:5d22339cdaac64c396f0658de8728915acfac9b868406f0078e52f50a3c25c65 \
+    --hash=sha256:db50a67cb2a0976200526aa12d2ca5ca331d2e8b27f9c7f2ba688aa8d624af23 \
+    --hash=sha256:eabb9e4eceb4d44b1555981aec8821c3b133300ed4a3929e4fea4510b6737cd5
+cadquery-ocp-proxy==7.9.3.1.1 \
+    --hash=sha256:ca4164ec4b54956d9fc3e68c67d555b5486cb963c2f71e18df005ba16b921c91

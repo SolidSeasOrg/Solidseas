@@ -64,6 +64,7 @@ _FORMAT_BADGES = {
     "alibre": "AD",
     "acis": "SAB",
     "iges": "IGS",
+    "occt_brep": "BREP",
 }
 # Saved with: the program that wrote a file of these formats says more than their variant.
 _BY_PROGRAM = ("3mf", "amf", "obj", "gltf")

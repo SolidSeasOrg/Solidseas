@@ -1,6 +1,6 @@
 # Extensions
 
-Status: being built. The catalog, the on/off state, the two policy values, the package checks, the Extensions page (Tools > Extensions) and the helper runner are built (`solidseas_app.extensions`, `solidseas.helpers`, `solidseas.policy`), with Gridfinity behind its switch, the CAD Bridge taken from its package, and Play and Save Animation with the video helper; the Windows packages, the OCCT backend and the release packaging are still to come. The user asked on 2026-10-14 for "an extensions section that
+Status: being built. The catalog, the on/off state, the two policy values, the package checks, the Extensions page (Tools > Extensions) and the helper runner are built (`solidseas_app.extensions`, `solidseas.helpers`, `solidseas.policy`), with Gridfinity behind its switch, the CAD Bridge taken from its package, Play and Save Animation with the video helper, and the OCCT backend: its helper, the `occt` backend of `solidseas.convert` that finds it, and its package's build step (section 9), whose first Windows build is still to be run; the Windows packages and the release packaging are still to come. The user asked on 2026-10-14 for "an extensions section that
 will allow us to integrate new modules like the tracefinity or video export so we can
 pick/choose without making a gigantic app". They chose how a package gets onto a PC (a file
 they download, added from the Extensions page, with a link in the program to where the
@@ -44,7 +44,7 @@ before it can be switched on.
 | Gridfinity | the six `gridfinity_*` chat tools and their settings | none (built in) | Tracefinity, on this PC or a server | loopback, and ssh to the server when one is named |
 | CAD Bridge | the assistant's live mode and Automatic mode, the chat tools for SOLIDWORKS parts | `SolidSeas.SwBridge.exe` | SOLIDWORKS 2024 or later | SOLIDWORKS on this PC only |
 | Video export | Save Animation in the 3D view | an encoder helper with ffmpeg | nothing else | nothing |
-| OCCT backend | IGES and BREP in `solidseas.convert`, STEP cross-checks | a helper with its own Python and OCP | nothing else | nothing |
+| OCCT backend | IGES and BREP files read and written through `solidseas.convert`'s `occt` backend | `solidseas-occt.exe`, a helper with its own Python and OCP | nothing else | nothing |
 
 Playing the explode and the collapse as an animation in the 3D view stays in the core: it
 needs nothing extra.
@@ -159,6 +159,19 @@ mesh children are Python worker processes of another kind and keep their own run
   header says, then build with `-FfmpegFolder packaging\ffmpeg\out -FfmpegSource
   https://github.com/SolidSeas/SolidSeas/releases/tag/ffmpeg-9.0.2-source`, the release that
   holds its source tarball, signature and build script.
+- The OCCT package is built only when `-Only` names it (`-Only occt`), until its first
+  Windows build is checked, and needs `-OcctSource`, where the exact source of the Open
+  CASCADE, OCP and the libraries the OCP wheel carries is, as the video package needs
+  `-FfmpegSource`. It installs OCP from the `cadquery-ocp-novtk` wheel (OCP without VTK),
+  pinned by its SHA-256 in `requirements/occt-helper.txt`, into a folder of its own, never
+  into the build environment; refuses a wheel that carries a DLL
+  `packaging/occt/libraries.tsv` does not name with its licence; builds
+  `occt_helper.py` with PyInstaller as a one-folder program (a one-file one would unpack
+  about 200 MB at every start); checks that the program starts and names Open CASCADE
+  7.9.3; and carries the licences (`THIRD_PARTY_NOTICES.txt` section 3.4) with
+  `occt-build.txt`, which says what the package holds and where its source is. A package
+  built this way stays in `dist\extensions`, so a later build of the others lists it in
+  `accepted.json` too.
 - The core build (`scripts/build-viewer.ps1 -WithExtensions`) runs it first and carries
   `accepted.json` inside the viewer, so a viewer accepts the packages of its own release and no
   others. The bridge is no longer copied beside the viewer: it ships in the CAD Bridge
@@ -190,10 +203,48 @@ where the person chose. For MP4 the helper takes Windows' own H.264 encoder or O
 its ffmpeg has one, else MPEG-4 part 2, so the package needs no GPL encoder (bead
 SolidSeas-kwl).
 
-**OCCT backend** (packaged). Tier 1 of `docs/OCCT.md`: IGES and BREP through
-`solidseas.convert`'s backend seam, run as the helper's jobs under that document's section 3
-rules unchanged, the package carrying its own Python, OCP and Open CASCADE's notices (beads
-SolidSeas-3he, SolidSeas-7r8 and SolidSeas-e2z).
+**OCCT backend** (packaged, id `occt`). Tier 1 of `docs/OCCT.md`: IGES and Open CASCADE's
+BREP files read and written through `solidseas.convert`'s backend seam, run in the helper
+under that document's section 3 rules unchanged, the package carrying its own Python, OCP
+and Open CASCADE's notices (beads SolidSeas-3he, SolidSeas-7r8 and SolidSeas-e2z).
+
+- **The helper** (`solidseas_app.extensions.occt_helper`, built as `solidseas-occt.exe`)
+  imports the standard library and OCP only, and nothing in SolidSeas imports it. It takes
+  `convert` requests: a staged copy of the file, its format (`iges`, `occt_brep` or `step`),
+  the format to write (`step`, `iges` or `occt_brep`) and an empty folder to write into. It
+  reads with the basic readers only, leaves out blanked IGES entities, sews an IGES file's
+  loose faces at 0.01 mm and makes solids of the shells that close, keeps open shells and
+  loose faces as they are, runs `BRepCheck_Analyzer`, and writes `model.step`,
+  `model.igs` (BRep mode, a header that names no one) or `model.brep`, never over a file.
+  Its reply reports what it read; an error carries a fixed message or a class name,
+  never Open CASCADE's text. Its standard output points at the null device before OCP
+  loads, it shows no error box and writes no dump, and elsewhere than Windows it caps its
+  own memory (`--memory-mb`) and ends with its parent.
+- **The backend** (`solidseas.convert.occt`) finds the helper: `SOLIDSEAS_OCCT_HELPER_PYTHON`
+  in a source checkout (an interpreter where OCP imports, running the checkout's helper
+  module with `-I`), else the package, through `start_helper`, only while the extension is
+  on and allowed, and every file still has its SHA-256. It keeps one helper per process,
+  started on first use, and a new one after a crash or a timeout. Each file goes as a copy
+  in a new folder; the result is read only from the file the helper was told to write,
+  bounded, and the folders are removed. Results are kept in memory by SHA-256, so a process
+  that reads a file more than once (its details, then its preview) converts it once.
+- **Where it runs.** The viewer reads model files in worker processes whose Job Object lets
+  no worker start a process; while the OCCT package is added and switched on, its model
+  pool lets each worker start one (`WorkerPool(helpers_per_worker=1)`): the helper, which
+  runs in its own Job Object inside the pool's, under the pool's memory cap too. The pool
+  decides this when it starts, so without the package its workers still start nothing,
+  and switching the package on reaches IGES and BREP files when the viewer next starts. The 3D view's and the export's processes
+  have no such limit. The other pools (the REST service's, the catalog's, `solidseas
+  list`) are left as they were, so on Windows they read an IGES or BREP file's head but
+  not its geometry.
+- **The front** is the registry's `backend` field: `iges` and `occt_brep` are readable
+  exactly while the backend is available, and open as `solidseas.formats.occt` documents,
+  whose head is read in pure Python and whose geometry is the backend's STEP model read by
+  SolidSeas' own STEP reader. Off, they are listed as `unsupported`, and the viewer, the
+  command line and the error (`format_not_supported`, rule `needs_extension`) say what to
+  add. `solidseas convert` writes IGES, BREP and STEP through it.
+- **Not built yet:** STEP cross-checks through the helper, an IGES reader of SolidSeas' own,
+  and Convert in the viewer.
 
 **SolidCraft** (packaged). SolidCraft is a free parametric CAD program (MIT or Apache-2.0,
 github.com/bherbruck/solidcraft). Its package carries `solidcraft-cli.exe` from SolidCraft's

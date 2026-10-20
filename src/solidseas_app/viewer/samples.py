@@ -23,7 +23,8 @@ string in them is invented here; nothing is copied from another file.
 * ``cube.AD_PRT`` (Alibre Design): the cube with its ACIS body, its display mesh, a
   bitmap thumbnail and properties, and ``pair.AD_ASM`` an assembly placing it twice,
   found by its document GUID;
-* ``sheet.igs`` (IGES): listed only, as SolidSeas cannot read IGES yet.
+* ``sheet.igs`` (IGES): listed only, as SolidSeas reads IGES only through the OCCT
+  backend extension, which the samples' folder never has.
 
 Nothing here imports Qt.
 """
@@ -800,8 +801,8 @@ def alibre_assembly() -> bytes:
 
 # --------------------------------------------------------------------------- the folder
 def iges_stub() -> bytes:
-    """An IGES start section: enough to be recognised, and listed as a format SolidSeas
-    cannot read."""
+    """An IGES start section: enough to be recognised, and listed as a file SolidSeas does
+    not read without the OCCT backend extension."""
     line = "SolidSeas self-test: an IGES file is listed, not read".ljust(72) + "S      1"
     return (line + "\n").encode("ascii")
 

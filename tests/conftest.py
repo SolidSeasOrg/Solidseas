@@ -246,6 +246,20 @@ def extensions_state_stays_out_of_the_real_one(tmp_path_factory, monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def the_occt_backend_is_asked_afresh(monkeypatch):
+    """IGES and BREP files are read only while the OCCT backend is available, which it keeps
+    for a moment (solidseas.convert.occt). Every test starts with it not set up from a
+    checkout (SOLIDSEAS_OCCT_HELPER_PYTHON), and neither its answer nor a test's leaks into
+    the next test; tests/test_occt_backend.py sets it up where it needs it."""
+    from solidseas.convert import occt
+
+    monkeypatch.delenv(occt.ENV_PYTHON, raising=False)
+    occt.BACKEND._checked = None
+    yield
+    occt.BACKEND._checked = None
+
+
+@pytest.fixture(autouse=True)
 def no_dialog_waits_forever():
     """Watch the modal dialogs of the test's QApplication, when one exists (Qt is never
     imported for this), and fail the test when one had to be closed for it

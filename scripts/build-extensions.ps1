@@ -21,9 +21,18 @@ Each package is a folder built under build\extensions\<id> and zipped by
   solidcraft  solidcraft-cli.exe from SolidCraft's portable Windows zip (MIT or Apache-2.0),
               the release pinned below and checked by its SHA-256, with its licence files.
               -SolidCraftZip names a copy already downloaded; otherwise it is downloaded.
+  occt        solidseas-occt.exe, the OCCT backend's helper (src\solidseas_app\extensions\occt_helper.py
+              built by PyInstaller as a one-folder console program) with OCP, the Python bindings
+              of Open CASCADE Technology, from the cadquery-ocp-novtk wheel that
+              requirements\occt-helper.txt pins by its SHA-256. Built only when -Only names it.
+              The package is refused when the wheel carries a DLL that packaging\occt\libraries.tsv
+              does not name with its licence, or when the helper it built does not start and name
+              its Open CASCADE. Open CASCADE's LGPL 2.1 and its exception, OCP's Apache License,
+              the licences of the wheel's other libraries and -OcctSource, where the exact source
+              of that Open CASCADE, OCP and those libraries is, are carried as its notices.
 
-The SOLIDWORKS and video packages also carry their licence texts as files, in a licenses
-folder inside the package (THIRD_PARTY_NOTICES.txt says what each package holds).
+The SOLIDWORKS, video and OCCT packages also carry their licence texts as files, in a
+licenses folder inside the package (THIRD_PARTY_NOTICES.txt says what each package holds).
 
 Then it writes src\solidseas_app\extensions\accepted.json from the packages built, so the
 viewer built next accepts these packages and no others, and dist\extensions\SHA256SUMS.txt.
@@ -34,7 +43,8 @@ The virtual environment to build with, for example .venv. It needs PyInstaller (
 extra of pyproject.toml).
 
 .PARAMETER Only
-The extensions to build: cad-bridge, video, solidcraft, or all three (the default).
+The extensions to build: cad-bridge, video, solidcraft and occt. The default is the first
+three; the OCCT package is built only when named, until its first Windows build is checked.
 
 .PARAMETER FfmpegFolder
 The folder holding an LGPL ffmpeg.exe and its licence files, for the video package.
@@ -46,6 +56,12 @@ given with the program, so the package is not built without it.
 
 .PARAMETER SolidCraftZip
 SolidCraft's portable Windows zip of the pinned release, already downloaded.
+
+.PARAMETER OcctSource
+For the OCCT package: where the exact source of Open CASCADE Technology 7.9.3, OCP 7.9.3.1 and
+the other libraries the OCP wheel carries is, for example the URL of the release that
+publishes it beside the packages. The LGPL asks that it is given with the program, so the
+package is not built without it.
 
 .PARAMETER SolidWorksFolder
 The SOLIDWORKS installation folder, passed to scripts\build-bridge.ps1.
@@ -59,6 +75,7 @@ param(
     [string]$FfmpegFolder = '',
     [string]$FfmpegSource = '',
     [string]$SolidCraftZip = '',
+    [string]$OcctSource = '',
     [string]$SolidWorksFolder = 'C:\Program Files\SOLIDWORKS Corp\SOLIDWORKS'
 )
 
@@ -69,7 +86,10 @@ if (-not (Test-Path $python)) { throw "No Python in that environment: $python" }
 # The bridge's former id names it still.
 $Only = @($Only | ForEach-Object { if ($_ -eq 'solidworks') { 'cad-bridge' } else { $_ } })
 foreach ($id in $Only) {
-    if ($id -notin @('cad-bridge', 'video', 'solidcraft')) { throw "No extension package named $id (cad-bridge, video or solidcraft)" }
+    if ($id -notin @('cad-bridge', 'video', 'solidcraft', 'occt')) { throw "No extension package named $id (cad-bridge, video, solidcraft or occt)" }
+}
+if ('occt' -in $Only -and -not $OcctSource.Trim()) {
+    throw 'The OCCT package needs -OcctSource, where the exact source of Open CASCADE, OCP and the libraries the OCP wheel carries is (the LGPL asks for it)'
 }
 if ('video' -in $Only) {
     if (-not $FfmpegFolder -or -not (Test-Path -LiteralPath (Join-Path $FfmpegFolder 'ffmpeg.exe'))) {
@@ -212,6 +232,91 @@ try {
             Set-Content -LiteralPath $pointer -Encoding UTF8
         $notices = @('NOTICE', 'LICENSE-MIT', 'LICENSE-APACHE' | ForEach-Object { Join-Path $folder $_ }) + @($pointer)
         Invoke-Package 'solidcraft' $folder $notices 4096
+    }
+    if ('occt' -in $Only) {
+        $folder = Join-Path $work 'occt'
+        Reset-Folder $folder
+        # OCP from its hash-pinned wheel, into a folder of its own and never into the build
+        # environment, whose packages the viewer carries.
+        $site = Join-Path $work 'occt-site'
+        Reset-Folder $site
+        $ErrorActionPreference = 'Continue'
+        & $python -m pip install --require-hashes --no-deps --only-binary ':all:' --target $site -r (Join-Path $root 'requirements\occt-helper.txt')
+        $code = $LASTEXITCODE
+        $ErrorActionPreference = 'Stop'
+        if ($code -ne 0) { throw 'OCP could not be installed from requirements\occt-helper.txt' }
+        $libs = Join-Path $site 'cadquery_ocp_novtk.libs'
+        if (-not (Test-Path -LiteralPath $libs)) { throw "The OCP wheel put no cadquery_ocp_novtk.libs folder in $site" }
+        # Every DLL the wheel carries needs its licence named first (packaging\occt\libraries.tsv,
+        # with the texts in licenses\OCP-third-party.txt). A delvewheel name ends in a hash.
+        $patterns = @(Get-Content -LiteralPath (Join-Path $root 'packaging\occt\libraries.tsv') |
+            Where-Object { $_ -and -not $_.StartsWith('#') } | ForEach-Object { ($_ -split "`t")[0] })
+        foreach ($dll in Get-ChildItem -LiteralPath $libs -Filter '*.dll') {
+            $stem = $dll.BaseName -replace '-[0-9a-f]{32}$', ''
+            if (-not @($patterns | Where-Object { $stem -like $_ })) {
+                throw "The OCP wheel carries $($dll.Name), which packaging\occt\libraries.tsv does not name; add it there with its licence text in licenses\OCP-third-party.txt"
+            }
+        }
+        $dist = Join-Path $work 'occt-dist'
+        Reset-Folder $dist
+        # A one-folder program: a one-file one would unpack about 200 MB at every start.
+        $ErrorActionPreference = 'Continue'
+        & $python -m PyInstaller (Join-Path $root 'src\solidseas_app\extensions\occt_helper.py') `
+            --onedir --console --name solidseas-occt --noconfirm --clean --paths $site `
+            --hidden-import OCP --add-binary "$libs\*.dll;cadquery_ocp_novtk.libs" `
+            --exclude-module solidseas --exclude-module solidseas_app --exclude-module tkinter `
+            --distpath $dist --workpath (Join-Path $work 'pyinstaller-occt') --specpath (Join-Path $work 'pyinstaller-occt')
+        $code = $LASTEXITCODE
+        $ErrorActionPreference = 'Stop'
+        if ($code -ne 0) { throw 'PyInstaller could not build solidseas-occt.exe' }
+        Get-ChildItem -LiteralPath (Join-Path $dist 'solidseas-occt') | Move-Item -Destination $folder
+        # The helper must start on its own and name the Open CASCADE it carries.
+        $ErrorActionPreference = 'Continue'
+        $ready = ('{"id": 1, "op": "shutdown"}' | & (Join-Path $folder 'solidseas-occt.exe') | Out-String)
+        $code = $LASTEXITCODE
+        $ErrorActionPreference = 'Stop'
+        if ($code -ne 0 -or $ready -notmatch '"helper": "occt"' -or $ready -notmatch '"occt": "7\.9\.3"') {
+            throw "solidseas-occt.exe did not start and name Open CASCADE 7.9.3: $ready"
+        }
+        $wheels = @(Get-ChildItem -LiteralPath $site -Directory -Filter '*.dist-info' | ForEach-Object { $_.Name -replace '\.dist-info$', '' })
+        $about = Join-Path $work 'occt-build.txt'
+        @(
+            'The OCCT backend package of SolidSeas makes use of facilities provided by the Open CASCADE',
+            'Technology software.',
+            '',
+            'solidseas-occt.exe is the OCCT backend''s helper, SolidSeas'' own code (Apache-2.0), built by',
+            'PyInstaller with Python and OCP 7.9.3.1, the Python bindings of Open CASCADE Technology 7.9.3,',
+            'from the cadquery-ocp-novtk 7.9.3.1.1 wheel, pinned by its SHA-256 in requirements\occt-helper.txt.',
+            '',
+            'Open CASCADE Technology (the TK*.dll libraries in _internal\cadquery_ocp_novtk.libs) is used under',
+            'the GNU Lesser General Public License version 2.1 with the Open CASCADE exception version 1.0:',
+            'LGPL-2.1.txt and OCCT_LGPL_EXCEPTION.txt in the licenses folder of this package. OCP',
+            '(_internal\OCP) is used under the Apache License 2.0: OCP-LICENSE.txt. The other libraries the',
+            'wheel carries, each under its own licence, are listed with their licence texts in',
+            'OCP-third-party.txt.',
+            '',
+            'Each of these libraries is a separate file in this package''s folder and can be replaced by',
+            'another build of it with the same interface, put in its place.',
+            '',
+            'The exact source of Open CASCADE Technology 7.9.3, OCP 7.9.3.1 and the other libraries: ' + $OcctSource.Trim(),
+            'Open CASCADE Technology: https://github.com/Open-Cascade-SAS/OCCT/releases/tag/V7_9_3',
+            'OCP: https://github.com/CadQuery/OCP/releases/tag/7.9.3.1',
+            '',
+            'The wheels this package was built from: ' + ($wheels -join ', ')
+        ) | Set-Content -LiteralPath $about -Encoding UTF8
+        $pythonLicence = Join-Path $work 'Python-LICENSE.txt'
+        $ErrorActionPreference = 'Continue'
+        $base = (& $python -c 'import sys; print(sys.base_prefix)' | Out-String).Trim()
+        $ErrorActionPreference = 'Stop'
+        # The helper is a PyInstaller program, so it carries Python and PyInstaller's bootloader.
+        Copy-Item -LiteralPath (Join-Path $base 'LICENSE.txt') -Destination $pythonLicence -Force
+        $licenceTexts = @('LGPL-2.1.txt', 'OCCT_LGPL_EXCEPTION.txt', 'OCP-LICENSE.txt', 'OCP-third-party.txt', 'PyInstaller-COPYING.txt') | ForEach-Object { Join-Path $root "licenses\$_" }
+        Copy-Licences $folder ($ownLicences + $licenceTexts + @($about, $pythonLicence))
+        $pointer = Join-Path $work 'occt-licences.txt'
+        'The licence texts of everything in this package (SolidSeas, Python, PyInstaller, OCP, Open CASCADE Technology and the other libraries the OCP wheel carries) are in its licenses folder; THIRD_PARTY_NOTICES.txt there says what each one covers.' |
+            Set-Content -LiteralPath $pointer -Encoding UTF8
+        $notices = @($about) + (@('OCCT_LGPL_EXCEPTION.txt', 'LGPL-2.1.txt') | ForEach-Object { Join-Path $root "licenses\$_" }) + @($pointer)
+        Invoke-Package 'occt' $folder $notices 3072
     }
 
     $zips = @(Get-ChildItem -LiteralPath $out -Filter '*.zip' | Sort-Object Name | ForEach-Object { $_.FullName })

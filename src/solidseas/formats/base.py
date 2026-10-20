@@ -990,6 +990,12 @@ def _open(
         opener = registry.reader(fid)
         if opener is None:
             spec = registry.FORMATS[fid]
+            if spec.backend is not None:
+                from ..convert import unavailable
+
+                reason = unavailable(fid)
+                if reason is not None:
+                    raise FormatNotSupportedError(reason, detail={"rule": "needs_extension", "value": fid})
             raise FormatNotSupportedError(
                 f"SolidSeas cannot read {spec.name} files yet", detail={"rule": "no_reader", "value": fid}
             )

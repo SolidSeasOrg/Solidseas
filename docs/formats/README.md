@@ -13,10 +13,12 @@ one document per group of formats, each written by the branch that reads them.
 | [step.md](step.md) | STEP AP203, AP214 and AP242 | read |
 | [alibre.md](alibre.md) | Alibre Design parts and assemblies, ACIS SAB | read |
 
-The registry (`solidseas.formats.registry`) also knows IGES, Inventor, Solid
-Edge, NX, Fusion, 3D XML, eDrawings and VRML files, and Alibre Design drawings
-and packages: a folder listing shows them with the status `unsupported` and
-SolidSeas opens none of them. Two extensions other programs share are listed
+The registry (`solidseas.formats.registry`) also knows Inventor, Solid Edge,
+NX, Fusion, 3D XML, eDrawings and VRML files, and Alibre Design drawings and
+packages: a folder listing shows them with the status `unsupported` and
+SolidSeas opens none of them. IGES and Open CASCADE's BREP files are read
+through the OCCT backend extension (`docs/API.md` 3.20.10) while it is on, and
+listed as `unsupported` while it is not. Two extensions other programs share are listed
 only by content: a Solid Edge `.asm` when it starts with the compound-file
 signature, and an NX `.prt` never (NX has no signature SolidSeas checks yet).
 

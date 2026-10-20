@@ -6,7 +6,8 @@ A file of any other format (STEP, STL, 3MF, Alibre Design...) is read only in a
 (the job ``model_entry``), the details panel's sections and the rendered
 thumbnails (:mod:`.modeljobs`, ``model_preview``). Each worker is a spawned
 process below normal priority with a memory cap of :data:`MEMORY_MB` (on Windows
-in a job object that ends it with the viewer), and a job past its deadline is
+in a job object that ends it with the viewer, and that lets each worker start one
+helper: the OCCT backend's, for IGES and BREP files), and a job past its deadline is
 ended with its worker; what comes back is JSON and PNG images SolidSeas wrote,
 never a pickle.
 
@@ -28,6 +29,18 @@ WORKERS = 2
 MEMORY_MB = 2048
 TIMEOUT_S = 60.0  # a job's deadline: a large B-rep's geometry takes up to 30 s, then its picture
 RETRY_AFTER_S = 30.0  # a pool that would not start is tried again after this long, not for every file
+
+
+def _helpers() -> int:
+    """Processes each worker may start: one while the OCCT backend can run (its helper
+    reads IGES and BREP), else none. Decided when the pool starts, so switching the OCCT
+    package on reaches IGES and BREP files when the viewer next starts."""
+    try:
+        from solidseas.convert import backend
+
+        return 1 if backend("occt").unavailable() is None else 0
+    except Exception:
+        return 0
 
 
 class ModelPool:
@@ -64,6 +77,11 @@ class ModelPool:
                         memory_mb=self.memory_mb,
                         jobs=JOBS,
                         priority="below_normal",
+                        # an IGES or BREP file's worker starts the OCCT backend's helper,
+                        # which runs in a Job Object of its own inside the pool's; only
+                        # while that backend is there, so a pool without it keeps its
+                        # workers from starting any process
+                        helpers_per_worker=_helpers(),
                     )
                 except Exception as exc:
                     self._failed = (time.monotonic(), exc)

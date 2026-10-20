@@ -34,7 +34,9 @@ people: a fixed set of spawn worker processes, each with its own pipe, as the
 * **A memory cap.** On Windows every worker is assigned, as soon as it starts,
   to one Job Object with ``KILL_ON_JOB_CLOSE`` (closing the pool, or the parent
   dying, ends every worker), ``ACTIVE_PROCESS`` equal to the worker count (a
-  worker cannot start another process), ``PROCESS_MEMORY`` and
+  worker cannot start another process; a pool made with ``helpers_per_worker``
+  lets each worker start that many, such as the OCCT backend's helper, which
+  stays inside this Job Object and is capped like a worker), ``PROCESS_MEMORY`` and
   ``DIE_ON_UNHANDLED_EXCEPTION``, and the worker calls ``SetErrorMode`` so a
   crash never opens a dialog. On Linux the worker sets ``RLIMIT_AS`` and asks
   for ``SIGKILL`` when its parent dies (``prctl(PR_SET_PDEATHSIG)``). An
@@ -469,7 +471,10 @@ class WorkerPool:
     service turns it off), ``refuse_hard_links`` whether a file with more than one
     name is refused, and ``max_file_bytes`` the largest document a job reads.
     ``jobs`` adds or replaces job-table entries (``{"name": "module:function"}``),
-    from Python only. ``priority`` is ``"normal"`` or ``"below_normal"``. ``log`` is a
+    from Python only. ``priority`` is ``"normal"`` or ``"below_normal"``.
+    ``helpers_per_worker`` (0 to 4, default 0) is how many processes each worker may
+    start: on Windows the Job Object's active-process limit is the worker count times
+    one more than it, so with 0 no worker starts any process. ``log`` is a
     :class:`logging.Logger` for the pool's events
     (a worker started, killed, replaced, or failing to start); the REST service
     passes its own.
@@ -493,9 +498,18 @@ class WorkerPool:
         start_timeout_s: float = START_TIMEOUT_S,
         log: logging.Logger | None = None,
         priority: str = "normal",
+        helpers_per_worker: int = 0,
     ) -> None:
         if isinstance(workers, bool) or not isinstance(workers, int) or not 1 <= workers <= 64:
             raise InvalidArgumentError("workers must be 1 to 64", detail={"parameter": "workers"})
+        if (
+            isinstance(helpers_per_worker, bool)
+            or not isinstance(helpers_per_worker, int)
+            or not 0 <= helpers_per_worker <= 4
+        ):
+            raise InvalidArgumentError(
+                "helpers_per_worker must be 0 to 4", detail={"parameter": "helpers_per_worker"}
+            )
         _check_positive(timeout_s, "timeout_s")
         _check_positive(memory_mb, "memory_mb", allow_none=True, kind=int)
         _check_positive(max_result_bytes, "max_result_bytes", kind=int)
@@ -518,6 +532,7 @@ class WorkerPool:
         self.start_timeout_s = float(start_timeout_s)
         self.log = log
         self.priority = priority
+        self.helpers_per_worker = helpers_per_worker
         # What happened to the processes, newest last, for tests and diagnostics: started,
         # killed (with the reason), joined (with the exit code and whether it still ran),
         # replaced, assign_failed, replace_waiting (a killed worker had not ended yet) and
@@ -546,7 +561,9 @@ class WorkerPool:
         self._ids = itertools.count(1)
         self._job = (
             _JobObject(
-                workers, (memory_mb << 20) if memory_mb else None, below_normal=priority == "below_normal"
+                workers * (1 + helpers_per_worker),
+                (memory_mb << 20) if memory_mb else None,
+                below_normal=priority == "below_normal",
             )
             if _WINDOWS
             else None
