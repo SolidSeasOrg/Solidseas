@@ -29,7 +29,7 @@ UNKNOWN. "Offline" below means checked by code with no SOLIDWORKS.
 | SolidCraft to IR to a native file | VERIFIED in SOLIDWORKS for one extruded rectangle (p1, p2: 40 x 30 x 10 mm, native, depth editable), through the seed (section 10) |
 | The archive's object numbering, which new records must follow | VERIFIED offline (section 4.6) |
 | Parts from the clean-room generator (section 15) | VERIFIED in SOLIDWORKS 2024 for three boxes: opens with its feature tree, rebuilds to an edited depth (section 6.2) |
-| A box with one round hole cut through all, from the generator | Written and read back offline; the cut's records proved on o10 and o11 but for the ring of faces (HYPOTHESIS, spec 15.5.13); not yet opened in SOLIDWORKS |
+| A box with one round hole cut through all, from the generator | VERIFIED in SOLIDWORKS 2024 on open: one body, Boss-Extrude1 and Cut-Extrude1, the hole in place (section 6.2); the cut's records proved on o10 and o11 but for the ring of faces (HYPOTHESIS, spec 15.5.13) |
 | Authoring new sketches, relations, dimensions and features | Not started: needs each class's field layout (4.6.1) and dimensioned fixtures |
 
 On 2026-10-19 SOLIDWORKS 2024 SP1 (revision 32.1.0) opened all 17
@@ -440,6 +440,17 @@ part with no partition, display lists or previews are accepted on open and
 rebuild. This was a check by hand, not `native-writer` (section 7): no
 volumes or What's Wrong lists were recorded, and the part off the origin
 was not looked at as closely.
+
+On 2026-10-21 two more were opened the same way: a 40 x 30 x 10 mm box with
+a 10 mm hole through its middle, and a box off the origin with a 6 mm hole
+off its centre, each cut through all in both directions (spec 15.5.13). Both
+opened with Solid Bodies (1), Boss-Extrude1 and Cut-Extrude1 in the tree and
+the hole where the design puts it, and were reported as good. The hole's wall
+showed as a few flat facets, the shading SOLIDWORKS draws from the part's
+display settings; a rebuild after an edit was not recorded. So the ring of
+faces SolidSeas derives for the cut (a HYPOTHESIS in the specification) is
+accepted on open, and the first sketch off the origin takes the creation
+number of 15.5.4's new rule without complaint.
 
 ## 7. The check on the PC
 

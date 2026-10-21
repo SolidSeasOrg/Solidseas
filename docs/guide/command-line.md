@@ -101,8 +101,8 @@ not carried over, so the rectangle is kept as geometry.
 
 A part with a single box can also have one round hole: a circle on the Front
 Plane that lies inside the rectangle, cut through all in both directions. It
-appears as `Sketch2` and `Cut-Extrude1`. Parts with a hole have not been opened
-in SOLIDWORKS yet, and the command says so when it writes one.
+appears as `Sketch2` and `Cut-Extrude1`, and parts like it open in SOLIDWORKS
+2024 as one body with the hole in place.
 
 The part also gets the design's file properties, which SOLIDWORKS shows under
 File > Properties on the Custom tab: text, numbers, dates and yes or no values.

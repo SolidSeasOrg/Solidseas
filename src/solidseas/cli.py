@@ -949,8 +949,8 @@ NATIVE_PART_NOTE = (
     "you rely on it."
 )
 NATIVE_HOLE_NOTE = (
-    "SolidSeas made this part without SOLIDWORKS and checked it. Parts with a hole have not "
-    "been opened in SOLIDWORKS yet; open this one there before you rely on it."
+    "SolidSeas made this part without SOLIDWORKS and checked it. Parts like it open in "
+    "SOLIDWORKS 2024 with the hole in place; open an important one there before you rely on it."
 )
 
 
