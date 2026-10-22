@@ -22,7 +22,10 @@ Parasolid partition are left out on purpose: SOLIDWORKS builds the body from
 the features when it opens a part with no partition, and opens a part with
 no display lists or previews (VERIFIED in SOLIDWORKS 2024 SP1, 2026-10-19:
 parts without them opened with no warning, rebuilt to their features, took a
-dimension edit and saved).
+dimension edit and saved). Because nothing is cached, SOLIDWORKS facets the curved
+faces itself on open; a generated hole shades as about eight flat facets, which is
+also how coarse o10's own display list draws its hole. Section 15.4.7 says what the
+fixtures rule out and what would settle it.
 
 | # | Member | Section | Listing |
 |---|---|---|---|

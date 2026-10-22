@@ -234,3 +234,40 @@ def test_a_cut_the_specification_does_not_give_is_refused(change):
     with pytest.raises(gen.NativeWriteUnsupported) as err:
         gen.write_part(doc)
     assert err.value.items
+
+
+@pytest.mark.parametrize("change, reason", [
+    ("two circles", "more than one circle"),
+    ("a circle and a line", "not a single corner rectangle"),
+])
+def test_a_sketch_goes_to_the_circle_table_only_when_its_curves_are_all_circles(change, reason):
+    """15.6.2: circles only go to the circle table; a circle mixed with lines to the rectangle's."""
+    from solidseas.nativewrite import ir
+
+    doc = _hole("o10-like")
+    curves = doc.features[2].curves
+    if change == "two circles":
+        curves.append(ir.Curve("k2", "circle", ["c"], radius=0.001))
+    else:
+        curves.append(ir.Curve("l9", "line", ["c", ir.ORIGIN]))
+    with pytest.raises(gen.NativeWriteUnsupported) as err:
+        gen.plan(doc)
+    assert len(err.value.items) == 1 and reason in err.value.items[0]
+
+
+def test_a_written_box_with_a_hole_carries_solidworks_own_display_settings():
+    """15.4.7: the generated hole part of o11's size holds o11's drafting settings, curvature
+    object and stored box, so none of them is a coarser image quality than SOLIDWORKS'."""
+    doc = _hole("o11-like")
+    with open_container(gen.write_part(doc, identity=gen.Identity(**_identity()))) as c:
+        config, header = c.read("Contents/Config-0"), c.read("Header2")
+    o11 = S.fixture("o11")
+    assert SPEC.relmgr(config) == SPEC.relmgr(o11["Contents/Config-0"])
+
+    def curvature(data: bytes) -> bytes:
+        k = data.find(b"gcCurvatureObject_c") + len(b"gcCurvatureObject_c")
+        return data[k:k + 40]
+
+    assert curvature(config) == curvature(o11["Contents/Config-0"])
+    box = struct.pack("<6d", 0.04, 0.03, 0.01, 0.0, 0.0, 0.0)  # model.max, then model.min
+    assert box in header and box in o11["Header2"]

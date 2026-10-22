@@ -403,3 +403,68 @@ def test_the_rules_of_15_6_refuse_what_the_fixtures_do_not_show(change, reason):
     change(doc)
     with pytest.raises(ValueError, match=reason):
         D.features_of(doc)
+
+
+@pytest.mark.parametrize("change, reason", [
+    (lambda d: d.features[2].curves.append(ir.Curve("k2", "circle", ["c"], radius=0.001)),
+     "more than one circle"),
+    (lambda d: d.features[2].curves.append(ir.Curve("l9", "line", ["c", ir.ORIGIN])),
+     "not a single corner rectangle"),
+    (lambda d: setattr(d.features[2].curves[0], "construction", True), "more than one circle"),
+])
+def test_15_6_2_routes_a_sketch_by_whether_its_curves_are_all_circles(change, reason):
+    """15.6.2: a sketch of circles only goes to the circle table, one that mixes a circle
+    with lines to the rectangle table."""
+    doc = _box_with_hole()
+    change(doc)
+    with pytest.raises(ValueError, match=reason):
+        D.features_of(doc)
+
+
+def test_a_degenerate_circle_never_reaches_the_rules_of_15_6():
+    """15.6.2's "degenerate circle" row: the IR's validation, step 1 of 15.6.1, refuses it first."""
+    doc = _box_with_hole()
+    doc.features[2].curves[0].radius = 0.0
+    with pytest.raises(ir.IRError, match="positive radius"):
+        ir.validate(doc)
+
+
+# ------------------------------------------------------------------ shaded image quality (15.4.7)
+def relmgr(config: bytes) -> bytes:
+    """The run of ``Contents/Config-0`` from ``moRelMgr_c`` to ``moEnvFolder_c`` (15.4.7)."""
+    return config[config.find(b"moRelMgr_c"):config.find(b"moEnvFolder_c")]
+
+
+def hole_facets(name: str, cx: float, cy: float, r: float) -> int:
+    """The number of facets SOLIDWORKS' own display list draws round a hole's wall: the
+    distinct angles of the positions of the one face whose every point lies on the hole."""
+    import math
+
+    from solidseas.formats.solidworks.mesh import parse_tess_tables
+
+    found = []
+    for t in parse_tess_tables(S.fixture(name)["Contents/DisplayLists"]):
+        pos = t["positions"]
+        pts = [pos[i:i + 3] for i in range(0, len(pos), 3)]
+        if pts and all(abs(math.hypot(p[0] - cx, p[1] - cy) - r) < 2e-5 for p in pts):
+            found.append({round(math.degrees(math.atan2(p[1] - cy, p[0] - cx)), 3) % 360 for p in pts})
+    assert len(found) == 1
+    return len(found[0])
+
+
+def test_every_part_fixture_carries_the_same_drafting_settings():
+    """15.4.7: no fixture saves another image quality or drafting setting; o09 and o10 differ
+    only in class references one higher (the import starts the archive at 3)."""
+    base = relmgr(S.fixture("o02")[CUT.CONFIG])
+    assert len(base) == 17326
+    for name in ("o01", "o03", "o04", "o05", "o06", "o07", "o11", "o12", "o13", "o14", "o17"):
+        assert relmgr(S.fixture(name)[CUT.CONFIG]) == base, name
+    o10 = relmgr(S.fixture("o10")[CUT.CONFIG])
+    assert len(o10) == len(base)
+    assert {(base[i], o10[i]) for i in range(len(base)) if base[i] != o10[i]} == {(10, 11)}
+
+
+def test_solidworks_own_display_lists_draw_a_hole_with_few_facets():
+    """15.4.7: with the template's settings, o10's 2.5 mm hole has 8 facets, o11's 5 mm hole 18."""
+    assert hole_facets("o10", 0.005, 0.01, 0.0025) == 8
+    assert hole_facets("o11", 0.02, 0.015, 0.005) == 18

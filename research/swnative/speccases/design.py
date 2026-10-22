@@ -227,7 +227,8 @@ def _corners(s: ir.Sketch) -> tuple[list[float], bool]:
 
 
 def is_circle(s) -> bool:
-    """A sketch whose curves are exactly one circle (15.6.2)."""
+    """A sketch whose curves are exactly one circle (15.6.2). A sketch of several circles is
+    refused before this is asked; one that mixes a circle with lines is a rectangle's."""
     return isinstance(s, ir.Sketch) and len(s.curves) == 1 and s.curves[0].kind == "circle"
 
 
@@ -237,7 +238,8 @@ def _circle(s: ir.Sketch) -> tuple[float, float, float]:
         raise ValueError(f"{s.name}: sketch on a plane other than the Front Plane, or suppressed")
     c = s.curves[0]
     if c.construction:
-        raise ValueError(f"{s.name}: sketch is not a single circle")
+        # 15.6.2 gives a construction circle the reason of a sketch of several circles
+        raise ValueError(f"{s.name}: a sketch with more than one circle is not written yet")
     pts = {p.id: (p.x, p.y) for p in s.points}
     pts[ir.ORIGIN] = (0.0, 0.0)
     cx, cy = pts[c.points[0]]
@@ -306,11 +308,11 @@ def features_of(doc: ir.Document) -> list[dict]:
             uid += 1
             items += [sketch, ext]
             continue
+        corners, at_origin = _corners(s)  # the sketch first: its extrusion depends on it
         if e.end != "blind" or e.direction != "forward":
             raise ValueError(f"{e.name}: only blind extrusions towards the sketch normal are written")
         if k == 0 and e.operation == "cut" or k > 0 and e.operation != "new_body":
             raise ValueError(f"{e.name}: operation {e.operation} is not written")
-        corners, at_origin = _corners(s)
         x0, y0, x1, y1 = corners
         sketch = {"name": f"Sketch{n_sketch}", "sketch": True, "circle": False, "log_modified": True,
                   "id": uid,
