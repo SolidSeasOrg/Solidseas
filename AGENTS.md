@@ -167,6 +167,13 @@ Extend the test's allowlists only after reviewing what a regeneration added.
 - Batch work (conversion, thumbnails, validation, tests) never attaches to the
   user's interactive SOLIDWORKS session. It starts its own `SLDWORKS.exe` and
   attaches through the Running Object Table moniker `SolidWorks_PID_<pid>`.
+  It never ends that SOLIDWORKS while it shows a document the bridge did not
+  open (it shows it to the person instead), and once it has ended, batch
+  conversion puts back the registry values that SOLIDWORKS changed, only under
+  `HKEY_CURRENT_USER\Software\SolidWorks` (`User Interface` and
+  `General\Last Splash Id`), only when no other SOLIDWORKS ran meanwhile, and
+  only values that still hold what it left (`solidseas/swapi/hkcu.py`, the
+  user's choice in SolidSeas-1k3). It writes nothing else to the registry.
   One exception, agreed by the user on 2026-10-19 while SolidSeas' own
   instance could not start: the opt-in tests (`SOLIDSEAS_SWAPI_ATTACH_PID`)
   and the `-attached` SOLIDWORKS checks may attach to the user's open session
