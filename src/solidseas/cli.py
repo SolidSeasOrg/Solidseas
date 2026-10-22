@@ -2480,6 +2480,7 @@ def _drawing_options(args: argparse.Namespace):
         sheet=args.sheet,
         scale=_scale_option(args.scale),
         configuration=args.configuration,
+        view_sheets=(("isometric", 2),) if getattr(args, "isometric_sheet", False) else (),
     )
 
 
@@ -4228,6 +4229,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     ap.add_argument("--sheet", choices=("auto", "A", "B", "C", "D", "E"), default="auto")
     ap.add_argument("--scale", default="auto", metavar="auto|N:M", help="such as 1:2 (default: chosen)")
+    ap.add_argument(
+        "--isometric-sheet",
+        action="store_true",
+        help="draw the isometric on a sheet of its own after the first (with an assembly's balloons)",
+    )
     for key, flag in TITLE_FLAGS:
         words = "drawn by (signs DRAWN with today's date)" if key == "drawn_by" else key.replace("_", " ")
         ap.add_argument(

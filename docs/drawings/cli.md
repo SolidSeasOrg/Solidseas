@@ -55,6 +55,7 @@ those of the table in 14:
 | `--views auto\|LIST` | `auto`, or view names separated by commas: `front,top,right,isometric` |
 | `--front auto\|+x\|-x\|+y\|-y\|+z\|-z`, `--turn 0..3` | the direction the front view looks from and its quarter turns (default: chosen, 8.2) |
 | `--sheet auto\|A..E`, `--scale auto\|N:M` | such as `B` and `1:2` |
+| `--isometric-sheet` | the isometric on a sheet of its own after the first, with an assembly's balloons (`view_sheets`, `docs/DRAWINGS.md` 11.7); the summary counts the sheets |
 | `--title`, `--number`, `--part-number`, `--revision`, `--material`, `--finish`, `--drawn-by` | title fields typed by the user (origin `typed`; a material or finish in the Settings' list takes its callout, origin `list`); `--drawn-by` signs DRAWN with today's date, as the wizard's page 2 does. Fields not given come from the part's properties (origin `part`) |
 | `--confirm-threads FILE` | the user's answers for thread candidates (below) |
 | `--settings FILE` | Drawing Settings to use instead of the user's |

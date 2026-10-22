@@ -339,6 +339,18 @@ def test_new_takes_every_option_of_the_table(capsys, place, tmp_path):
     assert d["title"]["finish"]["text"] == "ANODIZE CLEAR" and 1 <= d["counts"]["views"] <= 3
 
 
+def test_new_puts_the_isometric_on_a_sheet_of_its_own_on_request(capsys, place):
+    from pdf_reader import PdfDocument
+
+    data = new(capsys, place, "--isometric-sheet", "--pdf", "--settings", place.settings())
+    d = data["drawing"]
+    assert d["counts"]["sheets"] == 2 and d["counts"]["views"] == 3
+    pdf = next(f for f in data["files"] if f["name"].endswith(".pdf"))
+    assert PdfDocument((place.out / pdf["name"]).read_bytes()).page_count == 2
+    plain = new(capsys, place, "--settings", place.settings())["drawing"]
+    assert plain["counts"]["sheets"] == 1 and plain["counts"]["views"] == 3
+
+
 @pytest.mark.parametrize(
     "extra",
     [
