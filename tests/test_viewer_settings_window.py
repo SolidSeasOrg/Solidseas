@@ -102,14 +102,19 @@ def test_every_note_shows_whole_on_a_1080p_screen_at_125_percent(tmp_path):
     import sys
     from pathlib import Path
 
-    config = tmp_path / "screen.json"
-    config.write_text(json.dumps(_SCREEN_1080P_125), encoding="utf-8")
-    env = {**os.environ, "QT_QPA_PLATFORM": f"offscreen:configfile={config}"}
-    env["PYTHONPATH"] = os.pathsep.join(
-        [str(Path(__file__).resolve().parent.parent / "src"), env.get("PYTHONPATH", "")]
-    )
+    (tmp_path / "screen.json").write_text(json.dumps(_SCREEN_1080P_125), encoding="utf-8")
+    # Named from the child's own folder: Qt separates a platform's arguments with colons,
+    # which a Windows drive letter would split.
+    env = {**os.environ, "QT_QPA_PLATFORM": "offscreen:configfile=screen.json"}
+    src = str(Path(__file__).resolve().parent.parent / "src")
+    env["PYTHONPATH"] = os.pathsep.join(p for p in (src, env.get("PYTHONPATH")) if p)
     proc = subprocess.run(
-        [sys.executable, "-c", _FIT_SCRIPT], env=env, capture_output=True, text=True, timeout=180
+        [sys.executable, "-c", _FIT_SCRIPT],
+        env=env,
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        timeout=180,
     )
     assert proc.returncode == 0 and "Traceback" not in proc.stderr, proc.stderr[-3000:]
     got = json.loads(proc.stdout.strip().splitlines()[-1])
