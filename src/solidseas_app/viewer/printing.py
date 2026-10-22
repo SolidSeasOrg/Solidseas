@@ -41,11 +41,14 @@ export goes, and the one function that starts the program.
   the highest number is the newest; a file that is there is never opened, renamed or
   replaced. The file is written under a temporary name (:func:`part_path`), never
   through a link at its name, and then given its own by a rename that refuses a name
-  taken (:func:`_claim`), so two prints at once never take the same one.
+  taken (:func:`_claim`, :func:`rename_new`), so two prints at once never take the
+  same one. Outside Windows that rename is a second link to the file, which a file
+  system without hard links (FAT, exFAT, some network shares) cannot make.
 * **The fallback.** When the model's folder must not or cannot be written
   (:func:`folder_problem`: a link or junction there or in any folder above it, a
   cloud placeholder, a network share outside the opened folder, a device or stream
-  path; or the write fails: read-only, permission denied), when it is outside the
+  path, a file system without hard links; or the write fails: read-only, permission
+  denied, the link refused), when it is outside the
   self-test's folder, and when the setting Save 3D Print Files Next to the Model is
   off, the file goes to a folder of the user's own under the system's temporary
   folder (:func:`export_folder`) instead, named the same way; the result says why.
@@ -64,6 +67,7 @@ export goes, and the one function that starts the program.
 """
 
 import datetime
+import errno
 import json
 import os
 import re
@@ -439,6 +443,10 @@ PLACEHOLDER = "the model's folder is a cloud placeholder, whose files are not on
 NOT_A_FOLDER = "the model's folder is not a folder"
 READ_ONLY = "the model's folder is read-only"
 DENIED = "permission to add a file to the model's folder was denied"
+NO_LINKS = (
+    "the model's folder is on a file system without hard links (a FAT or exFAT drive, or some network "
+    "shares), and SolidSeas names a new file there through one so that it never replaces a file"
+)
 FULL = (
     f"the model's folder already has a print of it from today numbered {MAX_NUMBER:,}, the highest "
     "number a print is given"
@@ -446,6 +454,18 @@ FULL = (
 TAKEN = "every name tried for it in the model's folder was taken by other files while it was saved"
 SETTING_OFF = "Save 3D Print Files Next to the Model is off"
 CONFINED = "the model's folder is outside the folder under test, where alone the self-test adds print files"
+
+
+# File systems that keep no hard links, by the type the mount table gives them (Linux's
+# vfat, msdos and exfat; macOS's msdos and exfat). A folder on one is known before
+# anything is written there (folder_problem); any other that refuses a link says so when
+# a print file is named (rename_new).
+NO_LINK_TYPES = frozenset({"vfat", "msdos", "exfat"})
+# What a link refused by its file system raises: EPERM on Linux, where the file system has
+# no hard links (link(2); FAT, exFAT, a FUSE file system without them), EOPNOTSUPP from an
+# SMB share that refuses them, ENOTSUP on macOS, ENOSYS from an older FUSE.
+NO_LINK_ERRNOS = frozenset({errno.EPERM, errno.EOPNOTSUPP, errno.ENOTSUP, errno.ENOSYS})
+NO_HARD_LINKS = "no_hard_links"  # the rule of the OutputRefusedError rename_new raises for one
 
 
 def _link(st: os.stat_result) -> bool:
@@ -543,6 +563,20 @@ def _local(path: str) -> bool:
     return drive_type(drive + "\\") in (DRIVE_FIXED, DRIVE_REMOVABLE, DRIVE_RAMDISK)
 
 
+def _without_links(path: str) -> bool:
+    """Whether ``path`` lies on a file system of :data:`NO_LINK_TYPES`, from its text and the
+    mount table alone (:mod:`solidseas.netfs`). Never on Windows, where a rename refuses a
+    name taken by itself and no link is made."""
+    if os.name == "nt":
+        return False
+    from solidseas import netfs
+
+    try:
+        return netfs.mount_type(path) in NO_LINK_TYPES
+    except Exception:  # a table that cannot be read tells nothing; a refused link still says so
+        return False
+
+
 def _may_look(path: str, opened: str) -> bool:
     """Whether ``path`` may be looked at: inside the folder the user opened, or on a drive
     of this computer; never a network share or drive outside the opened folder."""
@@ -591,11 +625,13 @@ def folder_problem(folder: str, opened: str) -> str | None:
     mapped network drive, never contacted); a link, a junction or a cloud placeholder
     at the folder or at any folder it is in, from the root of its drive down
     (:func:`ancestry`), so the rule is the same whichever folder was opened and wherever
-    the model was found; outside Windows, a folder this account may not write in. Only
-    the path's text and ``lstat`` are used: nothing is opened or written. A Windows
-    folder's read-only attribute is not a refusal: Windows sets it on Documents and
-    Desktop to keep their icons and adds files to such folders all the same. Whether
-    the folder takes the file is only known by writing it, which
+    the model was found; outside Windows, a folder this account may not write in, and one
+    on a file system without hard links (:data:`NO_LINK_TYPES`, from the mount table),
+    where the print file could not be named without the risk of replacing a file. Only
+    the path's text, ``lstat`` and the mount table are used: nothing is opened or
+    written. A Windows folder's read-only attribute is not a refusal: Windows sets it on
+    Documents and Desktop to keep their icons and adds files to such folders all the
+    same. Whether the folder takes the file is only known by writing it, which
     :func:`export_for_print` does."""
     if not folder or "\x00" in folder or len(folder) > MAX_PATH_TEXT:
         return ODD_PATH
@@ -612,17 +648,19 @@ def folder_problem(folder: str, opened: str) -> str | None:
             return why
     if os.name != "nt" and not os.access(folder, os.W_OK | os.X_OK):
         return READ_ONLY
+    if _without_links(folder):
+        return NO_LINKS
     return None
 
 
 def write_problem(exc: BaseException) -> str:
     """Why writing a print file in the model's folder failed, said for the user."""
-    import errno
-
     if isinstance(exc, OutputRefusedError):
         detail = exc.detail or {}
         if detail.get("rule") == "exists":
             return FULL if detail.get("highest", 0) >= MAX_NUMBER else TAKEN
+        if detail.get("rule") == NO_HARD_LINKS:
+            return NO_LINKS
         return f"the model's folder was refused: {exc}"
     winerror = getattr(exc, "winerror", None)
     if winerror == 19 or getattr(exc, "errno", None) == errno.EROFS:  # ERROR_WRITE_PROTECT
@@ -808,18 +846,38 @@ def part_path(folder: str, token: str) -> str:
     return os.path.join(folder, f"{PART_PREFIX}{token}.part")
 
 
+def rename_new(part: str, target: str) -> None:
+    """Give the finished file at ``part`` the name ``target``, never replacing a file there:
+    ``FileExistsError`` when the name is taken. On Windows a rename refuses a name taken;
+    elsewhere a second link to the file refuses it too, and then the first name goes. A
+    file system without hard links (FAT, exFAT, an SMB share that refuses them) cannot make
+    that link: ``OutputRefusedError`` with the rule :data:`NO_HARD_LINKS` says so, rather
+    than the permission error the system gives, and ``part`` is left for the caller."""
+    if os.name == "nt":
+        os.rename(part, target)
+        return
+    try:
+        os.link(part, target)
+    except FileExistsError:
+        raise
+    except OSError as exc:
+        if exc.errno not in NO_LINK_ERRNOS:
+            raise
+        raise OutputRefusedError(
+            f"{os.path.dirname(target)} is on a file system without hard links, and a new file is "
+            "named there through one so that it never replaces a file",
+            detail={"rule": NO_HARD_LINKS, "errno": errno.errorcode.get(exc.errno or 0, exc.errno)},
+        ) from exc
+    os.remove(part)
+
+
 def _claim(part: str, folder: str, names) -> str:
     """Give the finished export at ``part`` the first of ``names`` not taken, never
-    replacing a file: a rename refuses one that is there on Windows, and elsewhere a
-    second link to the file refuses it too before the first goes."""
+    replacing a file (:func:`rename_new`)."""
     for name in names:
         target = os.path.join(folder, name)
         try:
-            if os.name == "nt":
-                os.rename(part, target)
-            else:
-                os.link(part, target)
-                os.remove(part)
+            rename_new(part, target)
             return target
         except FileExistsError:
             continue

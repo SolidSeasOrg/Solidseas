@@ -20,6 +20,7 @@ import json
 import os
 import shutil
 import stat
+import sys
 import threading
 import time
 import types
@@ -564,6 +565,121 @@ def test_why_a_write_failed_is_said_plainly():
     if os.name == "nt":
         protected = OSError(None, "The media is write protected", None, 19)
         assert printing.write_problem(protected) == printing.READ_ONLY
+    no_links = OutputRefusedError("no links", detail={"rule": printing.NO_HARD_LINKS})
+    assert printing.write_problem(no_links) == printing.NO_LINKS
+
+
+# Outside Windows a print file is named by a second link to its part (rename_new), which a
+# file system without hard links refuses: EPERM on Linux (FAT, exFAT, a FUSE file system
+# without them, as link(2) says), EOPNOTSUPP from an SMB share that refuses them, ENOSYS from
+# an older FUSE. EPERM reaches Python as a PermissionError, which once read as "denied".
+no_links_here = pytest.mark.skipif(os.name == "nt", reason="Windows names a new file by a rename, not a link")
+
+
+def _refuse_links_in(folder: Path, monkeypatch, code: int) -> list[str]:
+    """Make every link into ``folder`` fail with ``code``, as a file system without hard
+    links fails it; the names asked for there."""
+    real = os.link
+    asked: list[str] = []
+
+    def link(src, dst, *args, **kwargs):
+        if os.path.dirname(os.path.abspath(dst)) == str(folder):
+            asked.append(str(dst))
+            raise OSError(code, os.strerror(code))
+        return real(src, dst, *args, **kwargs)
+
+    monkeypatch.setattr(os, "link", link)
+    return asked
+
+
+@no_links_here
+@pytest.mark.parametrize("code", [errno.EPERM, errno.EOPNOTSUPP, errno.ENOSYS])
+def test_a_file_system_without_hard_links_is_said_to_be_one_not_permission_denied(models, monkeypatch, code):
+    """The link that names the print file is refused: the print goes to the temporary
+    folder as before, saying why, and nothing is left next to the model, its part
+    included."""
+    asked = _refuse_links_in(models, monkeypatch, code)
+    before = _files(models)
+    out = _export(models, "o02_boxA.SLDPRT")
+    assert asked == [str(models / f"o02_boxA {TODAY}.3mf")]
+    assert out["place"] == printing.TEMP and out["fallback"] == printing.NO_LINKS
+    temp = printing.export_folder(str(models.parent / "temp"))
+    assert out["file"] == os.path.join(temp, f"o02_boxA {TODAY}.3mf") and os.path.isfile(out["file"])
+    assert _files(models) == before
+
+
+@no_links_here
+def test_only_a_link_the_file_system_refuses_reads_as_one_without_hard_links(tmp_path, monkeypatch):
+    part = tmp_path / ".0123456789abcdef.part"
+    part.write_bytes(b"mine")
+    _refuse_links_in(tmp_path, monkeypatch, errno.EPERM)
+    with pytest.raises(OutputRefusedError) as err:
+        printing._claim(str(part), str(tmp_path), printing.candidate_names("b", ".3mf"))
+    assert err.value.detail == {"rule": printing.NO_HARD_LINKS, "errno": "EPERM"}
+    assert os.listdir(tmp_path) == [part.name]  # nothing named; the caller removes its part
+    _refuse_links_in(tmp_path, monkeypatch, errno.EACCES)  # a folder that really denies it
+    with pytest.raises(PermissionError) as denied:
+        printing._claim(str(part), str(tmp_path), printing.candidate_names("b", ".3mf"))
+    assert printing.write_problem(denied.value) == printing.DENIED
+
+
+@no_links_here
+def test_export_for_3d_printing_says_a_folder_without_hard_links_is_one(models, tmp_path, monkeypatch):
+    from solidseas_app.viewer.wording import refusal_text
+
+    out_dir = tmp_path / "stick"
+    out_dir.mkdir()
+    _refuse_links_in(out_dir, monkeypatch, errno.EPERM)
+    with pytest.raises(OutputRefusedError) as err:
+        printing.export_to_folder(str(models / "o02_boxA.SLDPRT"), str(models), "3mf", str(out_dir))
+    assert err.value.detail["rule"] == printing.NO_HARD_LINKS and os.listdir(out_dir) == []
+    assert "FAT or exFAT" in refusal_text({"detail": err.value.detail})
+
+
+@no_links_here
+@pytest.mark.parametrize("fstype", ["vfat", "msdos", "exfat"])
+def test_a_folder_on_a_fat_or_exfat_drive_is_known_before_anything_is_written(models, monkeypatch, fstype):
+    """The mount table says a FAT or exFAT drive keeps no hard links: a print of a model
+    there goes to the temporary folder without anything, not even its part, written
+    beside the model first."""
+    from solidseas import netfs
+
+    stick = models / "stick"
+    stick.mkdir()
+    shutil.copy2(models / "o02_boxA.SLDPRT", stick / "o02_boxA.SLDPRT")
+    monkeypatch.setattr(netfs, "mount_table", lambda: [("/", "ext4"), (str(stick), fstype)])
+    asked = _refuse_links_in(stick, monkeypatch, errno.EPERM)
+    assert printing.folder_problem(str(stick), str(models)) == printing.NO_LINKS
+    assert printing.folder_problem(str(models), str(models)) is None  # the drive around it
+    out = _export(models, "stick/o02_boxA.SLDPRT")
+    assert out["place"] == printing.TEMP and out["fallback"] == printing.NO_LINKS
+    assert asked == [] and os.listdir(stick) == ["o02_boxA.SLDPRT"]
+
+
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="the mount table faked here is Linux's")
+@pytest.mark.parametrize("fstype", ["nfs4", "cifs", "fuse.sshfs"])
+def test_a_network_mount_outside_the_opened_folder_never_takes_a_print(models, tmp_path, monkeypatch, fstype):
+    """A share is a mount like any other here, its type in the mount table
+    (:mod:`solidseas.netfs`): a model found on one outside the opened folder prints to the
+    temporary folder, nothing written on the share; the share opened is the user's choice."""
+    from solidseas import netfs
+
+    share = tmp_path / "share"
+    share.mkdir()
+    shutil.copy2(models / "o02_boxA.SLDPRT", share / "o02_boxA.SLDPRT")
+    monkeypatch.setattr(netfs, "mount_table", lambda: [("/", "ext4"), (str(share), fstype)])
+    out = printing.export_for_print(
+        str(share / "o02_boxA.SLDPRT"),
+        str(models),
+        "3mf",
+        within=str(share),
+        out_base=str(tmp_path),
+        date=TODAY,
+    )
+    assert out["place"] == printing.TEMP and out["fallback"] == printing.NETWORK
+    assert os.listdir(share) == ["o02_boxA.SLDPRT"]
+    opened = _export(share, "o02_boxA.SLDPRT", tmp=tmp_path)
+    assert opened["place"] == printing.MODEL and opened["file"] == str(share / f"o02_boxA {TODAY}.3mf")
 
 
 def test_only_a_plain_folder_takes_a_print(models, tmp_path):
@@ -2221,12 +2337,14 @@ def test_the_self_test_prints_through_real_right_clicks_on_the_3d_view(tmp_path,
     """On the real display: the self-test right-clicks a part the 3D view read from a
     sub-assembly's own file, and a virtual part a sub-assembly stores, and chooses 3D
     Print Part in the menu that opens; each is printed twice next to the file it comes
-    from, named after it. A slicer of the made-up install folders is found, and the dry
-    run starts nothing."""
+    from, named after it. On Windows a slicer of the made-up install folders is found;
+    elsewhere none is looked for (:func:`printing.detect`), so the run's own settings
+    file holds the program, as Settings > 3D Print Program would. The dry run starts
+    nothing."""
     import subprocess
-    import sys
 
     from gl_support import display_env
+    from solidseas_app.viewer.selftest import SETTINGS_NAME
 
     models = tmp_path / "models"
     shutil.copytree(FIXTURES, models)
@@ -2241,6 +2359,13 @@ def test_the_self_test_prints_through_real_right_clicks_on_the_3d_view(tmp_path,
     args += ["--select", "box.stl"]
     args += ["--select", "top2.SLDASM", "--print-view", "o15_sub_asm-1/o02_boxA-1"]
     args += ["--select", "top.SLDASM", "--print-view", "sub-1/Part12^o16_asm_features-1"]
+    if os.name != "nt":
+        # The run's settings file is its own, next to its report: written first, it is kept
+        # (--force) and only its own section of preferences is saved over.
+        shots.mkdir()
+        chosen = json.dumps(str(programs["bambu"]))
+        (shots / SETTINGS_NAME).write_text(f"[print]\nprogram=other\npath={chosen}\n", encoding="utf-8")
+        args.append("--force")
     env = display_env(APPDATA=str(tmp_path / "Roaming"), **programs["env"])
     try:
         proc = subprocess.run(

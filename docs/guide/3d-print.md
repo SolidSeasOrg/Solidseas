@@ -225,7 +225,10 @@ folder instead, named the same way, and the status line says why:
 - it, or a folder it is in, is a link or a junction;
 - it is a cloud placeholder whose files are not on this computer;
 - it is on a network share or drive outside the folder you opened (which
-  SolidSeas never touches).
+  SolidSeas never touches);
+- on Linux and macOS, it is on a file system without hard links, such as a FAT
+  or exFAT drive or some network shares: SolidSeas names a new file there
+  through a hard link, which is how it makes sure the file never replaces one.
 
 A folder Windows marks read-only only to keep its icon, as it does Documents and
 Desktop, takes the file like any other.

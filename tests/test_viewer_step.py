@@ -7,6 +7,7 @@ The window's save dialog, question and message boxes are stood in for, so no
 dialog is ever shown.
 """
 
+import errno
 import os
 import time
 
@@ -156,6 +157,30 @@ def test_bodies_not_written_are_worded_by_why():
 def test_the_part_file_sits_beside_the_target(tmp_path):
     part = stepexport.part_path(str(tmp_path / "a.step"), "abc")
     assert os.path.dirname(part) == str(tmp_path) and os.path.basename(part) == ".a.step.abc.part"
+
+
+@pytest.mark.skipif(os.name == "nt", reason="Windows names a new file by a rename, not a link")
+def test_a_folder_without_hard_links_is_said_to_be_one(tmp_path, monkeypatch):
+    """Outside Windows the file is named by a second link to its part, which a FAT or exFAT
+    drive refuses with EPERM, a PermissionError: the refusal says what the folder is, not
+    that permission was denied, and nothing is left there. A file the save dialog asked
+    to replace is replaced without a link."""
+    from solidseas.errors import OutputRefusedError
+    from solidseas_app.viewer.wording import refusal_text
+
+    def refused(src, dst, *args, **kwargs):
+        raise OSError(errno.EPERM, os.strerror(errno.EPERM))
+
+    monkeypatch.setattr(os, "link", refused)
+    source, folder = str(fixture_path("o02_boxA.SLDPRT")), str(FIXTURES)
+    with pytest.raises(OutputRefusedError) as err:
+        stepexport.export_step_file(source, folder, str(tmp_path / "box.step"))
+    assert err.value.detail == {"rule": printing.NO_HARD_LINKS, "errno": "EPERM"}
+    assert os.listdir(tmp_path) == []
+    assert refusal_text({"detail": err.value.detail}).startswith("That folder is on a file system without")
+    (tmp_path / "old.step").write_bytes(b"old")
+    data = stepexport.export_step_file(source, folder, str(tmp_path / "old.step"), overwrite=True)
+    assert data["file"] == str(tmp_path / "old.step") and os.listdir(tmp_path) == ["old.step"]
 
 
 # --------------------------------------------------------------------------- the window

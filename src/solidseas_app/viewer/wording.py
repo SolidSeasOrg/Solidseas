@@ -496,6 +496,11 @@ _REFUSALS = {
     "device_path": "That is a device or extended-length path. Choose an ordinary folder.",
     "alternate_stream": "That path names an alternate data stream. Choose an ordinary folder.",
     "no_file_name": "That path has no usable file name.",
+    "no_hard_links": (
+        "That folder is on a file system without hard links, such as a FAT or exFAT drive or some network "
+        "shares. SolidSeas names a new file through one, so that it never replaces a file, and cannot there. "
+        "Choose a folder on another drive."
+    ),
 }
 
 

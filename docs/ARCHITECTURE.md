@@ -613,9 +613,12 @@ it, on the catalog it already indexes.
   alone. `printing.folder_problem`
   refuses, from the path's text and `lstat` alone, a model folder that is a
   link or junction or lies below one (every folder from the drive's root down
-  is looked at), a cloud placeholder, a device or stream path, or a network
-  share or drive outside the opened folder; a refusal, a failed write
-  (read-only, permission denied) or Settings > Save 3D Print Files Next to the
+  is looked at), a cloud placeholder, a device or stream path, a network
+  share or drive outside the opened folder, or outside Windows a file system
+  the mount table names as one without hard links (`vfat`, `msdos`, `exfat`),
+  since there the file is named by a link (`printing.rename_new`); a refusal,
+  a failed write (read-only, permission denied, a link the file system
+  refuses, said as such) or Settings > Save 3D Print Files Next to the
   Model turned off sends the file to a folder of the user's own under the
   system's temporary folder instead, and the status line says why. Exports
   older than a week are removed from that temporary folder only, never from a

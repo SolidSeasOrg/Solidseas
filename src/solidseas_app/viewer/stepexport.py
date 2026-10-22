@@ -34,17 +34,15 @@ def part_path(target: str, token: str) -> str:
 
 def _claim(part: str, target: str, overwrite: bool) -> None:
     """Give the finished part file ``target``'s name: over a file there only with
-    ``overwrite``; otherwise a rename refuses one on Windows, and elsewhere a second link
-    to the file refuses it too before the first goes."""
+    ``overwrite``; otherwise by :func:`.printing.rename_new`, which never replaces a file
+    and says so plainly where the file system has no hard links to name it by."""
+    from .printing import rename_new
+
     if overwrite:
         os.replace(part, target)
         return
     try:
-        if os.name == "nt":
-            os.rename(part, target)
-        else:
-            os.link(part, target)
-            os.remove(part)
+        rename_new(part, target)
     except FileExistsError:
         raise OutputRefusedError(
             f"{target} already exists; it is not replaced unless asked", detail={"rule": "exists"}

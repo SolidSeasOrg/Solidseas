@@ -1738,6 +1738,12 @@ while the project takes shape.
 
 ### Fixed
 
+- **3D prints on drives without hard links.** On Linux and macOS, a 3D print of
+  a model on a FAT or exFAT drive, or on a share without hard links, goes to the
+  temporary folder and says the folder's file system has no hard links, instead
+  of saying permission was denied. Export STEP and Export for 3D Printing into
+  such a folder say the same and suggest a folder on another drive.
+
 - **Your SOLIDWORKS layout after a batch conversion.** After a batch conversion,
   SolidSeas puts back the toolbar and CommandManager tab settings (and the last
   splash screen shown) that its own SOLIDWORKS changed in your registry, as long
