@@ -337,7 +337,11 @@ class SceneBuffers:
     from a sub-assembly's own file (its file key ``<sub-assembly key>/<key>``), whose
     row the components section does not have, the part's own document its mesh was
     read from (``path``, ``nested``), the configuration the instance uses and its file
-    name, by instance id: what 3D Print exports for it (:func:`instance_documents`)."""
+    name, by instance id: what 3D Print exports for it (:func:`instance_documents`).
+    ``missing`` gives, for such an instance drawn from what its sub-assembly stores of
+    it because its own file was not found, could not be told from others or could not
+    be read, its name, stored path and that reason, by instance id: what the 3D view's
+    menu says in place of 3D Print (:func:`instance_missing`)."""
 
     meshes: list[MeshBuffers]
     matrices: list[bytes]
@@ -351,6 +355,7 @@ class SceneBuffers:
     bounds: list[bytes] = field(default_factory=list)
     boxes: BoxBuffers | None = None
     documents: dict[str, dict[str, Any]] = field(default_factory=dict)
+    missing: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     @property
     def nbytes(self) -> int:
@@ -427,6 +432,38 @@ def instance_documents(g) -> dict[str, dict[str, Any]]:
     return out
 
 
+# Why a part's own file gave the 3D view no mesh, when that also means 3D Print cannot read
+# it, in the few words its greyed menu entry gives (geometry's reasons).
+UNPRINTABLE_FILE = {
+    "missing": "not found",
+    "ambiguous": "several files could be it",
+    "unreadable": "its file could not be read",
+}
+
+
+def instance_missing(g) -> dict[str, dict[str, Any]]:
+    """For each instance of ``g`` read from a sub-assembly's own file (its file key has a
+    ``/``) that is drawn from what a sub-assembly stores of it because its own file
+    gave no mesh for a reason of :data:`UNPRINTABLE_FILE` (``g.file_failures``):
+    ``{"name", "stored_path", "reason"}`` by instance id, its file's name, the path its
+    sub-assembly stores for it and that reason. One whose own file was found and read
+    has its document instead (:func:`instance_documents`)."""
+    failures = getattr(g, "file_failures", None) or {}
+    out: dict[str, dict[str, Any]] = {}
+    for inst in g.instances:
+        if not inst.file or "/" not in inst.file:
+            continue
+        m = g.meshes.get(inst.mesh)
+        reason = failures.get(inst.file)
+        if m is None or m.kind in OWN_DOCUMENT_KINDS or reason not in UNPRINTABLE_FILE:
+            continue
+        f = g.files.get(inst.file)
+        stored = (f.stored_path or None) if f else None
+        name = (f.file_name or os.path.basename((stored or "").replace("\\", "/"))) if f else None
+        out[inst.id] = {"name": name or inst.name, "stored_path": stored, "reason": reason}
+    return out
+
+
 def scene_from_geometry(g, *, cancelled: Callable[[], bool] = lambda: False) -> "SceneBuffers | None":
     """The buffers for a :class:`solidseas.geometry.DisplayGeometry`, or None when it
     places no instance (or ``cancelled`` turned true). Each file gets the next
@@ -494,6 +531,7 @@ def scene_from_geometry(g, *, cancelled: Callable[[], bool] = lambda: False) -> 
         n_triangles=sum(m.n_triangles * len(i) for m, i in zip(meshes, ids, strict=True)),
         bounds=bounds,
         documents=instance_documents(g),
+        missing=instance_missing(g),
     )
 
 

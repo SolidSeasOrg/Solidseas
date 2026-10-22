@@ -554,6 +554,7 @@ class MainWindow(QMainWindow):
         self.thumbnailer = Thumbnailer(self)  # pictures drawn for files of other formats that store none
         self.details.print_item = self.add_component_print  # 3D Print in the rows' and the legend's menus
         self.details.print_document = self.add_document_print  # and for a part no row stands for
+        self.details.print_missing = self.add_missing_print  # off, for one whose file was not found
         self.details.preview.print_shown = self.add_shown_print  # and on the 3D view's empty space
         self.step = StepController(self)  # File > Export STEP (.stepaction)
         self._build_actions()
@@ -2534,6 +2535,31 @@ class MainWindow(QMainWindow):
 
         what = name + (f" in configuration {configuration}" if configuration else "")
         self.printer.add_action(menu, text, resolve, what=what)
+
+    def add_missing_print(self, menu: QMenu, text: str, missing: dict[str, Any]) -> None:
+        """The 3D view's 3D Print Part, reading ``text``, for a part no row of the Components
+        tab stands for that the view drew from what its sub-assembly stores of it, its own
+        file not found (:attr:`.preview.PreviewPane.instance_missing`): off, with the reason
+        in a few words after it and in full in its tooltip, as a row's entry is for a file
+        that was not found."""
+        from .mesh3d import UNPRINTABLE_FILE
+
+        reason = str(missing.get("reason") or "missing")
+        why = {
+            "ambiguous": "Several files could be this one, and none of them can be printed from here.",
+            "unreadable": "Its file was found, but it could not be read.",
+        }.get(
+            reason,
+            "No file of that name was found. Searched the opened folder and its subfolders, and the "
+            "stored path when it is on a drive of this computer.",
+        )
+        full = (
+            f"{missing.get('name') or ''} cannot be 3D printed from here.\n\n{why} The 3D view draws it "
+            "from what its sub-assembly stores of it."
+        )
+        if missing.get("stored_path"):
+            full += f"\n\nStored path: {missing['stored_path']}"
+        self.printer.add_unavailable(menu, text, UNPRINTABLE_FILE.get(reason, "not found"), full)
 
     def add_shown_print(self, menu: QMenu) -> bool:
         """3D Print This Assembly (or This Part) for the 3D view's menu on empty space:

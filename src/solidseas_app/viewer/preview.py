@@ -690,8 +690,11 @@ class PreviewPane(QWidget):
         # For an instance read from a sub-assembly's own file, which no row of the
         # Components tab stands for, the document its mesh was read from when that is the
         # part's own: {"path", "nested", "configuration", "name"} by instance id, for its
-        # 3D Print entry (:attr:`.mesh3d.SceneBuffers.documents`).
+        # 3D Print entry (:attr:`.mesh3d.SceneBuffers.documents`); for one drawn from what its
+        # sub-assembly stores of it, its own file not found: {"name", "stored_path",
+        # "reason"}, for the entry off with the reason (:attr:`.mesh3d.SceneBuffers.missing`).
         self.instance_documents: dict[str, dict[str, Any]] = {}
+        self.instance_missing: dict[str, dict[str, Any]] = {}
         self.files: list[dict[str, Any]] = []  # the legend's files
         self.explode_groups: dict[str, int] = {}
         # The instances drawn as boxes come last, from ``box_from`` in ``instance_ids``: their
@@ -929,6 +932,7 @@ class PreviewPane(QWidget):
         self.instance_ids = []
         self.instance_files = []
         self.instance_documents = {}
+        self.instance_missing = {}
         self.files = []
         self._no_boxes()
         self.assembly = None
@@ -1249,6 +1253,7 @@ class PreviewPane(QWidget):
         self.instance_ids = [i for ids in data.instance_ids for i in ids]
         self.instance_files = []
         self.instance_documents = dict(data.documents)
+        self.instance_missing = dict(data.missing)
         for raw in data.files_of:
             index = array("I")
             index.frombytes(raw)
@@ -1833,6 +1838,7 @@ class PreviewPane(QWidget):
         if not data.meshes and not boxes:  # nothing but boxes, and they are off
             self.instance_ids, self.instance_files, self.files = [], [], []
             self.instance_documents = {}
+            self.instance_missing = {}
             self.instance_looks = []
             self._no_boxes()
             view.set_mesh(None)  # type: ignore[attr-defined]

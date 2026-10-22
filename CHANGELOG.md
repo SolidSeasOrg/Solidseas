@@ -8,6 +8,11 @@ while the project takes shape.
 
 ### Changed
 
+- **3D Print Part for a part whose file was not found.** In an assembly's 3D
+  view, right-clicking a part whose own file was not found (drawn from what its
+  sub-assembly stores of it) now shows 3D Print Part greyed, with the reason and
+  the stored path, instead of offering nothing for the part.
+
 - **Batch conversion leaves your documents open.** Batch conversion with
   SolidSeas' own SOLIDWORKS (`python -m solidseas.swapi convert`) no longer ends
   that SOLIDWORKS while it shows a document SolidSeas did not open, such as one

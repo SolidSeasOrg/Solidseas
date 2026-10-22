@@ -2035,6 +2035,93 @@ def test_the_scene_keeps_the_document_of_each_part_no_row_stands_for(models):
     assert mesh3d.instance_documents(held) == {}
 
 
+def _top_of_o15(models: Path) -> None:
+    """top2.SLDASM, storing no components of the o15_sub_asm-1 it holds: the 3D view reads
+    them from o15's own file, and no row of the Components tab stands for them."""
+    from builders import TreeXml, assembly_with_tree
+
+    t = TreeXml()
+    t.top("m1")
+    t.file("2", "o15_sub_asm.SLDASM", "ASSEMBLY")
+    t.model("m2", "2")
+    t.ref("m1", "o15_sub_asm", 1, "m2")
+    (models / "top2.SLDASM").write_bytes(assembly_with_tree(t))
+
+
+def test_the_scene_says_which_parts_no_row_stands_for_were_not_found(models):
+    """A part read from a sub-assembly's own file whose own file is not there is drawn from
+    what the sub-assembly stores of it: the geometry says why its file gave no mesh, and
+    the scene keeps its name, stored path and that reason for the 3D view's menu. A part
+    whose file was found but gave no mesh for another reason (no display mesh) is not
+    said to be missing."""
+    from types import SimpleNamespace
+
+    from solidseas import Root, Roots, open_document
+    from solidseas import geometry as geo
+    from solidseas_app.viewer import mesh3d
+
+    _top_of_o15(models)
+    os.remove(models / "o02_boxA.SLDPRT")
+    with open_document(models / "top2.SLDASM", within=models) as doc:
+        g = geo.display_geometry(doc, roots=Roots([Root("opened", str(models))]), allow_outside_roots=True)
+    gone = next(i for i in g.instances if i.id == "o15_sub_asm-1/o02_boxA-1")
+    assert g.meshes[gone.mesh].kind == "subassembly" and g.file_failures[gone.file] == "missing"
+    stored = g.files[gone.file].stored_path
+    assert stored and stored.endswith("o02_boxA.SLDPRT")
+    missing = mesh3d.instance_missing(g)
+    assert missing == {gone.id: {"name": "o02_boxA.SLDPRT", "stored_path": stored, "reason": "missing"}}
+    assert sorted(mesh3d.instance_documents(g)) == ["o15_sub_asm-1/o07_boxB_h31-1"]  # found: printable
+    scene = mesh3d.scene_from_geometry(g)
+    assert scene is not None and scene.missing == missing
+    for reason, said in (("no_mesh", False), ("ambiguous", True), ("unreadable", True)):
+        other = SimpleNamespace(
+            instances=[gone], meshes=g.meshes, files=g.files, file_failures={gone.file: reason}
+        )
+        assert bool(mesh3d.instance_missing(other)) is said, reason
+
+
+@needs_qt
+def test_a_part_whose_own_file_is_not_found_has_its_3d_print_off_with_the_reason(printer, models):
+    """Right-clicking, in the 3D view, a part read from a sub-assembly's own file and drawn
+    from what that sub-assembly stores of it, its own file not found, offers 3D Print Part
+    off with the reason, as a row's entry is for a file not found, and still 3D Print
+    Sub-assembly; a part of the same sub-assembly whose file is there still prints."""
+    from solidseas_app.viewer.details import TABS
+    from solidseas_app.viewer.preview import MODEL
+    from test_viewer import _stub_view_factory
+
+    _top_of_o15(models)
+    os.remove(models / "o02_boxA.SLDPRT")
+    p = printer()
+    w = p.window
+    d, pane = w.details, w.details.preview
+    pane.view_factory = _stub_view_factory([])
+    pane.gl_check = lambda: (True, "test")
+    w.change_settings(view_3d=True)
+    d.tabs.setCurrentIndex(TABS.index("Preview"))
+    p.open(models, "top2.SLDASM")
+    pane.set_mode(MODEL)
+    _wait(p.app, lambda: pane.mesh_state not in ("idle", "starting", "loading") and not w.busy)
+    ident = "o15_sub_asm-1/o02_boxA-1"
+    assert pane.mesh_state == "ready" and ident in pane.instance_ids
+    assert ident not in pane.instance_documents and pane.instance_missing[ident]["reason"] == "missing"
+    menu = d.instance_menu(ident)
+    texts = _texts(menu)
+    entry = _entry(menu, "3D Print Part")
+    assert texts[texts.index("3D Print Part o02_boxA.SLDPRT (not found)") + 1] == (
+        "3D Print Sub-assembly o15_sub_asm.SLDASM"
+    )
+    assert not entry.isEnabled() and menu.toolTipsVisible()
+    said = entry.toolTip()  # plain text, escaped (wording.tip)
+    assert "o02_boxA.SLDPRT cannot be 3D printed from here.<br><br>No file of that name was found." in said
+    assert "what its sub-assembly stores of it" in said and "Stored path: " in said
+    assert _entry(menu, "3D Print Sub-assembly").isEnabled()
+    menu.deleteLater()
+    found = d.instance_menu("o15_sub_asm-1/o07_boxB_h31-1")
+    assert _entry(found, "3D Print Part").isEnabled() and "3D Print Part o07_boxB_h31.SLDPRT" in _texts(found)
+    found.deleteLater()
+
+
 @needs_qt
 def test_a_part_printed_in_a_configuration_it_stores_no_bodies_of_says_so(printer, models):
     """o16 uses o06 in OracleAlt, of which o06 stores no bodies: its Default ones are

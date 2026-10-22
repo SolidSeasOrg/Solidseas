@@ -1650,7 +1650,11 @@ or a drawing gives None.
 - `files` holds the component tree's files by key (3.8), with those of the
   sub-assemblies expanded from their own files (`direct` False, their instance
   counts None), and `resolution` the `Resolution` made for the top assembly's
-  files read from disk, or None. `bbox()` measures
+  files read from disk, or None. `file_failures` says, by file key, why the
+  `file` source gave no mesh where it was tried (a key of `REASONS`:
+  `missing`, `ambiguous`, `unreadable`, `no_mesh`...), so an instance drawn
+  from another source, such as what its sub-assembly stores of it, can tell
+  why its own file was not used. `bbox()` measures
   each mesh's own box once (`mesh_box(key)`) and carries its eight corners
   through each placement, so it costs the meshes' vertices once plus eight
   points an instance; `bbox(exact=True)` places every vertex of every

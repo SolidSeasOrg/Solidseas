@@ -249,7 +249,11 @@ class DisplayGeometry:
     component tree's files, by the file keys the instances name (the files of a
     sub-assembly expanded from its own file are keyed ``<its key>/<the key in its
     file>``), and ``resolution`` the reference resolution made for the top
-    assembly's files read from disk (None when none was needed)."""
+    assembly's files read from disk (None when none was needed). ``file_failures``
+    says, by file key, why the ``"file"`` source gave no mesh where it was tried (a
+    key of :data:`REASONS`: ``missing``, ``ambiguous``, ``unreadable``, ``no_mesh``...),
+    so an instance drawn from another source, what a sub-assembly stores of it say,
+    can tell why its own file was not used."""
 
     configuration: str | None
     configuration_source: str
@@ -261,6 +265,7 @@ class DisplayGeometry:
     warnings: tuple[ReaderWarning, ...]
     files: dict[str, ComponentFile] = field(default_factory=dict)
     resolution: Any = None
+    file_failures: dict[str, str] = field(default_factory=dict)
     # Each mesh's own box, measured once however many instances share the mesh.
     _mesh_boxes: dict[str, Box] = field(default_factory=dict, init=False, repr=False, compare=False)
 
@@ -743,6 +748,7 @@ class _Builder:
         self.truncated: list[str] = []
         self.meshes: dict[str, MeshSource] = {}
         self.failed: dict[str, _Failed] = {}
+        self.file_failures: dict[str, str] = {}  # file key -> why its own file gave no mesh
         self.users: dict[str, set[str | None]] = {}  # mesh key -> configurations its instances use
         self.opened: list[Any] = []  # documents to close at the end
         self.held: tuple[str, Any] | None = None  # a part file with no display mesh, for the brep source
@@ -859,6 +865,7 @@ class _Builder:
             warnings=tuple(tree.warnings),
             files=self.files,
             resolution=self.top.shared.resolution,
+            file_failures=dict(self.file_failures),
         )
 
     def _push(self, stack: list, it: _Item, ctx: _Ctx, children, sup: bool, hid: bool) -> None:
@@ -994,6 +1001,7 @@ class _Builder:
         failure: _Failed | None = None
         tried = False
         for kind in self.sources:
+            this: _Failed | None = None  # why this source gave no mesh
             try:
                 # A source can give several candidates (the sub-assemblies above, in turn):
                 # one that fails passes to the next.
@@ -1008,10 +1016,14 @@ class _Builder:
                             return key
                         except _Failed as exc:
                             fail = self.failed[key] = exc
+                    this = fail
                     failure = fail if failure is None else _reported(failure, fail, kind)
             except _Failed as exc:  # finding the source already failed (a limit, say)
                 tried = True
+                this = exc
                 failure = exc if failure is None else _reported(failure, exc, kind)
+            if kind == "file" and this is not None:
+                self.file_failures.setdefault(ctx.key(node.file) or "", this.reason)
         if not tried or failure is None:
             raise _Failed("no_source")
         raise failure

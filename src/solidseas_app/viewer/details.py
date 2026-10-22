@@ -30,7 +30,9 @@ which the window's :attr:`DetailsPanel.print_item` fills in; off, with the reaso
 for a file that was not found); the 3D view's menu for a part has it for the part
 and for each sub-assembly the part is in, nearest first (a part read from a
 sub-assembly's own file, which no row stands for, through the document the view
-drew it from, :attr:`DetailsPanel.print_document`), and the legend's for a file.
+drew it from, :attr:`DetailsPanel.print_document`, or off with the reason when the
+view drew it from what its sub-assembly stores of it, its own file not found,
+:attr:`DetailsPanel.print_missing`), and the legend's for a file.
 
 The assembly's 3D view on the Preview tab and the Components tab pick the same
 thing: an instance clicked in the view becomes the current row of the
@@ -720,6 +722,10 @@ class DetailsPanel(QWidget):
         # And for a document the 3D view drew a part from that no row stands for: (menu,
         # its text, the document, :attr:`.preview.PreviewPane.instance_documents`).
         self.print_document: Callable[[QMenu, str, dict[str, Any]], Any] | None = None
+        # And, off with the reason, for such a part drawn from what its sub-assembly stores
+        # of it, its own file not found: (menu, its text, what the view keeps of it,
+        # :attr:`.preview.PreviewPane.instance_missing`).
+        self.print_missing: Callable[[QMenu, str, dict[str, Any]], Any] | None = None
         self._quiet = False  # rows made current or not here, for the view's pick: the view keeps it
         self.instances.currentItemChanged.connect(self._instance_current)
         self.files.currentItemChanged.connect(self._file_current)
@@ -2102,16 +2108,24 @@ class DetailsPanel(QWidget):
         each in the configuration it is used in. The part is found from its row on the
         Components tab, or for one the 3D view read from a sub-assembly's own file, which
         has no row, from the document the view drew it from
-        (:attr:`.preview.PreviewPane.instance_documents`). How many were added."""
+        (:attr:`.preview.PreviewPane.instance_documents`); one it drew from what its
+        sub-assembly stores of it, its own file not found, has the entry off with the
+        reason (:attr:`.preview.PreviewPane.instance_missing`). How many were added."""
         added = 0
         for probe in (ident, *subassemblies(ident)[::-1]):
             link = self.instance_link(probe)
             if link is None:
                 document = self.preview.instance_documents.get(probe) if probe == ident else None
+                missing = self.preview.instance_missing.get(probe) if probe == ident else None
                 if document is not None and self.print_document is not None:
                     if not added:
                         menu.addSeparator()
                     self.print_document(menu, f"3D Print Part {document['name']}", document)
+                    added += 1
+                elif missing is not None and self.print_missing is not None:
+                    if not added:
+                        menu.addSeparator()
+                    self.print_missing(menu, f"3D Print Part {missing['name']}", missing)
                     added += 1
                 continue
             key, parent, configuration = link
