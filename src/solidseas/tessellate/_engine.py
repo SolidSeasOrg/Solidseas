@@ -631,7 +631,12 @@ class Engine:
                     if vp is not None:
                         u, v = None, vp
                 else:
-                    u, v, d = S.closest(p, hint, max(accept, 2.0 * t, 1e-7), ptol, clock)
+                    # A point within the chord (or its edge's tolerance) is on the surface and
+                    # taken at once; one farther, though within the ten chords accepted, is
+                    # the nearest of every starting point's, not the first found.
+                    u, v, d = S.closest(
+                        p, hint, max(accept, 2.0 * t, 1e-7), ptol, clock, near=max(opts.chord, 2.0 * t)
+                    )
                     if not d <= max(accept, 2.0 * t, 1e-7):
                         raise FaceFailed("inversion_failed", f"a boundary point {d:.3g} m from its surface")
                     if d > max(opts.chord, 2.0 * t):

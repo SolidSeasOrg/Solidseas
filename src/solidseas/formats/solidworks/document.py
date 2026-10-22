@@ -297,9 +297,12 @@ class Document:
         max_bytes: int = DEFAULT_MAX_TRANSMIT_BYTES,
         max_total_bytes: int | None = None,
         configurations=None,
+        tick=None,
     ) -> ParasolidResult:
         """The embedded Parasolid bodies, per configuration, as standalone part transmits.
-        ``configurations`` (configuration ids) limits the reading to those."""
+        ``configurations`` (configuration ids) limits the reading to those. ``tick``, when
+        given, is called once a node read and may raise to stop the read
+        (:func:`~.parasolid.extract_parasolid`)."""
         names = {c.id: c.name for c in self.configurations if c.id is not None}
         return extract_parasolid(
             self._c,
@@ -309,6 +312,7 @@ class Document:
             max_total_bytes=max_total_bytes,
             config_names=names,
             configurations=configurations,
+            tick=tick,
         )
 
     def assembly_parasolid(self, configuration: str | None = None, **options: Any):

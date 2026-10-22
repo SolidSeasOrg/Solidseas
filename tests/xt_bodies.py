@@ -335,6 +335,38 @@ def torus_band(R: float, r: float, v0: float, v1: float) -> XtTransmit:
     return b.body([lo, hi], body_type=3)
 
 
+def hairpin_sheet(L: float = 0.02, gap: float = 5e-4, H: float = 0.01, hole: float = 0.002) -> XtTransmit:
+    """A sheet folded into a hairpin: one B-spline face, flat pieces of degree 1, its
+    near wall the plane y = 0 from x = 0 to L, a bridge at x = L, and its far wall the
+    plane y = ``gap`` back to x = 0, all ``H`` high. A round hole of radius ``hole`` is
+    cut from the far wall at its middle. The near wall has a control point at its
+    middle and the far wall none, so the control point nearest the hole is on the near
+    wall, ``gap`` from it. Area ``(2 L + gap) H - pi hole^2``."""
+    b = XtBuilder()
+    xs = [(0.0, 0.0), (L / 2, 0.0), (L, 0.0), (L, gap), (0.0, gap)]
+    rows = [[(x, y, 0.0), (x, y, H)] for x, y in xs]
+    side = b.nurbs_surface(rows, 1, 1, [0, 1, 2, 3, 4], [2, 1, 1, 1, 2], [0, 1], [2, 2])
+    low = [b.vertex((x, y, 0.0)) for x, y in xs]
+    high = [b.vertex((x, y, H)) for x, y in xs]
+    edges = []
+
+    def line(va, vb, pa, pb):
+        e = b.edge(b.line(pa, tuple(pb[i] - pa[i] for i in range(3))), va, vb)
+        edges.append(e)
+        return e
+
+    bottom = [line(low[k], low[k + 1], (*xs[k], 0.0), (*xs[k + 1], 0.0)) for k in range(4)]
+    top = [line(high[k], high[k + 1], (*xs[k], H), (*xs[k + 1], H)) for k in range(4)]
+    near_end = line(low[0], high[0], (0.0, 0.0, 0.0), (0.0, 0.0, H))
+    far_end = line(low[4], high[4], (0.0, gap, 0.0), (0.0, gap, H))
+    ring = b.edge(b.circle((L / 2, gap, H / 2), (0, 1, 0), X, hole))
+    edges.append(ring)
+    outer = [(e, "+") for e in bottom] + [(far_end, "+")] + [(e, "-") for e in reversed(top)]
+    outer.append((near_end, "-"))
+    b.face(side, "+", [outer, [(ring, "-")]])
+    return b.body(edges, body_type=3)
+
+
 def _turn(p, axis, angle: float):
     """``p`` turned by ``angle`` about the unit ``axis`` through the origin."""
     c, s = math.cos(angle), math.sin(angle)

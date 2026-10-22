@@ -33,7 +33,7 @@ from ..formats.solidworks.parasolid import BODY_TYPES, ParasolidBody, XtTransmit
 from ._engine import Engine, Options, welded_measures
 from .curves import curve_extent
 from .surfaces import Geometry
-from .topology import BODY, CURVE_TYPES, EDGE, SURFACE_TYPES, Clock, FaceFailed, Topology
+from .topology import BODY, CURVE_TYPES, EDGE, SURFACE_TYPES, Clock, FaceFailed, TimeUp, Topology
 
 DEFAULT_ANGLE_DEG = 15.0
 DEFAULT_MAX_FACES = 200_000
@@ -324,6 +324,42 @@ def _chord(points, fraction: float = CHORD_FRACTION, high: float = CHORD_MAX) ->
     return min(max(diag * fraction, CHORD_MIN), high)
 
 
+_COUNTS = (
+    "bodies",
+    "bodies_skipped",
+    "bodies_left_out",
+    "faces",
+    "faces_done",
+    "faces_skipped",
+    "edges",
+    "triangles",
+)
+
+
+def _read_ran_out(opts_tuple, configuration, t0: float) -> Tessellation:
+    """The result of a call whose time ran out while it read the bodies: nothing done,
+    ``max_seconds`` in ``truncated``, and ``closed`` False, as for any limit that stops
+    the work (whether the part has solids is not known)."""
+    chord, angle_deg, *_limits, fraction, high, _reserve, detail = opts_tuple
+    return Tessellation(
+        mesh=Mesh("brep"),
+        face_ids=(),
+        configuration=configuration,
+        bodies=(),
+        chord_m=chord if chord is not None else _chord([], fraction, high),
+        angle_deg=angle_deg,
+        counts=dict.fromkeys(_COUNTS, 0),
+        skipped=(),
+        reasons={},
+        closed=False,
+        truncated=("max_seconds",),
+        warnings=(),
+        seconds=time.perf_counter() - t0,
+        checks=dict.fromkeys(CHECKS, 0),
+        detail=TessDetail({}, (), array("d"), array("d")) if detail else None,
+    )
+
+
 def _run(items, opts_tuple, *, configuration, warnings, t0=None) -> Tessellation:
     """``items``: (label, transmit, BODY node or None for every body, body type filter).
     ``t0`` is when the work began (reading the bodies, for one): the time limit runs
@@ -360,19 +396,7 @@ def _run(items, opts_tuple, *, configuration, warnings, t0=None) -> Tessellation
     chosen = [(name, topo, b, btype) for name, topo, b, btype, keep in bodies if keep]
     engine.counts["bodies_left_out"] = len(bodies) - len(chosen)
     engine.run(chosen)
-    counts = {
-        k: engine.counts.get(k, 0)
-        for k in (
-            "bodies",
-            "bodies_skipped",
-            "bodies_left_out",
-            "faces",
-            "faces_done",
-            "faces_skipped",
-            "edges",
-            "triangles",
-        )
-    }
+    counts = {k: engine.counts.get(k, 0) for k in _COUNTS}
     skipped = tuple(SkippedFace(*s) for s in engine.skipped)
     closed = all(engine.solids_closed) if engine.solids_closed else None
     if engine.truncated and any(btype == "solid" for _n, _t, _b, btype in chosen):
@@ -456,15 +480,20 @@ def tessellate_body(body: ParasolidBody, *, body_types=("solid", "sheet"), **opt
     )
 
 
-def bodies_of(doc, configuration: str | None = None, *, max_bytes=None, max_total_bytes=None):
+def bodies_of(doc, configuration: str | None = None, *, max_bytes=None, max_total_bytes=None, tick=None):
     """``(configuration name, bodies, warnings, bytes inflated)``: the Parasolid bodies of
-    one configuration of a part, as :func:`tessellate_document` takes them."""
+    one configuration of a part, as :func:`tessellate_document` takes them. ``tick``, when
+    given, is called once a node read and may raise to stop the read (a
+    :class:`~.topology.Clock`'s ``tick`` raises :class:`~.topology.TimeUp` at its
+    deadline)."""
     from ..formats.solidworks.parasolid import DEFAULT_MAX_TRANSMIT_BYTES
 
     cfg = doc.configuration(configuration)
     name = cfg.name if cfg is not None else configuration
     warnings: list[ReaderWarning] = []
     kw = {"max_bytes": max_bytes or DEFAULT_MAX_TRANSMIT_BYTES, "max_total_bytes": max_total_bytes}
+    if tick is not None:
+        kw["tick"] = tick
     if cfg is not None and cfg.id is not None:
         res = doc.parasolid(configurations=(cfg.id,), **kw)
         bodies = [b for b in res.bodies if b.configuration_id == cfg.id]
@@ -524,7 +553,8 @@ def tessellate_document(
     assembly or a drawing. A configuration whose partition the document does not store
     gives an empty result with the warning ``no_stored_bodies``: another
     configuration's bodies are never taken in its place. ``max_seconds`` counts
-    reading the bodies too (a read once started runs to its end). Raises
+    reading the bodies too, and a read the time runs out in stops there: nothing is
+    tessellated and ``truncated`` names ``max_seconds``. Raises
     :class:`~solidseas.errors.InvalidArgumentError` for a bad option and
     :class:`~solidseas.errors.ConfigurationNotFoundError` for an unknown name; nothing
     in the file raises. With ``include_hidden`` False, bodies hidden in SOLIDWORKS are
@@ -534,7 +564,12 @@ def tessellate_document(
     opts = _options(**options)
     types = _body_types(body_types)
     t0 = time.perf_counter()
-    name, bodies, warnings, _n = bodies_of(doc, configuration)
+    max_seconds = opts[6]
+    try:
+        name, bodies, warnings, _n = bodies_of(doc, configuration, tick=Clock(max_seconds).tick)
+    except TimeUp:
+        cfg = doc.configuration(configuration)
+        return _read_ran_out(opts, cfg.name if cfg is not None else configuration, t0)
     if not include_hidden:
         bodies, hidden = shown_bodies(bodies)
         if hidden:

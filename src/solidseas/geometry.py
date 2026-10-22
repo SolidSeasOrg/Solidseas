@@ -61,10 +61,10 @@ Where a mesh comes from, in the order ``sources`` gives (by default all five):
   the one the ``"nested"`` or ``"file"`` source reads (the same open document,
   when the file source has just found no display mesh in it). It comes last,
   so that a stored mesh always wins. A part gets 30 s, reading its bodies
-  included, and tessellating them stops when that is spent; no part is started
-  once ``max_brep_seconds`` is spent over the call. Reading a part's bodies,
-  once started, runs to its end, so a part or the call can run past its limit
-  by that one read.
+  included, and reading or tessellating them stops when that is spent; no part
+  is started once ``max_brep_seconds`` is spent over the call. A part whose
+  bodies, read or tessellated, run out of memory is skipped as ``brep_failed``,
+  and the other parts are still drawn.
 
 When a source fails for an instance (no stored mesh, the file is missing), the
 next one is tried. Placements are those of :meth:`Document.components`, the
@@ -1316,6 +1316,14 @@ class _Builder:
         stream = self._stream_in(ref.doc, f)
         return self._brep_document(key, file_key, ref.doc, (stream,), ref.path, ref.nested, cfg)
 
+    def _read_too_long(self, seconds: float, per_part: float) -> _Failed:
+        """A part whose bodies took all its time to read: the call's limit when what was
+        left of ``max_brep_seconds`` cut the part's time short, else the part's own."""
+        if seconds < per_part:
+            self.truncated.append("max_brep_seconds")
+            return _Failed("max_brep_seconds")
+        return _Failed("brep_failed", f"reading its bodies took longer than {seconds:g} s")
+
     def _brep_document(self, key, file_key, doc, nested, path, outer, cfg) -> MeshSource:
         """The part ``doc`` (or the nested document ``nested`` leads to inside it)
         tessellated from its Parasolid bodies in configuration ``cfg``, or, when the part
@@ -1323,6 +1331,7 @@ class _Builder:
         ``mesh_configuration_differs`` then says so)."""
         from .errors import ConfigurationNotFoundError
         from .tessellate import _options, _run, bodies_of, hidden_message, shown_bodies
+        from .tessellate.topology import Clock, TimeUp
 
         self.room_for_triangles()
         left = self.max_brep_seconds - self.counts["brep_seconds"]
@@ -1331,10 +1340,12 @@ class _Builder:
             raise _Failed("max_brep_seconds")
         t0 = time.perf_counter()
         # The part's time runs from here, reading its bodies included: tessellating gets
-        # what the read leaves. A read once started runs to its end.
+        # what the read leaves, and a read the time runs out in stops there.
         per_part = self.brep["seconds"]
         seconds = min(per_part, left)
         deadline = t0 + seconds
+        tick = Clock(seconds).tick
+        read_ran_out = out_of_memory = False
         try:
             for stream in nested:
                 self.budget_bytes(doc.container.info(stream).size)
@@ -1346,13 +1357,13 @@ class _Builder:
                 self.truncated.append("max_bytes")
                 raise _Failed("max_bytes")
             try:
-                name, bodies, warns, used = bodies_of(doc, cfg, max_total_bytes=room)
+                name, bodies, warns, used = bodies_of(doc, cfg, max_total_bytes=room, tick=tick)
             except ConfigurationNotFoundError:
                 name, bodies, warns, used = cfg, [], [], 0
             self.counts["bytes_read"] += used
             if not bodies and cfg is not None and name != doc.active_configuration:
                 room = self.max_bytes - self.counts["bytes_read"]
-                name, bodies, warns, more = bodies_of(doc, None, max_total_bytes=max(room, 1))
+                name, bodies, warns, more = bodies_of(doc, None, max_total_bytes=max(room, 1), tick=tick)
                 self.counts["bytes_read"] += more
             hidden = 0
             if bodies and not self.brep["hidden"]:
@@ -1370,10 +1381,7 @@ class _Builder:
                 raise _Failed("no_mesh", NO_MESH_NOR_BODIES)
             rest = deadline - time.perf_counter()
             if rest <= 0.0:
-                if seconds < per_part:
-                    self.truncated.append("max_brep_seconds")
-                    raise _Failed("max_brep_seconds")
-                raise _Failed("brep_failed", f"reading its bodies took longer than {seconds:g} s")
+                raise self._read_too_long(seconds, per_part)
             room_tris = self.max_triangles - self.counts["triangles_read"]
             items = [(b.name, b.transmit, None, self.brep["types"]) for b in bodies]
             t = _run(
@@ -1384,12 +1392,21 @@ class _Builder:
             )
         except _Failed:
             raise
+        except TimeUp:  # the read stopped at the part's deadline
+            read_ran_out = True
         except MemoryError:
-            raise
+            out_of_memory = True
         except Exception as exc:
             raise _Failed("unreadable", code=_error_code(exc)) from None
         finally:
             self.counts["brep_seconds"] += time.perf_counter() - t0
+        if read_ran_out:
+            raise self._read_too_long(seconds, per_part)
+        if out_of_memory:
+            # This part's bodies, read or tessellated, did not fit in memory: it is skipped
+            # and the call goes on. Raised here, outside the handler, so that what the read
+            # and the tessellation held is freed with their frames before the next part.
+            raise _Failed("brep_failed", "reading or tessellating its bodies ran out of memory")
         if "max_triangles" in t.truncated:
             self.truncated.append("max_triangles")
             raise _Failed("max_triangles")
@@ -1640,11 +1657,11 @@ def display_geometry(
     source failed on a limit and the next one for another reason, the limit is the
     reason given. ``max_brep_seconds`` bounds the time the ``brep`` source spends on
     parts' bodies over the whole call (``max_brep_seconds`` as a reason and in
-    ``truncated`` when spent): no part is started after it, and a part whose bodies
-    take the rest of it to read is not tessellated, so the call runs past it by at
-    most one part's read. Raises only for bad arguments and for errors
+    ``truncated`` when spent): no part is started after it, and the read of a part's
+    bodies stops when it is spent. Raises only for bad arguments and for errors
     opening the assembly's own tree; a component that cannot be read is skipped
-    with a reason.
+    with a reason, and a part whose bodies run out of memory as they are read or
+    tessellated is skipped as ``brep_failed``.
 
     ``brep_options`` (provisional) sets how the ``brep`` source tessellates: any of
     ``chord_m``, ``angle_deg``, ``chord_fraction`` and ``max_chord_m`` for

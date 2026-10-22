@@ -1592,10 +1592,12 @@ or a drawing gives None.
     `brep_not_closed` says a solid's mesh is not watertight. A part gets 30 s,
     reading its bodies included: tessellating gets what the read leaves and
     stops when that is spent. No part is started once `max_brep_seconds` is
-    spent over the call, and a part whose bodies take the rest of it to read
-    is skipped as `max_brep_seconds` without being tessellated. Reading a
-    part's bodies, once started, runs to its end, so a part, or the call, can
-    run past its limit by that one read. The triangles
+    spent over the call. The read of a part's bodies stops at the part's time
+    too: a part whose read outlasts its own 30 s is skipped as `brep_failed`,
+    and one whose read outlasts what is left of `max_brep_seconds` as
+    `max_brep_seconds`, without being tessellated. A part whose bodies run out
+    of memory as they are read or tessellated is skipped as `brep_failed`, and
+    the other parts are still drawn. The triangles
     and the decompressed Parasolid bytes count against `max_triangles` and
     `max_bytes`. VERIFIED on the fixtures: o08, o15 and o16 (Default and Lite)
     drawn from `sources=("brep",)` alone place every instance on SOLIDWORKS'
@@ -1630,8 +1632,8 @@ or a drawing gives None.
   sentence in `geometry.REASONS`: `missing`, `ambiguous`, `embedded_not_found`,
   `unreadable` (with the error code), `no_mesh` (its document stores no display
   mesh; with the brep source, the message says it stores no Parasolid bodies
-  either), `brep_failed` (its bodies gave no triangle, or took longer than a
-  part may), `bodies_not_asked` (provisional: none of its bodies is of a type
+  either), `brep_failed` (its bodies gave no triangle, took longer than a
+  part may, or ran out of memory), `bodies_not_asked` (provisional: none of its bodies is of a type
   `brep_options`' `body_types` asks for, such as a part of surfaces when only
   solids are asked for), `not_part`, `no_source` (no source asked for applies),
   `no_components` (a sub-assembly whose own file lists no components for the
@@ -1676,8 +1678,8 @@ or a drawing gives None.
   made) and `brep_seconds` (a float: the time it took); `placed + skipped +
   suppressed + hidden` always equals `parts`. `max_brep_seconds` bounds the
   brep source's time over the whole call: when it is spent, the parts left
-  are skipped as `max_brep_seconds` (the call runs past it by at most one
-  part's read of its bodies, above).
+  are skipped as `max_brep_seconds`, and a part's read of its bodies stops
+  (above).
 - **What it raises**: `InvalidArgumentError` for a bad argument (an unknown
   source, a limit out of range, roots that are not roots) and
   `ConfigurationNotFoundError` for an unknown configuration name. A component
@@ -1773,7 +1775,13 @@ polyline keeps within the chord tolerance and that distance.
 The STEP export's own sampler (3.19) keeps every sample. A torus's (u, v) is
 scaled by its largest `|R + r cos v|` over the face, so a torus whose major
 radius is under its minor one is triangulated where it
-runs inside its axis. A boundary point taken (within ten chord tolerances) but
+runs inside its axis. A boundary point is placed on its surface by Newton,
+from the point before it or, at the start of a loop, from the surface's
+nearest control points; a place found within the chord tolerance (or twice
+its edge's tolerance) is taken at once, and one farther is the nearest of
+every starting point's, not the first within ten chord tolerances (on a thin
+fold, the other wall's foot can be that, and a hole in one wall then fell on
+the other). A boundary point taken (within ten chord tolerances) but
 farther off its surface than the chord, as where a face's edge runs on past the
 end of its surface, is carried past the edge of the surface's parameter range
 by one unclamped Gauss-Newton step, so that such points do not all land on one
@@ -1958,8 +1966,9 @@ options:
   named in `truncated` (`max_faces`, `max_triangles`, `max_seconds`; the time
   running out among blends aside, above); the time
   limit is checked inside faces too, so one face cannot run on, and
-  `tessellate_document`'s counts reading the bodies (a read once started runs
-  to its end). Memory follows `max_triangles` and `max_face_points`: the points
+  `tessellate_document`'s counts reading the bodies, which stops at it as well:
+  a read the time runs out in gives a result with nothing tessellated and
+  `max_seconds` in `truncated`. Memory follows `max_triangles` and `max_face_points`: the points
   kept, those of faces that failed included, are at most `max_triangles` plus
   twice `max_face_points`, and reaching that stops the work as `max_triangles`
   does. A face's polygon is checked against `max_face_points` before it is

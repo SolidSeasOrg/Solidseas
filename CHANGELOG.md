@@ -1860,6 +1860,11 @@ while the project takes shape.
 
 ### Fixed
 
+- **Time limits and memory while drawing from bodies.** Parts and assemblies
+  drawn from their bodies keep to their time limit while the bodies are read,
+  not only while they are tessellated, and in an assembly a part that runs out
+  of memory is skipped with a reason while the rest are still drawn.
+
 - **Faster STEP export of parts with many holes.** STEP export of parts with
   many round holes or other faces cut at their seams is faster: a plate of 900
   holes took 20 s and takes 2 s. The file written is the same.

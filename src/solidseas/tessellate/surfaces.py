@@ -133,21 +133,28 @@ class Surface:
                 return pv
         return None
 
-    def closest(self, p, hint, tol: float, ptol: float, clock=None):
+    def closest(self, p, hint, tol: float, ptol: float, clock=None, near: float | None = None):
         """``(u, v, distance)`` of the point of the surface nearest ``p``; ``u`` is None at
-        a pole. ``hint`` is the (u, v) of a nearby point, or None."""
+        a pole. ``hint`` is the (u, v) of a nearby point, or None.
+
+        A point of the surface found within ``near`` of ``p`` is taken at once. One
+        farther is compared with what every starting point gives, and the nearest is
+        kept: Newton from a starting point on the wrong part of the surface (the other
+        wall of a thin fold, say) stops at a point a few chords away that is nearest only
+        locally. ``near`` None is ``tol``, the first point found within it taken."""
         vp = self.pole_at(p, ptol)
         if vp is not None:
             return None, vp, 0.0
+        take = tol if near is None else near
         best = None
         if hint is not None and hint[0] is not None:
             best = newton(self, p, hint[0], hint[1])
-        if best is None or best[2] > tol:
+        if best is None or best[2] > take:
             for su, sv in self.seeds(p, clock):
                 got = newton(self, p, su, sv)
                 if best is None or got[2] < best[2]:
                     best = got
-                if best[2] <= tol:
+                if best[2] <= take:
                     break
         if best is None:
             raise FaceFailed("inversion_failed", "no starting point")
@@ -293,7 +300,7 @@ class Plane(Surface):
     def normal(self, u, v):
         return self.N
 
-    def closest(self, p, hint, tol, ptol, clock=None):
+    def closest(self, p, hint, tol, ptol, clock=None, near=None):
         q = sub(p, self.P)
         return dot(q, self.X), dot(q, self.Y), abs(dot(q, self.N))
 
@@ -337,7 +344,7 @@ class Cylinder(Revolved):
         p = add(add(self.P, mul(self.A, v)), mul(e, self.r))
         return p, combo((0.0, 0.0, 0.0), self.X, -self.r * s, self.Y, self.r * c), self.A
 
-    def closest(self, p, hint, tol, ptol, clock=None):
+    def closest(self, p, hint, tol, ptol, clock=None, near=None):
         x, y, h = self._local(p, self.P)
         rho = math.hypot(x, y)
         return math.atan2(y, x), h, abs(rho - self.r)
@@ -373,7 +380,7 @@ class Cone(Revolved):
         sv = add(self.A, mul(e, self.t))
         return p, su, sv
 
-    def closest(self, p, hint, tol, ptol, clock=None):
+    def closest(self, p, hint, tol, ptol, clock=None, near=None):
         x, y, h = self._local(p, self.P)
         rho_p = math.hypot(x, y)
         # In the plane through the axis and p, the cone is the line rho = r + v tan(a),
@@ -431,7 +438,7 @@ class Sphere(Revolved):
         e = combo((0.0, 0.0, 0.0), self.X, math.cos(u), self.Y, math.sin(u))
         return add(mul(e, cv), mul(self.A, math.sin(v)))
 
-    def closest(self, p, hint, tol, ptol, clock=None):
+    def closest(self, p, hint, tol, ptol, clock=None, near=None):
         x, y, h = self._local(p, self.C)
         rho = math.hypot(x, y)
         d = abs(math.sqrt(rho * rho + h * h) - self.r)
@@ -473,7 +480,7 @@ class Torus(Revolved):
         dv = add(mul(e, -self.r * sv_), mul(self.A, self.r * cv))
         return p, du, dv
 
-    def closest(self, p, hint, tol, ptol, clock=None):
+    def closest(self, p, hint, tol, ptol, clock=None, near=None):
         x, y, h = self._local(p, self.C)
         rho = math.hypot(x, y)
         if rho <= ptol:
@@ -832,8 +839,9 @@ class Offset(Surface):
     def from_file(self, u, v):
         return self.b.from_file(u, v)
 
-    def closest(self, p, hint, tol, ptol, clock=None):
-        u, v, _d = self.b.closest(p, hint, abs(self.d) + tol, ptol, clock)
+    def closest(self, p, hint, tol, ptol, clock=None, near=None):
+        base_near = None if near is None else abs(self.d) + near
+        u, v, _d = self.b.closest(p, hint, abs(self.d) + tol, ptol, clock, near=base_near)
         if u is None:
             return u, v, _d
         got = newton(self, p, u, v, iters=8)

@@ -925,10 +925,13 @@ def _targets(xt: XtTransmit, nd: Node):
                     yield i, name, k, x
 
 
-def partition_to_parts(px: XtTransmit) -> tuple[list[XtTransmit], list[dict[str, Any]]]:
+def partition_to_parts(
+    px: XtTransmit, *, tick: Callable[[], None] | None = None
+) -> tuple[list[XtTransmit], list[dict[str, Any]]]:
     """Copy every BODY of a partition transmit into its own part transmit.
 
-    Returns ``(parts, reports)``; each report lists what had to be cut."""
+    Returns ``(parts, reports)``; each report lists what had to be cut. ``tick`` as for
+    :func:`parse_binary`, called once a node copied."""
     if px.kind != "partition":
         raise ParasolidError("not a partition transmit")
     idx = px.by_index()
@@ -951,6 +954,8 @@ def partition_to_parts(px: XtTransmit) -> tuple[list[XtTransmit], list[dict[str,
         while qi < len(order):
             nd = order[qi]
             qi += 1
+            if tick is not None:
+                tick()
             cut = _CUT.get(nd.type, ())
             for _i, name, _k, x in _targets(px, nd):
                 if name in cut or name in _CHAIN_FIELDS.get(nd.type, ()):
@@ -964,6 +969,8 @@ def partition_to_parts(px: XtTransmit) -> tuple[list[XtTransmit], list[dict[str,
         remap = {n.index: k + 1 for k, n in enumerate(order)}
         new_nodes = []
         for nd in order:
+            if tick is not None:
+                tick()
             vals = list(nd.vals)
             cut = _CUT.get(nd.type, ())
             for i, name, n in _pointer_slots(px, nd.type):
@@ -1011,13 +1018,14 @@ def partition_to_parts(px: XtTransmit) -> tuple[list[XtTransmit], list[dict[str,
 
 
 # --------------------------------------------------------------------------- validation
-def validate(xt: XtTransmit) -> dict[str, Any]:
+def validate(xt: XtTransmit, *, tick: Callable[[], None] | None = None) -> dict[str, Any]:
     """Structural checks that do not need a Parasolid kernel.
 
     ``ok`` means: parsed to the terminator with no trailing bytes, the root node
     has index 1 and the type the reference prescribes for the file kind, every
     non-null pointer resolves (except fields documented as ignorable), and the
-    FACE, LOOP and fin back-pointers are consistent."""
+    FACE, LOOP and fin back-pointers are consistent. ``tick`` as for
+    :func:`parse_binary`, called once a node in each pass over them."""
     errs: list[str] = []
     idx = xt.by_index()
     if xt.trailing:
@@ -1036,6 +1044,8 @@ def validate(xt: XtTransmit) -> dict[str, Any]:
     if xt.kind == "part":
         ignore.add((TYPE_ATTRIB_DEF, "next"))
     for nd in xt.nodes:
+        if tick is not None:
+            tick()
         for _i, name, _k, x in _targets(xt, nd):
             if x not in idx and (nd.type, name) not in ignore:
                 dangling += 1
@@ -1051,6 +1061,8 @@ def validate(xt: XtTransmit) -> dict[str, Any]:
     seen_fins: set[int] = set()
     try:
         for nd in xt.nodes:
+            if tick is not None:
+                tick()
             if nd.tname == "FACE":
                 lp = idx.get(xt.get(nd, "loop"))
                 while lp is not None:
@@ -1444,6 +1456,7 @@ def extract_parasolid(
     max_total_bytes: int | None = None,
     config_names: dict[int, str] | None = None,
     configurations=None,
+    tick: Callable[[], None] | None = None,
 ) -> ParasolidResult:
     """Extract the Parasolid bodies of a document, per configuration.
 
@@ -1464,6 +1477,9 @@ def extract_parasolid(
       ``bytes_inflated`` of the result says how much was.
     * ``configurations``, a collection of configuration ids, limits the reading to
       those configurations' streams (None: every one).
+    * ``tick``, when given, is called once a node parsed, copied out of a partition or
+      validated, and may raise to stop the whole read (a deadline or a cancellation):
+      what it raises, unless a :class:`SldError`, is not caught here.
     """
     if local_bodies not in ("fallback", "always", "never"):
         raise ValueError("local_bodies must be 'fallback', 'always' or 'never'")
@@ -1543,17 +1559,17 @@ def extract_parasolid(
             if deltas or too_big:
                 continue
             try:
-                px = parse_binary(blk)
+                px = parse_binary(blk, tick=tick)
                 if px.kind != "partition":
                     continue
-                parts, reports = partition_to_parts(px)
+                parts, reports = partition_to_parts(px, tick=tick)
             except SldError as exc:
                 res.problems.append({**where, "error": f"{type(exc).__name__}: {exc}"})
                 unread.add(cfg_id)
                 continue
             bodies_per_cfg[cfg_id] += len(parts)
             for k, (part, rep) in enumerate(zip(parts, reports, strict=True), 1):
-                rep.update(stream=stream, inferred_types=px.inferred_types, valid=validate(part))
+                rep.update(stream=stream, inferred_types=px.inferred_types, valid=validate(part, tick=tick))
                 res.bodies.append(
                     ParasolidBody(
                         name=f"Config-{cfg_id}/body{k}",
@@ -1589,7 +1605,7 @@ def extract_parasolid(
             if over_cap(size, where) or not take(size, where):
                 continue
             try:
-                part = parse_binary(unwrap_zlb(zblock, max_bytes=size))
+                part = parse_binary(unwrap_zlb(zblock, max_bytes=size), tick=tick)
             except SldError as exc:
                 res.problems.append({**where, "error": f"{type(exc).__name__}: {exc}"})
                 continue
@@ -1608,7 +1624,11 @@ def extract_parasolid(
                     if root is not None and root.type == TYPE_BODY
                     else "unknown",
                     transmit=part,
-                    report={"stream": stream, "inferred_types": part.inferred_types, "valid": validate(part)},
+                    report={
+                        "stream": stream,
+                        "inferred_types": part.inferred_types,
+                        "valid": validate(part, tick=tick),
+                    },
                 )
             )
     res.bytes_inflated = total - budget[0]

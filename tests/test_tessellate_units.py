@@ -279,6 +279,64 @@ def test_an_offset_surface_lies_along_its_base_normal_times_the_base_sense():
         assert d < 1e-9 and math.dist(surface.point(u, v), p) < 1e-9
 
 
+def _hairpin_surface(chord: float = 1e-4):
+    from solidseas.tessellate.surfaces import Geometry
+    from solidseas.tessellate.topology import Topology
+
+    xt = xt_bodies.hairpin_sheet()
+    side = next(n for n in xt.nodes if n.type == xt_bodies.B_SURFACE)
+    return Geometry(Topology(xt), chord).surface(side)
+
+
+def test_inversion_keeps_the_nearest_point_not_the_first_found_within_the_tolerance():
+    """On the hairpin the control point nearest a point of the far wall is on the near
+    wall, five chords across the gap, and Newton from it stops at the near wall's foot.
+    Taken as the first point within ten chords it is wrong; with ``near`` the chord, the
+    other starting points are tried and the far wall's own point, at no distance, kept."""
+    S = _hairpin_surface()
+    p = (0.012, 5e-4, 0.005)  # on the far wall, beside the hole
+    u, v, d = S.closest(p, None, 1e-3, 1e-6)  # without near: the first within ten chords
+    assert d == pytest.approx(5e-4) and S.point(u, v)[1] == pytest.approx(0.0, abs=1e-12)
+    u, v, d = S.closest(p, None, 1e-3, 1e-6, near=1e-4)
+    assert d < 1e-12 and math.dist(S.point(u, v), p) < 1e-12
+    # a starting point already within near is taken at once
+    assert S.closest(p, (u, v), 1e-3, 1e-6, near=1e-4) == pytest.approx((u, v, 0.0), abs=1e-12)
+
+
+def _covers(tris3, x: float, z: float) -> bool:
+    """Whether a triangle of ``tris3`` (corners as points) covers (x, z) seen along y."""
+    for a, b, c in tris3:
+        d1 = (b[0] - a[0]) * (z - a[2]) - (b[2] - a[2]) * (x - a[0])
+        d2 = (c[0] - b[0]) * (z - b[2]) - (c[2] - b[2]) * (x - b[0])
+        d3 = (a[0] - c[0]) * (z - c[2]) - (a[2] - c[2]) * (x - c[0])
+        if (d1 >= 0 and d2 >= 0 and d3 >= 0) or (d1 <= 0 and d2 <= 0 and d3 <= 0):
+            return True
+    return False
+
+
+def test_a_hole_in_the_far_wall_of_a_fold_is_cut_from_the_far_wall():
+    """The hole's loop starts with no hint, and its first point is inverted from the
+    nearest control point, on the near wall: kept there, the hole fell on the near wall's
+    part of the face's (u, v) and the face could not be triangulated. The nearest point
+    over every starting point puts it on the far wall."""
+    L, gap, H, hole = 0.02, 5e-4, 0.01, 0.002
+    t = tessellate_transmit(xt_bodies.hairpin_sheet(L, gap, H, hole), chord_m=1e-4)
+    assert t.counts["faces_done"] == 1 and t.reasons == {}
+    assert t.measures()["area"] == pytest.approx((2 * L + gap) * H - math.pi * hole**2, rel=5e-3)
+    pos, tris = t.welded()
+    at = [tuple(pos[3 * i : 3 * i + 3]) for i in range(len(pos) // 3)]
+    near, far = [], []
+    for k in range(0, len(tris), 3):
+        corners = [at[i] for i in tris[k : k + 3]]
+        ys = [p[1] for p in corners]
+        assert not (min(ys) < 1e-9 and max(ys) > gap - 1e-9 and min(p[0] for p in corners) < L - 1e-9)
+        if max(ys) < 1e-9:
+            near.append(corners)
+        elif min(ys) > gap - 1e-9:
+            far.append(corners)
+    assert _covers(near, L / 2, H / 2) and not _covers(far, L / 2, H / 2)
+
+
 def test_a_loop_round_a_cylinder_winds_once_and_one_across_its_seam_does_not():
     S = surfaces.Cylinder((0, 0, 0), (0, 0, 1), 1.0, (1, 0, 0))
     ring = [(2 * math.pi * k / 24 - math.pi, 0.0, k) for k in range(24)]

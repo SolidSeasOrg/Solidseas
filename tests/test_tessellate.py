@@ -469,3 +469,89 @@ def test_the_brep_time_limits_count_reading_the_bodies(tmp_path, monkeypatch):
     assert g.counts["meshes_tessellated"] == 0 and g.instances == ()
     assert {s.reason for s in g.skipped} == {"max_brep_seconds"} and g.truncated == ("max_brep_seconds",)
     assert 0.4 <= g.counts["brep_seconds"] < 0.2 + 0.4 + 0.3
+
+
+def _count_copies(monkeypatch) -> list:
+    """Look at the time on every tick, and record each partition copied into parts: a
+    read stopped while it parsed copies none."""
+    from solidseas.formats.solidworks import parasolid as ps
+    from solidseas.tessellate.topology import Clock
+
+    monkeypatch.setattr(Clock, "EVERY", 1)
+    copied: list = []
+    real = ps.partition_to_parts
+
+    def copy(px, **kwargs):
+        copied.append(px)
+        return real(px, **kwargs)
+
+    monkeypatch.setattr(ps, "partition_to_parts", copy)
+    return copied
+
+
+def test_reading_the_bodies_stops_at_the_time_limit(monkeypatch):
+    """max_seconds counts reading the bodies, and a read the time runs out in stops
+    there rather than running to its end: nothing is tessellated, and the result names
+    the limit."""
+    copied = _count_copies(monkeypatch)
+    with open_document(fixture_path("o11_curved.SLDPRT")) as doc:
+        t = tessellate_document(doc, max_seconds=0.0, detail=True)
+        assert copied == []
+        whole = tessellate_document(doc)
+    assert len(copied) == 1 and whole.truncated == () and whole.mesh.n_triangles > 1000
+    assert t.truncated == ("max_seconds",) and t.mesh.n_triangles == 0 and t.face_ids == ()
+    assert t.counts == dict.fromkeys(t.counts, 0) and t.configuration == whole.configuration
+    assert t.detail is not None and t.detail.edges == {} and t.closed is False
+
+
+def test_the_brep_source_stops_reading_a_part_at_its_deadline(tmp_path, monkeypatch):
+    """The part's time bounds the read of its bodies too: the part's own (brep_failed)
+    or, when what was left of max_brep_seconds cut it short, the call's."""
+    folder = tmp_path / "jobs"
+    folder.mkdir()
+    shutil.copy2(fixture_path(O08), folder / O08)
+    part = fixture_streams(fixture_path("o11_curved.SLDPRT"))
+    (folder / "o02_boxA.SLDPRT").write_bytes(
+        build_modern({n: d for n, d in part.items() if n != "Contents/DisplayLists"})
+    )
+    copied = _count_copies(monkeypatch)
+    here = {"sources": ("brep",), "allow_outside_roots": False}
+    with open_document(folder / O08) as doc:
+        own = geo.display_geometry(doc, brep_options={"max_seconds": 0.0}, **here)
+        call = geo.display_geometry(doc, max_brep_seconds=1e-9, **here)
+        assert copied == []
+        whole = geo.display_geometry(doc, **here)
+    assert {(s.reason, s.message) for s in own.skipped} == {
+        ("brep_failed", "reading its bodies took longer than 0 s")
+    }
+    assert own.truncated == () and own.counts["meshes_tessellated"] == 0
+    assert {s.reason for s in call.skipped} == {"max_brep_seconds"}
+    assert call.truncated == ("max_brep_seconds",)
+    assert len(whole.instances) == 2 and len(copied) == 1
+
+
+def test_a_part_that_runs_out_of_memory_is_skipped_and_the_rest_drawn(monkeypatch):
+    """A MemoryError while one part's bodies are read or tessellated costs that part,
+    as brep_failed, and not the whole assembly: the other parts are still drawn."""
+    import solidseas.tessellate as tess
+
+    here = {"sources": ("brep",), "allow_outside_roots": False}
+    with open_document(fixture_path(O16)) as doc:
+        whole = geo.display_geometry(doc, **here)
+        real = tess._run
+        calls = []
+
+        def run(*args, **kwargs):
+            calls.append(1)
+            if len(calls) == 1:
+                raise MemoryError
+            return real(*args, **kwargs)
+
+        monkeypatch.setattr(tess, "_run", run)
+        g = geo.display_geometry(doc, **here)
+    assert len(calls) == len(whole.meshes) and g.counts["meshes_tessellated"] == len(whole.meshes) - 1
+    assert {(s.reason, s.message) for s in g.skipped} == {
+        ("brep_failed", "reading or tessellating its bodies ran out of memory")
+    }
+    assert g.instances and len(g.instances) + len(g.skipped) == len(whole.instances)
+    assert g.truncated == ()
