@@ -8,6 +8,11 @@ while the project takes shape.
 
 ### Changed
 
+- **A continuation title block on later sheets.** The sheets after a drawing's
+  first carry a short continuation title block (size, CAGE, drawing number,
+  revision, scale and SHEET n OF m) in place of the full one, so a long parts
+  list fits more lines on each of them.
+
 - **Identity reads count as files opened.** In display geometry and the BOM, the
   files reference resolution opens to read their identity now count toward
   `max_files` and `files_opened`. Large assemblies on Linux report sub-assembly

@@ -16,6 +16,7 @@ from dataclasses import dataclass, replace
 
 from .. import standards
 from .index import Box
+from .titleblock import CONTINUATION_SHARE
 
 MIN_SPAN_MM = 8.0
 TITLE_SIZE = {"A": (127.0, 50.0)}  # the compact A block; B to E share one layout
@@ -93,15 +94,23 @@ def continuation_frame(
     name: str, settings, *, parts_height: float = 0.0, parts_width: float = 0.0
 ) -> SheetFrame:
     """A sheet that continues a drawing's first, holding the rest of a parts list too
-    long for it: the same size, border and title block, the parts list on the title
-    block as on the first, and no revision block or notes, which the first sheet
-    carries for the drawing."""
-    f = frame(name, settings, parts_height=parts_height, parts_width=parts_width)
-    top = f.border.y1
+    long for it: the same size and border, the continuation title block in the same
+    corner and as wide as the first's but lower (:data:`CONTINUATION_SHARE` of its
+    height, :func:`.titleblock.continuation_block`), the parts list standing on it as on
+    the first, and no revision block or notes, which the first sheet carries for the
+    drawing."""
+    f = frame(name, settings)
+    b = f.border
+    title = Box(f.title.x0, f.title.y0, f.title.x1, f.title.y0 + f.title.height * CONTINUATION_SHARE)
+    pw = max(title.width, parts_width)
+    parts = Box(b.x1 - pw, title.y1, b.x1, title.y1 + parts_height) if parts_height > 0 else None
+    base = parts.y1 if parts is not None else title.y1
     return replace(
         f,
-        revision=Box(f.border.x1, top, f.border.x1, top),
-        notes=Box(f.notes.x0, f.notes.y0, f.notes.x1, f.notes.y0),
+        title=title,
+        revision=Box(b.x1, b.y1, b.x1, b.y1),
+        notes=Box(title.x0, base, title.x1, base),
+        parts=parts,
     )
 
 

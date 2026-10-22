@@ -24,10 +24,10 @@ built, including [the viewer's entries](../drawings/viewer.md) and
 An assembly's drawing has its views, a parts list on the title block giving
 each item's own drawing number, and an item balloon on each part, and no
 dimensions ([assemblies.md](../drawings/assemblies.md)). A parts list too long
-for the first sheet goes on to more sheets of the same size, each with the title
-block and the list's headings, and every title block says which sheet it is
-(SHEET 2 OF 3). The PDF then has a page for each sheet, and the DXF has the
-sheets side by side.
+for the first sheet goes on to more sheets of the same size, each with the list's
+headings and a short title block giving the drawing number, revision, size and
+scale, and every title block says which sheet it is (SHEET 2 OF 3). The PDF then
+has a page for each sheet, and the DXF has the sheets side by side.
 
 Parts saved as STEP (`.step`, `.stp`), Parasolid (`.x_t`, `.x_b`) or Alibre Design
 (`.AD_PRT`) files are drawn as SOLIDWORKS parts are. Such a file has no

@@ -165,8 +165,10 @@ read them all.
 **A list longer than those columns hold** goes on to more sheets
 (`partslist.continued`, `docs/DRAWINGS.md` 11.7). The first sheet's columns are
 filled, and the rest of the list goes on sheets of the same size after it: each
-with the title block, the border and the stamps, and the list standing on the
-title block as on the first, in as many columns as the border's width holds,
+with the continuation title block (the drawing's size, CAGE, number and revision,
+the scale and SHEET n OF m, in the first's corner and as wide but lower), the
+border and the stamps, and the list standing on that block as on the first, in
+as many columns as the border's width holds,
 each as tall as the field above the title block and each with its headings, so
 a reader picking up any sheet sees what the columns are. The last sheet's
 columns share its lines evenly. Every title block says SHEET n OF m, the first

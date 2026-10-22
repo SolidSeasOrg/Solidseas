@@ -1579,9 +1579,9 @@ class _Run:
 
     def paint_continuation(self, sc, shapes: list[PL.Shape]) -> tuple[D.Sheet, ...]:
         """The sheets after the first, one for each of ``shapes``: the rest of the parts
-        list, each column with its headings, on the title block (its SHEET n OF m), in
-        the border with its zones and stamps. No views, revision block or notes: the
-        first sheet carries those for the drawing."""
+        list, each column with its headings, on the continuation title block (the
+        drawing's number and SHEET n OF m), in the border with its zones and stamps. No
+        views, revision block or notes: the first sheet carries those for the drawing."""
         if not shapes:
             return ()
         heads, narrow, rows = self.parts_rows()
@@ -1592,7 +1592,8 @@ class _Run:
                 self.frame.name, self.settings, parts_height=shape.height, parts_width=shape.total_width
             )
             pen = Pen()
-            annotations = self.paint_title(pen, f.title, sc, number)
+            fields = self.title_fields(sc, number)
+            annotations = titleblock.continuation_block(pen, f.title, unit=self.ctx.unit, fields=fields)
             if f.parts is not None:
                 chunk = rows[start : start + shape.lines]
                 annotations += PL.parts_list(pen, f.parts, chunk, self.h, heads, narrow, shape.per_column)

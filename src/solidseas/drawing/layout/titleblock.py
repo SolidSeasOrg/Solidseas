@@ -13,6 +13,11 @@ drawing number are kept at the lettering minimum where they can be (22 rule 10):
 a long title goes on two lines, its row taller, before it is set smaller; a long
 drawing number takes the CAGE cell's width when the company has no CAGE code. The
 revision block in the upper right holds one row per revision.
+
+The sheets after a drawing's first carry the continuation block
+(:func:`continuation_block`), in the same corner and as wide: the row naming the
+drawing (SIZE, CAGE, DWG NO, REV) over SCALE and SHEET n OF m, each row as tall as
+the full block's, so a reader holding any sheet knows the drawing and the sheet.
 """
 
 from __future__ import annotations
@@ -170,6 +175,35 @@ def _logo_box(logo: bytes, cell: Box) -> Box:
     return Box(x, y, x + w, y + h)
 
 
+def _number_row(pen: Pen, box: Box, fields: dict[str, str], t: standards.TextPreset) -> None:
+    """The row that names the drawing, in ``box``: SIZE, CAGE, DWG NO and REV, the
+    number at the lettering minimum where it can be (22 rule 10)."""
+    least = t.dimension
+    row = [
+        ("SIZE", "size", 0.12),
+        ("CAGE", "cage", 0.16),
+        ("DWG NO", "number", 0.56),
+        ("REV", "revision", 0.16),
+    ]
+    number = fields.get("number", "")
+    if not fields.get("cage") and text_width(number, least, True) > box.width * 0.56 - 2.0:
+        # CAGE is optional (11.4): without a code its width goes to a long number
+        row = [("SIZE", "size", 0.12), ("DWG NO", "number", 0.72), ("REV", "revision", 0.16)]
+    cx = box.x0
+    for label, key, share in row:
+        cw = box.width * share
+        _cell(
+            pen,
+            Box(cx, box.y0, cx + cw, box.y1),
+            label,
+            fields.get(key, ""),
+            t.number if key == "number" else t.block_label * 1.4,
+            bold=key == "number",
+            least=least if key == "number" else None,
+        )
+        cx += cw
+
+
 def title_block(
     pen: Pen,
     area: Box,
@@ -226,29 +260,7 @@ def title_block(
         _title_cell(pen, Box(split, ys[2], x1, ys[1]), title, t.title, least)
     else:
         _cell(pen, Box(split, ys[2], x1, ys[1]), "TITLE", title, t.title, bold=True, least=least)
-    third = [
-        ("SIZE", "size", 0.12),
-        ("CAGE", "cage", 0.16),
-        ("DWG NO", "number", 0.56),
-        ("REV", "revision", 0.16),
-    ]
-    number = fields.get("number", "")
-    if not fields.get("cage") and text_width(number, least, True) > rw * 0.56 - 2.0:
-        # CAGE is optional (11.4): without a code its width goes to a long number
-        third = [("SIZE", "size", 0.12), ("DWG NO", "number", 0.72), ("REV", "revision", 0.16)]
-    cx = split
-    for label, key, share in third:
-        cw = rw * share
-        _cell(
-            pen,
-            Box(cx, ys[3], cx + cw, ys[2]),
-            label,
-            fields.get(key, ""),
-            t.number if key == "number" else t.block_label * 1.4,
-            bold=key == "number",
-            least=least if key == "number" else None,
-        )
-        cx += cw
+    _number_row(pen, Box(split, ys[3], x1, ys[2]), fields, t)
     fourth = [("SCALE", "scale", 0.25), ("CALC WT", "weight", 0.4), ("SHEET", "sheet", 0.35)]
     cx = split
     for label, key, share in fourth:
@@ -328,6 +340,31 @@ def title_block(
     _wrap_into(pen, Box(x0, y0, split, y0 + bottom_h * (0.55 if company.do_not_scale else 1.0)), words, small)
     out.append(D.TitleBlock((x0, y0), w, h, tuple(sorted(fields.items()))))
     return out
+
+
+# The continuation block's two rows, as shares of its height: the row naming the drawing
+# over the row of the scale and the sheet, as tall as those rows of the full block.
+CONTINUATION_ROWS = (0.16, 0.13)
+CONTINUATION_SHARE = sum(CONTINUATION_ROWS)  # of the full block's height
+CONTINUATION_FIELDS = ("size", "cage", "number", "revision", "scale", "sheet")
+
+
+def continuation_block(pen: Pen, area: Box, *, unit: str, fields: dict[str, str]) -> list:
+    """Paint the title block of a sheet after the first in ``area`` and return its
+    annotation: the continuation block, which says what drawing and which sheet this is
+    (Y14.1 as publicly summarised; verify). SIZE, CAGE, DWG NO and REV, as in the
+    first sheet's block, over SCALE and SHEET n OF m. The company, title, approvals,
+    tolerances and the rest are the first sheet's, for the whole drawing; the
+    annotation holds only the fields drawn here (:data:`CONTINUATION_FIELDS`)."""
+    t = standards.TEXT[unit]
+    pen.rect(area, width=THICK, layer="title", owner="title")
+    mid = area.y0 + area.height * CONTINUATION_ROWS[1] / CONTINUATION_SHARE
+    _number_row(pen, Box(area.x0, mid, area.x1, area.y1), fields, t)
+    half = area.x0 + area.width / 2
+    _cell(pen, Box(area.x0, area.y0, half, mid), "SCALE", fields.get("scale", ""), t.block_label * 1.2)
+    _cell(pen, Box(half, area.y0, area.x1, mid), "SHEET", fields.get("sheet", ""), t.block_label * 1.2)
+    kept = tuple(sorted((k, v) for k, v in fields.items() if k in CONTINUATION_FIELDS))
+    return [D.TitleBlock((area.x0, area.y0), area.width, area.height, kept)]
 
 
 def _wrap(text: str, width: float, h: float) -> list[str]:
@@ -411,4 +448,11 @@ def revision_block(pen: Pen, area: Box, revisions) -> list:
     return []
 
 
-__all__ = ["fit_text", "revision_block", "title_block"]
+__all__ = [
+    "CONTINUATION_FIELDS",
+    "CONTINUATION_SHARE",
+    "continuation_block",
+    "fit_text",
+    "revision_block",
+    "title_block",
+]

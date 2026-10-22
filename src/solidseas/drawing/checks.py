@@ -1773,9 +1773,11 @@ def _r8_sheet(s: _In, out: _Out) -> None:
 
 def _r8_numbered(s: _In, out: _Out) -> None:
     """Every sheet of the drawing the first's size, with a title block saying which of
-    how many it is (SHEET n OF m)."""
+    how many it is (SHEET n OF m) and, after the first, naming the first's drawing
+    number and revision."""
     sheets = D.sheets_of(s.sheet)
     m = len(sheets)
+    first = dict(s.title_block.fields) if s.title_block is not None else {}
     for n, sheet in enumerate(sheets, 1):
         if n > 1 and (sheet.name, sheet.width, sheet.height) != (s.sheet.name, s.sheet.width, s.sheet.height):
             out.add("R8.sheet", f"sheet {n} is not the size of the first", "sheet", ("Lay Out Again",))
@@ -1784,7 +1786,17 @@ def _r8_numbered(s: _In, out: _Out) -> None:
             if n > 1:
                 out.add("R8.sheet", f"sheet {n} has no title block", "title", ("Lay Out Again",))
             continue
-        said = " ".join(str(dict(tb.fields).get("sheet") or "").upper().split())
+        fields = dict(tb.fields)
+        for key, words in (("number", "drawing number"), ("revision", "revision")):
+            if n > 1 and key in first and fields.get(key) != first[key]:
+                out.add(
+                    "R8.sheet",
+                    f"sheet {n}'s title block gives the {words} {fields.get(key) or 'as empty'}; "
+                    f"the first sheet's gives {first[key] or 'none'}",
+                    "title",
+                    ("Lay Out Again",),
+                )
+        said = " ".join(str(fields.get("sheet") or "").upper().split())
         if said and said != f"{n} OF {m}":
             out.add(
                 "R8.sheet",

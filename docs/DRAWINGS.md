@@ -1476,6 +1476,14 @@ sort keys, no randomness, coordinates rounded to a micrometre.
   printed parts, angles, the interpretation statement, once); the projection
   symbol; the proprietary statement; DO NOT SCALE DRAWING; optional NEXT ASSY
   and USED ON.
+- **Continuation title block** on every sheet after the first (11.7): in the same
+  corner and as wide as the first sheet's block, as tall as that block's two rows
+  that name the drawing and the sheet (`titleblock.CONTINUATION_SHARE`, 29 % of
+  its height: 14.5 mm on A, 18.6 mm on B to E): SIZE, CAGE, DWG NO and REV over
+  SCALE and SHEET n OF m. The company, title, approvals, material, finish and
+  tolerance block are the first sheet's, for the whole drawing. Its contents are
+  Y14.1's continuation block as publicly summarised (**verify** against the
+  purchased standard, with its proportions).
 - **Plot stamp** in the lower margin: "SolidSeas <version>, <file name>
   (<configuration>)", the file name only when Settings allow it.
 - **Revision block** (upper right): one row per revision with zone, letter,
@@ -1509,8 +1517,8 @@ the columns its first sheet holds (`docs/drawings/assemblies.md`). The first
 sheet then fills those columns and the list goes on to sheets of the same size
 after it, as many as it needs and at most `DrawingLimits.sheets` in all. Each of
 those sheets has the border with its zones, the PRELIMINARY stamp while the
-drawing is unreleased, the plot stamp, the title block and the rest of the list
-in columns standing on the title block, each column with its headings, as many
+drawing is unreleased, the plot stamp, the continuation title block (11.4) and the
+rest of the list in columns standing on that block, each column with its headings, as many
 columns as the border's width holds, each as tall as the field above the title
 block; the last sheet's columns share its lines evenly. The views, balloons,
 notes and revision block stay on the first sheet. Every title block says SHEET n
@@ -1523,7 +1531,8 @@ did before.
 The sheets after the first are `display.Sheet.continuation` of the first
 (`display.sheets_of` lists them all), so everything that carries a drawing's
 sheet carries them, and a layout lays them out again with the first. `R8.sheet`
-checks each is the first's size with a title block numbering it among the rest.
+checks each is the first's size with a title block numbering it among the rest and
+naming the first's drawing number and revision.
 
 ## 12. Writers and where files go
 
@@ -2247,7 +2256,7 @@ once the user has installed them; Email PDF with the user's webmail.
 | R6.material | material mapped to an entry with callout and specification, or accepted as typed; finish explicit; heat treatment answered when asked | error at release |
 | R6.signatures | rows Settings require are signed at release; signatures match the current content | error at release |
 | R7.callouts | callout grammar and order; THRU only with both ends open; a thread only when confirmed; `into_bore` ends confirmed | error |
-| R8.sheet | size, margins, frame, zones, block positions; every sheet the first's size and numbered SHEET n OF m | error |
+| R8.sheet | size, margins, frame, zones, block positions; every sheet the first's size, numbered SHEET n OF m and naming the first's drawing number and revision | error |
 | R9.lines | two widths 2:1; styles by role; centre marks and lines | warning |
 | R10.text | heights at or above the minimum; labels larger; upper case; no compressed text | error |
 | R11.collisions | no hard conflict | error |

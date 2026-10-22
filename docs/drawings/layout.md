@@ -169,8 +169,10 @@ side and one on the arc; an ordinate's origin, feature and leader end.
 `layout.titleblock` paints the ASME block: company and logo, title, size, CAGE,
 drawing number and revision, scale, calculated weight and sheet (SHEET n OF m:
 `1 OF 1`, unless an assembly's parts list goes on to more sheets, each painted by
-`place._Run.paint_continuation` with this block, its border, stamps and its part
-of the list, DRAWINGS.md 11.7), status, the
+`place._Run.paint_continuation` with the continuation block
+(`titleblock.continuation_block`: SIZE, CAGE, DWG NO and REV over SCALE and SHEET,
+in the same corner and as wide, as tall as those two rows of the full block), its
+border, stamps and its part of the list, DRAWINGS.md 11.7), status, the
 model with its revision and short hash, material and finish; on the left the
 tolerance block wrapped to fit, the projection symbol, the approval rows (empty
 until signed, DRAWN signed when made), DO NOT SCALE DRAWING and the proprietary

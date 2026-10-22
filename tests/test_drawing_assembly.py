@@ -28,6 +28,7 @@ from solidseas.drawing import assembly, document, edit, facegraph, make_drawing,
 from solidseas.drawing import display as D
 from solidseas.drawing import settings as S
 from solidseas.drawing import types as T
+from solidseas.drawing.checks import run_checks
 from solidseas.drawing.dxf import write_dxf
 from solidseas.drawing.layout.index import Box, segments_cross
 from solidseas.drawing.layout.sheet import frame
@@ -746,7 +747,14 @@ def test_a_parts_list_too_long_for_its_sheet_goes_on_to_more_sheets():
         for pl in _lists(s):  # standing on the title block, inside the border
             assert pl.at[1] == pytest.approx(tb.at[1] + tb.height)
             assert pl.at[1] + pl.height <= s.height - 9.0
-    assert _title(sheets[1])["title"] == _title(sheets[0])["title"]
+    # the sheets after the first carry the continuation block: the drawing and the sheet
+    first = _title(sheets[0])
+    for s in sheets[1:]:
+        fields = _title(s)
+        assert set(fields) == {"size", "cage", "number", "revision", "scale", "sheet"}
+        assert {k: fields[k] for k in ("size", "number", "revision", "scale")} == {
+            k: first[k] for k in ("size", "number", "revision", "scale")
+        }
     # the checks read the list across its sheets: every balloon names an item of it
     found = [
         c for c in d.checks if c.code in ("ASM.parts", "ASM.balloons", "R8.sheet") and c.level == "error"
@@ -782,6 +790,44 @@ def test_the_sheets_after_the_first_are_filled_and_the_last_balanced():
     last = PL.continued(100, h, 178.0, 150.0, 400.0, last=True)
     assert last.lines == 100 and last.per_column > tall, "the last sheet a drawing may have takes the rest"
     assert PL.continued(0, h, 178.0, 150.0, 400.0) == PL.Shape()
+
+
+def test_the_sheets_after_the_first_carry_the_continuation_block():
+    from solidseas.drawing.layout import titleblock
+
+    d = long_list().drawing
+    sheets = D.sheets_of(d.sheet)
+    full = next(a for a in d.sheet.annotations if isinstance(a, D.TitleBlock))
+    for s in sheets[1:]:
+        tb = next(a for a in s.annotations if isinstance(a, D.TitleBlock))
+        # in the first's corner and as wide, as tall as its rows naming the drawing and the sheet
+        assert tb.at == pytest.approx(full.at) and tb.width == pytest.approx(full.width)
+        assert tb.height == pytest.approx(full.height * titleblock.CONTINUATION_SHARE)
+        assert tb.height < full.height / 3
+        for pl in _lists(s):  # the list stands on it
+            assert pl.at[1] == pytest.approx(tb.at[1] + tb.height)
+    pdf = io.BytesIO()
+    write_pdf(d, pdf)
+    first = [r.text for r in PdfDocument(pdf.getvalue(), page_index=0).text_runs()]
+    second = [r.text for r in PdfDocument(pdf.getvalue(), page_index=1).text_runs()]
+    for label in ("SIZE", "CAGE", "DWG NO", "REV", "SCALE", "SHEET"):
+        assert label in first and label in second, label
+    number = dict(full.fields)["number"]
+    assert {number, "2 OF 3"} <= set(second) and "1 OF 3" in first
+    for label in ("TITLE", "MATERIAL", "FINISH", "STATUS", "CALC WT", "DRAWN", "DO NOT SCALE DRAWING"):
+        assert label in first and label not in second, label
+    # a sheet whose block names another drawing, or none, is reported
+    one, other = sheets[1], sheets[2]
+    changed = [
+        replace(a, fields=tuple((k, "SS-9" if k == "number" else v) for k, v in a.fields))
+        if isinstance(a, D.TitleBlock)
+        else a
+        for a in other.annotations
+    ]
+    wrong = replace(d, sheet=replace(d.sheet, continuation=(one, replace(other, annotations=tuple(changed)))))
+    said = [c.message for c in run_checks(wrong) if c.code == "R8.sheet"]
+    assert said == [f"sheet 3's title block gives the drawing number SS-9; the first sheet's gives {number}"]
+    assert not [c for c in run_checks(d) if c.code == "R8.sheet"]
 
 
 def test_a_drawing_held_to_one_sheet_stands_its_list_taller():
@@ -846,7 +892,9 @@ def test_a_drawing_of_several_sheets_writes_a_page_each():
         assert [e.text for e in texts].count(f"PLATE{n:03d}") == 2, n  # its part number and drawing's
     k = d.sheet.scale[1] / d.sheet.scale[0]  # model millimetres a sheet millimetre
     assert float(doc.var("$EXTMAX")) == pytest.approx((3 * 279.4 + 2 * SHEET_GAP) * k, abs=1e-6)
-    xs = [e.point(10)[0] for e in numbered]
+    stamps = [e for e in texts if e.text == "PRELIMINARY - NOT FOR MANUFACTURE"]
+    xs = [e.point(10)[0] for e in stamps]  # the stamp stands in the same place on every sheet
+    assert len(xs) == 3
     assert xs[1] - xs[0] == pytest.approx((279.4 + SHEET_GAP) * k, abs=1e-3)
     assert xs[2] - xs[1] == pytest.approx((279.4 + SHEET_GAP) * k, abs=1e-3)
     # an SVG a sheet
