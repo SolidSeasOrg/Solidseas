@@ -79,6 +79,20 @@ POWERSHELL = shutil.which("powershell.exe") if sys.platform == "win32" else None
 WINDOWS = sys.platform == "win32"
 
 
+@pytest.fixture(autouse=True)
+def _no_registry_put_back(monkeypatch):
+    """Batch conversion on the stand-in bridge never reads or writes the registry of the
+    account running the tests; the tests that check the put-back give it a registry of their
+    own, and those with a real SOLIDWORKS switch it back on."""
+    monkeypatch.setattr(batch, "_registry_restore", lambda: None)
+
+
+def _real_registry_put_back(monkeypatch) -> None:
+    from solidseas.swapi import hkcu
+
+    monkeypatch.setattr(batch, "_registry_restore", hkcu.RegistryRestore.for_this_system)
+
+
 def fake(behaviour: dict | None = None, **kwargs) -> Bridge:
     return Bridge(command=[sys.executable, str(FAKE), "--behaviour", json.dumps(behaviour or {})], **kwargs)
 
@@ -2198,7 +2212,8 @@ def _solidworks_pids() -> set[int]:
 
 
 @with_solidworks
-def test_batch_conversion_in_solidseas_own_solidworks(real_exe, tmp_path):
+def test_batch_conversion_in_solidseas_own_solidworks(real_exe, tmp_path, monkeypatch):
+    _real_registry_put_back(monkeypatch)  # as a conversion you run does
     others = _solidworks_pids()
     names = ("o02_boxA.SLDPRT", "o11_curved.SLDPRT", "o12_multibody.SLDPRT", "o17_деталь.SLDPRT")
     src = _inputs(tmp_path, names)
@@ -2492,7 +2507,7 @@ def test_ending_through_the_job_leaves_the_layout_lock_files_and_next_start_alon
 
 
 @with_solidworks
-def test_solidseas_solidworks_alone_has_its_registry_changes_put_back(real_exe, tmp_path):
+def test_solidseas_solidworks_alone_has_its_registry_changes_put_back(real_exe, tmp_path, monkeypatch):
     # SolidSeas-1k3 and SolidSeas-l4mk, the off-hours case: alone, SolidSeas' instance rewrote the
     # CommandManager tabs under User Interface (148 values on 2026-10-14). Batch conversion puts
     # back what it changed in hkcu.SCOPE once it has ended. What changed outside the scope (the
@@ -2501,6 +2516,7 @@ def test_solidseas_solidworks_alone_has_its_registry_changes_put_back(real_exe, 
 
     if _solidworks_pids():
         pytest.skip("needs no other SOLIDWORKS running: close yours, normally, for this run")
+    _real_registry_put_back(monkeypatch)
     before = _registry_values()
     log = []
     rows = batch.convert(
