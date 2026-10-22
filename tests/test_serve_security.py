@@ -663,6 +663,165 @@ def test_a_same_origin_or_typed_request_is_served(srv, site):
     assert r.status == 200
 
 
+# --------------------------------------------------------------------------- CORS for named origins (xex)
+INTRANET = "https://intranet.example"
+
+
+@pytest.mark.parametrize(
+    ("text", "origin"),
+    [
+        ("https://intranet.example", "https://intranet.example"),
+        ("https://Intranet.Example:443/", "https://intranet.example"),
+        ("http://intranet.example:80", "http://intranet.example"),
+        ("http://127.0.0.1:3000", "http://127.0.0.1:3000"),
+        ("http://[0:0:0:0:0:0:0:1]:3000", "http://[::1]:3000"),
+        ("https://store.example:8443", "https://store.example:8443"),
+    ],
+)
+def test_an_allowed_origin_is_kept_as_browsers_send_it(text, origin):
+    from solidseas.serve import parse_origin
+
+    assert parse_origin(text) == origin
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "*",
+        "null",
+        "",
+        "intranet.example",
+        "ftp://intranet.example",
+        "file:///c:/x",
+        "https://intranet.example/app",
+        "https://intranet.example?x=1",
+        "https://user@intranet.example",
+        "https://*.example",
+        "https://intranet.example:0",
+        "https://intränet.example",
+        "https://intranet example",
+    ],
+)
+def test_an_origin_that_is_not_one_is_refused(text):
+    from solidseas.errors import InvalidArgumentError
+    from solidseas.serve import parse_origin
+
+    with pytest.raises(InvalidArgumentError) as caught:
+        parse_origin(text)
+    assert caught.value.detail == {"parameter": "allow_origin"}
+
+
+@pytest.fixture(scope="module")
+def cors(tree):
+    running = Running({"jobs": tree / "jobs"}, workers=1, allow_origins=(INTRANET + ":443/",))
+    yield running
+    running.close()
+
+
+def test_an_allowed_origin_may_call_the_service_and_read_its_answers(cors):
+    """A page of a named origin calls from its own site (Origin, Sec-Fetch-Site
+    cross-site): the answer names that origin, exposes the headers a client reads, and
+    says it varies by Origin; its errors do too, so the page can tell them apart. The
+    token is still needed."""
+    page = {"Origin": INTRANET, "Sec-Fetch-Site": "cross-site"}
+    ok = cors.request("/v1/document?root=jobs&path=o02_boxA.SLDPRT", headers=page)
+    assert ok.status == 200 and ok.headers["access-control-allow-origin"] == INTRANET
+    assert ok.headers["access-control-expose-headers"] == "ETag, Retry-After, WWW-Authenticate, X-Request-Id"
+    assert ok.headers["vary"] == "Origin" and ok.headers["etag"]
+    assert "access-control-allow-credentials" not in ok.headers  # a token in a header, never a cookie
+    for name, value in SECURITY.items():
+        assert ok.headers[name] == value, name
+    refused = cors.request("/v1/document?root=jobs&path=o02_boxA.SLDPRT", token=None, headers=page)
+    assert refused.status == 401 and refused.headers["access-control-allow-origin"] == INTRANET
+    same_site = cors.request("/v1/version", headers={"Origin": INTRANET, "Sec-Fetch-Site": "same-site"})
+    assert same_site.status == 200 and same_site.headers["access-control-allow-origin"] == INTRANET
+
+
+@pytest.mark.parametrize(
+    "headers",
+    [
+        {"Origin": "https://evil.example"},
+        {"Origin": "https://intranet.example.evil.example"},
+        {"Origin": "http://intranet.example"},  # another scheme is another origin
+        {"Origin": "https://intranet.example:8443"},
+        {"Origin": "null"},
+        {"Origin": "HTTPS://INTRANET.EXAMPLE"},  # browsers send it in lower case
+        {"Sec-Fetch-Site": "cross-site"},  # a page elsewhere that sent no Origin
+        {"Origin": "https://evil.example", "Sec-Fetch-Site": "same-origin"},
+    ],
+)
+def test_every_other_origin_is_still_refused(cors, headers):
+    r = cors.request("/v1/document?root=jobs&path=o02_boxA.SLDPRT", headers=headers)
+    assert r.status == 403 and r.json()["error"]["code"] == "forbidden_origin"
+    assert "access-control-allow-origin" not in r.headers and r.headers["vary"] == "Origin"
+
+
+def test_two_origin_headers_are_refused(cors):
+    raw = _raw(
+        cors.port,
+        [
+            "GET /v1/version HTTP/1.1",
+            f"Host: 127.0.0.1:{cors.port}",
+            f"Authorization: Bearer {TOKEN}",
+            f"Origin: {INTRANET}",
+            f"Origin: {INTRANET}",
+            "Connection: close",
+        ],
+    )
+    assert status_of(raw) == 403 and body_of(raw)["error"]["code"] == "forbidden_origin"
+
+
+def _preflight(port: int, *extra: str, origin: str = INTRANET, method: str = "GET", host: str = "") -> bytes:
+    lines = [
+        "OPTIONS /v1/document?root=jobs&path=o02_boxA.SLDPRT HTTP/1.1",
+        f"Host: {host or f'127.0.0.1:{port}'}",
+        f"Origin: {origin}",
+        f"Access-Control-Request-Method: {method}",
+        *extra,
+        "Connection: close",
+    ]
+    return _raw(port, lines)
+
+
+def test_a_preflight_from_an_allowed_origin_is_answered(cors):
+    raw = _preflight(cors.port, "Access-Control-Request-Headers: authorization,if-none-match")
+    head = _headers_of(raw)
+    assert status_of(raw) == 204 and raw.endswith(b"\r\n\r\n")  # no body
+    assert "content-length" not in head and "content-type" not in head
+    assert head["access-control-allow-origin"] == INTRANET
+    assert head["access-control-allow-methods"] == "GET, HEAD"
+    assert head["access-control-allow-headers"] == "Authorization, If-None-Match"
+    assert head["access-control-max-age"] == "600"
+    for name, value in SECURITY.items():
+        assert head[name] == value, name
+    assert status_of(_preflight(cors.port)) == 204  # no headers asked for
+
+
+@pytest.mark.parametrize(
+    ("extra", "kwargs", "status"),
+    [
+        ((), {"method": "POST"}, 405),
+        ((), {"method": "DELETE"}, 405),
+        (("Access-Control-Request-Headers: authorization, x-custom",), {}, 405),
+        (("Access-Control-Request-Headers: cookie",), {}, 405),
+        ((), {"origin": "https://evil.example"}, 405),
+        ((), {"origin": "null"}, 405),
+        ((), {"host": "evil.example"}, 403),
+        (("Content-Length: 5",), {}, 400),
+    ],
+)
+def test_any_other_preflight_is_refused(cors, extra, kwargs, status):
+    raw = _preflight(cors.port, *extra, **kwargs)
+    assert status_of(raw) == status, raw[:300]
+    assert "access-control-allow-origin" not in _headers_of(raw)
+
+
+def test_without_allowed_origins_a_preflight_is_refused(srv):
+    raw = _preflight(srv.port)
+    assert status_of(raw) == 405 and "access-control-allow-origin" not in _headers_of(raw)
+    assert "vary" not in _headers_of(raw)  # nothing varies by Origin without CORS
+
+
 # --------------------------------------------------------------------------- methods and bodies
 @pytest.mark.parametrize(
     "method", ["POST", "PUT", "DELETE", "PATCH", "TRACE", "CONNECT", "OPTIONS", "PROPFIND", "FOO"]

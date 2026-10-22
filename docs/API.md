@@ -40,8 +40,8 @@ What it covers:
 - the command line, with `--json` on every command and the exit codes
   (section 7);
 - the REST service, `solidseas serve` (section 8), how to run it as a
-  background service (8.14) and how a client checks it before sending its
-  token (8.16);
+  background service (8.14), how a client checks it before sending its
+  token (8.16), and its configuration file (8.17);
 - the error codes and warning codes;
 - how to read the JSON from JavaScript (section 6), recipes in Python, curl
   and TypeScript (section 10), and troubleshooting (section 11).
@@ -6118,7 +6118,7 @@ it.
 | `sldprt DESIGN` | `-o FILE` (or a folder that exists; default: the design's name with `.SLDPRT` in the current folder), `--allow-partial`, `--allow-source-dir`; never replaces a file, so no `--force` | `sldprt_written` (provisional) |
 | `list FOLDER` | `--formats solidworks\|all\|IDS` (default `solidworks`), `--recursive`, `--include properties,configurations`, `--preview none`, `meta` (default) or `inline`, `--max-depth N`, `--limit N`, `--max-examined N`, `--timeout SECONDS`, `--file-timeout SECONDS` (default 30), `--memory-mb N` (default 2048), `--in-process` | `listing` |
 | `batch FOLDER -o DIR` | `--no-recurse`, `--no-preview`, `--no-parasolid`, `--text`, `--configuration NAME`, `--allow-partial`, `--other-configurations` and `--include-hidden` (assemblies), `--max-mb N`, `--jobs N` (1 to 64, default 1), `--file-timeout SECONDS` (default 300), `--memory-mb N` (default 2048), `--in-process`, `--max-examined N`, `--force`, `--allow-source-dir` | `batch_summary` |
-| `serve` | `--root ID=DIR` (repeatable), `--library ID=DIR`, `--port N` (default 8765; 0 picks a free port), `--bind ADDRESS` (default 127.0.0.1), `--token-file PATH`, `--identity-key-file PATH`, `--workers N`, `--allow-remote`, `--allowed-host NAME`, `--identity-address ADDRESS:PORT` (repeatable), `--catalog`, `--catalog-rescan SECONDS` (default 300), `--formats solidworks\|all\|IDS` (default `solidworks`) | `serve_started`, one compact line when it is ready; then it serves until stopped (section 8) |
+| `serve` | `--root ID=DIR` (repeatable), `--library ID=DIR`, `--port N` (default 8765; 0 picks a free port), `--bind ADDRESS` (default 127.0.0.1), `--token-file PATH`, `--identity-key-file PATH`, `--workers N`, `--allow-remote`, `--allowed-host NAME`, `--identity-address ADDRESS:PORT` (repeatable), `--allow-origin ORIGIN` (repeatable), `--config FILE`, `--catalog`, `--catalog-rescan SECONDS` (default 300), `--formats solidworks\|all\|IDS` (default `solidworks`) | `serve_started`, one compact line when it is ready; then it serves until stopped (section 8) |
 | `index FOLDER...` | `--root ID=DIR`, `--library DIR` or `ID=DIR` (each repeatable), `--catalog NAME`, `--db FILE` or `--in-project`, `--formats IDS`, `--hash all\|duplicates\|none`, `--no-previews`, `--part-number-property NAME`, `--workers N` (default 2), `--file-timeout SECONDS` (default 30), `--timeout SECONDS` | `catalog_scan` (provisional) |
 | `where-used FILE` | `--configuration NAME`, `--direct`, `--max-depth N` (default 32), `--catalog NAME`, `--db FILE` or `--in-project` | `where_used` (provisional) |
 | `search TEXT...` | `--sort relevance\|name\|modified`, `--limit N` (1 to 500, default 100), `--cursor C`, `--catalog NAME`, `--db FILE` or `--in-project` | `catalog_search` (provisional) |
@@ -6464,13 +6464,15 @@ provisional.
 ### 8.1 Starting and stopping
 
 ```text
-solidseas serve --root ID=DIR [--root ID=DIR ...] [--library ID=DIR ...] [--port 8765]
-                [--bind 127.0.0.1] [--token-file PATH] [--identity-key-file PATH] [--workers N]
-                [--allow-remote --allowed-host NAME ...] [--identity-address ADDRESS:PORT ...]
-                [--catalog [--catalog-rescan SECONDS]]
-                [--json]
+solidseas serve [--config FILE] --root ID=DIR [--root ID=DIR ...] [--library ID=DIR ...]
+                [--port 8765] [--bind 127.0.0.1] [--token-file PATH] [--identity-key-file PATH]
+                [--workers N] [--allow-remote --allowed-host NAME ...]
+                [--identity-address ADDRESS:PORT ...] [--allow-origin ORIGIN ...]
+                [--catalog [--catalog-rescan SECONDS]] [--json]
 ```
 
+- `--config` reads these settings from a TOML file, and an option given on
+  the command line replaces the file's setting (8.17).
 - Each `--root` is a recursive project root and each `--library` a recursive
   library root (C5). `ID` matches `[a-z0-9_-]{1,32}`; `DIR` may be relative to
   the current folder and must exist (exit 1, `not_found`). Roots are searched in
@@ -6624,8 +6626,30 @@ lower-case `get`) included:
   rebinding, where a page's own host name is made to resolve to 127.0.0.1.
 - Any `Origin` header, and any `Sec-Fetch-Site` other than `none` or
   `same-origin`, answers 403 `forbidden_origin`: such a request comes from a page
-  in a browser. The service has no CORS; no response carries
-  `Access-Control-Allow-Origin`.
+  in a browser. Unless the service was started with `--allow-origin` (below), no
+  response carries `Access-Control-Allow-Origin`.
+- **Pages of named origins (CORS).** `--allow-origin ORIGIN` (repeatable;
+  `allow_origins` in the configuration file, 8.17) names a web page's origin
+  that may call the service from a browser: `http` or `https`, a host, and a
+  port only when it is not the scheme's default (`https://intranet.example`,
+  `http://127.0.0.1:3000`), as browsers send it. It is matched exactly: there is
+  no wildcard, and `null` (sandboxed frames, local files) is never one. A
+  request whose one `Origin` header names it passes this check, whatever its
+  `Sec-Fetch-Site`, and its answer, an error included, carries
+  `Access-Control-Allow-Origin` with that origin and
+  `Access-Control-Expose-Headers: ETag, Retry-After, WWW-Authenticate,
+  X-Request-Id`. A preflight (`OPTIONS` with that `Origin`,
+  `Access-Control-Request-Method` `GET` or `HEAD`, and no requested header but
+  `Authorization` and `If-None-Match`) answers 204, after the Host check, with
+  `Access-Control-Allow-Methods: GET, HEAD`, `Access-Control-Allow-Headers:
+  Authorization, If-None-Match` and `Access-Control-Max-Age: 600`; any other
+  `OPTIONS` request answers 405 as every method but GET and HEAD does. With
+  origins named, every answer carries `Vary: Origin`. The token is still needed,
+  in the `Authorization` header and never in a cookie (there is no
+  `Access-Control-Allow-Credentials`), so the page holds a token, and anyone who
+  can run script on that origin can use it: name only an origin you control,
+  give its page a token of its own (8.3), and keep a shop's pages on the server
+  side, as the next point says.
 - Server-side clients send neither header: curl, Python's `http.client` and
   `urllib`, and Node's own `fetch` (checked with Node 24, which sends
   `Sec-Fetch-Mode: cors` but no `Origin` or `Sec-Fetch-Site`; a test runs it
@@ -6974,7 +6998,8 @@ request is answered as HTTP/1.1, 8.6) and:
 - `X-Request-Id`, the id the log line carries
 
 JSON is `application/json; charset=utf-8`, compact and ASCII-only. No route
-serves HTML, SVG or XML.
+serves HTML, SVG or XML. Answers to a page of an origin named with
+`--allow-origin` also carry the CORS headers of 8.4.
 
 ### 8.12 Logging
 
@@ -7022,7 +7047,8 @@ reach the path report.
 - Return an absolute path, a token or the reader's exception text. A model
   file's `references` give where a file was found relative to the document's
   folder, and a path that is not is sent as null.
-- Serve HTML, SVG or XML, send CORS headers, or accept a credential in a URL.
+- Serve HTML, SVG or XML, send CORS headers to an origin it was not started
+  to allow (8.4), or accept a credential in a URL.
 - Parse a CAD file in the server process, or unpickle anything from a worker.
 
 `docs/SECURITY_REVIEW.md` section 1 reviews these claims, marks each verified
@@ -7464,6 +7490,58 @@ From Python, `solidseas.serve.identity_proof(token, client=..., nonce=...,
 address=..., port=...)` computes the proof (provisional, as the rest of
 `solidseas.serve`'s Python API).
 
+### 8.17 The configuration file
+
+`solidseas serve --config FILE` reads the service's settings from a TOML file,
+so that a service manager's command line stays short. The file holds the
+options of 8.1 under their names with `_` for `-`, the repeatable ones as
+lists and the roots as tables:
+
+```toml
+port = 8765
+token_file = "/var/lib/solidseas/serve-tokens"
+workers = 4
+allow_origins = ["https://intranet.example"]
+
+[roots]
+jobs = "/srv/cad/jobs"
+
+[libraries]
+std = "/srv/cad/library"
+```
+
+| Key | Value | Option |
+|---|---|---|
+| `roots`, `libraries` | a table of `id = "folder"` lines | `--root`, `--library` |
+| `port` | a whole number, 0 to 65535 | `--port` |
+| `bind` | text | `--bind` |
+| `token_file`, `identity_key_file` | a path | `--token-file`, `--identity-key-file` |
+| `workers` | a whole number, 1 or more | `--workers` |
+| `allow_remote`, `catalog` | `true` or `false` | `--allow-remote`, `--catalog` |
+| `allowed_hosts`, `identity_addresses`, `allow_origins` | a list of texts | `--allowed-host`, `--identity-address`, `--allow-origin` |
+| `catalog_rescan` | seconds, above 0 | `--catalog-rescan` |
+| `formats` | text, or a list of format ids | `--formats` |
+
+- A path that is not absolute is taken from the file's own folder.
+- An option given on the command line replaces that setting of the file, and
+  the file's other settings stay: `--root` replaces its `roots` and `--library`
+  its `libraries`, each on its own.
+- **Read failing closed.** The file decides what is served and to whom, so a
+  key the service does not know, a value of another type, and a file that is
+  not UTF-8 TOML or is over 64 KiB refuse the start with `invalid_argument`
+  (exit 2, `detail.parameter` `config`, and `detail.value` naming the key at
+  fault). A file that does not exist exits 1 (`not_found`). A file that an
+  account other than the service's own, SYSTEM, Administrators or root may
+  change, delete or re-permission, or owns, refuses the start with
+  `path_refused` (exit 3, `detail.parameter` `config`, `detail.rule`
+  `shared_write` or `not_owner`), and so does a folder that such an account
+  owns or may add files to (`not_owner`, `folder_writable`). Other accounts may
+  read it: it says where the token file is and holds no token. A link is
+  followed, and its target is what is checked.
+- Its values are then checked as the options are, all before the token file
+  is touched: a remote bind without its settings exits 3 (`bind_refused`), an
+  origin or identity address that is not one exits 2.
+
 ## 9. Stability policy and deprecations
 
 This policy is in effect from 0.2.0. Releases before 0.2.0 were provisional
@@ -7550,6 +7628,8 @@ provisional item can change at any commit. It is:
   `version_unavailable` with `VersionNotFoundError` and `VersionUnavailableError`;
   the rules of 3.26; the snapshot store's layout and `SOLIDSEAS_DATA_DIR`; and the
   warning codes `history_incomplete`, `lfs_not_fetched` and `measures_incomplete`.
+- The service's configuration file (8.17, `serve --config`) and its CORS for
+  named origins (`serve --allow-origin`, 8.4), while they are new.
 - SOLIDWORKS through SolidSeas' own instance (3.22), while the bridge is new:
   `solidseas.swapi` and its modules, `python -m solidseas.swapi` with its
   options, exit codes and `report.tsv`, and the operations, protocol and error

@@ -4,11 +4,13 @@
 * :mod:`.query`: one query-parameter allowlist per route;
 * :mod:`.paths`: a request path checked as text and found in the root's folder
   index, never joined into a path;
-* :mod:`.tokens`: the bearer-token file and the service's identity key.
+* :mod:`.tokens`: the bearer-token file and the service's identity key;
+* :mod:`.config`: the settings file of ``solidseas serve --config``.
 
 The Python API of this package is provisional until 0.2.0.
 """
 
+from .config import load_serve_config
 from .server import (
     DEFAULT_PORT,
     ROUTES,
@@ -17,6 +19,7 @@ from .server import (
     check_bind,
     configure_logging,
     default_workers,
+    parse_origin,
     run_until_signalled,
 )
 from .tokens import (
@@ -53,8 +56,10 @@ __all__ = [
     "ensure_token_file",
     "identity_proof",
     "load_identity_key",
+    "load_serve_config",
     "load_tokens",
     "parse_identity_address",
+    "parse_origin",
     "proof_address",
     "run_until_signalled",
 ]

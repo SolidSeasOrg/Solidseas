@@ -240,6 +240,9 @@ only the starting account can read:
 solidseas serve --root jobs=D:\Jobs
 ```
 
+A service that starts with the computer can keep its settings in a file instead:
+`solidseas serve --config serve.toml` ([API.md](../API.md) section 8.17).
+
 [SECURITY_REVIEW.md](../SECURITY_REVIEW.md) reviews the service for whoever has
 to approve it. The service's `/v1/bom`, the catalog routes (`--catalog`) and the
 other formats (`--formats`) are provisional and may change.

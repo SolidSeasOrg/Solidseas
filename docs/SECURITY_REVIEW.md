@@ -128,7 +128,12 @@ or put a link where a folder was, finding 19).
 
 - **Requests.** Host, Origin and Fetch Metadata are checked before routing, so
   a web page in a browser on the same machine cannot use the service (DNS
-  rebinding included); there is no CORS. Each route has a parameter allowlist;
+  rebinding included); there is no CORS unless the service is started with
+  `--allow-origin`, which names exact origins whose pages may call it with a
+  token (API 8.4; verified: `test_an_allowed_origin_may_call_the_service_and_read_its_answers`,
+  `test_every_other_origin_is_still_refused`,
+  `test_a_preflight_from_an_allowed_origin_is_answered`,
+  `test_any_other_preflight_is_refused`). Each route has a parameter allowlist;
   URL, header and body limits apply, header bytes past the limit are never read
   (finding 17), and a slow sender is cut off and logged. Verified:
   `test_a_wrong_host_is_refused`, `test_cross_site_browser_requests_are_refused`,
@@ -136,6 +141,11 @@ or put a link where a folder was, finding 19).
   control, `test_a_long_url_answers_414`,
   `test_too_many_or_too_large_headers_answer_431`,
   `test_a_slow_sender_is_cut_off_while_others_are_served`.
+- **Settings.** A configuration file (`--config`, API 8.17) is read failing
+  closed: an unknown key or a wrong type refuses the start, and so does a file
+  or folder that another account may change or owns, since the file names the
+  roots, the address and the origins. Verified: `tests/test_serve_config.py`
+  (the Windows access-list cases run on Windows).
 - **Paths in requests** are checked as text and then looked up in the root's
   folder index: no text from a request is ever joined into a path. Links,
   junctions, mount points, hard links, alternate data streams, device names and

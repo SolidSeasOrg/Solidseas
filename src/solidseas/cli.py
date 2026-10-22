@@ -1977,6 +1977,47 @@ def cmd_batch(args: argparse.Namespace) -> int:
 
 
 # --------------------------------------------------------------------------- the service
+def _serve_settings(args: argparse.Namespace) -> dict[str, Any]:
+    """The service's settings: each option given on the command line, else the
+    configuration file's value (``--config``), else the default. ``roots`` holds the
+    project roots, then the libraries."""
+    from .serve import load_serve_config
+
+    file = load_serve_config(args.config) if args.config else {}
+    given = {
+        "port": args.port,
+        "bind": args.bind,
+        "token_file": args.token_file,
+        "identity_key_file": args.identity_key_file,
+        "workers": args.workers,
+        "allow_remote": args.allow_remote,
+        "allowed_hosts": args.allowed_host,
+        "identity_addresses": args.identity_address,
+        "allow_origins": args.allow_origin,
+        "catalog": args.catalog,
+        "catalog_rescan": args.catalog_rescan,
+        "formats": args.formats,
+    }
+    defaults = {
+        "port": 8765,
+        "bind": "127.0.0.1",
+        "allow_remote": False,
+        "allowed_hosts": [],
+        "identity_addresses": [],
+        "allow_origins": [],
+        "catalog": False,
+        "catalog_rescan": 300.0,
+        "formats": registry.SOLIDWORKS,
+    }
+    settings = {k: v if v is not None else file.get(k, defaults.get(k)) for k, v in given.items()}
+    projects = _root_args(args.root, "project", "--root") if args.root else file.get("roots", [])
+    libraries = file.get("libraries", [])
+    if args.library:
+        libraries = _root_args(args.library, "library", "--library")
+    settings["roots"] = [*projects, *libraries]
+    return settings
+
+
 def cmd_serve(args: argparse.Namespace) -> int:
     """Run the REST service. Refusals (a remote bind without its settings, a token file
     others can read) exit 3 before anything listens; once it serves, it runs until
@@ -1991,34 +2032,39 @@ def cmd_serve(args: argparse.Namespace) -> int:
         ensure_identity_key,
         ensure_token_file,
         parse_identity_address,
+        parse_origin,
         run_until_signalled,
     )
 
-    check_bind(args.bind, allow_remote=args.allow_remote, allowed_hosts=tuple(args.allowed_host or ()))
-    for text in args.identity_address or ():
+    s = _serve_settings(args)
+    check_bind(s["bind"], allow_remote=s["allow_remote"], allowed_hosts=tuple(s["allowed_hosts"]))
+    for text in s["identity_addresses"]:
         parse_identity_address(text)  # refused before the token file is touched
-    roots = _root_args(args.root, "project", "--root") + _root_args(args.library, "library", "--library")
+    for text in s["allow_origins"]:
+        parse_origin(text)
+    roots = s["roots"]
     if not roots:
         raise InvalidArgumentError("serve needs at least one --root ID=DIR", detail={"parameter": "root"})
     for r in roots:
         if not os.path.isdir(r.path):
             raise FileNotFoundError(2, f"root {r.id}: no such folder", r.path)
-    token_path, tokens, created = ensure_token_file(args.token_file)
-    key_file = args.identity_key_file or default_identity_key_file(token_path)
+    token_path, tokens, created = ensure_token_file(s["token_file"])
+    key_file = s["identity_key_file"] or default_identity_key_file(token_path)
     _key_path, identity_key, key_created = ensure_identity_key(key_file)
     config = ServeConfig(
         roots=Roots(roots),
         tokens=tokens,
-        host=args.bind,
-        port=args.port,
-        allow_remote=args.allow_remote,
-        allowed_hosts=tuple(args.allowed_host or ()),
-        workers=args.workers or default_workers(),
-        catalog=args.catalog,
-        catalog_rescan_s=args.catalog_rescan,
-        formats=args.formats,
+        host=s["bind"],
+        port=s["port"],
+        allow_remote=s["allow_remote"],
+        allowed_hosts=tuple(s["allowed_hosts"]),
+        workers=s["workers"] or default_workers(),
+        catalog=s["catalog"],
+        catalog_rescan_s=s["catalog_rescan"],
+        formats=s["formats"],
         identity_key=identity_key,
-        identity_addresses=tuple(args.identity_address or ()),
+        identity_addresses=tuple(s["identity_addresses"]),
+        allow_origins=tuple(s["allow_origins"]),
     )
     server = Server(config)  # binds: a port in use stops here (address_unavailable)
     configure_logging()
@@ -3883,15 +3929,21 @@ def build_parser() -> argparse.ArgumentParser:
         json_help="print the ready line as one compact JSON document; the log still goes to standard error",
     )
     sp.add_argument(
+        "--config",
+        default=None,
+        metavar="FILE",
+        help="read these settings from a TOML file; an option given here replaces the file's setting",
+    )
+    sp.add_argument(
         "--root", action="append", metavar="ID=DIR", help="a folder to serve, recursively; repeat for more"
     )
     sp.add_argument(
         "--library", action="append", metavar="ID=DIR", help="a library folder, searched after the roots"
     )
-    sp.add_argument("--port", type=_port, default=8765, help="TCP port (default 8765; 0 picks a free one)")
+    sp.add_argument("--port", type=_port, default=None, help="TCP port (default 8765; 0 picks a free one)")
     sp.add_argument(
         "--bind",
-        default="127.0.0.1",
+        default=None,
         help="address to listen on (default 127.0.0.1; anything but loopback needs --allow-remote)",
     )
     sp.add_argument(
@@ -3910,6 +3962,7 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument(
         "--allow-remote",
         action="store_true",
+        default=None,
         help="allow a non-loopback --bind, over plain HTTP: only on a private network",
     )
     sp.add_argument(
@@ -3926,24 +3979,32 @@ def build_parser() -> argparse.ArgumentParser:
         "/v1/identity proves for it when the Host header names it; repeat for more",
     )
     sp.add_argument(
+        "--allow-origin",
+        action="append",
+        metavar="ORIGIN",
+        help="a web page's origin (https://intranet.example) that may call the service from a browser "
+        "with a token (CORS); repeat for more",
+    )
+    sp.add_argument(
         "--workers", type=_positive_int, default=None, help="worker processes (default: up to 4, one per CPU)"
     )
     sp.add_argument(
         "--catalog",
         action="store_true",
+        default=None,
         help="keep a catalog of the roots in your cache folder and answer /v1/catalog, /v1/where-used "
         "and /v1/search from it",
     )
     sp.add_argument(
         "--catalog-rescan",
         type=_positive_float,
-        default=300.0,
+        default=None,
         metavar="SECONDS",
         help="scan the roots for the catalog again after this many seconds (default 300)",
     )
     sp.add_argument(
         "--formats",
-        default=registry.SOLIDWORKS,
+        default=None,
         metavar="IDS",
         help="which files the service reads: solidworks (default), all, or comma-separated format ids "
         "such as stl,3mf",

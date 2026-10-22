@@ -49,6 +49,13 @@ while the project takes shape.
 
 ### Added
 
+- **A settings file and named web origins for the REST service.** `solidseas
+  serve --config FILE` reads the service's settings from a TOML file, an option
+  on the command line replacing the file's setting, and refuses a file another
+  account could change. `--allow-origin ORIGIN` lets web pages of exactly that
+  origin call the service from a browser with a token; without it, pages from
+  other sites are still refused.
+
 - **The REST service behind a port mapping.** `solidseas serve
   --identity-address ADDRESS:PORT` lets clients behind a published container
   port or a proxy check the service with /v1/identity before they send their

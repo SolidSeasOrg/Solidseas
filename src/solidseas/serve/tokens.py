@@ -98,6 +98,9 @@ _TRUSTED_SIDS = _TRUSTED_OWNERS | {_OWNER_RIGHTS}
 # add a file or a folder, delete a child, delete or rename the folder, change its access
 # list or its owner, and the generic and maximum rights that include them.
 _FOLDER_WRITE = 0x2 | 0x4 | 0x40 | 0x10000 | 0x40000 | 0x80000 | 0x40000000 | 0x10000000 | 0x02000000
+# Rights on a file that let an account change what it says: write or append data, delete
+# it, change its access list or its owner, and the generic and maximum rights.
+_FILE_WRITE = 0x2 | 0x4 | 0x10000 | 0x40000 | 0x80000 | 0x40000000 | 0x10000000 | 0x02000000
 # SDDL's two-letter rights, as Windows writes them for files and folders.
 _SDDL_RIGHTS = {
     "GA": 0x10000000,
@@ -381,6 +384,35 @@ if sys.platform == "win32":
                     "folder_writable", f"another account can replace files in the {what}'s folder", error
                 )
 
+    def unwritable_problem(path: str, what: str) -> tuple[str, str] | None:
+        """``(rule, message)`` when an account other than this one, SYSTEM and
+        Administrators may change the file at ``path``, owns it or its folder, or may put
+        another file in its place; None when none may. Readers are not checked."""
+        me = canonical_sid(current_user_sid())
+        trusted = _TRUSTED_OWNERS | {me}
+        folder = os.path.dirname(os.path.abspath(path))
+        checks = (
+            (path, what, _FILE_WRITE, "shared_write"),
+            (folder, f"{what}'s folder", _FOLDER_WRITE, "folder_writable"),
+        )
+        for target, name, rights_that_write, rule in checks:
+            sddl = security_descriptor(target)
+            if "D:" not in sddl or "D:NO_ACCESS_CONTROL" in sddl:
+                return rule, f"the {name} has no access list, so anyone can change it"
+            owner = _OWNER.match(sddl)
+            if owner is None or canonical_sid(owner.group(1)) not in trusted:
+                return "not_owner", f"the {name} belongs to another account"
+            for kind, flags, mask_text, text in _ACE.findall(sddl.split("D:", 1)[1].split("S:", 1)[0]):
+                if kind not in ("A", "OA", "XA", "ZA") or "IO" in flags.upper():
+                    continue  # an inherit-only entry grants nothing on the object itself
+                sid = canonical_sid(text)
+                if sid is not None and (sid in _TRUSTED_SIDS or sid == me):
+                    continue
+                mask = sddl_mask(mask_text)
+                if sid is None or mask is None or mask & rights_that_write:
+                    return rule, f"another account can change the {name}"
+        return None
+
 else:  # pragma: no cover - exercised on Linux and macOS
 
     def _create_private(path: str, data: bytes) -> None:
@@ -406,6 +438,24 @@ else:  # pragma: no cover - exercised on Linux and macOS
             raise _refuse(
                 "folder_writable", f"another account can replace files in the {what}'s folder", error
             )
+
+    def unwritable_problem(path: str, what: str) -> tuple[str, str] | None:
+        """``(rule, message)`` when an account other than this one and root may change the
+        file at ``path``, owns it or its folder, or may put another file in its place;
+        None when none may. Readers are not checked."""
+        euid = os.geteuid() if hasattr(os, "geteuid") else None
+        st = os.stat(path)
+        if euid is not None and st.st_uid not in (euid, 0):
+            return "not_owner", f"the {what} belongs to another account"
+        if st.st_mode & 0o022:
+            message = f"other accounts may change the {what}: clear its group and other write bits"
+            return "shared_write", message
+        folder = os.stat(os.path.dirname(os.path.abspath(path)))
+        if euid is not None and folder.st_uid not in (euid, 0):
+            return "not_owner", f"the {what}'s folder belongs to another account"
+        if folder.st_mode & 0o022 and not folder.st_mode & stat.S_ISVTX:
+            return "folder_writable", f"another account can replace files in the {what}'s folder"
+        return None
 
 
 # --------------------------------------------------------------------------- the file

@@ -188,6 +188,9 @@ SECURITY_HEADERS = (
     ("Cache-Control", "private, no-cache"),
 )
 JSON_TYPE = "application/json; charset=utf-8"
+# The response headers a page of an allowed origin may read besides the ones every CORS
+# answer exposes (Content-Type, Cache-Control...).
+CORS_EXPOSED = "ETag, Retry-After, WWW-Authenticate, X-Request-Id"
 _LOOPBACK_NAMES = ("127.0.0.1", "localhost", "::1")
 _SAFE_TOKEN = re.compile(r"[a-z_]{1,40}\Z")
 _METHOD = re.compile(r"[A-Z]{1,10}\Z")
@@ -245,6 +248,10 @@ class ServeConfig:
     # container port, a proxy), as "ADDRESS:PORT": a request whose Host header names one
     # gets its /v1/identity proof for that address and port (docs/API.md 8.16).
     identity_addresses: tuple[str, ...] = ()
+    # Web pages that may call the service from a browser (CORS), as origins
+    # ("https://intranet.example"); kept in the form browsers send (parse_origin). Empty by
+    # default: then any Origin header from another site is refused (docs/API.md 8.4).
+    allow_origins: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if not isinstance(self.roots, Roots) or not len(self.roots):
@@ -264,6 +271,9 @@ class ServeConfig:
         self.identity_addresses = tuple(self.identity_addresses)
         for text in self.identity_addresses:
             parse_identity_address(text)  # refused here, before anything binds
+        if isinstance(self.allow_origins, str):
+            self.allow_origins = (self.allow_origins,)
+        self.allow_origins = tuple(dict.fromkeys(parse_origin(t) for t in self.allow_origins))
         self.deadlines = {**DEFAULT_DEADLINES, **dict(self.deadlines)}
         self.response_caps = {**DEFAULT_CAPS, **dict(self.response_caps)}
         for name in (
@@ -305,6 +315,45 @@ class ServeConfig:
                     "a root: set SOLIDSEAS_CACHE_DIR to a folder outside the roots",
                     detail={"parameter": "catalog"},
                 )
+
+
+_ORIGIN_HOST = re.compile(r"[a-z0-9._-]{1,253}\Z")
+
+
+def parse_origin(text: str) -> str:
+    """An origin ``--allow-origin`` may name, in the form a browser sends in ``Origin``:
+    ``http`` or ``https``, a host, and a port only when it is not the scheme's default
+    (``https://intranet.example``, ``http://127.0.0.1:3000``, ``http://[::1]:3000``).
+    A path, query, user, wildcard, ``null`` or anything else is refused with
+    :class:`~solidseas.errors.InvalidArgumentError` (``detail["parameter"]``
+    ``allow_origin``)."""
+    bad = InvalidArgumentError(
+        "an allowed origin is http or https, a host and an optional port, as https://intranet.example",
+        detail={"parameter": "allow_origin"},
+    )
+    if not isinstance(text, str) or not 1 <= len(text) <= 300 or not text.isascii() or not text.isprintable():
+        raise bad
+    if any(c in text for c in " \\@?#*%"):
+        raise bad
+    try:
+        parts = urlsplit(text)
+        port = parts.port
+    except ValueError:
+        raise bad from None
+    scheme, host = parts.scheme.lower(), parts.hostname
+    if scheme not in ("http", "https") or not host or parts.path not in ("", "/"):
+        raise bad
+    if parts.query or parts.fragment or parts.username is not None or port == 0:
+        raise bad
+    try:
+        address = ipaddress.ip_address(host)
+    except ValueError:
+        address = None
+    if address is None and not _ORIGIN_HOST.match(host):
+        raise bad
+    shown = host if address is None else (f"[{address.compressed}]" if address.version == 6 else str(address))
+    default = 80 if scheme == "http" else 443
+    return f"{scheme}://{shown}" + ("" if port in (None, default) else f":{port}")
 
 
 def check_bind(host: str, *, allow_remote: bool, allowed_hosts) -> str:
@@ -602,6 +651,7 @@ class Server:
             ) from None
         self.host, self.port = self.httpd.server_address[:2]
         self._identity_addresses = {parse_identity_address(t) for t in config.identity_addresses}
+        self.allow_origins = frozenset(config.allow_origins)
         self._allowed = self._host_allowlist()
 
     # ------------------------------------------------------------------ life cycle
@@ -1518,6 +1568,7 @@ class _Handler(BaseHTTPRequestHandler):
         self._client = "-"
         self._route = "-"
         self._root = "-"
+        self._cors: str | None = None  # the allowed origin this answer is for (8.4)
         super().handle_one_request()
         if self.rfile.timed_out and (self.rfile.started_head or self._served == 1):
             # a head that never arrived in full, or a connection that never sent one: the
@@ -1617,12 +1668,18 @@ class _Handler(BaseHTTPRequestHandler):
                 self.send_header("ETag", answer.etag)
             for k, v in answer.headers:
                 self.send_header(k, v)
-            if answer.status != 304:
+            if self.app.allow_origins:  # what a cache keeps differs by Origin once CORS is on
+                self.send_header("Vary", "Origin")
+            cors = getattr(self, "_cors", None)
+            if cors:
+                self.send_header("Access-Control-Allow-Origin", cors)
+                self.send_header("Access-Control-Expose-Headers", CORS_EXPOSED)
+            if answer.status not in (204, 304):
                 self.send_header("Content-Length", str(len(answer.body)))
             if answer.close:
                 self.send_header("Connection", "close")
             self.end_headers()
-            if not head and answer.status != 304:
+            if not head and answer.status not in (204, 304):
                 self.wfile.write(answer.body)
         finally:
             self._log(answer)
@@ -1646,25 +1703,75 @@ class _Handler(BaseHTTPRequestHandler):
         answer.close = True  # any body it sent is left unread
         self._send(answer, head=False)
 
-    do_POST = do_PUT = do_DELETE = do_PATCH = do_OPTIONS = do_TRACE = do_CONNECT = _refuse_method
+    do_POST = do_PUT = do_DELETE = do_PATCH = do_TRACE = do_CONNECT = _refuse_method
+
+    def do_OPTIONS(self) -> None:
+        """A CORS preflight from an allowed origin is answered (8.4); any other OPTIONS
+        request is refused as every method but GET and HEAD is."""
+        if not self._preflight():
+            self._refuse_method()
+
+    def _preflight(self) -> bool:
+        """Answer 204 to a browser asking whether a page of an allowed origin may send a
+        GET or HEAD with ``Authorization`` and ``If-None-Match``, after the Host check and
+        with nothing else allowed; False when the request is not such a question."""
+        app = self.app
+        origins = self.headers.get_all("Origin") or []
+        method = self.headers.get("Access-Control-Request-Method")
+        if not app.allow_origins or len(origins) != 1 or origins[0] not in app.allow_origins:
+            return False
+        if method not in ("GET", "HEAD"):
+            return False
+        asked = self.headers.get("Access-Control-Request-Headers") or ""
+        if not {n.strip().lower() for n in asked.split(",")} - {""} <= {"authorization", "if-none-match"}:
+            return False
+        route_path = self.path.partition("?")[0]
+        if route_path in ROUTES:
+            self._route = route_path
+        try:
+            self._check_host()
+            self._check_no_body()
+        except ServiceError as exc:
+            self._refuse(exc)
+            return True
+        self._cors = origins[0]
+        answer = _Answer()
+        answer.status, answer.content_type = 204, None
+        answer.headers += [
+            ("Access-Control-Allow-Methods", "GET, HEAD"),
+            ("Access-Control-Allow-Headers", "Authorization, If-None-Match"),
+            ("Access-Control-Max-Age", "600"),
+            ("Vary", "Access-Control-Request-Method, Access-Control-Request-Headers"),
+        ]
+        self._send(answer, head=True)
+        return True
 
     def _check_host(self) -> None:
         hosts = self.headers.get_all("Host") or ()
         if len(hosts) != 1 or not self.app.host_allowed(hosts[0]):
             raise ServiceError("forbidden_host", "the Host header names a host this service does not serve")
 
-    def _guard(self) -> None:
-        self._check_host()
-        if self.headers.get("Origin") is not None:
-            raise ServiceError("forbidden_origin", "cross-site browser requests are refused")
-        site = self.headers.get("Sec-Fetch-Site")
-        if site is not None and site.strip().lower() not in ("none", "same-origin"):
-            raise ServiceError("forbidden_origin", "cross-site browser requests are refused")
+    def _check_no_body(self) -> None:
         length = self.headers.get("Content-Length")
         if self.headers.get("Transfer-Encoding") is not None or (
             length is not None and length.strip() != "0"
         ):
             raise ServiceError("invalid_argument", "a request body is not accepted", detail={"rule": "body"})
+
+    def _guard(self) -> None:
+        self._check_host()
+        origins = self.headers.get_all("Origin") or []
+        # A page of an origin the service was started to allow may call it (CORS, 8.4);
+        # any other Origin, and any Fetch Metadata of another site, is a page elsewhere.
+        allowed = len(origins) == 1 and origins[0] in self.app.allow_origins
+        if origins and not allowed:
+            raise ServiceError("forbidden_origin", "cross-site browser requests are refused")
+        site = self.headers.get("Sec-Fetch-Site")
+        if site is not None and site.strip().lower() not in ("none", "same-origin") and not allowed:
+            raise ServiceError("forbidden_origin", "cross-site browser requests are refused")
+        if allowed:
+            self._cors = origins[0]
+        self._check_no_body()
 
     def _authenticate(self) -> None:
         peer = _peer(self.client_address)
