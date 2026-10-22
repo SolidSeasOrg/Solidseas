@@ -27,6 +27,11 @@ x 30 mm box (``measure``, below), or of the file's own entry in the behaviour's
 
 Like the bridge, it ends its stand-in SOLIDWORKS directly (``"ended":
 "job_terminated"``, exit code 21331), never through SOLIDWORKS' own shutdown.
+``exit_refusals`` lists error codes for the first requests to end it
+(``exit_solidworks`` or ``shutdown``), one each, before one ends it:
+``foreign_documents`` is the bridge's refusal while SOLIDWORKS shows a document it
+did not open (``foreign_titles``, default ``["Bracket.SLDPRT"]``), after closing its
+own and showing the instance; after a refused ``shutdown`` it keeps running.
 
 Two test operations besides the bridge's own: ``emit`` sends ``count`` event
 lines before its reply, as a burst of SOLIDWORKS notifications does, and
@@ -91,6 +96,8 @@ send({"event": "ready", "protocol": behaviour.get("protocol", 1), "pid": os.getp
 child = None
 docs = {}
 next_doc = 1
+shown = False  # the stand-in SOLIDWORKS was shown to a person (a refusal to end it)
+exit_attempts = 0
 
 
 class Fail(Exception):
@@ -117,6 +124,24 @@ def end_child():
             "documents_open": 0, "windows_hidden": 0}
 
 
+def refuse_to_end():
+    """Raise the next of ``exit_refusals``, as the bridge refuses to end its SOLIDWORKS; or nothing."""
+    global exit_attempts, shown
+    refusals = behaviour.get("exit_refusals", [])
+    if child is None or exit_attempts >= len(refusals):
+        return
+    code = refusals[exit_attempts]
+    exit_attempts += 1
+    if code != "foreign_documents":
+        raise Fail(code, "fake SOLIDWORKS rejected the call")
+    closed = len(docs)
+    docs.clear()  # the bridge's own documents are closed first
+    shown = True
+    titles = behaviour.get("foreign_titles", ["Bracket.SLDPRT"])
+    raise Fail("foreign_documents", f"SOLIDWORKS shows {len(titles)} document(s) SolidSeas did not open",
+               {"documents": titles, "documents_closed": closed, "shown": True})
+
+
 def handle(op, args):
     global child, next_doc
     if op == "hello":
@@ -137,7 +162,8 @@ def handle(op, args):
     if op == "solidworks_info":
         if child is None:
             raise Fail("not_started", "start_solidworks first")
-        return {"pid": child.pid, "document_count": len(docs), "documents": [], "step_ap": 214}
+        return {"pid": child.pid, "document_count": len(docs), "documents": [], "step_ap": 214,
+                "visible": shown, "user_control": shown}
     if op == "open_document":
         path = args["path"]
         name = os.path.basename(path)
@@ -236,6 +262,7 @@ def handle(op, args):
         return {"doc": args["doc"], "type": "part", "units": "SI", "active_configuration": "Default",
                 "configurations": ["Default"], "measures": [found], "dirty": False}
     if op in ("exit_solidworks", "shutdown"):
+        refuse_to_end()
         return end_child()
     if op == "sleep":
         time.sleep(args.get("ms", 1000) / 1000.0)
@@ -272,6 +299,7 @@ for raw in sys.stdin.buffer:
         if e.details:
             error["details"] = e.details
         send({"id": rid, "ok": False, "error": error})
+        continue  # a refused shutdown leaves the bridge running
     if op == "shutdown":
         break
 end_child()

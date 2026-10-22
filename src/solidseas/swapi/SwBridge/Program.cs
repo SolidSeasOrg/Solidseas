@@ -651,7 +651,8 @@ namespace SolidSeas.SwBridge
             finally
             {
                 // Let go of a session the bridge attached to, never ending it, and end the
-                // SOLIDWORKS this bridge started, however the conversation ended.
+                // SOLIDWORKS this bridge started, however the conversation ended. No client is left
+                // to ask again, so a document a person opened in it is not waited for here.
                 Request.Begin(60);
                 try { Operations.DetachLive(); }
                 catch (Exception e) { Console.Error.WriteLine("detaching: " + e.Message); }
@@ -772,11 +773,13 @@ namespace SolidSeas.SwBridge
             return d;
         }
 
-        // Ends the SOLIDWORKS this bridge started, as exit_solidworks does, and then the bridge.
+        // Ends the SOLIDWORKS this bridge started, as exit_solidworks does, and then the bridge. Refused
+        // the same way while SOLIDWORKS shows a document the bridge did not open, and the bridge
+        // then keeps running.
         static Dictionary<string, object> Shutdown(Args args)
         {
             args.Allow();
-            Dictionary<string, object> result = Operations.EndSolidWorks(Math.Max(1000, Request.RemainingMs()));
+            Dictionary<string, object> result = Operations.EndSolidWorks(Math.Max(1000, Request.RemainingMs()), true);
             stopping = true;
             return result;
         }

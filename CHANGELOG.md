@@ -8,6 +8,13 @@ while the project takes shape.
 
 ### Changed
 
+- **Batch conversion leaves your documents open.** Batch conversion with
+  SolidSeas' own SOLIDWORKS (`python -m solidseas.swapi convert`) no longer ends
+  that SOLIDWORKS while it shows a document SolidSeas did not open, such as one
+  you opened in it while it ran. It shows that SOLIDWORKS on your screen
+  instead, says so in the log, and ends it once you have saved and closed the
+  document.
+
 - **A new home.** SolidSeas now lives in the SolidSeas organisation on GitHub,
   at https://github.com/SolidSeas/SolidSeas, starting from a fresh history. Releases,
   issues and the wiki are there. The SOLIDWORKS test documents, which carry the

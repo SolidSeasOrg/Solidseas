@@ -140,6 +140,8 @@ class OffHours:
 _now = dt.datetime.now
 _sleep = time.sleep
 _WAIT_STEP_S = 60.0  # the clock is read again at least this often, so a clock change is noticed
+# How often SolidSeas asks again to end its SOLIDWORKS while that shows documents SolidSeas did not open.
+_FOREIGN_POLL_S = 30.0
 
 
 def _wait_for(window: OffHours, say: Callable[[str], None]) -> None:
@@ -168,6 +170,22 @@ def _ended_message(ended: dict) -> str:
     if ended.get("documents_open"):
         text += f"; {ended.get('documents_open')} document(s) it had not opened went with it, unsaved"
     return text
+
+
+def _foreign_message(details: object) -> str:
+    """A log line for the bridge's refusal to end SolidSeas' SOLIDWORKS while it shows documents
+    SolidSeas did not open (``foreign_documents``)."""
+    titles = details.get("documents") if isinstance(details, dict) else None
+    titles = [str(t) for t in titles] if isinstance(titles, list) else []
+    count = len(titles)
+    what = "1 document" if count == 1 else f"{count} documents" if count else "documents"
+    named = ""
+    if titles:
+        named = " (" + ", ".join(titles[:5]) + (", and more" if count > 5 else "") + ")"
+    one = count == 1
+    return (f"SolidSeas' SOLIDWORKS has {what} open that SolidSeas did not open{named}: it is not ended "
+            f"but shown on the screen, so you can save and close {'it' if one else 'them'} there. "
+            f"SolidSeas ends its SOLIDWORKS once {'it is' if one else 'they are'} closed.")
 
 
 def _window_message(event: dict) -> str | None:
@@ -290,13 +308,19 @@ class _Session:
     def end(self, timeouts: Timeouts) -> dict | None:
         """End SOLIDWORKS through its job (``exit_solidworks``), then the bridge, and log how it ended.
 
+        While SOLIDWORKS shows documents SolidSeas did not open (a person opened
+        them in it), the bridge does not end it but shows it on the screen
+        (``foreign_documents``). Then this says so, asks again every
+        :data:`_FOREIGN_POLL_S` seconds for as long as it takes, a busy
+        SOLIDWORKS included, and ends it once they are closed.
+
         Returns the bridge's answer, or None when it gave none; closing the
         bridge then ends the job, and SOLIDWORKS with it, all the same.
         """
         ended = None
         try:
             if self.bridge.alive:
-                ended = self.bridge.request("exit_solidworks", timeout=timeouts.exit)
+                ended = self._exit(timeouts)
         except BridgeError as e:
             self.say(f"exit_solidworks failed ({e}); closing the bridge ends SOLIDWORKS through its job")
         finally:
@@ -304,6 +328,25 @@ class _Session:
         if isinstance(ended, dict):
             self.say(_ended_message(ended))
         return ended
+
+    def _exit(self, timeouts: Timeouts) -> dict:
+        """``exit_solidworks``, asked again until no document SolidSeas did not open is left."""
+        waiting = False
+        while True:
+            try:
+                ended = self.bridge.request("exit_solidworks", timeout=timeouts.exit)
+            except BridgeRequestError as e:
+                if e.code == "foreign_documents":
+                    if not waiting:
+                        self.say(_foreign_message(e.details))
+                        waiting = True
+                elif not (waiting and e.code == "busy"):  # busy: someone is working in it
+                    raise
+                _sleep(_FOREIGN_POLL_S)
+                continue
+            if waiting:
+                self.say("the documents SolidSeas did not open are closed; ending SolidSeas' SOLIDWORKS")
+            return ended
 
     def kill(self, reason: str) -> None:
         self.bridge.kill(reason)
@@ -344,6 +387,13 @@ def convert(
     A start that only a person can get past (``solidworks_not_activated``: the
     SOLIDWORKS on this PC needs product activation) is not tried again in the
     run; the documents after it are not attempted, and their rows say why.
+
+    When the work is done, or the off-hours window closes, SOLIDWORKS is not
+    ended while it shows a document SolidSeas did not open, which a person
+    opened in it: it is shown on the screen instead, the log says so, and it is
+    ended once they have closed the document, however long that takes. A
+    timeout, or a failure after which SOLIDWORKS is not trusted, still ends it
+    at once.
     """
     t = timeouts or Timeouts()
     wanted = []

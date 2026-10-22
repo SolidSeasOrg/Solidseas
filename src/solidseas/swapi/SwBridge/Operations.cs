@@ -347,7 +347,12 @@ namespace SolidSeas.SwBridge
         static Dictionary<string, object> ExitSolidWorks(Args args)
         {
             args.Allow();
-            return EndSolidWorks(Math.Max(1000, Request.RemainingMs()));
+            return EndSolidWorks(Math.Max(1000, Request.RemainingMs()), true);
+        }
+
+        public static Dictionary<string, object> EndSolidWorks(int waitMs)
+        {
+            return EndSolidWorks(waitMs, false);
         }
 
         // Ends the SOLIDWORKS this bridge started. First it closes the documents the bridge opened
@@ -358,7 +363,12 @@ namespace SolidSeas.SwBridge
         // SOLIDWORKS' own shutdown, ExitApp, is never used: it rewrites about 230 values under
         // User Interface in the registry the user's session shares (measured with SOLIDWORKS 2024
         // SP1). The swapi README says what ending it this way leaves behind.
-        public static Dictionary<string, object> EndSolidWorks(int waitMs)
+        // With keepForeign (exit_solidworks and shutdown), a document the instance shows that the
+        // bridge did not open or create is a person's: the instance is not ended but shown to the
+        // person, and the request fails with foreign_documents (SolidSeas-1k3). The client asks
+        // again once they are closed. The instance is in a kill-on-close job, so a timeout, a
+        // crash or the end of the conversation still ends it with them.
+        public static Dictionary<string, object> EndSolidWorks(int waitMs, bool keepForeign)
         {
             Dictionary<string, object> d = new Dictionary<string, object>();
             if (process == null)
@@ -386,9 +396,11 @@ namespace SolidSeas.SwBridge
                         catch (Exception e) { Console.Error.WriteLine("closing document " + handle + ": " + e.Message); }
                     }
                     d["documents_closed"] = closed;
+                    if (keepForeign) KeepForeignDocuments(closed);
                     // A document still open here was not opened by the bridge: one loaded with
-                    // another, or one a person opened in the seconds before the instance could be
-                    // hidden. It is never saved, and it goes with the instance; say so.
+                    // another and not shown, or, when the instance is ended without keepForeign,
+                    // one a person opened in it. It is never saved, and it goes with the
+                    // instance; say so.
                     try
                     {
                         int open = sw.GetDocumentCount();
@@ -452,6 +464,45 @@ namespace SolidSeas.SwBridge
             catch (ApplicationException) { }
             instanceMutex.Dispose();
             instanceMutex = null;
+        }
+
+        // The titles of the documents the instance shows that this bridge did not open or create:
+        // a person opened them in the seconds before the instance was hidden, or a double-click
+        // reached it. A document loaded with another, such as an assembly's component, is not
+        // shown (IModelDoc2.Visible is false) and does not count.
+        static List<object> ForeignDocuments()
+        {
+            List<object> titles = new List<object>();
+            object[] open = sw.GetDocuments() as object[];
+            if (open == null) return titles;
+            foreach (object o in open)
+            {
+                ModelDoc2 doc = o as ModelDoc2;
+                bool ours = IsRemembered(o);
+                if (doc != null && !ours && doc.Visible) titles.Add(doc.GetTitle());
+                if (o != null && Marshal.IsComObject(o) && !ours) Marshal.ReleaseComObject(o);
+            }
+            return titles;
+        }
+
+        // Refuses to end the instance while it shows a document the bridge did not open or create,
+        // and shows the instance to the person, who can save and close the documents there
+        // (SolidSeas-1k3). The bridge's own documents are closed by then.
+        static void KeepForeignDocuments(int closed)
+        {
+            List<object> foreign = ForeignDocuments();
+            if (foreign.Count == 0) return;
+            sw.Visible = true;
+            sw.UserControl = true;
+            Console.Error.WriteLine("not ending SOLIDWORKS: it shows " + foreign.Count +
+                " document(s) the bridge did not open; it is shown so they can be saved and closed");
+            Dictionary<string, object> details = new Dictionary<string, object>();
+            details["documents"] = foreign;
+            details["documents_closed"] = closed;
+            details["shown"] = true;
+            throw new BridgeException("foreign_documents", "SOLIDWORKS shows " + foreign.Count +
+                " document(s) SolidSeas did not open; it is shown so they can be saved and closed, and it ends " +
+                "when asked again once they are", details);
         }
 
         static void ReleaseApp()

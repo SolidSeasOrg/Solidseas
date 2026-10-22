@@ -367,6 +367,36 @@ def test_the_bridge_ends_its_instance_through_its_job_never_with_exit_app():
     assert "EndedExitCode = 0x5353" in source
 
 
+def test_the_bridge_keeps_an_instance_that_shows_a_document_it_did_not_open():
+    # SolidSeas-1k3: exit_solidworks and shutdown do not end SolidSeas' SOLIDWORKS while it shows a
+    # document the bridge did not open or create. They close the bridge's own documents first, show
+    # the instance so the person can save and close theirs, and refuse with foreign_documents.
+    code = _code()
+    end = code[code.index("Dictionary<string, object> EndSolidWorks(int waitMs, bool keepForeign)"):]
+    end = end[: end.index("static void TakeInstanceMutex()")]
+    kept = end.index("if (keepForeign) KeepForeignDocuments(closed);")
+    assert end.index("Close(handle)") < kept < end.index("TerminateJob(")
+    foreign = _function(code, "static List<object> ForeignDocuments(")
+    # Shown documents only: an assembly's components are open but not shown, and do not count.
+    assert "bool ours = IsRemembered(o);" in foreign and "!ours && doc.Visible" in foreign
+    keep = _function(code, "static void KeepForeignDocuments(")
+    refused = keep.index('throw new BridgeException("foreign_documents"')
+    assert keep.index("sw.Visible = true;") < refused and keep.index("sw.UserControl = true;") < refused
+    assert 'details["documents"] = foreign;' in keep
+    # Only the two requests that end the instance on the client's word wait for the person; a
+    # failed start, and the end of the conversation, still end it.
+    calls = re.findall(r"EndSolidWorks\(([^;{]*)\);", code)
+    assert [c for c in calls if c.endswith(", true")] == ["Math.Max(1000, Request.RemainingMs()), true"] * 2
+    assert {c for c in calls if not c.endswith(", true")} == {"1000", "5000", "waitMs, false", "30000"}
+    exit_op = _function(code, "static Dictionary<string, object> ExitSolidWorks(")
+    assert "EndSolidWorks(Math.Max(1000, Request.RemainingMs()), true)" in exit_op
+    shutdown = _code_of("Program.cs")
+    shutdown = shutdown[shutdown.index("static Dictionary<string, object> Shutdown("):]
+    assert shutdown.index("RemainingMs()), true);") < shutdown.index("stopping = true;")
+    readme = (SWAPI / "README.md").read_text(encoding="utf-8")
+    assert "`foreign_documents`" in readme
+
+
 def test_the_window_watch_hides_only_the_journal_box_of_its_own_solidworks():
     code = re.sub(r"//[^\n]*", "", (build.SOURCE_DIR / "WindowWatch.cs").read_text(encoding="utf-8"))
     # A window of another process is never looked at past its process id: collecting the
@@ -1088,6 +1118,54 @@ def test_convert_does_not_start_solidworks_again_while_it_needs_activation(tmp_p
     assert rows[1].message == "not attempted: SOLIDWORKS needs product activation on this PC"
     assert len(made) == 1, "starting SOLIDWORKS again would show its activation wizard again"
     assert "SOLIDWORKS needs product activation on this PC; not starting it again in this run" in log
+
+
+def test_convert_waits_while_solidseas_solidworks_shows_a_document_it_did_not_open(tmp_path, monkeypatch):
+    # The bridge does not end SOLIDWORKS while it shows a document a person opened in it, and shows
+    # it to them (SolidSeas-1k3). The run says so once, asks again until the document is closed,
+    # through a busy reply while the person works in it, and then ends SOLIDWORKS as usual.
+    slept = []
+    monkeypatch.setattr(batch, "_sleep", slept.append)
+    made = []
+    log = []
+    behaviour = {"exit_refusals": ["foreign_documents", "busy", "foreign_documents"]}
+    rows = batch.convert(
+        [_inputs(tmp_path, PARTS[:1])], tmp_path / "out", ["stl"], log=log.append,
+        bridge_factory=_factory(behaviour, made),
+    )
+    assert [r.status for r in rows] == ["ok"]
+    assert slept == [batch._FOREIGN_POLL_S] * 3, "asked again after each refusal, and only then"
+    said = [m for m in log if "SolidSeas did not open" in m]
+    assert said == [
+        "SolidSeas' SOLIDWORKS has 1 document open that SolidSeas did not open (Bracket.SLDPRT): it is not "
+        "ended but shown on the screen, so you can save and close it there. SolidSeas ends its SOLIDWORKS "
+        "once it is closed.",
+        "the documents SolidSeas did not open are closed; ending SolidSeas' SOLIDWORKS",
+    ]
+    ended = [m for m in log if m.startswith("SolidSeas' SOLIDWORKS ended:")]
+    assert len(ended) == 1 and "job_terminated" in ended[0] and "exit code 21331" in ended[0]
+    assert len(made) == 1 and not made[0].alive
+    # Busy before any refusal is a failure to end it, as before: the bridge is closed, no wait.
+    slept.clear()
+    log.clear()
+    again = tmp_path / "again"
+    again.mkdir()
+    rows = batch.convert(
+        [_inputs(again, PARTS[:1])], tmp_path / "out2", ["stl"], log=log.append,
+        bridge_factory=_factory({"exit_refusals": ["busy"]}),
+    )
+    assert [r.status for r in rows] == ["ok"] and slept == []
+    assert any(m.startswith("exit_solidworks failed (exit_solidworks: fake SOLIDWORKS rejected") for m in log)
+    names = ["A.SLDPRT", "B.SLDASM", "C.SLDPRT", "D.SLDPRT", "E.SLDPRT", "F.SLDPRT"]
+    assert batch._foreign_message({"documents": names[:2]}).startswith(
+        "SolidSeas' SOLIDWORKS has 2 documents open that SolidSeas did not open (A.SLDPRT, B.SLDASM): it is "
+        "not ended but shown on the screen, so you can save and close them there. SolidSeas ends its "
+        "SOLIDWORKS once they are closed."
+    )
+    assert "(A.SLDPRT, B.SLDASM, C.SLDPRT, D.SLDPRT, E.SLDPRT, and more)" in batch._foreign_message(
+        {"documents": names}
+    )
+    assert batch._foreign_message(None).startswith("SolidSeas' SOLIDWORKS has documents open that")
 
 
 def test_off_hours_window():

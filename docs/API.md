@@ -4145,6 +4145,12 @@ class ConversionRow:
   is accepted for the documents and the output folder named. The instance is
   ended directly, through its Job Object, never through SOLIDWORKS' own
   shutdown.
+- When the work is done, or the off-hours window closes, SOLIDWORKS is not
+  ended while it shows a document SolidSeas did not open, one someone opened
+  in it or a double-click handed it: it is shown on your screen instead and
+  left running, `log` names the documents, and the run asks again every 30 s
+  and ends it once they are closed, however long that takes. A timeout, or a
+  failure after which SOLIDWORKS is not trusted, still ends it at once.
 - The command line is `python -m solidseas.swapi convert INPUT... -o DIR
   [--format step,stl] [--recurse] [--force] [--allow-source-folder]
   [--open-timeout S] [--export-timeout S] [--off-hours [HH:MM-HH:MM]] [--json]`;
@@ -4160,6 +4166,9 @@ bridge and its SOLIDWORKS were ended) or `BridgeExitedError`, and
 run on a thread of their own, and get `window` events when the bridge hides
 its instance's journal file message box. A `BridgeTimeoutError` names the
 dialogs SOLIDWORKS showed while the request waited, in `details["dialogs"]`.
+`exit_solidworks` and `shutdown` raise `BridgeRequestError` with the code
+`foreign_documents`, and leave SOLIDWORKS running and shown, while it shows a
+document the bridge did not open; `close()` ends it all the same.
 The operations, the protocol and the safety rules are in
 `src/solidseas/swapi/README.md`.
 

@@ -116,7 +116,8 @@ again.
 
 Error codes: `bad_request`, `unknown_op`, `invalid_argument`, `not_found`,
 `refused` (a safety rule, or an import the account's options would turn into
-a dialog), `not_started`, `start_failed`, `solidworks_not_activated` (SOLIDWORKS
+a dialog), `foreign_documents` (SOLIDWORKS shows a document the bridge did not
+open, so it is not ended, below), `not_started`, `start_failed`, `solidworks_not_activated` (SOLIDWORKS
 Product Activation is asking, below), `timeout` (the
 bridge's own start-up wait), `open_failed`, `new_failed`, `save_failed`,
 `import_failed`, `busy` (SOLIDWORKS still rejected the call at the deadline,
@@ -142,8 +143,8 @@ away), `com_error` and `internal`. A COM failure also carries its `hresult`.
 | `native_check` | `doc` (a part `open_document` opened), `dimension` (a full name such as `D1@Boss-Extrude1`, optional) and `value` (metres or radians), `save_path` (a new `.sldprt` path, optional) | `opened` and `rebuilt` (after `ForceRebuild3`): `features` (`name`, `type`, `suppressed`, `error`, `error_is_warning`, `dimensions` with `name`, `value`, `driven`; a sketch's `segments`, `points`, `relations` and `constrained_status`; an extrusion's `end_condition`, `depth`, `both_directions`, `reverse`, `merge`), `whats_wrong` and `measure` (as `mass_properties` gives one); `force_rebuild`; `edit` (`found`, `before`, `status`, `rebuild`, `after`, `snapshot`) when a dimension is named; `saved` (`ok`, `path`, `bytes`, `errors`, `warnings`) when a copy is asked for, written with `swSaveAsOptions_Copy` and never over a file. The oracle for the native writer (`docs/NATIVE_SLDPRT_WRITER.md`): batch instance only, the document is never saved |
 | `test_session_new_part`, `test_session_open`, `test_session_native_check`, `test_session_close`, `test_session_documents` | `template` (a `.prtdot`); `path` (a `.sldprt`); `document` and `native_check`'s arguments; `document`; none | offered only with `--test-session`, after `live_attach`: the opt-in tests' and the attached checks' way to work in a SOLIDWORKS the person started (agreed 2026-10-19, `TestSession.cs`). A new part from the template, or a part opened read-only (refused when the session has a document of that name open), keyed as `document`; `native_check` on one of them; and closing it with `QuitDoc`, which discards its changes. Only documents this bridge created or opened there are touched, and every one still open is closed when the bridge detaches |
 | `unwatch_document` | `doc` | `was_watched` |
-| `exit_solidworks` | | `ended`: `job_terminated`, `job_closed` (terminating failed and closing the job ended it), `already_exited` or `not_started`; `pid`, `exit_code` (21331, `0x5353`, when the bridge ended it), `documents_closed`, `documents_open` (open afterwards that the bridge did not open), `job_processes`, `windows_hidden` |
-| `shutdown` | | as `exit_solidworks`, then the bridge exits |
+| `exit_solidworks` | | `ended`: `job_terminated`, `job_closed` (terminating failed and closing the job ended it), `already_exited` or `not_started`; `pid`, `exit_code` (21331, `0x5353`, when the bridge ended it), `documents_closed`, `documents_open` (open afterwards that the bridge did not open, none of them shown), `job_processes`, `windows_hidden`. Refused with `foreign_documents` while SOLIDWORKS shows a document the bridge did not open or create: the bridge's own are closed, SOLIDWORKS is shown and left running, and `details` has the `documents` (their titles), `documents_closed` and `shown` (below) |
+| `shutdown` | | as `exit_solidworks`, then the bridge exits; refused the same way, and the bridge then keeps running |
 | `list_sessions` | `pids` (only these processes; default every `SLDWORKS.exe` in the bridge's Windows session) | `sessions`, each with `pid`, `solidseas` (a SolidSeas bridge started it for batch work), `writer` (a SolidSeas window holds the session), `attached`, `reachable`, and, when reachable, `revision` and `documents` (`key`, `title`, `path`, `type`, `visible`, `active`, `dirty`); otherwise `note`: `administrator`, `not_registered`, `not_registered_or_administrator`, or the code of the COM error; and `attached`: the PID this bridge is attached to, or null |
 | `live_attach` | `pid` | the session, as `list_sessions` gives it, and `undo_entry_closed`: whether a script's undo entry an ended bridge left open was closed |
 | `live_detach` | | `was_attached`: the PID let go of, or null |
@@ -415,8 +416,11 @@ so a slow listener holds neither the replies nor SOLIDWORKS. Past 10,000
 events waiting for it, more are dropped and counted (`events_lost`), and it
 then gets `{"event": "events_lost", "count": n, "where": "client"}`. `events`
 keeps the last thousand. `close()` asks for `shutdown` and ends the job if that
-has no answer in time. If the bridge cannot be put in its Job Object, the
-client ends it by its own handle at once.
+has no answer in time or is refused, so a caller that must not end a document a
+person opened in SolidSeas' SOLIDWORKS asks `exit_solidworks` until it is no
+longer refused with `foreign_documents` first, as batch conversion does. If the
+bridge cannot be put in its Job Object, the client ends it by its own handle at
+once.
 
 ### Live mode: the person's own SOLIDWORKS
 
@@ -535,9 +539,21 @@ timeout, nothing of the person's goes with it.
   shutdown, which rewrites about 230 values of the layout the user's session
   shares (see the side effects below). It holds no document of the user's and
   no unsaved work, short of a document a person opens in it in the seconds
-  before it is hidden; what ending it this way leaves is listed under the side
-  effects. If terminating fails, closing the job ends the instance all the
-  same (kill-on-close).
+  before it is hidden, or one a double-click hands it; what ending it this way
+  leaves is listed under the side effects. If terminating fails, closing the
+  job ends the instance all the same (kill-on-close).
+- It does not end an instance that shows a document it did not open or create
+  (the user's choice, SolidSeas-1k3). `exit_solidworks` and `shutdown` close the
+  bridge's own documents, and if SOLIDWORKS still shows another one they show
+  the instance to the person (`Visible` and `UserControl` true), leave it
+  running and fail with `foreign_documents`, naming the documents, so the
+  person can save and close them there. Asked again once they are closed, the
+  bridge ends it as above; batch conversion asks every 30 s, for as long as it
+  takes, and says so in its log. A document loaded with another, such as an
+  assembly's component, is not shown and does not count. The instance stays in
+  its kill-on-close job, so a timeout, a crash, `Bridge.close()` (which ends the
+  job when `shutdown` is refused) or the end of the conversation without
+  `shutdown` still ends it with such a document open.
 - It sets `SetErrorMode` so a crash in the bridge never opens a dialog; the
   SOLIDWORKS it starts keeps its own error mode.
 
@@ -696,7 +712,10 @@ closed, SOLIDWORKS is ended through its job and the work goes on, with that
 document's remaining formats, in the next window. That pause is not counted as
 a restart. The log says how long it waits, and how each SOLIDWORKS ended
 (`job_terminated` and exit code 21331 when the bridge ended it through its
-job).
+job). When SolidSeas' SOLIDWORKS is to be ended while it shows a document
+SolidSeas did not open, it is shown on the screen instead and left running, the
+log names the documents, and the run asks again every 30 s and ends it once they
+are closed; an off-hours job then runs past its window until they are.
 
 The output folder may not be, or lie in, a folder that holds an input document
 unless `--allow-source-folder` is given; an existing output is kept (a `skip`
@@ -739,6 +758,7 @@ SOLIDWORKS' own export options if you need it.
 | SolidSeas' instance alone, the off-hours case: ended through its job after opening a part and making a document, then by a timeout with the part open, then started again. What changed in `%APPDATA%\SolidWorks` (the journal file) and in the auto-recover and backup folders the options name, no auto-recover copy or backup made, no box hidden, and no dialog at the next start that the first did not show | verified on 2026-10-14 (`SOLIDSEAS_SWAPI_SOLIDWORKS=1`, `-k no_recovery_behind`, no other SOLIDWORKS running) |
 | A SOLIDWORKS of the user's started while SolidSeas' instance runs alone: the journal box in the user's session, and no auto-recover there | not measured; an off-hours job ends its instance when the window closes, so it does not run into the day |
 | Batch conversion keeping to the off-hours window: started only inside it, ended through its job once it closes, the rest of the work done in the next window, the batch log saying how each instance ended | verified with the stand-in bridge |
+| Not ending an instance that shows a document the bridge did not open: `exit_solidworks` and `shutdown` refusing with `foreign_documents` after closing the bridge's own documents, the instance shown, and batch conversion saying so and asking again until it ends | batch conversion verified with the stand-in bridge; the bridge's side not yet built or run (SolidSeas-1k3) |
 | `ExitApp`, before the bridge stopped using it: it ended the instance (exit code 45) within about 2 s, and wrote the layout described below. The bridge no longer calls it | measured; no longer how the instance ends |
 | Assemblies: opening one loads its components through SOLIDWORKS' reference search, which may look in folders the account's options name | not run; the end-to-end run used parts only |
 | Opening an assembly with the flags `open_document` uses (read-only, silent, resolved) changing its folder's modification time with the same entries before and after, a brief write; part opens and STEP imports leaving their folders alone | measured by the harness on the copy of o08, twice; the opt-in `mass_properties` test prints the folder's time again |
@@ -861,11 +881,14 @@ Side effects to know about:
     SOLIDWORKS removes such a copy when a document is closed has not been
     measured.
   - A document a person opened in the instance in the seconds before it could
-    be hidden is not saved and goes with it; `documents_open` counts it, and
-    the bridge says so on standard error. Opened for writing, as SOLIDWORKS
-    opens a document by default, it also leaves its `~$` lock file next to
-    that person's file. The bridge does not close it, because it closes only
-    the documents it opened or created.
+    be hidden, or that a double-click handed it, keeps the instance running
+    and shown until it is closed (`foreign_documents`, above). Only a timeout,
+    a crash or the end of the conversation without `shutdown` ends the
+    instance with it open; then it is not saved and goes with the instance,
+    `documents_open` counts it, and the bridge says so on standard error.
+    Opened for writing, as SOLIDWORKS opens a document by default, it also
+    leaves its `~$` lock file next to that person's file. The bridge never
+    closes it, because it closes only the documents it opened or created.
   - SOLIDWORKS' embedded browser helpers (`swCefSubProc.exe`) are ended with
     the instance. Those of the user's SOLIDWORKS are its own processes and
     keep running, but both use the same cache folder under the account's
