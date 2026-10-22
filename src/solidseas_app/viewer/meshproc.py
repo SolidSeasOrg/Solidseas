@@ -21,8 +21,13 @@ first time a mesh is wanted and kept for the next one:
 An assembly is read the same way (:func:`.mesh3d.read_assembly_scene`): its
 component files are found by reference resolution in the opened folder, and
 the child keeps that folder's index from one assembly to the next until the
-window opens a folder again. Its meshes arrive once each, with the matrices of
-the instances that use them, and the boxes to draw where an instance has no mesh
+window opens a folder again. It also keeps the triangles of every part it drew
+from the part's bodies (:class:`solidseas.tesscache.TessellationCache`, keyed by
+what the part's file holds), so an assembly shown again, another configuration
+of it or another assembly with the same parts tessellates none of them twice; a
+read cancelled partway ends the child, and what it kept with it. Its meshes
+arrive once each, with the matrices of the instances that use them, and the
+boxes to draw where an instance has no mesh
 (:class:`.mesh3d.BoxBuffers`, made from where it sits and the box its assembly
 stores for it, :func:`.mesh3d.placeholders`) arrive with them, ready to upload.
 
@@ -56,6 +61,9 @@ from typing import Any
 from . import mesh3d
 
 _BASE_MEMORY = 768 << 20  # the child's interpreter, the library and a part file open in memory
+# The parts' tessellations the child keeps between reads (solidseas.tesscache), on top
+# of what a read may use: at the default cap a read's meshes hold some 40 MB at most.
+TESSELLATION_CACHE_BYTES = 256 << 20
 MAX_REQUEST_BYTES = 1 << 20
 MAX_HEADER_BYTES = 256 << 20  # an answer's JSON: an assembly's ids and its boxes' names, at most
 DRAWN = ("ok", "partial")  # the states whose answer carries buffers (partial: faces left out)
@@ -76,8 +84,9 @@ multiprocessing.util.Finalize(None, _close_all, exitpriority=10)
 def memory_limit(cap: int) -> int:
     """The most memory the mesh process may use under a triangle cap of ``cap``:
     room for the file, its display-list stream at the byte budget and the mesh
-    expanded from it. 1.7 GiB at the default cap."""
-    return _BASE_MEMORY + 4 * mesh3d.byte_budget(cap)
+    expanded from it, and the tessellations it keeps between reads. 2 GiB at the
+    default cap."""
+    return _BASE_MEMORY + 4 * mesh3d.byte_budget(cap) + TESSELLATION_CACHE_BYTES
 
 
 # The error a read reports when the child ended without answering, and nobody
@@ -95,10 +104,15 @@ STOPPED = {
 def _serve(conn) -> None:
     """The child: read each requested mesh and send it back, until the pipe closes.
     It keeps one folder index for reference resolution, for the folder the window
-    opened, while the window keeps that folder open (``cache_key``)."""
+    opened, while the window keeps that folder open (``cache_key``), and the parts'
+    tessellations for as long as it runs (:data:`TESSELLATION_CACHE_BYTES` of them),
+    keyed by what each part's file holds, so a part saved again is tessellated again.
+    A read that runs out of memory lets the tessellations go."""
     from solidseas.resolve import IndexCache
+    from solidseas.tesscache import TessellationCache
 
     cache, cache_key = IndexCache(), None
+    tessellations = TessellationCache(TESSELLATION_CACHE_BYTES)
     while True:
         try:
             raw = conn.recv_bytes(MAX_REQUEST_BYTES)
@@ -133,21 +147,29 @@ def _serve(conn) -> None:
                     configuration=request.get("configuration"),
                     cache=cache,
                     outside=request.get("outside", True) is not False,
+                    brep_cache=tessellations,
                 )
                 scene = result.pop("data", None)
                 if scene is not None:
                     result["scene"], buffers = _scene_header(scene)
             else:
                 result = mesh3d.read_part_mesh(
-                    request["path"], request["within"], cap, nested=tuple(request["nested"])
+                    request["path"],
+                    request["within"],
+                    cap,
+                    nested=tuple(request["nested"]),
+                    brep_cache=tessellations,
                 )
                 data = result.pop("data", None)
                 if data is not None:
                     result["mesh"] = _mesh_header(data)
                     buffers = [data.positions, data.normals, data.indices]
+            if result.get("memory"):  # out of memory: the next read gets all of it
+                tessellations.clear()
             _drop_bytes(result)
             header = json.dumps(result).encode("utf-8")
         except MemoryError:  # past the job object's limit outside the read itself
+            tessellations.clear()
             result = {"state": "too_large", "memory": True, "cap": cap, "seconds": {}}
             header, buffers = json.dumps(result).encode("utf-8"), []
         except Exception as exc:  # a read that failed past its own checks, or an answer not JSON: said

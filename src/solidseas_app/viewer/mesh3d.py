@@ -158,6 +158,7 @@ def read_part_mesh(
     cancelled: Callable[[], bool] = lambda: False,
     *,
     nested: tuple[str, ...] = (),
+    brep_cache=None,
 ) -> dict[str, Any]:
     """Read a part's display mesh for the 3D view.
 
@@ -169,13 +170,17 @@ def read_part_mesh(
     (``error`` is ``solidseas.model.error_info``). The document is opened
     read-only within ``folder``, like every other read of the viewer, and
     ``nested`` reads the nested document those streams lead to inside it (a
-    virtual part, from its assembly).
+    virtual part, from its assembly). With ``brep_cache``
+    (:class:`solidseas.tesscache.TessellationCache`) a part drawn from its bodies
+    takes their tessellation from the cache when it holds it (``reused`` is then
+    True), and leaves a whole one there for the next read.
     """
     seconds: dict[str, float] = {}
     if cancelled():  # the selection moved on while this waited its turn
         return {"state": "cancelled", "seconds": seconds}
     t = time.perf_counter()
     stored_in = None  # a virtual part's mesh comes from its assembly
+    reused = False
     try:
         with open_document(path, within=folder) as top:
             parent, doc = None, top
@@ -203,7 +208,11 @@ def read_part_mesh(
                 # No display mesh saved anywhere: the triangles of the part's own bodies,
                 # as display_geometry's brep source gives them for an assembly.
                 t = time.perf_counter()
-                tess = doc.tessellate(max_triangles=cap + 1, max_seconds=BREP_SECONDS)
+                cache_key = brep_cache.key(doc, None) if brep_cache is not None else None
+                hit = brep_cache.get(cache_key) if cache_key is not None else None
+                tess = None
+                if hit is None:
+                    tess = doc.tessellate(max_triangles=cap + 1, max_seconds=BREP_SECONDS)
                 seconds["tessellate"] = time.perf_counter() - t
                 if tess is not None and "max_triangles" in tess.truncated:
                     return {
@@ -213,8 +222,11 @@ def read_part_mesh(
                         "cap": cap,
                         "seconds": seconds,
                     }
-                if tess is not None and tess.mesh.n_triangles:
+                if hit is not None:
+                    mesh, stored_in, reused = hit.mesh, "bodies", True
+                elif tess is not None and tess.mesh.n_triangles:
                     mesh, stored_in = tess.mesh, "bodies"
+                    _keep_tessellation(brep_cache, cache_key, tess)
     except MemoryError:  # the mesh process's memory limit (:mod:`.meshproc`)
         return {"state": "too_large", "memory": True, "cap": cap, "seconds": seconds}
     except Exception as exc:  # shown in the 3D view; never escapes the worker
@@ -234,7 +246,23 @@ def read_part_mesh(
     result = {"state": "ok", "data": data, "seconds": seconds}
     if stored_in:
         result["stored_in"] = stored_in
+    if reused:
+        result["reused"] = True
     return result
+
+
+def _keep_tessellation(cache, key, tess) -> None:
+    """Leave a part's whole tessellation in ``cache`` for the next read. It is made outside
+    display geometry, so without the warnings that geometry's ``brep`` source gives with
+    it: that source tessellates the part again when it needs it, and keeps that one."""
+    if cache is None or key is None:
+        return
+    from solidseas.tesscache import CachedTessellation, keepable
+
+    if keepable(tess):
+        cache.put(key, CachedTessellation(tess.configuration, None, tess.mesh, None, tess.chord_m))
+    else:
+        cache.refuse()
 
 
 def assembly_mesh_of(assembly, stream: str, cap: int, over: list[str] | None = None):
@@ -694,6 +722,7 @@ def read_assembly_scene(
     configuration: str | None = None,
     cache=None,
     outside: bool = True,
+    brep_cache=None,
 ) -> dict[str, Any]:
     """Read an assembly for the 3D view, in the mesh process.
 
@@ -703,6 +732,9 @@ def read_assembly_scene(
     finds them (``cache`` keeps that folder's index between reads), and without
     ``outside`` in that folder alone. ``cap`` is the
     triangle cap over every mesh read, and its byte budget the display data read.
+    ``brep_cache`` (:class:`solidseas.tesscache.TessellationCache`) keeps the
+    tessellations of parts drawn from their bodies between reads; the geometry's
+    ``tessellations_reused`` then counts those this read took from it.
 
     Returns ``{"state", "seconds", ...}``. ``state`` is ``ok`` (``data`` is a
     :class:`SceneBuffers`: some instance is drawn from a mesh, or has a box to draw
@@ -735,6 +767,7 @@ def read_assembly_scene(
             if doc.doc_type != "assembly":
                 return {"state": "not_assembly", "doc_type": doc.doc_type, "seconds": seconds}
             t = time.perf_counter()
+            hits = brep_cache.hits if brep_cache is not None else 0
             g = display_geometry(
                 doc,
                 configuration,
@@ -749,6 +782,7 @@ def read_assembly_scene(
                 max_triangles=cap,
                 max_bytes=byte_budget(cap),
                 max_triangles_drawn=drawn_budget(cap),
+                brep_cache=brep_cache,
             )
             reference = assembly_box(doc, g.configuration)
             seconds["read"] = time.perf_counter() - t
@@ -805,6 +839,8 @@ def read_assembly_scene(
         "cap": cap,
         "drawn_cap": drawn_budget(cap),
     }
+    if brep_cache is not None:
+        info["tessellations_reused"] = brep_cache.hits - hits
     if scene is None and boxes is None:
         state = "too_large" if info["too_large"] else "no_mesh"
         return {"state": state, "geometry": info, "cap": cap, "seconds": seconds}

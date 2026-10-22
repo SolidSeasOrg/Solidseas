@@ -1984,7 +1984,9 @@ def test_a_mesh_read_in_progress_is_ended_when_it_is_not_wanted(tmp_path):
 def test_the_mesh_process_is_held_to_its_memory_limit(tmp_path, monkeypatch):
     from solidseas_app.viewer import meshproc
 
-    assert meshproc.memory_limit(mesh3d.DEFAULT_TRIANGLE_CAP) == (768 << 20) + 4 * 256_000_000
+    assert meshproc.memory_limit(mesh3d.DEFAULT_TRIANGLE_CAP) == (
+        (768 << 20) + 4 * 256_000_000 + meshproc.TESSELLATION_CACHE_BYTES
+    )
     folder = tmp_path / "parts"
     folder.mkdir()
     (folder / "strip.SLDPRT").write_bytes(

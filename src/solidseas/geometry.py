@@ -1334,6 +1334,9 @@ class _Builder:
         from .tessellate.topology import Clock, TimeUp
 
         self.room_for_triangles()
+        reused, cache_key = self._brep_cached(key, file_key, doc, nested, path, outer, cfg)
+        if reused is not None:
+            return reused
         left = self.max_brep_seconds - self.counts["brep_seconds"]
         if left <= 0.0:
             self.truncated.append("max_brep_seconds")
@@ -1450,7 +1453,7 @@ class _Builder:
             warnings.append(ReaderWarning("brep_not_closed", "a solid body's mesh is not closed", stream))
         if hidden:
             warnings.append(ReaderWarning("brep_bodies_hidden", hidden_message(hidden), stream))
-        return MeshSource(
+        source = MeshSource(
             key,
             "brep",
             file_key,
@@ -1462,6 +1465,76 @@ class _Builder:
             tuple(warnings),
             t.welded() if self.brep["welded"] else None,
             t.chord_m,
+        )
+        self._brep_keep(cache_key, t, source)
+        return source
+
+    def _brep_cached(self, key, file_key, doc, nested, path, outer, cfg) -> tuple[MeshSource | None, Any]:
+        """The part's tessellation from the call's ``brep_cache``, as this call's mesh, and
+        the key it is kept under: ``(None, key)`` when the cache does not hold it, and
+        ``(None, None)`` without a cache or for a document the cache cannot key. A part
+        the cache holds is drawn without reading its bodies, and so even once
+        ``max_brep_seconds`` is spent, but within the call's other limits as one read."""
+        cache = self.brep.get("cache")
+        if cache is None:
+            return None, None
+        from .tesscache import settings_key
+
+        t0 = time.perf_counter()
+        try:
+            part = doc
+            for stream in nested:
+                part = part.nested(stream)
+            if part.doc_type != "part":
+                return None, None
+            settings = settings_key(
+                self.brep["options"], self.brep["types"], self.brep["hidden"], self.brep["welded"]
+            )
+            cache_key = cache.key(part, cfg, settings)
+        except MemoryError:
+            raise
+        except Exception:  # the brep source reads the document itself, and says what fails
+            return None, None
+        finally:
+            self.counts["brep_seconds"] += time.perf_counter() - t0
+        hit = cache.get(cache_key, whole=True)
+        if hit is None:
+            return None, cache_key
+        level = doc
+        for stream in nested:  # counted as the read would count them
+            self.budget_bytes(level.container.info(stream).size)
+            level = level.nested(stream)
+        self.keep(hit.mesh)
+        self.counts["meshes_tessellated"] += 1
+        source = MeshSource(
+            key,
+            "brep",
+            file_key,
+            hit.stream or "",
+            path,
+            (*outer, *nested),
+            hit.configuration,
+            hit.mesh,
+            hit.warnings,
+            hit.welded,
+            hit.chord_m,
+        )
+        return source, cache_key
+
+    def _brep_keep(self, cache_key, t, source: MeshSource) -> None:
+        """Keep a part's tessellation in the call's ``brep_cache`` for the next call, when
+        it is whole (:func:`solidseas.tesscache.keepable`)."""
+        cache = self.brep.get("cache")
+        if cache is None or cache_key is None:
+            return
+        from .tesscache import CachedTessellation, keepable
+
+        if not keepable(t):
+            cache.refuse()
+            return
+        s = source
+        cache.put(
+            cache_key, CachedTessellation(s.configuration, s.stream, s.mesh, s.warnings, s.chord_m, s.welded)
         )
 
     def _parents(self, ctx: _Ctx) -> dict[str, str | None]:
@@ -1632,6 +1705,7 @@ def display_geometry(
     max_brep_seconds: float = DEFAULT_MAX_BREP_SECONDS,
     brep_options: Mapping[str, Any] | None = None,
     keep_welded: bool = False,
+    brep_cache=None,
 ) -> DisplayGeometry | None:
     """The display geometry of one configuration of the assembly ``doc``, or None for a
     part or a drawing. Provisional (``docs/API.md`` section 3.14).
@@ -1668,8 +1742,20 @@ def display_geometry(
     :mod:`solidseas.tessellate`, ``body_types`` (by default solids and sheets) and
     ``max_seconds``, the time one part may take (30 s by default). With
     ``keep_welded`` each ``brep`` mesh also carries its triangles over shared
-    vertices (:attr:`MeshSource.welded`), as exports want them.
+    vertices (:attr:`MeshSource.welded`), as exports want them. ``brep_cache``
+    (provisional), a :class:`solidseas.tesscache.TessellationCache`, keeps each
+    part's tessellation for the next call and gives back those it holds, keyed by
+    what the part's document holds: a part it holds is drawn without reading its
+    bodies, even once ``max_brep_seconds`` is spent, and counts in
+    ``meshes_tessellated`` as one made.
     """
+    if brep_cache is not None:
+        from .tesscache import TessellationCache
+
+        if not isinstance(brep_cache, TessellationCache):
+            raise InvalidArgumentError(
+                "brep_cache is a solidseas.tesscache.TessellationCache", detail={"parameter": "brep_cache"}
+            )
     if doc.doc_type != "assembly":
         return None
     order = tuple(sources) if not isinstance(sources, str) else (sources,)
@@ -1688,6 +1774,7 @@ def display_geometry(
         _seconds(max_brep_seconds, "max_brep_seconds"),
     )
     brep = _brep_settings(brep_options, keep_welded)
+    brep["cache"] = brep_cache
     if resolution is not None and not hasattr(resolution, "results"):
         raise InvalidArgumentError(
             "resolution is a solidseas.resolve.Resolution", detail={"parameter": "resolution"}

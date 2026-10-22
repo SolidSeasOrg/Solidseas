@@ -8,6 +8,13 @@ while the project takes shape.
 
 ### Changed
 
+- **Parts are tessellated once while the viewer runs.** Parts drawn from their
+  own geometry are kept while the viewer runs: showing an assembly again,
+  another configuration of it, another assembly with the same parts, or one of
+  those parts on its own no longer tessellates them again, and a part saved
+  again is read again. For library users, `display_geometry` takes `brep_cache`,
+  a `solidseas.tesscache.TessellationCache` (provisional).
+
 - **Stored paths through links.** A file named by a stored path that goes
   through a link, junction or cloud folder is no longer looked for through it;
   it is reported with the stored-path-refused warning.

@@ -106,7 +106,12 @@ Failing that, it comes from the meshes a sub-assembly keeps in its own file.
 A part saved with no display mesh anywhere is drawn from its own geometry: the
 viewer turns the Parasolid bodies the part stores into triangles, which takes a
 moment for a large part (about 30 seconds a part at most, reading its bodies
-included, and no part is started after a minute for the whole assembly). A
+included, and no part is started after a minute for the whole assembly). The
+viewer keeps those triangles while it runs, so showing the assembly again,
+another configuration of it, another assembly with the same parts, or one of
+those parts on its own does not make them again. A part saved again since is
+read again, and selecting another document while an assembly is still being
+read lets go of what was kept. A
 sub-assembly whose components the assembly does not list is read from its own
 file, and a file it shares with the assembly is the same file in the view: one
 colour, one row of the legend.

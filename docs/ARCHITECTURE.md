@@ -499,7 +499,11 @@ default) turns `allow_outside_roots` off for every read the viewer makes: the
 details panel's references and BOM, the 3D read, 3D Print, both exports and the
 drawing process (`drawing.assembly.searching(..., outside=False)`), each told
 through its own request; turning it on drops Back's places outside the opened
-folder and closes one shown. It is bounded like every 3D
+folder and closes one shown. The child keeps the
+tessellations of the parts it drew from their bodies while it runs
+(`solidseas.tesscache`, keyed by what each part's file holds and bounded in
+bytes), so a part is tessellated again only when its file changes or the child
+is ended. It is bounded like every 3D
 read: the triangle cap and its byte budget over what is read, and a drawn
 budget (twenty times the cap) over every instance's triangles, so a frame never
 asks the GPU for more than that. An instance the geometry places without a

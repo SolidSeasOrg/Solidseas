@@ -1470,6 +1470,7 @@ def display_geometry(
     max_brep_seconds=60.0,            # time spent tessellating parts' bodies, over the whole call
     brep_options=None,                # how the brep source tessellates (below)
     keep_welded=False,                # brep meshes also carry their shared-vertex triangles
+    brep_cache=None,                  # a TessellationCache: parts' tessellations kept between calls
 ) -> DisplayGeometry | None
 ```
 
@@ -1609,6 +1610,30 @@ or a drawing gives None.
   given, or one made for the call), so the roots are walked once however many
   sub-assemblies are read from their own files. A document opened from bytes
   has no folder: give `roots`, or its files are `missing`.
+- **Tessellations kept between calls** (provisional). `brep_cache`, a
+  `solidseas.tesscache.TessellationCache(max_bytes=256 << 20)`, keeps each
+  part's tessellation the `brep` source makes and gives it back to the next
+  call that asks for the same part, so the part's bodies are not read or
+  tessellated again. An entry is keyed by what the part's document holds (a
+  SHA-256 digest of every stream as stored, with its name, codec and size), the
+  configuration asked for (None and the active one's name are one entry) and
+  the settings that change the triangles (`settings_key()`: `brep_options`'
+  tessellation options and body types, `include_hidden` and `keep_welded`), never
+  by the file's name or time: a part saved again is tessellated again, and a
+  copy of it elsewhere finds the same entry. Only a whole result is kept: none
+  that a limit stopped, and none with a face left out for want of time
+  (`max_seconds`) or by a blend's fit (`fit_failed`, which has a share of the
+  time); `KEPT_REASONS` lists the reasons a kept result may have left faces out
+  for. A part the cache holds is drawn as made, with the same mesh, warnings
+  and `chord_m`, counts in `meshes_tessellated`, and is drawn even once
+  `max_brep_seconds` is spent, the call's other limits holding as for a read.
+  The cache keeps the least recently used entries within `max_bytes` (the
+  arrays of each mesh and about 160 bytes a face), refuses an entry larger than
+  that and a document over `MAX_DIGEST_BYTES` (512 MiB as stored), and counts
+  `hits`, `misses`, `kept`, `dropped` and `refused` (`stats()`). Its entries are
+  shared: a caller does not change a mesh it was given. `None`, the default,
+  keeps nothing; anything else that is not a `TessellationCache` raises
+  `InvalidArgumentError`.
 - **One mesh per source.** `meshes` maps a key to a `MeshSource` (`kind`, a
   source name and an open set like every enum here, `file`, `stream`, `path`,
   `nested`, `configuration`, `mesh`, `warnings`; for `subassembly`, `path` and
