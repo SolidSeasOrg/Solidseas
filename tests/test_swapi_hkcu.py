@@ -2,11 +2,10 @@
 
 The rule runs here on a stand-in registry. On Windows, the winreg backend also writes and reads
 a scratch key of its own under ``HKEY_CURRENT_USER\\Software``, removed again, and the process
-listing is checked on a copy of a Windows program named ``SLDWORKS.exe``.
+listing is checked on the test's own Python.
 """
 
-import shutil
-import subprocess
+import os
 import sys
 import threading
 import time
@@ -280,17 +279,11 @@ def test_the_windows_registry_reads_and_writes_back_every_kind_of_value():
 
 
 @pytest.mark.skipif(not WINDOWS, reason="the process listing is Windows'")
-def test_the_process_listing_finds_a_program_named_sldworks(tmp_path):
-    ping = Path(shutil.which("ping.exe") or r"C:\Windows\System32\PING.EXE")
-    stand_in = tmp_path / "SLDWORKS.exe"
-    shutil.copyfile(ping, stand_in)
-    before = hkcu.solidworks_pids()
-    proc = subprocess.Popen([str(stand_in), "-n", "30", "127.0.0.1"], stdout=subprocess.DEVNULL,
-                            creationflags=subprocess.CREATE_NO_WINDOW)
-    try:
-        assert _until(lambda: proc.pid in hkcu.solidworks_pids())
-        assert proc.pid not in before
-    finally:
-        proc.kill()
-        proc.wait(30)
-    assert _until(lambda: proc.pid not in hkcu.solidworks_pids())
+def test_the_process_listing_finds_processes_by_their_program():
+    # The test's own Python stands in for SLDWORKS.exe: the listing matches the program's file
+    # name in any case.
+    program = Path(sys.executable).name
+    assert os.getpid() in hkcu.process_ids(program)
+    assert os.getpid() in hkcu.process_ids(program.upper())
+    assert hkcu.process_ids(f"no-such-program-{uuid.uuid4().hex}.exe") == set()
+    assert isinstance(hkcu.solidworks_pids(), set)

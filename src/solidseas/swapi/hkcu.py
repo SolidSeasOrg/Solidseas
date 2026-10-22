@@ -192,8 +192,14 @@ def put_back(registry: Registry, found: Iterable[Change]) -> PutBack:
 
 
 def solidworks_pids() -> set[int]:
-    """The ids of the processes named ``SLDWORKS.exe`` on this machine, in any session (Windows;
-    elsewhere none). Raises ``OSError`` when they cannot be listed."""
+    """The ids of the processes named ``SLDWORKS.exe`` (:func:`process_ids`)."""
+    return process_ids("SLDWORKS.exe")
+
+
+def process_ids(program: str) -> set[int]:
+    """The ids of the processes whose program file is named ``program``, in any case, on this
+    machine and in any session (Windows; elsewhere none). Raises ``OSError`` when they cannot
+    be listed."""
     if sys.platform != "win32":
         return set()
     import ctypes
@@ -232,8 +238,9 @@ def solidworks_pids() -> set[int]:
         more = k32.Process32FirstW(snapshot, ctypes.byref(entry))
         if not more:
             raise ctypes.WinError(ctypes.get_last_error())
+        wanted = program.casefold()
         while more:
-            if entry.szExeFile.lower() == "sldworks.exe":
+            if entry.szExeFile.casefold() == wanted:
                 pids.add(int(entry.th32ProcessID))
             more = k32.Process32NextW(snapshot, ctypes.byref(entry))
         return pids
@@ -449,6 +456,7 @@ __all__ = [
     "SolidWorksWatch",
     "WinRegistry",
     "changes",
+    "process_ids",
     "put_back",
     "read",
     "solidworks_pids",
