@@ -1409,9 +1409,11 @@ def test_preferences_edit_a_copy_and_restore_defaults(app, tmp_path):
     dialog = PreferencesDialog(w, w.settings, w.store.path)
     try:
         assert dialog.values() == Settings() and not dialog.cap.isEnabled()
-        # The note gives the cost as measured: the window held while OpenGL starts, then
-        # reads in a separate process that leave the window responding.
+        # The note gives the cost as measured: the window held while OpenGL starts, which the
+        # launcher does before the window appears (PreviewPane.prepare_view), not at the
+        # first part, then reads in a separate process that leave the window responding.
         assert "holds the whole window for about 0.6 seconds" in VIEW_3D_NOTE
+        assert "when you turn this on, and when the viewer starts with it on" in VIEW_3D_NOTE
         assert "separate process" in VIEW_3D_NOTE
         assert dialog.invert_wheel.text() == "Reverse the wheel's zoom direction"
         assert "toward you zooms in" in dialog.solidworks.text() and "away from you" in dialog.standard.text()

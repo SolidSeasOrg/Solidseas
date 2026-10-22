@@ -8,6 +8,10 @@ while the project takes shape.
 
 ### Changed
 
+- **When OpenGL starts.** The 3D View setting's note and the guide now say
+  starting OpenGL holds the window when the setting is turned on, or when the
+  viewer starts with it on, rather than at the first part.
+
 - **Stable identity answers from the REST service.** The service keeps an
   identity key file beside its token file, so /v1/identity's answers for names
   without a token no longer change when the token file is edited. It is created

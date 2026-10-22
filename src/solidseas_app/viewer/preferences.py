@@ -32,11 +32,11 @@ from .wording import tip
 
 VIEW_3D_TEXT = "Interactive 3D view of parts and assemblies"
 VIEW_3D_NOTE = (
-    "Off by default because it costs time. The first document shown in 3D holds the whole window for "
-    "about 0.6 seconds while OpenGL starts, and a moment more for its first picture (measured on a "
-    "desktop graphics card; a slow driver takes longer). Meshes are then read in a separate process, "
-    "which takes up to a few seconds for a very large part or assembly while the window keeps "
-    "responding; an assembly's component files are found in the folder you opened. While it is off, "
+    "Off by default because it costs time. Starting OpenGL holds the whole window for about 0.6 seconds "
+    "(measured on a desktop graphics card; a slow driver takes longer): when you turn this on, and when "
+    "the viewer starts with it on, before its window appears. The first document shown in 3D takes a "
+    "moment more for its first picture. Meshes are then read in a separate process, which takes up to a "
+    "few seconds for a very large part or assembly while the window keeps responding. While it is off, "
     "the viewer never reads a mesh or starts OpenGL."
 )
 BOXES_TEXT = "Draw a box where an assembly's instance has no mesh"

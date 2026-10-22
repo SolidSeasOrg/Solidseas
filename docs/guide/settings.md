@@ -77,8 +77,9 @@ The same index answers [Where Used](where-used-and-bom.md#where-used).
 assemblies to the Preview tab, drawn with OpenGL from the display meshes
 SOLIDWORKS saved. It is off until you turn it on because it costs time:
 
-- the first document shown in 3D holds the window for about 0.6 seconds while
-  OpenGL starts (it says "Starting OpenGL..." first);
+- starting OpenGL holds the window for about 0.6 seconds: when you turn the
+  setting on, and each time the viewer starts with it on, before its window
+  appears;
 - a very large part or assembly takes a few seconds to read.
 
 Meshes are read in a separate process, so the window keeps responding meanwhile,
