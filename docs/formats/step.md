@@ -412,7 +412,13 @@ memory. Past `items` placed items, or past `items` plus `tree_nodes` products
 reached, the scene ends in `SldLimitError` (`items`). Hostile tests cover a
 dense graph of relationships, one whose paths all give new placements, an
 assembly of a million paths in 50 KB, composite curves nested a million
-leaves deep, a large control net, and damaged records.
+leaves deep, a large control net, and damaged records. Placing occurrences
+costs time in proportion to them: a mapped item that repeats an occurrence its
+relationship already places is found through an index of the pair's
+placements, not compared with each of them, and a representation that holds
+the mapped items of many occurrences beside their relationships is read once,
+not once for each occurrence (`tests/test_step_linear.py`; an assembly of
+4,000 such occurrences took 18 s and takes 2.5 s).
 
 ## 10. The corpus
 

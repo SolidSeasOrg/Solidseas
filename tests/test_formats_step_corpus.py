@@ -12,6 +12,14 @@ name, folder or value. Every file's size and modification time are taken before 
 after, and must not change.
 
 ``SOLIDSEAS_STEP_SECONDS`` (default 300) bounds each file's scene.
+
+``test_step_files_profiled`` (also opt-in: set ``SOLIDSEAS_STEP_PROFILE`` to a count)
+reads that many of the largest STEP files again under ``cProfile`` and prints, for each,
+its size, the counts its census took, the processor seconds of each phase of the read
+(the index, the product structure, colours, the plan, mapping the bodies, tessellating
+them, turning faces and shells, faceted and tessellated items) and the functions that
+took the most time of their own, by SolidSeas module and function name: the numbers a
+slow file's hot spot is found from, and no file name.
 """
 
 import csv
@@ -202,3 +210,92 @@ def test_step_files_in_the_corpus_folders(capsys):
     assert done >= 0.99 * faces
     assert unresolved <= 0.05 * max(occurrences, 1)
     assert coloured >= 0.95 * len(styled)
+
+
+PROFILE = os.environ.get("SOLIDSEAS_STEP_PROFILE")
+# (phase, the module's path ending, the function): each phase's time is the function's
+# cumulative time, summed over its calls
+PHASES = (
+    ("census", "formats/step/schema.py", "census"),
+    ("index", "formats/step/part21.py", "_index"),
+    ("structure", "formats/step/product.py", "read"),
+    ("colours", "formats/step/presentation.py", "__init__"),
+    ("plan", "formats/step/__init__.py", "_plan"),
+    ("map bodies", "formats/step/geometry.py", "body"),
+    ("tessellate", "tessellate/__init__.py", "tessellate_transmit"),
+    ("orient faces", "formats/step/orient.py", "orient_faces"),
+    ("orient shells", "formats/step/orient.py", "orient_shells"),
+    ("faceted", "formats/step/tessellated.py", "faceted"),
+    ("tessellated", "formats/step/tessellated.py", "tessellated"),
+)
+CENSUS = ("ADVANCED_FACE", "NEXT_ASSEMBLY_USAGE_OCCURRENCE", "MAPPED_ITEM", "STYLED_ITEM", "FACETED_BREP")
+
+
+def _code_name(path: str) -> str:
+    """A profiled function's module as SolidSeas' own path, or the bare file name."""
+    p = path.replace("\\", "/")
+    at = p.rfind("solidseas/")
+    return p[at:] if at >= 0 else p.rsplit("/", 1)[-1]
+
+
+def _profile_one(job: tuple[str, str, float]) -> dict:
+    import cProfile
+    import pstats
+
+    from solidseas.formats import Limits, open_model
+
+    path, folder, seconds = job
+    rec: dict = {"mb": os.path.getsize(path) / 1e6}
+    prof = cProfile.Profile()
+    started = time.process_time()
+    prof.enable()
+    try:
+        with open_model(path, within=folder, limits=Limits(seconds=seconds)) as doc:
+            rec["counts"] = {k: doc.census.names[k] for k in CENSUS}
+            doc.tree()
+            scene = doc.scene(prefer="bodies", max_seconds=seconds)
+            rec["timed_out"] = "faces_left_out" in {w.code for w in scene.warnings}
+            rec["faces"] = (scene.counts.get("faces_done") or 0, scene.counts.get("faces") or 0)
+            rec["items"] = len(scene.items)
+    except Exception as exc:  # the type only: a message can quote the file
+        rec["error"] = type(exc).__name__
+        rec["limit"] = (getattr(exc, "detail", None) or {}).get("limit")
+    finally:
+        prof.disable()
+    rec["cpu_s"] = time.process_time() - started
+    stats = pstats.Stats(prof).stats  # type: ignore[attr-defined]
+    phases: Counter = Counter()
+    own = []
+    for (file, _line, func), (_cc, _nc, tt, ct, _callers) in stats.items():
+        name = _code_name(file)
+        for phase, ending, fn in PHASES:
+            if func == fn and name.endswith(ending):
+                phases[phase] += ct
+        if name.startswith("solidseas"):
+            own.append((tt, f"{name}:{func}"))
+    rec["phases"] = {k: round(v, 2) for k, v in phases.items()}
+    rec["own"] = [(n, round(t, 2)) for t, n in sorted(own, reverse=True)[:12]]
+    return rec
+
+
+@pytest.mark.skipif(not PROFILE, reason="SOLIDSEAS_STEP_PROFILE is not set")
+def test_step_files_profiled(capsys):
+    count = int(PROFILE or "0")
+    seconds = float(os.environ.get("SOLIDSEAS_STEP_SECONDS", "300"))
+    _lower_priority()
+    steps, before = _listing(_folders())
+    largest = sorted(steps, key=lambda s: before.get(s[0], (0, 0))[0], reverse=True)[:count]
+    with ProcessPoolExecutor(max_workers=min(4, os.cpu_count() or 1), initializer=_lower_priority) as pool:
+        results = list(pool.map(_profile_one, [(p, f, seconds) for p, f in largest]))
+    _steps, after = _listing(_folders())
+    with capsys.disabled():
+        print(f"\nThe {len(results)} largest STEP files, profiled (time bound {seconds:.0f} s):")
+        for rank, r in enumerate(results, 1):
+            print(
+                f"  {rank}: {r['mb']:.1f} MB, census {r.get('counts')}, faces done {r.get('faces')}, "
+                f"items {r.get('items')}, timed out {r.get('timed_out')}, error {r.get('error')}"
+                f"/{r.get('limit')}, processor {r['cpu_s']:.1f} s"
+            )
+            print(f"     phases (s): {r['phases']}")
+            print(f"     own time (s): {r['own']}")
+    assert all(after.get(k, v) == v for k, v in before.items())

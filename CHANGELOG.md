@@ -1854,6 +1854,11 @@ while the project takes shape.
 
 ### Fixed
 
+- **Large STEP assemblies open faster.** An assembly that places each component
+  both by its own placement and by a mapped item, or keeps its mapped items in
+  one shared representation, took time that grew with the square of its
+  components (4,000 components took 18 s); it now grows in proportion (2.5 s).
+
 - **The Computed column.** The Properties tab's Computed column marks a property
   linked to another property (`$PRP:`), and no longer marks a typed value that
   only looks like a link.

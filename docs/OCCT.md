@@ -428,7 +428,24 @@ SolidSeas.
   OCCT also meshes). On the largest files the picture is mixed: a 57 MB file
   took SolidSeas 602 s in `scene()` against OCCT's 22 s; a 68 MB file 25 s and
   249 MB against 117 s and 2.4 GB; a 76 MB file 127 s and 354 MB against OCCT
-  timing out at a 3 GB cap, then 341 s and 6.1 GB.
+  timing out at a 3 GB cap, then 341 s and 6.1 GB. The oracle gives SolidSeas'
+  read a time bound of 600 s (`tests/test_occt_corpus.py`), so the 57 MB file's
+  602 s is that bound: its scene did not finish, and how long it needs is not
+  known.
+- Profiling large synthetic files found two kinds of assembly whose structure
+  cost time quadratic in their occurrences, both now linear: one that places
+  each occurrence twice (by its relationship and by a mapped item, stored in
+  another order: 4,000 occurrences took 18 s, now 2.5 s) and one whose mapped
+  items sit in one representation beside the relationships (2,000 took 2.4 s,
+  now 0.5 s). Parts of many faces, multi-body parts, assemblies of distinct
+  parts, nested assemblies, colours, voids, sheets, faceted and tessellated
+  items all read in time linear in their size (a 38 MB part of 38,400 faces in
+  47 s of processor time, most of it parsing records and mapping the faces).
+  One kind is quadratic in the tessellator: a face with many holes (a plate of
+  400 holes takes 3.8 s, the bridging of its holes into one polygon most of
+  it). `SOLIDSEAS_STEP_PROFILE` (`tests/test_formats_step_corpus.py`) profiles
+  the corpus's largest STEP files phase by phase, to find what the 57 MB file
+  spends its time on.
 
 ### 7.8 Strengths worth keeping
 
@@ -487,7 +504,7 @@ beside each.
 | 9 | IGES import and export through an optional OCCT backend (tier 1, under SolidSeas-e2z) | P2 | built (tier 1): IGES and BREP read and written through the OCCT backend extension; its package's first Windows build remains |
 | 10 | Explain the body only SolidSeas seemed to draw (7.5) | P3 | answered (7.5) |
 | 11 | Decide the OCCT extra and its notices: `[cad]` with `cadquery-ocp` only or its `novtk` variant, a separate CadQuery workspace extra, a `NOTICE` entry, never in the executable, Linux wheels checked; ties into hash-locked dependencies (SolidSeas-oib) | P3 | in part: the OCCT package carries `cadquery-ocp-novtk` 7.9.3.1.1, hash-pinned, with its notices (`THIRD_PARTY_NOTICES.txt` 3.4), never in the executable; its Linux wheel imports and passes the tests; the `[cad]` extra is unchanged |
-| 12 | Profile the STEP reader on large files (7.7) | P3 | remains |
+| 12 | Profile the STEP reader on large files (7.7) | P3 | in part: profiled on large synthetic files and two quadratic placement scans made linear (7.7); the 57 MB file's 602 s was the oracle's 600 s bound; what that file spends its time on needs a corpus run of `SOLIDSEAS_STEP_PROFILE` |
 | 13 | Settle the remaining STEP export differences (6.4): re-measure the thirteen parts and the sheet part in SOLIDWORKS at its highest mass-property accuracy | P3 | remains; PC only, in SolidSeas' own SOLIDWORKS through the bridge, never the user's session; the bridge's `mass_properties` has no per-call accuracy setting yet (`src/solidseas/swapi/README.md`, known issues) |
 | 14 | Drawings: keep the three-way OCCT cross-check as a development tool (section 8) | P3 | built, opt-in: `tests/test_occt_drawings.py` votes on every principal view and checks the planned dimensions against OCCT's lines (`docs/DRAWINGS.md` section 25); on the fixtures the engine is never the odd one out, and OCCT's exact algorithm is in o11's side views (6.1); the corpus run remains |
 | 15 | Security review of the OCCT backend (crash rates, the XCAF reader's external references, crashes under memory pressure, crash dumps, the rules of section 3), under SolidSeas-gc4 | P3 | remains, with tier 1 |

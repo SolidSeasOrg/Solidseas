@@ -32,8 +32,9 @@ Every placement is in metres: each axis placement's location is scaled by its ow
 representation's context.
 """
 
+import itertools
 import math
-from collections import defaultdict
+from collections import defaultdict, deque
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import Any
@@ -115,6 +116,73 @@ def _same(a: Placement, b: Placement) -> bool:
     ) and all(abs(x - y) <= 1e-12 for x, y in zip(a.translation_m, b.translation_m, strict=True))
 
 
+PLACEMENT_CELL = 1e-6  # the grid :class:`_PlacementIndex` files placements on
+PLACEMENT_MARGIN = 1e-9  # a value this close to a cell's edge is looked for on both sides
+
+
+def _values(p: Placement) -> tuple[float, ...]:
+    r = p.rotation
+    return (*r[0], *r[1], *r[2], *p.translation_m)
+
+
+def _cell(v: float) -> int:
+    """The cell of the placement grid a value lies in. The cells are centred on the
+    multiples of :data:`PLACEMENT_CELL`, so the values placements are full of (0, 1 and
+    round lengths) lie in the middle of one, far from its edges."""
+    return math.floor(v / PLACEMENT_CELL + 0.5)
+
+
+class _PlacementIndex:
+    """Placements in the order given, each of which can be taken once by the first that
+    :func:`_same` matches to a placement asked for, in about constant time rather than a
+    scan of them all. Each is filed by its twelve values on a grid of
+    :data:`PLACEMENT_CELL`, far coarser than the 1e-12 :func:`_same` allows, so a match
+    lies in the cell of the placement asked for or, where one of its values sits within
+    :data:`PLACEMENT_MARGIN` of a cell's edge, in the cell beside it there. A placement
+    that is not finite matches nothing, as with :func:`_same`."""
+
+    def __init__(self, placements: list[Placement]) -> None:
+        self.placements = placements
+        self.cells: dict[tuple[int, ...], deque[int]] = defaultdict(deque)
+        for k, p in enumerate(placements):
+            vals = _values(p)
+            if all(math.isfinite(v) for v in vals):
+                self.cells[tuple(_cell(v) for v in vals)].append(k)
+
+    @staticmethod
+    def near(vals: tuple[float, ...]) -> list[tuple[int, ...]]:
+        """The cells a placement within the tolerance of ``vals`` can lie in: one, unless a
+        value sits within :data:`PLACEMENT_MARGIN` of a cell's edge."""
+        sides = [range(_cell(v - PLACEMENT_MARGIN), _cell(v + PLACEMENT_MARGIN) + 1) for v in vals]
+        return list(itertools.product(*sides))
+
+    def take(self, p: Placement) -> bool:
+        """Whether a placement not yet taken matches ``p``; the first in order that does is
+        taken."""
+        vals = _values(p)
+        if not all(math.isfinite(v) for v in vals):
+            return False
+        best: tuple[int, deque[int], int] | None = None  # (placement, its cell, where in it)
+        for key in self.near(vals):
+            cell = self.cells.get(key)
+            if not cell:
+                continue
+            for at, k in enumerate(cell):
+                if best is not None and k > best[0]:
+                    break
+                if _same(self.placements[k], p):
+                    best = (k, cell, at)
+                    break
+        if best is None:
+            return False
+        _k, cell, at = best
+        if at == 0:
+            cell.popleft()
+        else:
+            del cell[at]
+        return True
+
+
 # --------------------------------------------------------------------------- the structure
 @dataclass
 class Item:
@@ -183,6 +251,19 @@ class _Walk:
     visits: int = 0
 
 
+@dataclass
+class _Beside:
+    """The items of a representation that holds the mapped items placing occurrences
+    beside their relationships (:meth:`Reader._mapped_beside`), read in order and only as
+    far as needed: ``at`` is the next item to read, and ``found`` the mapped items read
+    and not taken, by the representation each maps, as (position, item, placement)."""
+
+    items: list
+    ctx: Context
+    at: int = 0
+    found: dict[int, deque] = field(default_factory=dict)
+
+
 def _text(v: Any) -> str | None:
     return v if isinstance(v, str) and v.strip() else None
 
@@ -202,6 +283,7 @@ class Reader:
         self._child_cache: dict[int, set[int]] = {}
         self._links: dict[int, list[tuple[int, int, bool]]] = {}
         self._owner: dict[int, int] = {}
+        self._beside: dict[int, _Beside | None] = {}
 
     def tick(self) -> None:
         if self.clock is not None:
@@ -247,9 +329,11 @@ class Reader:
                 rep_of_pds[int(prm[0])].append(int(prm[1]))
         owner: dict[int, int] = {}  # shape representation -> the PD it describes
         for pd, d in pds.items():
+            listed: set[int] = set()
             for s in pds_of.get(pd, []):
                 for rep in rep_of_pds.get(s, []):
-                    if rep not in d.reps:
+                    if rep not in listed:
+                        listed.add(rep)
                         d.reps.append(rep)
                     owner.setdefault(rep, pd)
         # relationships between representations, and those that place an occurrence
@@ -336,11 +420,15 @@ class Reader:
             occurrences.append(occ)
             if placement is None:
                 waiting.append((occ, shared))
-        # an occurrence with no placement of its own takes a mapped item of the same pair
+        # an occurrence with no placement of its own takes a mapped item of the same pair, the
+        # pair's mapped items in order (a cursor each, not a list shortened from its front)
+        taken: dict[tuple[int, int], int] = defaultdict(int)
         for occ, shared in waiting:
-            got = pending_mapped.get((occ.parent, occ.child))
-            if got:
-                pl, item, _name = got.pop(0)
+            pair = (occ.parent, occ.child)
+            got = pending_mapped.get(pair)
+            if got and taken[pair] < len(got):
+                pl, item, _name = got[taken[pair]]
+                taken[pair] += 1
                 occ.placement, occ.how = pl, "mapped_item"
                 used_items.add(item)
             elif shared:
@@ -356,15 +444,15 @@ class Reader:
                 own[(o.parent, o.child)].append(o.placement)
         ambiguous = 0
         for (parent, child), rest in pending_mapped.items():
-            placed = own.get((parent, child), [])
-            for pl, item, name in rest:
+            placed = own.get((parent, child))
+            index = _PlacementIndex(placed) if placed else None
+            for pl, item, name in rest[taken.get((parent, child), 0) :]:
+                self.tick()
                 if item in used_items:
                     continue
-                match = next((k for k, q in enumerate(placed) if _same(q, pl)), None)
-                if match is not None:
-                    placed.pop(match)
+                if index is not None and index.take(pl):
                     continue
-                if (parent, child) in own:
+                if placed is not None:
                     ambiguous += 1
                 occurrences.append(Occurrence(item, parent, child, name, pl, "mapped_item"))
         children = {o.child for o in occurrences}
@@ -378,15 +466,13 @@ class Reader:
                 pds[orphan.pd] = orphan
                 roots = [orphan.pd]
                 orphans = True
-        used = [r for r in roots if self._has_geometry(r, pds, occurrences)]
+        parents = {o.parent for o in occurrences}
+        used = [r for r in roots if pds[r].items or r in parents]
         if used:
             roots = used
         return Structure(
             pds, occurrences, roots, dict(self.skipped), orphans, unresolved, self.rep_cycles, ambiguous
         )
-
-    def _has_geometry(self, pd: int, pds: dict[int, ProductDef], occurrences: list[Occurrence]) -> bool:
-        return bool(pds[pd].items) or any(o.parent == pd for o in occurrences)
 
     def _pd(self, i: int) -> ProductDef:
         r = self.p.record(i)
@@ -548,27 +634,65 @@ class Reader:
     def _mapped_beside(
         self, got: tuple[int, int, Any], child: ProductDef, parent: ProductDef, used: set[int]
     ) -> Placement | None:
-        """The placement of an occurrence whose relationship has no transformation: a
-        mapped item of the child held by one of the relationship's two representations
-        that is neither the parent's nor the child's, or None."""
+        """The placement of an occurrence whose relationship has no transformation: the
+        first mapped item not yet used, in the order stored, that maps the child and is held
+        by one of the relationship's two representations that is neither the parent's nor
+        the child's, or None. A representation that holds the mapped items of many
+        occurrences is read once, not once for each of them (:class:`_Beside`)."""
         mine = self._child_reps(child)
         theirs = self._child_reps(parent)
         for rep in got[:2]:
             if rep in mine or rep in theirs:
                 continue
-            r = self.rec(Ref(rep))
-            if r is None or len(r.params) < 2 or not isinstance(r.params[1], list):
+            beside = self._beside_of(rep)
+            if beside is None:
                 continue
-            ctx = self.units.of(r)
-            for it in r.params[1]:
-                self.tick()
-                rec = self.rec(it)
-                if rec is None or not rec.has("MAPPED_ITEM") or rec.id in used:
-                    continue
-                m = self._mapping(rec, ctx)
-                if m is not None and m[0] in mine:
-                    used.add(rec.id)
-                    return m[1]
+            placement = self._beside_take(beside, mine, used)
+            if placement is not None:
+                return placement
+        return None
+
+    def _beside_of(self, rep: int) -> _Beside | None:
+        if rep not in self._beside:
+            r = self.rec(Ref(rep))
+            if r is not None and len(r.params) >= 2 and isinstance(r.params[1], list):
+                self._beside[rep] = _Beside(r.params[1], self.units.of(r))
+            else:
+                self._beside[rep] = None
+        return self._beside[rep]
+
+    def _beside_take(self, b: _Beside, mine: set[int], used: set[int]) -> Placement | None:
+        """The placement of the first mapped item of ``b`` not in ``used`` that maps one of
+        ``mine``, which is then used. Those read already come first: any not yet read lies
+        after them."""
+        best: deque | None = None
+        targets = mine if len(mine) < len(b.found) else list(b.found)
+        for target in targets:
+            queue = b.found.get(target)
+            if not queue or target not in mine:
+                continue
+            while queue and queue[0][1] in used:
+                queue.popleft()
+            if queue and (best is None or queue[0][0] < best[0][0]):
+                best = queue
+        if best is not None:
+            _at, item, placement = best.popleft()
+            used.add(item)
+            return placement
+        while b.at < len(b.items):
+            at = b.at
+            b.at += 1
+            self.tick()
+            rec = self.rec(b.items[at])
+            if rec is None or not rec.has("MAPPED_ITEM") or rec.id in used:
+                continue
+            m = self._mapping(rec, b.ctx)
+            if m is None:
+                continue
+            if m[0] in mine:
+                used.add(rec.id)
+                return m[1]
+            b.found.setdefault(m[0], deque()).append((at, rec.id, m[1]))
         return None
 
     def _item_placement(self, ref: Any, ctx: Context) -> Placement:
