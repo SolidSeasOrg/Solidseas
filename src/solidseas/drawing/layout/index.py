@@ -12,6 +12,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 HARD, DIMLINE, EXTLINE = "hard", "dimline", "extline"
+# what layout adds besides: a view's outline, and the centre lines, marks and pitch circles
+# that no text or symbol may cover
+VIEW, CENTRE = "view", "centre"
 CELL = 10.0
 # A box or segment over more cells than this (or with a coordinate that is not finite) is
 # kept apart and looked at by every query instead of binned, and a query that large looks
@@ -251,5 +254,46 @@ class Index:
                 return True
         return False
 
+    # What :meth:`hits`, :meth:`crosses` and :meth:`segment_hits` meet, each stored item once
+    # in the order stored, as (kind, owner): for saying why a place is not clear (.measure).
 
-__all__ = ["DIMLINE", "EXTLINE", "HARD", "Box", "Index", "segments_cross"]
+    def owners_hit(self, box: Box, kinds=(HARD,), pad: float = 0.0) -> list[tuple[str, str]]:
+        """The stored boxes of ``kinds`` that ``box`` overlaps, as :meth:`hits` finds them."""
+        probe = box.grow(pad)
+        found = sorted(set(self._ids(probe, self.cells, self.big, len(self.items))))
+        out = []
+        for k in found:
+            kind, b, owner = self.items[k]
+            if kind in kinds and not (
+                box.x0 >= b.x1 + pad or box.x1 <= b.x0 - pad or box.y0 >= b.y1 + pad or box.y1 <= b.y0 - pad
+            ):
+                out.append((kind, owner))
+        return out
+
+    def owners_crossed(self, a, b, kinds=(DIMLINE, HARD)) -> list[tuple[str, str]]:
+        """The stored boxes the segment ``a`` to ``b`` passes through and the stored segments
+        it crosses, of ``kinds``, as :meth:`crosses` finds them."""
+        probe = Box.around((a, b))
+        out = []
+        for k in sorted(set(self._ids(probe, self.cells, self.big, len(self.items)))):
+            kind, box, owner = self.items[k]
+            if kind in kinds and _segment_hits_box(a, b, box):
+                out.append((kind, owner))
+        for k in sorted(set(self._ids(probe, self.seg_cells, self.big_segments, len(self.segments)))):
+            kind, c, d, owner = self.segments[k]
+            if kind in kinds and segments_cross(a, b, c, d):
+                out.append((kind, owner))
+        return out
+
+    def segment_owners(self, box: Box, kinds=(DIMLINE,)) -> list[tuple[str, str]]:
+        """The stored segments of ``kinds`` that pass through ``box``, as :meth:`segment_hits`
+        finds them."""
+        out = []
+        for k in sorted(set(self._ids(box, self.seg_cells, self.big_segments, len(self.segments)))):
+            kind, c, d, owner = self.segments[k]
+            if kind in kinds and _segment_hits_box(c, d, box):
+                out.append((kind, owner))
+        return out
+
+
+__all__ = ["CENTRE", "DIMLINE", "EXTLINE", "HARD", "VIEW", "Box", "Index", "segments_cross"]

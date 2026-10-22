@@ -7,9 +7,10 @@ a :class:`LayoutCheck` naming the item it is about.
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from .index import Box, Index
+from .measure import overlap
 
 LEADER_MIN, LEADER_MAX = 15.0, 75.0
 FURNITURE = ("title", "tolerance", "projection", "revisions", "notes", "border", "stamp", "plot", "logo")
@@ -22,13 +23,19 @@ class LayoutCheck:
     owner: str = ""
     severity: str = "warning"
     other: str = ""  # L.overlap: the item whose text the owner's text overlaps
+    # with layout's ``measure`` on, an L.placement or L.overlap check's numbers and fixed
+    # words on how layout came to it (.measure): kept in memory only, never written
+    facts: dict | None = field(default=None, compare=False)
 
 
 def _furniture(owner: str) -> bool:
     return owner.split("-")[0] in FURNITURE or owner.startswith("n-")
 
 
-def run(pen, frame, *, leaders, unplaced, cramped) -> list[LayoutCheck]:
+def run(pen, frame, *, leaders, unplaced, cramped, measure: bool = False) -> list[LayoutCheck]:
+    """The checks of a laid-out sheet. ``unplaced`` holds (owner, words) for each item
+    placed with no clear place, or (owner, words, facts) with what :mod:`.measure` says
+    of it; with ``measure`` text over text says how far the texts overlap."""
     out: list[LayoutCheck] = []
     index = Index()
     texts = [(t, b, o) for t, b, o in pen.texts]
@@ -44,7 +51,8 @@ def run(pen, frame, *, leaders, unplaced, cramped) -> list[LayoutCheck]:
             if o2 == o or not b.hits(b2, -0.2):
                 continue
             reported.add((k, j))
-            out.append(LayoutCheck("L.overlap", f"{t!r} overlaps {t2!r}", o, other=o2))
+            facts = {"overlap_mm": overlap(b, b2)} if measure else None
+            out.append(LayoutCheck("L.overlap", f"{t!r} overlaps {t2!r}", o, other=o2, facts=facts))
     border = frame.border
     for t, b, o in texts:
         if not b.inside(border.grow(0.01)) and o not in ("stamp", "plot", "border"):
@@ -60,10 +68,13 @@ def run(pen, frame, *, leaders, unplaced, cramped) -> list[LayoutCheck]:
             out.append(
                 LayoutCheck("L.leader", f"a leader stands at {a:.0f} degrees, outside 15 to 75", owner)
             )
-    for owner, words in unplaced:
+    for owner, words, *facts in unplaced:
         out.append(
             LayoutCheck(
-                "L.placement", f"{words} could not be placed clear of the views and dimensions", owner
+                "L.placement",
+                f"{words} could not be placed clear of the views and dimensions",
+                owner,
+                facts=facts[0] if facts else None,
             )
         )
     for owner, words in cramped:

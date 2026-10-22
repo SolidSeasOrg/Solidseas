@@ -202,6 +202,23 @@ part's file name (never a folder) and its configuration.
 title, revision or notes block, leaders outside 15 to 75 degrees, characters the
 font lacks, items placed with a conflict, cramped spans.
 
+## Measuring the conflicts
+
+`layout(..., measure=True)` lays the sheet out exactly as without it, and gives
+each check of an item placed with a conflict (`L.placement`) or of text over text
+(`L.overlap`) its `facts` (`layout.measure`): numbers and fixed words on how layout
+came to it, kept in memory only and never written. They say which step placed the
+item (a band's with its side, a datum symbol, a leader item, a frame); for an item
+with no clear place, how far its place is from clear, the rules that place breaks
+(text over text, over a view or a line, a line through its text, its leader through
+text or across a line) with what each runs into, the room on each side of its view
+past its bands, and the places a leader item looked at or the spots a datum symbol
+or a frame tried with what stopped each; for a datum symbol, also how far its
+symbol reaches against the room past its face and whether the arrangement kept it
+that room; for text over text, how far the texts overlap and how they stand in
+their bands. The corpus sweep turns them into a record for each hard conflict
+([cli.md](cli.md)).
+
 ## Speed
 
 On the VM a seeded plate with 100 holes (305 dimensions, about 200 of them basic
@@ -220,3 +237,7 @@ place only with the closer look and the further passes, a datum boxed in on
 the front that is drawn and recorded in the top, and the 100-hole benchmark.
 `tests/test_drawing_orchestrate.py`: the pipeline's plan stage, a new front
 drawing the views again, ordinates for a deep band, the time bounds and the logo.
+`tests/test_drawing_corpus_breakdown.py`: the measure changes nothing on the sheet,
+gives every hard conflict of a crowded drawing its record, tells a sheet too small
+for a datum symbol from callouts boxed in by a band, and holds numbers and fixed
+words only.

@@ -263,7 +263,13 @@ recognised-area fraction per size band. The hard conflicts are also counted by t
 pair of item kinds that collide (`dimension-note`, or `datum-no_clear_place` for an
 item laid out where nothing was clear), by the kinds of view the items are in, as a
 table of drawings by dimensions against conflicts, and as rows of numbers for the ten
-drawings with the most. Of the title blocks it counts where the material came from
+drawings with the most. Layout measures each drawing's conflicts as it lays it out
+([layout.md](layout.md), "Measuring the conflicts"), which changes nothing on the
+sheet: the sweep counts the hard conflicts by cause, the step that placed the item
+and what stopped it (`leader.leader_across_line`, `datum.no_room`,
+`overlap.band-band_frame`), and for the forty drawings with the most it saves each
+conflict as a record of numbers and fixed words, with the drawing's sheet and scale.
+Of the title blocks it counts where the material came from
 (the part, the settings' list or typed), how many show a calculated weight, and the
 R6.material findings by level. It prints numbers and fixed words only, never a path
 or a part's name. `SOLIDSEAS_DRAWING_CORPUS_STRICT=1` also holds the

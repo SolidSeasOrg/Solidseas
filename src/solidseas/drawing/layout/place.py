@@ -21,6 +21,7 @@ from __future__ import annotations
 import math
 import re
 import time
+from collections import Counter
 from dataclasses import dataclass, field, replace
 
 from .. import display as D
@@ -34,14 +35,13 @@ from ..types import Hole, Pattern
 from . import arrange as A
 from . import checks as C
 from . import dimension as DM
+from . import measure as M
 from . import notes as N
 from . import partslist as PL
 from . import patterns, sheet, stamps, titleblock
 from .glyphs import Pen, text_width
-from .index import DIMLINE, EXTLINE, HARD, Box, Index
+from .index import CENTRE, DIMLINE, EXTLINE, HARD, VIEW, Box, Index
 
-VIEW = "view"
-CENTRE = "centre"  # centre lines, marks and pitch circles: no text or symbol may cover them
 # leader angles from the horizontal, 15 to 75 degrees in each quadrant, 45 first
 _STEPS = (45.0, 37.5, 52.5, 30.0, 60.0, 22.5, 67.5, 15.0, 75.0)
 ANGLES = tuple(
@@ -202,8 +202,13 @@ class _Run:
         status,
         signed,
         sheets=DEFAULT_LIMITS.sheets,
+        measure=False,
     ):
         self.sheets = sheets  # the most sheets the drawing may take
+        # with ``measure``, why an item is placed with a conflict, on its check (.measure)
+        self.measure = measure
+        self.steps = M.Steps()
+        self.room_kept = True  # whether the arrangement kept the datum symbols their room
         self.planned = planned
         self.plan = planned.plan
         self.detail = planned.detail
@@ -288,9 +293,11 @@ class _Run:
                 rooms = {v: A.leader_room(self.ctx, self.dims_by_view.get(v, [])) for v in slots}
                 pads = self.balloon_pads()
                 got = A.arrange(self.ctx, f, slots, bands, rooms, datums, pads=pads)
+                kept = True
                 if got is None and datums:  # room for the datum symbols is not worth a smaller scale
                     bands = {v: A.bands(self.ctx, s, self.band_inputs(s)) for v, s in slots.items()}
                     got = A.arrange(self.ctx, f, slots, bands, rooms, pads=pads)
+                    kept = False
                 tried.append((name, sc))
                 if got is None:
                     continue
@@ -299,12 +306,13 @@ class _Run:
                     or smallest * factor * 1000.0 >= sheet.MIN_SPAN_MM
                     or self.options.scale != "auto"
                 ):
+                    self.room_kept = kept
                     return f, sc, got, None
                 if first_fit is None:
-                    first_fit = (f, sc, got)
+                    first_fit = (f, sc, got, kept)
                 break  # a reduced scale cramps the smallest span: try the next sheet at full size
         if first_fit is not None:
-            f, sc, got = first_fit
+            f, sc, got, self.room_kept = first_fit
             paper = smallest * standards.scale_factor(sc) * 1000
             words = (
                 f"the smallest dimensioned span is {paper:.1f} mm on paper at "
@@ -318,6 +326,7 @@ class _Run:
         sc = sheet.scale_order(self.options, self.settings)[-1]
         slots = self.slots_at(standards.scale_factor(sc))
         bands = {v: A.bands(self.ctx, s, self.band_inputs(s)) for v, s in slots.items()}
+        self.room_kept = not self.datum_rooms(slots)
         if self.options.sheet != "auto" or self.settings.sheets.size != "auto":
             words = (
                 f"the views and their dimensions do not fit the {name} sheet at any scale: "
@@ -429,8 +438,42 @@ class _Run:
             tuple(painted),
             self.paint_continuation(sc, more),
         )
-        found = C.run(self.pen, f, leaders=self.leaders, unplaced=self.unplaced, cramped=self.cramped)
+        found = C.run(
+            self.pen,
+            f,
+            leaders=self.leaders,
+            unplaced=self.unplaced,
+            cramped=self.cramped,
+            measure=self.measure,
+        )
+        if self.measure:
+            found = [self._overlap_facts(c) if c.code == "L.overlap" else c for c in found]
         return LayoutResult(result_sheet, found, deep, f, time.perf_counter() - t0, sc, dict(self.views))
+
+    # ------------------------------------------------------------------ measuring (.measure)
+
+    def _room(self, view: str) -> dict[str, int]:
+        """The room on each side of ``view`` past its bands (:func:`.measure.room`)."""
+        if view not in self.arr.slots:
+            return {}
+        return M.room(self.arr.slots, self.arr.bands, self.frame, view, self.arr.iso is not None)
+
+    def _overlap_facts(self, c: C.LayoutCheck) -> C.LayoutCheck:
+        """An L.overlap check with the steps that placed its two items and how they stand
+        in their bands."""
+        facts = dict(c.facts or {})
+        facts["steps"] = [self.steps.of(c.owner), self.steps.of(c.other)]
+        facts["relation"] = self.steps.relation(c.owner, c.other)
+        return replace(c, facts=facts)
+
+    def _unplaced(self, owner: str, words: str, facts=None) -> None:
+        """Report ``owner``'s item as placed with no clear place, with the ``facts`` of how
+        it came to that when measuring (callers pass ``self.measure and {...}``, so that
+        nothing is worked out otherwise)."""
+        if facts:
+            self.unplaced.append((owner, words, facts))
+        else:
+            self.unplaced.append((owner, words))
 
     # ------------------------------------------------------------------ views
 
@@ -515,6 +558,7 @@ class _Run:
         placed: dict[str, list] = {}  # the balloons drawn in each view, for stacking
         for b in sorted(self.plan.balloons, key=lambda b: (_natural(b.item), b.view)):
             owner = f"balloon-{b.item}"
+            self.steps.add(owner, "balloon")
             spot = None
             for view, _inst, at in ((b.view, b.instance, b.at), *b.others):
                 s = self.arr.slots.get(view)
@@ -522,8 +566,10 @@ class _Run:
                     spot = (view, s, at)
                     break
             if spot is None:
-                self.unplaced.append(
-                    (owner, f"the balloon of item {b.item}, whose views are not on the sheet")
+                self._unplaced(
+                    owner,
+                    f"the balloon of item {b.item}, whose views are not on the sheet",
+                    self.measure and {"step": "balloon", "views": 0},
                 )
                 continue
             view, s, at = spot
@@ -534,7 +580,11 @@ class _Run:
                     self.index, self.frame.area, anchor, moved[b.item], r, owner, (HARD, VIEW, DIMLINE)
                 )
                 if not clear:
-                    self.unplaced.append((owner, f"the balloon of item {b.item}, where it was moved,"))
+                    self._unplaced(
+                        owner,
+                        f"the balloon of item {b.item}, where it was moved,",
+                        self.measure and {"step": "balloon", "moved": 1, "room_mm": self._room(view)},
+                    )
             else:
                 centre, end, clear = PL.place_balloon(
                     self.index, self.frame.area, s.box, anchor, r, ANGLES, owner, (HARD, VIEW, DIMLINE)
@@ -550,7 +600,11 @@ class _Run:
                     if stacked is not None:
                         centre, end = stacked, None
                     else:
-                        self.unplaced.append((owner, f"the balloon of item {b.item}"))
+                        self._unplaced(
+                            owner,
+                            f"the balloon of item {b.item}",
+                            self.measure and {"step": "balloon", "room_mm": self._room(view)},
+                        )
             made = PL.paint_balloon(self.pen, b.item, centre, end, anchor, r, h, b.view, owner)
             self.annotations.append(made)
             placed.setdefault(view, []).append(made)
@@ -580,6 +634,7 @@ class _Run:
                     (d for d in band.dims if d.pd.kind != "ordinate"), key=lambda d: (d.track, d.pd.id)
                 ):
                     pd = bd.pd
+                    self.steps.add_band(pd.id, v, side, bd.track, bd.outside, ordinate=False)
                     a, b = self.detail.positions[pd.id]
                     sa = self.detail.sheet_axis[pd.id]
                     fa = attach(self.ctx, s, a, sa)
@@ -665,6 +720,8 @@ class _Run:
                 (tx - tw / 2 - 2.0 - fw - step * 6.0, ty - fh / 2),
             ]
         x, y = spots[0]
+        self.steps.add(f"{pd.id}-frame", "band_frame")
+        tally: Counter = Counter()
         for sx, sy in spots:
             box = Box(sx, sy, sx + fw, sy + fh)
             if (
@@ -674,8 +731,30 @@ class _Run:
             ):
                 x, y = sx, sy
                 break
+            if self.measure:  # what stops this spot, tested as above
+                why = M.spot_reasons(
+                    self.index,
+                    box,
+                    self.frame.area,
+                    kinds=(HARD, VIEW, DIMLINE),
+                    pad=0.5,
+                    segments=(DIMLINE, CENTRE),
+                    grow=0.0,
+                )
+                tally.update(why)
         else:
-            self.unplaced.append((f"{pd.id}-frame", f"the frame of {DM.value_line(text)}"))
+            self._unplaced(
+                f"{pd.id}-frame",
+                f"the frame of {DM.value_line(text)}",
+                self.measure
+                and {
+                    "step": "band_frame",
+                    "tried": len(spots),
+                    "spots": dict(sorted(tally.items())),
+                    "breaks": M.box_breaks(self.index, self.steps, Box(x, y, x + fw, y + fh), pd.view, 0.5),
+                    "room_mm": self._room(pd.view),
+                },
+            )
         _box, fann = DM.frame(
             self.pen,
             self.index,
@@ -734,8 +813,10 @@ class _Run:
             o_along = s.origin[k] + s.k * fa[0]
             o_lo = s.origin[1 - k] + s.k * (fa[1] if outward < 0 else fa[2])
             entries = []
+            self.steps.add_band(f"{items[0].pd.id}-0", v, side, -1, False, ordinate=True)
             for bd in items:
                 pd = bd.pd
+                self.steps.add_band(pd.id, v, side, -1, False, ordinate=True)
                 b = self.detail.positions[pd.id][1]
                 fb = attach(self.ctx, s, b, sa)
                 self._centre_line(s, b, sa)
@@ -849,9 +930,12 @@ class _Run:
         for pd in self.plan.dimensions:
             if pd.kind != "datum_feature" or pd.state != "shown":
                 continue
+            letter = pd.suffix[0]
+            self.steps.add(f"datum-{letter}", "datum")
             tries = ((pd.view, self.detail.sheet_axis[pd.id]), *self.detail.other_views.get(pd.id, ()))
             first = None  # the first view that shows the face, for a symbol with no clear spot
             drawn = False  # whether any of its views is on the sheet
+            tally: Counter = Counter()  # measuring: the spots tried, and what stopped them
             for v, sa in tries:
                 s = self.arr.slots.get(v)
                 if s is None or (s.spec.kind == "isometric" and self.arr.iso is None):
@@ -860,18 +944,20 @@ class _Run:
                 at = self._datum_face(pd, s, sa)
                 if at is None:
                     continue
+                tally["views"] += 1
                 if first is None:
                     first = (v, s, sa, at)
-                if self._datum_at(pd, v, s, sa, at):
+                if self._datum_at(pd, v, s, sa, at, tally):
                     if v != pd.view:
                         self.views[pd.id] = (v, sa)
                     break
             else:
                 if not drawn:
                     continue  # none of its views is on the sheet
-                letter = pd.suffix[0]
-                self.unplaced.append((f"datum-{letter}", f"datum {letter}"))
                 if first is None:
+                    self._unplaced(
+                        f"datum-{letter}", f"datum {letter}", self.measure and {"step": "datum", "views": 0}
+                    )
                     continue
                 v, s, sa, (x_or_y, lo, hi, outward) = first
                 if v != pd.view:
@@ -881,7 +967,35 @@ class _Run:
                 _box, ann = DM.datum_symbol(
                     self.pen, letter=letter, foot=foot, outward=outward, h=self.h, view=v
                 )
+                self._unplaced(
+                    f"datum-{letter}",
+                    f"datum {letter}",
+                    self.measure and self._datum_facts(first, ann, tally),
+                )
                 self.annotations.append(ann)
+
+    def _datum_facts(self, first, ann, tally: Counter) -> dict:
+        """What :mod:`.measure` says of a datum symbol with no clear spot, put in the middle
+        of its face in ``first`` (view, slot, sheet axis, face) as ``ann``."""
+        h = self.h
+        v, _s, sa, (x_or_y, _lo, _hi, outward) = first
+        letter_box = Box(*ann.at, ann.at[0] + h + 2.5, ann.at[1] + h + 2.5)
+        axis, sense = ("x", outward[0]) if sa == "x" else ("y", outward[1])
+        spots = Counter(tally)
+        views, tried = spots.pop("views", 0), spots.pop("tried", 0)
+        return {
+            "step": "datum",
+            "views": views,
+            "tried": tried,
+            "spots": dict(sorted(spots.items())),
+            "room_kept": int(self.room_kept),
+            "reach_mm": round(DM.datum_reach(h), 1),
+            "free_mm": M.free_past(
+                self.arr.slots, self.frame, v, x_or_y, axis, sense, self.arr.iso is not None
+            ),
+            "breaks": M.box_breaks(self.index, self.steps, letter_box, v, 0.4),
+            "room_mm": self._room(v),
+        }
 
     def _datum_face(self, pd, s, sa: str):
         """Where a datum's face is a line in view ``s`` running across sheet axis ``sa``:
@@ -907,9 +1021,10 @@ class _Run:
             (0.0, float(out)),
         )
 
-    def _datum_at(self, pd, v: str, s, sa: str, at) -> bool:
+    def _datum_at(self, pd, v: str, s, sa: str, at, tally: Counter | None = None) -> bool:
         """Paint a datum's symbol at the first clear spot on its face's line in view
-        ``v`` (``at`` from :meth:`_datum_face`); False, painting nothing, when none is."""
+        ``v`` (``at`` from :meth:`_datum_face`); False, painting nothing, when none is.
+        Measuring, ``tally`` counts the spots tried and what stopped each."""
         h = self.h
         letter = pd.suffix[0]
         x_or_y, lo, hi, outward = at
@@ -935,6 +1050,8 @@ class _Run:
                 stop = t + sense * 3.0
                 a, b = ((x_or_y, start), (x_or_y, stop)) if sa == "x" else ((start, x_or_y), (stop, x_or_y))
                 if self.index.crosses(a, b, (HARD,)):
+                    if self.measure and tally is not None:
+                        tally.update(("tried", "extension_through_text"))
                     continue
                 trial.line(a, b, owner=f"datum-{letter}")
             _box, ann = DM.datum_symbol(trial, letter=letter, foot=foot, outward=outward, h=h, view=v)
@@ -944,6 +1061,17 @@ class _Run:
                 or self.index.segment_hits(letter_box.grow(0.4), (CENTRE,))
                 or not letter_box.inside(self.frame.area)
             ):
+                if self.measure and tally is not None:  # what stops this spot, tested as above
+                    why = M.spot_reasons(
+                        self.index,
+                        letter_box,
+                        self.frame.area,
+                        kinds=(HARD, VIEW, DIMLINE, EXTLINE),
+                        pad=0.4,
+                        segments=(CENTRE,),
+                        grow=0.4,
+                    )
+                    tally.update(["tried", *why])
                 continue
             self.pen.items += trial.items
             self.pen.texts += trial.texts
@@ -1103,6 +1231,9 @@ class _Run:
         if s is None:
             return 0.0
         h = self.h
+        looked = self.looked
+        self.steps.add(pd.id, "leader")
+        self.steps.add(f"{pd.id}-frame", "leader_frame")
         first, lines, fitem = self._block(pd)
         if first is not None:
             w = max(
@@ -1209,6 +1340,7 @@ class _Run:
             best = clear_search(best)
             self.counting = counting
         words = DM.value_line(first) if first is not None else (lines[0] if lines else pd.id)
+        nowhere = best is None  # no place on the sheet at all
         if best is None:
             p, r, c, _span = self._anchors(pd, s)[0]
             a = math.radians(45.0)
@@ -1216,7 +1348,26 @@ class _Run:
             elbow = (start[0] + 20.0, start[1] + 20.0)
             best = ((9.0, 0.0), start, elbow, True, p, r, c)
         if best[0][0] > 0.0:
-            self.unplaced.append((pd.id, words))
+            facts = None
+            if self.measure:
+                (cost, _soft), start, elbow, right, _p, _r, _c = best
+                # its text block, as candidate() makes it
+                x0 = elbow[0] + 4.0 if right else elbow[0] - 4.0 - w
+                top = elbow[1] + h * 0.8
+                facts = {
+                    "step": "leader",
+                    "cost": cost,
+                    "breaks": M.breaks(
+                        self.index, self.steps, Box(x0, top - height, x0 + w, top), start, elbow, pd.view
+                    ),
+                    "looked": self.looked - looked,
+                    "anchors": len(anchors),
+                    "text_mm": (round(w, 1), round(height, 1)),
+                    "room_mm": self._room(pd.view),
+                }
+                if nowhere:
+                    facts["nowhere"] = 1
+            self._unplaced(pd.id, words, facts)
         _cost, start, elbow, right, p, r, c = best
         moved = _moved(pd)
         if moved is not None:  # the user's offset of the shoulder, along x and y on the sheet
@@ -1280,6 +1431,7 @@ class _Run:
     def _pattern_angle(self, pd) -> None:
         s = self.arr.slots.get(pd.view)
         need = self.detail.needs.get(pd.id)
+        self.steps.add(pd.id, "pattern_angle")
         if s is None or need is None or pd.anchor is None:
             return
         fs = self.ctx.features
@@ -1440,7 +1592,11 @@ class _Run:
                     self.index.add(HARD, box, "build")
                     break
             else:  # said, never left out silently
-                self.unplaced.append(("build", f"the build-direction arrow of {v}"))
+                self._unplaced(
+                    "build",
+                    f"the build-direction arrow of {v}",
+                    self.measure and {"step": "build_arrow", "room_mm": self._room(v)},
+                )
 
 
 def layout(
@@ -1456,9 +1612,12 @@ def layout(
     status: str = "PRELIMINARY",
     signed: dict[str, tuple[str, str]] | None = None,
     sheets: int = DEFAULT_LIMITS.sheets,
+    measure: bool = False,
 ) -> LayoutResult:
     """Lay a plan out on a sheet (11), and on the sheets after it an assembly's parts
-    list too long for the first goes on to, at most ``sheets`` in all."""
+    list too long for the first goes on to, at most ``sheets`` in all. With ``measure``
+    each check of an item placed with a conflict, or of text over text, says how layout
+    came to it (:mod:`.measure`), which changes nothing on the sheet."""
     run = _Run(
         planned,
         options,
@@ -1471,6 +1630,7 @@ def layout(
         status=status,
         signed=dict(signed or {}),
         sheets=sheets,
+        measure=measure,
     )
     return run.run()
 

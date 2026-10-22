@@ -6,9 +6,11 @@ Run as ``python drawing_corpus_child.py PART SETTINGS``, it draws the part exact
 filled the sweep's way (:data:`FIELDS`, the material only where the part names none, and
 the company in :data:`SETTINGS`), and prints one JSON object: ``envelope``, the envelope
 that command prints; ``conflicts``, the drawing's hard conflicts (``R11.collisions``)
-counted by what collides with what and by the views they are in (:func:`breakdown`), or
-null when no drawing was made; and ``title``, whether the title block shows a calculated
-weight. Not a test module: the sweep runs it as a child process.
+counted by what collides with what and by the views they are in (:func:`breakdown`),
+with its sheet and scale and each hard conflict as layout's measure gives it
+(:func:`measured`: the layout runs with ``measure`` on, which changes nothing on the
+sheet), or null when no drawing was made; and ``title``, whether the title block shows a
+calculated weight. Not a test module: the sweep runs it as a child process.
 
 The counts hold only fixed words and numbers, never a name or a text of the part.
 """
@@ -164,6 +166,26 @@ def view_kinds(drawing) -> dict[str, str]:
     return {v.id: v.kind for v in planned.plan.views}
 
 
+def _pair(check) -> str:
+    """The kinds of the items a hard conflict is about (``dimension-note``), or of the
+    item that found no clear place (``balloon-no_clear_place``)."""
+    other = getattr(check, "other", "")
+    names = sorted(item_kind(o) for o in ([check.item, other] if other else [check.item]))
+    return "-".join(names if other else [*names, NO_PLACE])
+
+
+def _view_type(check, views: dict[str, str], kinds: dict[str, str]) -> str:
+    """The kinds of view a hard conflict's items are in (``base-projected``), ``sheet``
+    for an item outside every view."""
+    other = getattr(check, "other", "")
+    found = set()
+    for owner in [check.item, other] if other else [check.item]:
+        view = views.get(owner)
+        kind = "sheet" if view is None else kinds.get(view)
+        found.add(kind if kind in (*VIEW_KINDS, "sheet") else "other")
+    return "-".join(sorted(found))
+
+
 def breakdown(drawing, kinds: dict[str, str]) -> dict:
     """The hard conflicts of ``drawing`` (its ``R11.collisions`` checks): ``conflicts``,
     how many; ``by_kind``, by the pair of item kinds that collide (``dimension-note``),
@@ -172,14 +194,6 @@ def breakdown(drawing, kinds: dict[str, str]) -> dict:
     ``base-projected``, with ``sheet`` for an item outside every view). ``kinds`` maps
     view ids to their kinds (:func:`view_kinds`)."""
     views = _views_of_items(drawing.sheet)
-
-    def view_type(owner: str) -> str:
-        view = views.get(owner)
-        if view is None:
-            return "sheet"
-        kind = kinds.get(view)
-        return kind if kind in VIEW_KINDS else "other"
-
     by_kind: Counter = Counter()
     by_view: Counter = Counter()
     total = 0
@@ -187,32 +201,157 @@ def breakdown(drawing, kinds: dict[str, str]) -> dict:
         if c.code != HARD_CONFLICT:
             continue
         total += 1
-        other = getattr(c, "other", "")
-        owners = [c.item, other] if other else [c.item]
-        names = sorted(item_kind(o) for o in owners)
-        if not other:
-            names.append(NO_PLACE)
-        by_kind["-".join(names)] += 1
-        by_view["-".join(sorted({view_type(o) for o in owners}))] += 1
+        by_kind[_pair(c)] += 1
+        by_view[_view_type(c, views, kinds)] += 1
     return {"conflicts": total, "by_kind": dict(by_kind), "by_view_type": dict(by_view)}
+
+
+# --------------------------------------------------------------------------- the measure
+# What layout says of how it came to each hard conflict (solidseas.drawing.layout.measure):
+# every layout of the child's process measures, and the drawing's own layout is the one that
+# made its sheet.
+
+LAYOUT_CODES = ("L.overlap", "L.placement")
+DETAILED = 40  # drawings whose hard conflicts the sweep saves one by one, the most first
+DETAILS = 40  # of each, the hard conflicts saved
+
+
+def measuring() -> list:
+    """Have every layout from now on in this process measure its conflicts
+    (``layout(..., measure=True)``, which changes nothing on the sheet); returns the list
+    each layout's result is added to."""
+    from solidseas.drawing import orchestrate
+
+    made: list = []
+    real = orchestrate.layout
+
+    def layout(*args, **kwargs):
+        result = real(*args, **{**kwargs, "measure": True})
+        made.append(result)
+        return result
+
+    orchestrate.layout = layout
+    return made
+
+
+def layout_of(drawing, made: list):
+    """The layout result among ``made`` (:func:`measuring`) that made ``drawing``'s sheet,
+    or None."""
+    return next((r for r in reversed(made) if r.sheet is drawing.sheet), None)
+
+
+def dimension_kinds(drawing) -> dict[str, str]:
+    """Each planned dimension's kind (linear, ordinate, hole_callout, radius...) by its id,
+    from the run this process keeps beside ``drawing``; empty when there is none."""
+    from solidseas.drawing import edit
+
+    live = edit.live_for(drawing)
+    planned = getattr(live, "planned", None) if live is not None else None
+    if planned is None:
+        return {}
+    return {d.id: d.kind for d in planned.plan.dimensions}
+
+
+def _item(owner: str, dims: dict[str, str]) -> str:
+    """What an item is, a dimension by its kind (``hole_callout``)."""
+    kind = item_kind(owner)
+    return dims.get(owner, kind) if kind == "dimension" else kind
+
+
+def cause(facts: dict) -> str:
+    """A hard conflict's cause in two words, the step that placed the item and what
+    stopped it, for counting: ``leader.leader_across_line`` (the worst rule its place
+    breaks), ``datum.no_room`` (less room past its face than the symbol reaches),
+    ``datum.over_text`` (what stopped most of the spots it tried), ``overlap.band-band_frame``
+    (the steps that placed two texts that overlap)."""
+    from solidseas.drawing.layout.measure import RULES
+
+    if "overlap_mm" in facts:
+        return "overlap." + "-".join(sorted(s.split(".")[0] for s in facts.get("steps", ())))
+    step = facts.get("step", "other")
+    if facts.get("nowhere"):
+        return f"{step}.nowhere"
+    rules = [r for r in RULES if r in (facts.get("breaks") or {})]
+    if step == "leader" and rules:
+        return f"leader.{rules[0]}"
+    if step == "datum" and facts.get("free_mm", 0) < facts.get("reach_mm", 0):
+        return "datum.no_room"
+    spots = facts.get("spots") or {}
+    if spots:
+        return f"{step}.{max(sorted(spots), key=spots.get)}"
+    return f"{step}.no_clear_place"
+
+
+def _plain(value):
+    """``value`` as JSON holds it: tuples as lists."""
+    if isinstance(value, dict):
+        return {k: _plain(v) for k, v in value.items()}
+    if isinstance(value, list | tuple):
+        return [_plain(v) for v in value]
+    return value
+
+
+def details(drawing, result, kinds: dict[str, str], dims: dict[str, str]) -> list[dict]:
+    """Each hard conflict of ``drawing``, in numbers and fixed words: its pair of item
+    kinds (``kind``) and kinds of view (``view``) as :func:`breakdown` counts them, what
+    its items are (``item``, ``other_item``), and what layout's measure says of how it
+    came to it (``result``, the layout that made the sheet; :func:`layout_of`) with its
+    :func:`cause`, or the cause ``unmeasured`` where the layout said nothing of it."""
+    facts_of = {}
+    for c in getattr(result, "checks", ()) or ():
+        if c.code in LAYOUT_CODES:
+            facts_of.setdefault((c.owner, c.other, c.message), c.facts)
+    views = _views_of_items(drawing.sheet)
+    out = []
+    for c in drawing.checks:
+        if c.code != HARD_CONFLICT:
+            continue
+        row = {"kind": _pair(c), "view": _view_type(c, views, kinds), "item": _item(c.item, dims)}
+        if c.other:
+            row["other_item"] = _item(c.other, dims)
+        facts = facts_of.get((c.item, c.other, c.message))
+        if facts:
+            row.update(_plain(facts))
+            row["cause"] = cause(facts)
+        else:
+            row["cause"] = "unmeasured"
+        out.append(row)
+    return out
+
+
+def measured(drawing, result, kinds: dict[str, str]) -> dict:
+    """The sheet a drawing is on and its hard conflicts one by one (:func:`details`)."""
+    sheet = drawing.sheet
+    return {
+        "sheet": str(sheet.name).lower(),
+        "scale": list(sheet.scale),
+        "details": details(drawing, result, kinds, dimension_kinds(drawing)),
+    }
 
 
 def drawing_row(counts: dict, hard: int, conflicts: dict | None) -> dict:
     """One drawing's row for :func:`summarise`, from the counts of its envelope, its
-    number of ``R11.collisions`` checks and the child's :func:`breakdown`. Conflicts the
-    breakdown does not account for (no breakdown, or one that counted another number)
-    are counted under ``unknown``."""
+    number of ``R11.collisions`` checks and the child's :func:`breakdown`, with its
+    sheet, scale and hard conflicts one by one (:func:`measured`) when the child gives
+    them. Conflicts the breakdown does not account for (no breakdown, or one that
+    counted another number) are counted under ``unknown``."""
     by_kind = dict(conflicts["by_kind"]) if conflicts else {}
     by_view = dict(conflicts["by_view_type"]) if conflicts else {}
+    one_by_one = list((conflicts or {}).get("details") or ())
     if conflicts is None or conflicts["conflicts"] != hard:
         by_kind, by_view = ({"unknown": hard}, {"unknown": hard}) if hard else ({}, {})
-    return {
+        one_by_one = []
+    row = {
         "dimensions": counts["shown"],
         "views": counts["views"],
         "conflicts": hard,
         "by_kind": by_kind,
         "by_view_type": by_view,
+        "details": one_by_one,
     }
+    if conflicts is not None and "sheet" in conflicts:
+        row["sheet"], row["scale"] = conflicts["sheet"], conflicts["scale"]
+    return row
 
 
 def _band(value: int, bands) -> str:
@@ -224,19 +363,35 @@ def _band(value: int, bands) -> str:
 
 def summarise(rows: list[dict]) -> dict:
     """The sweep's saved measures of hard conflicts from one row per drawing
-    (``dimensions``, ``views``, ``conflicts``, ``by_kind``, ``by_view_type``): the
-    conflicts by kind and by view type over every drawing, the drawings counted by
-    their dimensions against their conflicts, and the :data:`WORST` drawings with
-    the most conflicts as rows of numbers, in no order a file could be told by."""
+    (``dimensions``, ``views``, ``conflicts``, ``by_kind``, ``by_view_type``, with
+    ``details``, ``sheet`` and ``scale`` where measured: :func:`drawing_row`): the
+    conflicts by kind, by view type and by cause over every drawing, the drawings
+    counted by their dimensions against their conflicts, the :data:`WORST` drawings
+    with the most conflicts as rows of numbers, and for the :data:`DETAILED` drawings
+    with the most, each hard conflict as layout's measure gives it (:func:`details`,
+    at most :data:`DETAILS` of each), in no order a file could be told by."""
     by_kind: Counter = Counter()
     by_view: Counter = Counter()
+    by_cause: Counter = Counter()
     grid = {d: {c: 0 for _t, c in CONFLICT_BANDS} for _top, d in DIMENSION_BANDS}
     for r in rows:
         by_kind.update(r["by_kind"])
         by_view.update(r["by_view_type"])
+        details_ = r.get("details") or ()
+        by_cause.update(d["cause"] for d in details_)
+        if r["conflicts"] > len(details_):
+            by_cause["unmeasured"] += r["conflicts"] - len(details_)
         grid[_band(r["dimensions"], DIMENSION_BANDS)][_band(r["conflicts"], CONFLICT_BANDS)] += 1
     hit = [r for r in rows if r["conflicts"]]
-    hit.sort(key=lambda r: (-r["conflicts"], -r["dimensions"], -r["views"], sorted(r["by_kind"].items())))
+    hit.sort(
+        key=lambda r: (
+            -r["conflicts"],
+            -r["dimensions"],
+            -r["views"],
+            sorted(r["by_kind"].items()),
+            json.dumps(r.get("details") or [], sort_keys=True),
+        )
+    )
     worst = [
         {
             "dimensions": r["dimensions"],
@@ -246,11 +401,20 @@ def summarise(rows: list[dict]) -> dict:
         }
         for r in hit[:WORST]
     ]
+    detailed = []
+    for r in hit[:DETAILED]:
+        one = {"dimensions": r["dimensions"], "views": r["views"], "conflicts": r["conflicts"]}
+        if "sheet" in r:
+            one["sheet"], one["scale"] = r["sheet"], list(r["scale"])
+        one["details"] = sorted(r.get("details") or [], key=lambda d: json.dumps(d, sort_keys=True))[:DETAILS]
+        detailed.append(one)
     return {
         "hard_conflicts_by_kind": dict(sorted(by_kind.items(), key=lambda kv: (-kv[1], kv[0]))),
         "hard_conflicts_by_view_type": dict(sorted(by_view.items(), key=lambda kv: (-kv[1], kv[0]))),
+        "hard_conflicts_by_cause": dict(sorted(by_cause.items(), key=lambda kv: (-kv[1], kv[0]))),
         "drawings_by_dimensions_and_conflicts": grid,
         "worst_drawings": worst,
+        "conflict_details": detailed,
     }
 
 
@@ -284,6 +448,7 @@ def main(argv: list[str]) -> int:
 
     cli._make, cli._drawing_checks = make_filled, checks_seen
     drawing_source.open_source = open_filled
+    made = measuring()
     out = io.StringIO()
     with contextlib.redirect_stdout(out):
         code = cli.main(["drawing", "check", part, "--settings", settings, "--json"])
@@ -291,7 +456,8 @@ def main(argv: list[str]) -> int:
     drawing = seen.get("drawing")
     conflicts = title = None
     if drawing is not None and envelope.get("ok"):
-        conflicts = breakdown(drawing, view_kinds(drawing))
+        kinds = view_kinds(drawing)
+        conflicts = {**breakdown(drawing, kinds), **measured(drawing, layout_of(drawing, made), kinds)}
         title = {"weight": int(shows_weight(drawing))}
     sys.stdout.write(json.dumps({"envelope": envelope, "conflicts": conflicts, "title": title}) + "\n")
     return code

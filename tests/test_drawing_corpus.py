@@ -29,8 +29,11 @@ parameter) and **failed** (a crash, a timeout, an internal error); hard conflict
 recognised-area fraction per size band (up to 100, 100 to 500, 500 to 3,000 and over
 3,000 faces). The hard conflicts are also broken down (``drawing_corpus_child.summarise``):
 by the pair of item kinds that collide, or the item that found no clear place; by the
-kinds of view they are in; the drawings counted by dimensions against conflicts; and the
-ten drawings with the most conflicts as rows of numbers. Of the drawings made, it counts
+kinds of view they are in; by cause, the step of layout that placed the item and what
+stopped it; the drawings counted by dimensions against conflicts; the ten drawings with
+the most conflicts as rows of numbers; and for the forty with the most, each hard
+conflict one by one as layout measures it (``solidseas.drawing.layout.measure``, which
+changes nothing on the sheet). Of the drawings made, it counts
 where the title block's material came from (the part, the settings' list or typed), how
 many show a calculated weight, and the R6.material findings by level. It prints numbers,
 check ids and fixed words only, never a path or a part's name (18).
