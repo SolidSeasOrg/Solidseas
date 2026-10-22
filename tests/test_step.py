@@ -1243,29 +1243,133 @@ def test_a_hole_on_the_line_u_0_moves_the_seams_clear_of_it():
     assert _holes_in_their_halves(f) == 1
 
 
-def test_the_seam_cuts_check_their_shells_on_the_clock(monkeypatch):
-    """Each cut checks the whole shell it touched again, and copies what it may undo:
-    both tick the export's clock by their size, so a body with many cuts stops at the
-    time limit instead of running past it."""
+def _splitters(monkeypatch) -> list:
+    """The seam cutters an export makes, kept to look at their bookkeeping after."""
     from solidseas.step import split
 
-    class Counting:
-        def __init__(self) -> None:
-            self.n = 0
+    made = []
+    real = split.Splitter.__init__
 
-        def tick(self, k: int = 1) -> None:
-            self.n += k
+    def init(self, *args):
+        real(self, *args)
+        made.append(self)
 
-    seen = []
-    real = split._check_shell
-    monkeypatch.setattr(split, "_check_shell", lambda shell, clock=None: seen.append((shell, clock)))
-    got = checked("o11_curved.SLDPRT")
-    assert got["model"].counts["split_faces"] >= 1
-    assert seen and all(clock is not None for _shell, clock in seen)
-    shell, _clock = seen[0]
-    counting = Counting()
-    real(shell, counting)
-    assert counting.n == sum(len(f.bounds) for f in shell.faces)
+    monkeypatch.setattr(split.Splitter, "__init__", init)
+    return made
+
+
+def _recounted(splitter) -> dict:
+    """Each shell's edges by how many times its loops use each one each way, counted
+    afresh from the shells as written, beside the cutter's own counts."""
+    from collections import Counter
+
+    from solidseas.step import split
+
+    fresh, kept = {}, {}
+    for item in splitter.m.items:
+        for shell in item.shells:
+            c: Counter = Counter()
+            for f in shell.faces:
+                for lp, _o in f.bounds:
+                    if isinstance(lp, split.E.EdgeLoop):
+                        for e, o in lp.edges:
+                            c[(id(e), o)] += 1
+            fresh[id(shell)] = +c
+            kept[id(shell)] = +splitter.uses[id(shell)]
+    return {"fresh": fresh, "kept": kept}
+
+
+def test_the_seam_cuts_keep_the_shells_edge_uses_and_check_only_what_they_changed(monkeypatch):
+    """Each cut takes what it changed into its shells' counts of how often each edge is
+    used each way and checks those edges alone, where it checked the whole shell again:
+    after the nine cuts of a plate's holes the counts agree with a recount, and each cut
+    checked the 8 edges it changed (two rings cut in two pieces each, and two seams) of a
+    shell that ends with 66."""
+    from solidseas.step import split
+
+    made = _splitters(monkeypatch)
+    sizes = []
+    real = split.Splitter._check
+
+    def check(self, *args, **kw):
+        sizes.append(len(self.changed))
+        return real(self, *args, **kw)
+
+    monkeypatch.setattr(split.Splitter, "_check", check)
+    got = synthetic(X.holed_plate(3))
+    assert_sound(got)
+    assert got["model"].counts["split_faces"] == 9
+    (cutter,) = made
+    counts = _recounted(cutter)
+    assert counts["kept"] == counts["fresh"]
+    assert sizes == [8] * 9
+    (shell,) = counts["fresh"].values()
+    assert len({e for e, _o in shell}) == 66
+
+
+def test_a_cut_that_fails_is_taken_back_from_its_journal(monkeypatch):
+    """The second of four cuts fails its checks: everything it changed (the edges it cut,
+    their pieces, its vertices, the halves, the loops' edges and the counts of edge uses)
+    is taken back from its journal, so the other three are written, the fourth wall whole
+    on its two rings, and the counts agree with a recount."""
+    from solidseas.step import split
+    from solidseas.step.mapper import FACTS
+
+    made = _splitters(monkeypatch)
+    calls = []
+    real = split.Splitter._check
+
+    def check(self, *args, **kw):
+        calls.append(len(calls))
+        if len(calls) == 2:
+            raise split.Refused("check_failed", "a cut that does not check")
+        return real(self, *args, **kw)
+
+    monkeypatch.setattr(split.Splitter, "_check", check)
+    before = FACTS["seam_cut_undone:CYLINDRICAL_SURFACE"]
+    got = synthetic(X.holed_plate(2))
+    assert_sound(got)
+    assert got["model"].counts["split_faces"] == 3
+    assert FACTS["seam_cut_undone:CYLINDRICAL_SURFACE"] == before + 1
+    f = got["file"]
+    assert len(f.of("ADVANCED_FACE")) == 6 + 4 + 3  # the plate, four walls, three cut in two
+    assert len(f.of("EDGE_CURVE")) == 12 + 2 + 3 * 6  # sides, one wall's rings, three cut walls'
+    (cutter,) = made
+    counts = _recounted(cutter)
+    assert counts["kept"] == counts["fresh"]
+
+
+def test_the_seam_cuts_of_many_holes_cost_in_proportion_to_them(monkeypatch):
+    """Each hole's cut splits a ring of the plate's top and bottom faces, which hold every
+    hole. A cut checks the loops it rewrote and its new vertices on those faces, not every
+    loop of the shell and every vertex of those faces again, so four times the holes cost
+    about four times the loops looked at and the vertices checked on a surface (3.8 and
+    3.6 times; 13 and 10 times when each cut checked its shell and faces whole)."""
+    from collections import Counter
+
+    from solidseas.step import checks, split
+
+    calls: Counter = Counter()
+    distance, ends = checks._surface_distance, split.E.EdgeLoop.ends
+
+    def counted_distance(*args):
+        calls["vertices"] += 1
+        return distance(*args)
+
+    def counted_ends(self):
+        calls["loops"] += 1
+        return ends(self)
+
+    monkeypatch.setattr(checks, "_surface_distance", counted_distance)
+    monkeypatch.setattr(split.E.EdgeLoop, "ends", counted_ends)
+    cost = {}
+    for n in (3, 6):
+        calls.clear()
+        m = step_transmit(_numbered(X.holed_plate(n)))
+        assert m.counts["split_faces"] == n * n
+        cost[n] = dict(calls)
+    for what in ("vertices", "loops"):
+        assert cost[6][what] < 5 * cost[3][what], (what, cost)
 
 
 def test_holes_on_every_evenly_spaced_line_send_the_seams_into_the_gaps():

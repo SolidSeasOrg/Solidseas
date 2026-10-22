@@ -41,10 +41,17 @@ Every cut is checked again by the export's own checks (:mod:`.checks`: loops clo
 shells close, vertices on their curves and surfaces, points along every new edge
 on its faces), and the halves, followed round the surface's (u, v) as written, must
 each enclose an area on the face's side of its boundary and hold the holes given
-them; a face whose cut fails any of these is written whole instead.
+them; a face whose cut fails any of these is written whole instead. The body passed
+those checks whole before any cut (:func:`.checks.check_body`), so a cut checks what
+it changed: the loops it rewrote or made, the edges whose uses it changed (each
+shell's count of how often each edge is used each way is kept up to date by every
+cut), its new edges, its halves, and its new vertices on the faces round it. What a
+failed cut changed is taken back from a journal of its changes, so a cut costs what
+it changed, not the size of its shell and of every cut before it.
 """
 
 import math
+from collections import Counter
 
 from ..tessellate import nurbs
 from ..tessellate._vec import TWO_PI, add, cross, dist, dot, mul, norm, sub, wrap_near
@@ -52,7 +59,15 @@ from ..tessellate.topology import FaceFailed
 from . import bspline
 from . import entities as E
 from . import part21 as p21
-from .checks import _check_edge, _check_edge_on_faces, _check_face, _check_shell, _Stats
+from .checks import (
+    _check_edge,
+    _check_edge_on_faces,
+    _check_face,
+    _check_loop,
+    _check_uses,
+    _check_vertex,
+    _Stats,
+)
 from .mapper import FACTS, Refused
 
 AT_VERTEX_M = 1e-9  # a seam this close to a vertex meets it
@@ -73,6 +88,57 @@ MAX_DEPTH = 8  # halvings of a step that turns too far round a closed direction
 
 class _Undo(Exception):
     """A cut that cannot be made: the face is written whole."""
+
+
+_MISSING = object()
+
+
+def _put_back(d: dict, key, old) -> None:
+    if old is _MISSING:
+        del d[key]
+    else:
+        d[key] = old
+
+
+def _discard(s: set, key, _old) -> None:
+    s.discard(key)
+
+
+def _drop_last(items: list, _key, _old) -> None:
+    items.pop()
+
+
+class _Journal:
+    """The changes one cut makes, each with what it replaced: to the splitter's
+    bookkeeping, the counts of edge uses and the loops' edges. :meth:`undo` takes them
+    back, last first, when the cut fails, at the cost of what the cut changed."""
+
+    __slots__ = ("entries",)
+
+    def __init__(self) -> None:
+        self.entries: list[tuple] = []
+
+    def set(self, obj, attr: str, value) -> None:
+        self.entries.append((setattr, obj, attr, getattr(obj, attr)))
+        setattr(obj, attr, value)
+
+    def put(self, d: dict, key, value) -> None:
+        self.entries.append((_put_back, d, key, d.get(key, _MISSING)))
+        d[key] = value
+
+    def add(self, s: set, key) -> None:
+        if key not in s:
+            s.add(key)
+            self.entries.append((_discard, s, key, None))
+
+    def append(self, items: list, value) -> None:
+        items.append(value)
+        self.entries.append((_drop_last, items, None, None))
+
+    def undo(self) -> None:
+        for fn, obj, key, old in reversed(self.entries):
+            fn(obj, key, old)
+        self.entries.clear()
 
 
 # --------------------------------------------------------------------------- the surface
@@ -645,11 +711,12 @@ def _seam(chart: _Chart, d: int, s: float, va: E.Vertex, wa: float, vb: E.Vertex
 # --------------------------------------------------------------------------- the body
 class Splitter:
     """Cuts the faces of one mapped body (:class:`.mapper.Mapped`) face by face, each
-    cut checked, and undone when its checks fail."""
+    cut checked, and undone when its checks fail (see the module notes)."""
 
     def __init__(self, mapper, mapped) -> None:
         self.mapper, self.m = mapper, mapped
         self.clock = mapper.clock
+        self.journal = _Journal()  # what the cut being made changed
         self.loops_of: dict[int, list] = {}  # id(edge) -> the loops that use it
         self.face_of: dict[int, E.Face] = {}  # id(loop) -> its face
         self.shells_of: dict[int, list] = {}  # id(face) -> the shells that hold it
@@ -666,21 +733,44 @@ class Splitter:
         self.replaced: dict[int, list[E.Face]] = {}  # id(face) -> its halves
         self.pieces: dict[int, int] = {}  # id(piece) -> the EDGE node index it is part of
         self.sources = {id(e): idx for e, idx in mapped.edge_sources}
-        self.halves: list[E.Face] = []  # the halves the cut being made has made so far
-        self.dead: set[int] = set()  # id(half) of the halves of undone cuts
+        # id(shell) -> (id(edge), sense) -> how many times the shell's loops use the edge that
+        # way: counted before the first cut, and kept up to date by every cut
+        self.uses: dict[int, Counter] | None = None
+        self.shell_by_id: dict[int, E.Shell] = {}
+        # what the cut being made changed, for its checks: (id(shell), id(edge)) whose uses
+        # it changed, the loops whose edges it cut, and its new vertices on edges it cut
+        # (id -> the vertex and the tolerance of the edge it was cut on)
+        self.changed: set[tuple[int, int]] = set()
+        self.rewritten: list[E.EdgeLoop] = []
+        self.new_vertices: dict[int, tuple[E.Vertex, float]] = {}
 
-    def _index(self, f: E.Face) -> None:
+    def _index(self, f: E.Face, journal: _Journal | None = None) -> None:
         for lp, _o in f.bounds:
             if isinstance(lp, E.EdgeLoop):
-                self.face_of[id(lp)] = f
+                if journal is None:
+                    self.face_of[id(lp)] = f
+                else:
+                    journal.put(self.face_of, id(lp), f)
                 for e, _ in lp.edges:
-                    got = self.loops_of.setdefault(id(e), [])
-                    if lp not in got:
-                        got.append(lp)
+                    self._link(e, lp, journal)
+
+    def _link(self, e: E.Edge, lp: E.EdgeLoop, journal: _Journal | None) -> None:
+        """Note that ``lp`` uses ``e``."""
+        got = self.loops_of.get(id(e))
+        if got is None:
+            if journal is None:
+                self.loops_of[id(e)] = [lp]
+            else:
+                journal.put(self.loops_of, id(e), [lp])
+        elif lp not in got:
+            if journal is None:
+                got.append(lp)
+            else:
+                journal.append(got, lp)
 
     def live(self, f: E.Face) -> bool:
-        """Whether a face is in the body: not cut in two, and not a half of an undone cut."""
-        return id(f) not in self.replaced and id(f) not in self.dead
+        """Whether a face is in the body: not cut in two."""
+        return id(f) not in self.replaced
 
     def run(self) -> None:
         for f in list(self.m.faces):
@@ -695,43 +785,58 @@ class Splitter:
                 continue
             if plan is None:
                 continue
-            log: list = []
-            state = self._state()
-            self.halves = []
+            if self.uses is None:
+                self._count_uses()
+            self.journal = _Journal()
+            self.changed, self.rewritten, self.new_vertices = set(), [], {}
             try:
-                self._cut(f, chart, plan, log)
+                self._cut(f, chart, plan)
             except (_Undo, Refused, FaceFailed, ValueError, ZeroDivisionError, OverflowError):
-                for obj, attr, old in reversed(log):
-                    setattr(obj, attr, old)
-                self._restore(state)
-                self.dead.update(id(h) for h in self.halves)
+                self.journal.undo()
                 FACTS[f"seam_cut_undone:{f.surface.kind}"] += 1
                 continue
             FACTS[f"seam_face_cut:{f.surface.kind}"] += 1
         self._commit()
 
-    # -- bookkeeping, restored when a cut is undone
-    def _state(self):
-        # copied before every face: tick by its size, so the time limit bounds a body with many cuts
-        self.clock.tick(len(self.removed_edges) + len(self.replaced) + len(self.pieces))
-        return (
-            set(self.removed_edges),
-            len(self.added_edges),
-            set(self.removed_vertices),
-            len(self.added_vertices),
-            dict(self.replaced),
-            dict(self.pieces),
-        )
+    # -- bookkeeping
+    def _count_uses(self) -> None:
+        """Each shell's count of how often each edge is used each way, before the first cut.
+        The body passed its checks whole (:func:`.checks.check_body`): each edge here is used
+        as its shell needs, so a cut need check only the edges whose uses it changes."""
+        self.uses = {}
+        for item in self.m.items:
+            for shell in item.shells:
+                if id(shell) in self.uses:
+                    continue
+                counts: Counter = Counter()
+                for face in shell.faces:
+                    self.clock.tick(len(face.bounds))
+                    for lp, _o in face.bounds:
+                        if isinstance(lp, E.EdgeLoop):
+                            for e, o in lp.edges:
+                                counts[(id(e), o)] += 1
+                self.uses[id(shell)] = counts
+                self.shell_by_id[id(shell)] = shell
 
-    def _restore(self, state) -> None:
-        self.removed_edges, ne, self.removed_vertices, nv, self.replaced, self.pieces = state
-        del self.added_edges[ne:]
-        del self.added_vertices[nv:]
+    def _count(self, shells, uses, sign: int) -> None:
+        """Take ``uses`` ((edge, sense) pairs) into the counts of ``shells`` (``sign`` 1), or
+        out of them (-1), noting each edge as changed."""
+        j = self.journal
+        for shell in shells:
+            counts = self.uses[id(shell)]  # type: ignore[index]
+            for e, o in uses:
+                key = (id(e), o)
+                j.put(counts, key, counts.get(key, 0) + sign)
+                self.changed.add((id(shell), id(e)))
 
     def _commit(self) -> None:
         m = self.m
         if not self.replaced:
             return
+        for item in m.items:
+            for shell in item.shells:
+                if any(id(f) in self.replaced for f in shell.faces):
+                    shell.faces = [g for f in shell.faces for g in self.replaced.get(id(f), (f,))]
         faces = []
         for f in m.faces:
             faces.extend(self.replaced.get(id(f), (f,)))
@@ -748,11 +853,11 @@ class Splitter:
         ]
 
     # -- one cut
-    def _cut(self, face: E.Face, chart: _Chart, plan: _Plan, log: list) -> None:
+    def _cut(self, face: E.Face, chart: _Chart, plan: _Plan) -> None:
+        j = self.journal
         first_new = len(self.added_edges)
-        touched: list[E.Face] = []
         crossings = list(plan.cross_a) + list(plan.cross_b or ())
-        self._split_edges(crossings, log, touched)
+        self._split_edges(crossings)
         s1, s2 = plan.values
         a1, a2 = plan.cross_a
         arc_a12, arc_a21 = _arcs(face.bounds[plan.a][0], a1.vertex, a2.vertex)
@@ -775,7 +880,8 @@ class Splitter:
             seam2 = _seam(chart, plan.d, s2, a2.vertex, a2.w, pole_v, vp)
             half1 = arc_a12 + [(seam2, True), (seam1, False)]
             half2 = arc_a21 + [(seam1, True), (seam2, False)]
-        self.added_edges.extend((seam1, seam2))
+        j.append(self.added_edges, seam1)
+        j.append(self.added_edges, seam2)
         # Half 1 runs along A from the seam at s1 to the seam at s2: up the cut direction
         # from s1 when A runs up it, down from s1 otherwise. Holes go with the half
         # whose stretch of that direction holds them.
@@ -794,19 +900,24 @@ class Splitter:
             E.Face(b, face.surface, face.same_sense, face.source, face.approximated, None, face.deviation)
             for b in (bounds1, bounds2)
         ]
+        # The face leaves its shells and its halves come in (each shell's list of faces is
+        # changed once, when every cut is made): the uses of its loops go out of the counts
+        # and those of the halves' come in, but for the holes, which the halves keep.
         shells = self.shells_of.get(id(face), [])
-        for shell in shells:
-            log.append((shell, "faces", shell.faces))
-            new = []
-            for f in shell.faces:
-                new.extend(halves if f is face else (f,))
-            shell.faces = new
-        self.replaced[id(face)] = halves
-        self.halves = halves
+        kept = {id(lp) for h in halves for lp, _o in h.bounds}
+        own = {id(lp) for lp, _o in face.bounds}
+        for lp, _o in face.bounds:
+            if isinstance(lp, E.EdgeLoop) and id(lp) not in kept:
+                self._count(shells, lp.edges, -1)
         for h in halves:
-            self._index(h)
-            self.shells_of[id(h)] = list(shells)
-        self._check(halves, touched, self.added_edges[first_new:], chart, face, plan.pole)
+            for lp, _o in h.bounds:
+                if isinstance(lp, E.EdgeLoop) and id(lp) not in own:
+                    self._count(shells, lp.edges, 1)
+        j.put(self.replaced, id(face), halves)
+        for h in halves:
+            self._index(h, j)
+            j.put(self.shells_of, id(h), list(shells))
+        self._check(halves, self.added_edges[first_new:], chart, face, plan.pole)
 
     def _far_end(self, chart: _Chart, plan: _Plan, wa: float, wb: float) -> float:
         """The other coordinate at the far end of a band's seam: B's, reached from A the
@@ -829,12 +940,14 @@ class Splitter:
             if isinstance(lp, E.VertexLoop) and dist(lp.vertex.metres(), point) <= MIN_PIECE_M:
                 return lp.vertex, i
         v = E.Vertex(E.point_mm(point), 0.0, -1)
-        self.added_vertices.append(v)
+        self.journal.append(self.added_vertices, v)
         return v, None
 
-    def _split_edges(self, crossings, log: list, touched: list) -> None:
+    def _split_edges(self, crossings) -> None:
         """Give each crossing its vertex, cutting the edge it falls on, and put the
-        pieces in every loop that used a cut edge."""
+        pieces in every loop that used a cut edge (each a loop :meth:`_check` checks again,
+        with the new vertices on its face, when its face is in the body)."""
+        j = self.journal
         by_edge: dict[int, list[_Crossing]] = {}
         for c in crossings:
             if c.vertex is None:
@@ -852,8 +965,10 @@ class Splitter:
                 pos = ((c.t - ts) * sign) % period if period else (c.t - ts) * sign
                 if not 0.0 <= pos <= abs(te - ts):
                     raise _Undo("a crossing off its edge")
-                v = E.Vertex(E.point_mm(c.p), max(e.tolerance, 2.0 * e.deviation), -1)
-                self.added_vertices.append(v)
+                tol = max(e.tolerance, 2.0 * e.deviation)
+                v = E.Vertex(E.point_mm(c.p), tol, -1)
+                j.append(self.added_vertices, v)
+                self.new_vertices[id(v)] = (v, tol)
                 c.vertex = v
                 points.append((pos, v))
             points.sort(key=lambda q: q[0])
@@ -862,37 +977,40 @@ class Splitter:
             span = abs(te - ts)
             if e.start is e.end:
                 chain = [*points, (points[0][0] + span, points[0][1])]
-                self.removed_vertices.add(id(e.start))
+                j.add(self.removed_vertices, id(e.start))
             else:
                 chain = [(0.0, e.start), *points, (span, e.end)]
             pieces = [
                 self._piece(e, ts, sign, pa, va, pb, vb)
                 for (pa, va), (pb, vb) in zip(chain, chain[1:], strict=False)
             ]
-            self.removed_edges.add(id(e))
+            j.add(self.removed_edges, id(e))
             src = self.sources.get(id(e), self.pieces.get(id(e)))
             for pc in pieces:
-                self.added_edges.append(pc)
+                j.append(self.added_edges, pc)
                 if src is not None:
-                    self.pieces[id(pc)] = src
+                    j.put(self.pieces, id(pc), src)
             for lp in self.loops_of.get(id(e), ()):
                 if not any(x is e for x, _o in lp.edges):
                     continue
-                log.append((lp, "edges", lp.edges))
-                new = []
+                new, gone, came = [], [], []
                 for x, o in lp.edges:
                     if x is not e:
                         new.append((x, o))
-                    elif o:
-                        new.extend((pc, True) for pc in pieces)
-                    else:
-                        new.extend((pc, False) for pc in reversed(pieces))
-                lp.edges = new
+                        continue
+                    run = [(pc, True) for pc in pieces] if o else [(pc, False) for pc in reversed(pieces)]
+                    new.extend(run)
+                    gone.append((x, o))
+                    came.extend(run)
+                j.set(lp, "edges", new)
                 for pc in pieces:
-                    self.loops_of.setdefault(id(pc), []).append(lp)
+                    self._link(pc, lp, j)
                 f = self.face_of.get(id(lp))
-                if f is not None and f not in touched:
-                    touched.append(f)
+                if f is not None and self.live(f):
+                    shells = self.shells_of.get(id(f), ())
+                    self._count(shells, gone, -1)
+                    self._count(shells, came, 1)
+                    self.rewritten.append(lp)
 
     @staticmethod
     def _piece(e: E.Edge, ts: float, sign: float, pa: float, va, pb: float, vb) -> E.Edge:
@@ -910,21 +1028,27 @@ class Splitter:
             same = sign > 0
         return E.Edge(va, vb, curve, same, e.tolerance, e.deviation, e.source)
 
-    def _check(self, halves, touched, new_edges, chart=None, face=None, pole=None) -> None:
-        """The export's own checks of what one cut made or changed, and that the halves
-        of ``face`` tile it (:func:`_check_halves`; ``pole`` a cap's)."""
+    def _check(self, halves, new_edges, chart=None, face=None, pole=None) -> None:
+        """The export's own checks of what one cut made or changed, the rest of the body
+        having passed them before: the halves' loops and those it rewrote close, each edge
+        whose uses it changed is used as its shell needs, its new edges lie on their curves
+        and faces, the halves' vertices and its new vertices on the faces round it lie on
+        their surfaces, and the halves of ``face`` tile it (:func:`_check_halves`;
+        ``pole`` a cap's). Each check ticks the clock."""
         mapper = self.mapper
         if chart is not None and face is not None:
             _check_halves(chart, face, halves, self.clock, pole)
         stats = _Stats()
-        faces = list(halves) + [f for f in touched if self.live(f)]
-        shells = []
-        for f in faces:
-            for shell in self.shells_of.get(id(f), ()):
-                if shell not in shells:
-                    shells.append(shell)
-        for shell in shells:
-            _check_shell(shell, self.clock)  # the whole shell, for each cut: ticked by its faces
+        loops = [lp for h in halves for lp, _o in h.bounds]
+        loops += [lp for lp in self.rewritten if self.live(self.face_of[id(lp)])]
+        for lp in loops:
+            if isinstance(lp, E.EdgeLoop):
+                self.clock.tick()
+                _check_loop(lp)
+        for sid, eid in self.changed:
+            self.clock.tick()
+            counts = self.uses[sid]  # type: ignore[index]
+            _check_uses(self.shell_by_id[sid].closed, counts.get((eid, True), 0), counts.get((eid, False), 0))
         for e in new_edges:
             if id(e) in self.removed_edges:
                 continue
@@ -937,8 +1061,20 @@ class Splitter:
                     on.append(f)
             along = ([ts, te], 1.0 if e.same_sense else -1.0, period, False)
             _check_edge_on_faces(mapper, e, along, on, stats)
-        for f in faces:
+        for f in halves:
             _check_face(mapper, f, stats)
+        # the faces round the cut gained only the vertices where it cut their edges
+        seen: set[tuple[int, int]] = set()
+        for lp in self.rewritten:
+            f = self.face_of[id(lp)]
+            if not self.live(f):
+                continue
+            for e, _o in lp.edges:
+                for v in (e.start, e.end):
+                    got = self.new_vertices.get(id(v))
+                    if got is not None and (id(f), id(v)) not in seen:
+                        seen.add((id(f), id(v)))
+                        _check_vertex(mapper, f, v, got[1], stats)
         self.m.max_gap = max(self.m.max_gap, stats.gap)
 
 

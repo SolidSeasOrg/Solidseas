@@ -111,23 +111,33 @@ def _check_shell(shell: E.Shell, clock=None) -> None:
         for loop, _outer in face.bounds:
             if isinstance(loop, E.VertexLoop):
                 continue
-            ends = loop.ends()
-            if not ends:
-                _fail("an edge loop with no edge")
-            for k, (_s, e) in enumerate(ends):
-                nxt = ends[(k + 1) % len(ends)][0]
-                if e is not nxt:
-                    _fail("a loop does not close: an edge ends where the next does not start")
+            _check_loop(loop)
             for edge, o in loop.edges:
                 uses[(id(edge), o)] += 1
     edges = {k[0] for k in uses}
     for e in edges:
-        f, b = uses[(e, True)], uses[(e, False)]
-        if shell.closed:
-            if f != 1 or b != 1:
-                _fail(f"an edge of a closed shell is used {f} time(s) forward and {b} backward")
-        elif f > 1 or b > 1:
-            _fail("an edge of an open shell is used twice the same way")
+        _check_uses(shell.closed, uses[(e, True)], uses[(e, False)])
+
+
+def _check_loop(loop: E.EdgeLoop) -> None:
+    """An edge loop has an edge, and each of its oriented edges ends where the next starts."""
+    ends = loop.ends()
+    if not ends:
+        _fail("an edge loop with no edge")
+    for k, (_s, e) in enumerate(ends):
+        nxt = ends[(k + 1) % len(ends)][0]
+        if e is not nxt:
+            _fail("a loop does not close: an edge ends where the next does not start")
+
+
+def _check_uses(closed: bool, f: int, b: int) -> None:
+    """An edge used ``f`` times forward and ``b`` backward by a shell's loops: once each way
+    in a closed shell (or not at all), at most once each way in an open one."""
+    if closed:
+        if (f != 1 or b != 1) and (f or b):
+            _fail(f"an edge of a closed shell is used {f} time(s) forward and {b} backward")
+    elif f > 1 or b > 1:
+        _fail("an edge of an open shell is used twice the same way")
 
 
 def _allow(*tolerances: float) -> float:
@@ -288,9 +298,7 @@ def _check_edge_on_faces(mapper, edge: E.Edge, along, faces, stats: _Stats) -> N
 
 
 def _check_face(mapper, face: E.Face, stats: _Stats) -> None:
-    ev = face.surface.evaluator()
     seen: set[int] = set()
-    dev2 = 2.0 * face.deviation
     for loop, _o in face.bounds:
         if isinstance(loop, E.VertexLoop):
             vs = [(loop.vertex, 0.0)]
@@ -300,12 +308,20 @@ def _check_face(mapper, face: E.Face, stats: _Stats) -> None:
             if id(v) in seen:
                 continue
             seen.add(id(v))
-            d = _surface_distance(ev, v.metres(), mapper.clock)
-            if d > _allow(v.tolerance, tol, dev2):
-                d = _closer(ev, v.metres(), d, mapper.clock)
-            stats.vertex_surface = max(stats.vertex_surface, d)
-            if not _gap(stats, mapper, d, _allow(v.tolerance, tol, dev2)):
-                _fail(f"a vertex lies {d:.3g} m from its face's surface as written")
+            _check_vertex(mapper, face, v, tol, stats)
+
+
+def _check_vertex(mapper, face: E.Face, v: E.Vertex, tol: float, stats: _Stats) -> None:
+    """A vertex of a face lies on its surface as written, allowed its own tolerance, the
+    edge's it was met on (``tol``) and twice the face's deviation."""
+    ev = face.surface.evaluator()
+    allow = _allow(v.tolerance, tol, 2.0 * face.deviation)
+    d = _surface_distance(ev, v.metres(), mapper.clock)
+    if d > allow:
+        d = _closer(ev, v.metres(), d, mapper.clock)
+    stats.vertex_surface = max(stats.vertex_surface, d)
+    if not _gap(stats, mapper, d, allow):
+        _fail(f"a vertex lies {d:.3g} m from its face's surface as written")
 
 
 def _surface_distance_from(ev, p, hint, clock, tol: float = 1e-9):

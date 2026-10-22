@@ -623,6 +623,53 @@ _BOX_SIDES = (
 )
 
 
+def holed_plate(n: int = 2, pitch: float = 0.004, r: float = 0.001, h: float = 0.002) -> XtTransmit:
+    """A square plate with ``n`` x ``n`` round holes through it, ``pitch`` apart, each hole's
+    wall a band between two ring edges, as Parasolid holds a hole: every wall goes round its
+    cylinder, so the STEP export cuts each in two at its seams, and each cut splits rings of
+    the plate's top and bottom faces, which hold every hole."""
+    b = XtBuilder()
+    W = n * pitch
+    size = (W, W, h)
+    corners: dict = {}
+    sides: dict = {}
+    edges: list = []
+
+    def point(c):
+        return tuple(size[i] * c[i] for i in range(3))
+
+    def side(c0, c1):
+        key = (c0, c1) if c0 < c1 else (c1, c0)
+        if key not in sides:
+            for c in key:
+                if c not in corners:
+                    corners[c] = b.vertex(point(c))
+            pa, pb = point(key[0]), point(key[1])
+            d = tuple(pb[i] - pa[i] for i in range(3))
+            sides[key] = b.edge(b.line(pa, d), corners[key[0]], corners[key[1]])
+            edges.append(sides[key])
+        return sides[key], "+" if (c0, c1) == key else "-"
+
+    holes = []
+    for i in range(n):
+        for j in range(n):
+            x, y = (i + 0.5) * pitch, (j + 0.5) * pitch
+            low = b.edge(b.circle((x, y, 0.0), Z, X, r))
+            high = b.edge(b.circle((x, y, h), Z, X, r))
+            holes.append((x, y, low, high))
+            edges += [low, high]
+    for k, (cs, normal, x_axis) in enumerate(_BOX_SIDES):
+        loops = [[side(cs[m], cs[(m + 1) % 4]) for m in range(4)]]
+        if k == 0:  # the bottom, facing -z: its holes run counter-clockwise about +z
+            loops += [[(low, "+")] for _x, _y, low, _high in holes]
+        elif k == 1:  # the top, facing +z: clockwise about it
+            loops += [[(high, "-")] for _x, _y, _low, high in holes]
+        b.face(b.plane(point(cs[0]), normal, x_axis), "+", loops)
+    for x, y, low, high in holes:  # each wall facing into its hole
+        b.face(b.cylinder((x, y, 0.0), Z, r, X), "-", [[(low, "-")], [(high, "+")]])
+    return b.body(edges)
+
+
 def void_box(size: float = 0.03, void=(0.01, 0.02)) -> XtTransmit:
     """A cube of side ``size`` with a cubic cavity from ``void[0]`` to ``void[1]`` on every
     axis, as Parasolid holds one: a solid region bounded by two shells, the outer one's

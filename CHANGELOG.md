@@ -1854,6 +1854,10 @@ while the project takes shape.
 
 ### Fixed
 
+- **Faster STEP export of parts with many holes.** STEP export of parts with
+  many round holes or other faces cut at their seams is faster: a plate of 900
+  holes took 20 s and takes 2 s. The file written is the same.
+
 - **Large STEP assemblies open faster.** An assembly that places each component
   both by its own placement and by a mapped item, or keeps its mapped items in
   one shared representation, took time that grew with the square of its

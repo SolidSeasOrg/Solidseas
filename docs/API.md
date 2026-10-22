@@ -3148,8 +3148,12 @@ file's own), for a file written under another name and renamed afterwards.
   Every cut passes the export's own checks again (below), and the halves,
   their outer loops followed round the surface's (u, v), must each enclose an
   area on the side of the loop the face lies on and hold the holes given
-  them; a face whose cut would not is written whole. Offset surfaces and
-  apple and lemon tori are written whole.
+  them; a face whose cut would not is written whole. The body passed those
+  checks whole before the first cut, so each cut checks what it changed (the
+  loops it rewrote, the edges whose uses it changed, its new edges, its halves
+  and its new vertices on the faces round it), and a body of many such faces
+  takes time in proportion to them: a plate of 900 holes took 20 s and takes
+  2 s. Offset surfaces and apple and lemon tori are written whole.
 - **Approximated where it cannot, deviation measured.** Intersection curves,
   other SP-curves on curved surfaces, and rolling blends (BLENDED_EDGE,
   for which STEP has no entity) are written as B-splines: curves through
