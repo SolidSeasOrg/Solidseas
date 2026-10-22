@@ -29,6 +29,7 @@ from pathlib import Path
 
 import pytest
 
+from solidseas import walk
 from solidseas.errors import OutputRefusedError
 from solidseas_app.viewer import opening, printing
 from support import FIXTURES, fixture_path
@@ -803,6 +804,86 @@ def test_a_cloud_placeholder_folder_never_takes_a_print(models, monkeypatch):
     assert printing.folder_problem(cloud, str(models)) == printing.PLACEHOLDER
 
 
+# What lstat gives for a folder of a cloud sync root on Windows, as Microsoft documents the
+# attributes and as the folder walker's own tests take them (no real sync root has been
+# looked at yet, SolidSeas-o6y): a reparse point whose tag is the provider's, which is no
+# link (0x9000701A is OneDrive's: no name-surrogate bit), with the attribute that says its
+# content is not on this computer: recall on open (a folder's), recall on data access (a
+# file's) or offline; none of them once it is kept on this computer.
+CLOUD_TAG = 0x9000701A
+DIRECTORY, REPARSE_POINT = 0x10, 0x400
+
+
+def _fake_lstat(monkeypatch, fakes: dict[str, object]) -> None:
+    """lstat answering for each folder of ``fakes`` (by path) with its stat, or raising it."""
+    real = os.lstat
+
+    def lstat(path, *args, **kwargs):
+        got = fakes.get(os.path.normcase(os.path.abspath(str(path))))
+        if isinstance(got, BaseException):
+            raise got
+        return got if got is not None else real(path, *args, **kwargs)
+
+    monkeypatch.setattr(os, "lstat", lstat)
+
+
+def _cloud(attrs: int, tag: int = CLOUD_TAG):
+    return types.SimpleNamespace(st_mode=stat.S_IFDIR | 0o755, st_file_attributes=attrs, st_reparse_tag=tag)
+
+
+@pytest.mark.parametrize(
+    ("attrs", "tag", "why"),
+    [
+        (DIRECTORY | REPARSE_POINT | walk.FILE_ATTRIBUTE_RECALL_ON_OPEN, CLOUD_TAG, printing.PLACEHOLDER),
+        (
+            DIRECTORY | REPARSE_POINT | walk.FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS,
+            CLOUD_TAG,
+            printing.PLACEHOLDER,
+        ),
+        (DIRECTORY | REPARSE_POINT | walk.FILE_ATTRIBUTE_OFFLINE, CLOUD_TAG, printing.PLACEHOLDER),
+        (DIRECTORY | REPARSE_POINT, CLOUD_TAG, None),  # kept on this computer: a folder like any other
+        (DIRECTORY | REPARSE_POINT, 0, printing.LINKED),  # a reparse point that reports no tag: never trusted
+    ],
+)
+def test_a_cloud_folder_takes_a_print_only_once_its_files_are_here(models, monkeypatch, attrs, tag, why):
+    """A cloud folder is a reparse point whose tag is its provider's, not a link: whether it
+    takes the print is decided by the attribute saying its files are not on this computer,
+    and a print it refuses goes to the temporary folder with nothing written there."""
+    cloud = models / "cloud"
+    cloud.mkdir()
+    shutil.copy2(models / "o02_boxA.SLDPRT", cloud / "o02_boxA.SLDPRT")
+    _fake_lstat(monkeypatch, {os.path.normcase(str(cloud)): _cloud(attrs, tag)})
+    assert printing.folder_problem(str(cloud), str(models)) == why
+    out = _export(models, "cloud/o02_boxA.SLDPRT")
+    if why is None:
+        assert out["place"] == printing.MODEL and out["file"] == str(cloud / f"o02_boxA {TODAY}.3mf")
+    else:
+        assert out["place"] == printing.TEMP and out["fallback"] == why
+        assert os.listdir(cloud) == ["o02_boxA.SLDPRT"]
+
+
+def test_a_cloud_folder_above_the_model_or_one_that_cannot_be_looked_at_takes_no_print(models, monkeypatch):
+    """A placeholder anywhere above the model's folder refuses it as one at the folder does
+    (a sync root keeps a folder online only while a folder inside it is here); a folder lstat
+    cannot read, as when the provider is not running, is not written to either."""
+    (models / "cloud" / "job").mkdir(parents=True)
+    shutil.copy2(models / "o02_boxA.SLDPRT", models / "cloud" / "job" / "o02_boxA.SLDPRT")
+    online_only = _cloud(DIRECTORY | REPARSE_POINT | walk.FILE_ATTRIBUTE_RECALL_ON_OPEN)
+    _fake_lstat(monkeypatch, {os.path.normcase(str(models / "cloud")): online_only})
+    out = _export(models, "cloud/job/o02_boxA.SLDPRT")
+    assert out["place"] == printing.TEMP and out["fallback"] == printing.PLACEHOLDER
+    monkeypatch.undo()
+    stopped = OSError(errno.EIO, "The cloud file provider is not running")
+    _fake_lstat(monkeypatch, {os.path.normcase(str(models / "cloud" / "job")): stopped})
+    out = _export(models, "cloud/job/o02_boxA.SLDPRT")
+    assert out["place"] == printing.TEMP
+    assert (
+        out["fallback"]
+        == "the model's folder could not be looked at (The cloud file provider is not running)"
+    )
+    assert os.listdir(models / "cloud" / "job") == ["o02_boxA.SLDPRT"]
+
+
 @pytest.mark.skipif(os.name == "nt" or os.geteuid() == 0, reason="a folder's mode, for an account not root")
 def test_a_read_only_folder_never_takes_a_print(models):
     (models / "locked").mkdir()
@@ -815,6 +896,82 @@ def test_a_read_only_folder_never_takes_a_print(models):
         assert os.listdir(models / "locked") == ["o02_boxA.SLDPRT"]
     finally:
         os.chmod(models / "locked", 0o755)
+
+
+def _write_protected() -> PermissionError:
+    """What Windows raises for a new file on a write-protected drive: a PermissionError whose
+    winerror is ERROR_WRITE_PROTECT (19)."""
+    exc = PermissionError(errno.EACCES, "The media is write protected")
+    exc.winerror = 19
+    return exc
+
+
+@pytest.mark.parametrize(
+    ("refusal", "why"),
+    [
+        (lambda: PermissionError(errno.EACCES, "Access is denied"), printing.DENIED),  # a folder's ACL
+        (_write_protected, printing.READ_ONLY),
+        (lambda: OSError(errno.EROFS, "Read-only file system"), printing.READ_ONLY),  # a read-only mount
+    ],
+)
+def test_a_folder_that_refuses_the_new_file_gets_nothing_and_says_why(models, monkeypatch, refusal, why):
+    """The folder looks writable, as a Windows ACL that denies adding a file, a write-
+    protected drive or a read-only mount do to the path's text and lstat, and refuses the
+    file where it is created: the print goes to the temporary folder, saying which it was,
+    and nothing is left next to the model."""
+    from solidseas import export
+
+    real = export._create
+
+    def create(path):
+        if os.path.dirname(os.path.abspath(path)) == str(models):
+            raise refusal()
+        return real(path)
+
+    monkeypatch.setattr(export, "_create", create)
+    before = _files(models)
+    out = _export(models, "o02_boxA.SLDPRT")
+    assert out["place"] == printing.TEMP and out["fallback"] == why
+    assert _files(models) == before
+
+
+def test_a_folder_that_takes_the_part_but_refuses_its_name_keeps_nothing(models, monkeypatch):
+    """A folder whose ACL lets a new file in but not be renamed: the part is written, the
+    rename (or, outside Windows, the link) that names it is refused, and the part is
+    removed again; the print goes to the temporary folder saying permission was denied."""
+    real_rename, real_link = os.rename, os.link
+
+    def refused(real):
+        def call(src, dst, *args, **kwargs):
+            if os.path.dirname(os.path.abspath(dst)) == str(models):
+                raise PermissionError(errno.EACCES, "Access is denied")
+            return real(src, dst, *args, **kwargs)
+
+        return call
+
+    monkeypatch.setattr(os, "rename", refused(real_rename))
+    monkeypatch.setattr(os, "link", refused(real_link))
+    before = _files(models)
+    out = _export(models, "o02_boxA.SLDPRT")
+    assert out["place"] == printing.TEMP and out["fallback"] == printing.DENIED
+    assert _files(models) == before
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows' read-only attribute of a folder")
+def test_a_folder_windows_marks_read_only_still_takes_a_print(models):
+    """Windows sets a folder's read-only attribute to keep its icon (Documents, Desktop)
+    and adds files to it all the same: such a folder takes the print."""
+    folder = models / "marked"
+    folder.mkdir()
+    shutil.copy2(models / "o02_boxA.SLDPRT", folder / "o02_boxA.SLDPRT")
+    os.chmod(folder, stat.S_IREAD)  # FILE_ATTRIBUTE_READONLY on the folder
+    try:
+        assert os.stat(folder).st_file_attributes & stat.FILE_ATTRIBUTE_READONLY
+        assert printing.folder_problem(str(folder), str(models)) is None
+        out = _export(models, "marked/o02_boxA.SLDPRT")
+        assert out["place"] == printing.MODEL and out["file"] == str(folder / f"o02_boxA {TODAY}.3mf")
+    finally:
+        os.chmod(folder, stat.S_IREAD | stat.S_IWRITE)
 
 
 def test_nothing_next_to_a_model_is_ever_removed(models, monkeypatch):
