@@ -1990,10 +1990,13 @@ def cmd_serve(args: argparse.Namespace) -> int:
         default_workers,
         ensure_identity_key,
         ensure_token_file,
+        parse_identity_address,
         run_until_signalled,
     )
 
     check_bind(args.bind, allow_remote=args.allow_remote, allowed_hosts=tuple(args.allowed_host or ()))
+    for text in args.identity_address or ():
+        parse_identity_address(text)  # refused before the token file is touched
     roots = _root_args(args.root, "project", "--root") + _root_args(args.library, "library", "--library")
     if not roots:
         raise InvalidArgumentError("serve needs at least one --root ID=DIR", detail={"parameter": "root"})
@@ -2015,6 +2018,7 @@ def cmd_serve(args: argparse.Namespace) -> int:
         catalog_rescan_s=args.catalog_rescan,
         formats=args.formats,
         identity_key=identity_key,
+        identity_addresses=tuple(args.identity_address or ()),
     )
     server = Server(config)  # binds: a port in use stops here (address_unavailable)
     configure_logging()
@@ -3913,6 +3917,13 @@ def build_parser() -> argparse.ArgumentParser:
         action="append",
         metavar="NAME",
         help="a Host header name clients use for a remote bind; repeat for more",
+    )
+    sp.add_argument(
+        "--identity-address",
+        action="append",
+        metavar="ADDRESS:PORT",
+        help="an address clients call that forwards to the service, such as a published container port: "
+        "/v1/identity proves for it when the Host header names it; repeat for more",
     )
     sp.add_argument(
         "--workers", type=_positive_int, default=None, help="worker processes (default: up to 4, one per CPU)"

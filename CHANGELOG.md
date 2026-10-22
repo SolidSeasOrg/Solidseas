@@ -49,6 +49,11 @@ while the project takes shape.
 
 ### Added
 
+- **The REST service behind a port mapping.** `solidseas serve
+  --identity-address ADDRESS:PORT` lets clients behind a published container
+  port or a proxy check the service with /v1/identity before they send their
+  token.
+
 - **Drawings of turned (lathe) parts.** Turned (lathe) is a manufacturing type
   for drawings, and the wizard suggests it when the part turns about one axis.
   The drawing shows the profile with the larger end on the left; each diameter

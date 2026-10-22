@@ -19,7 +19,8 @@ meets them:
    one closed because its head did not arrive in time is logged.
 3. **Host, Origin and Fetch Metadata** (``loopback-browser-dashboard``),
    before routing: the ``Host`` header must name the bound address or an
-   allowed host, with the bound port, which stops DNS rebinding. Any
+   allowed host, with the bound port, or an ``identity_addresses`` entry,
+   which stops DNS rebinding. Any
    ``Origin`` header, and a ``Sec-Fetch-Site`` other than ``none`` or
    ``same-origin``, is a browser request from another site and is refused:
    there is no CORS, and no response carries ``Access-Control-Allow-Origin``.
@@ -30,7 +31,9 @@ meets them:
    ``max_auth_failures`` failures in a minute from one address answer 429.
    ``/v1/identity`` lets a client check, before it sends its token, that the
    service holds that token: it answers the client's nonce with an HMAC under
-   the token, bound to the address and port the connection reached.
+   the token, bound to the address and port the connection reached, or to the
+   ``identity_addresses`` entry the ``Host`` header names (a published container
+   port, whose connections the service sees forwarded).
 6. **Query.** One allowlist per route (:mod:`.query`).
 7. **Paths.** A request names a root by id and a path relative to it; the path
    is checked as text and found in the root's folder index (:mod:`.paths`),
@@ -126,7 +129,7 @@ from ..roots import Roots
 from ..workers import WorkerPool
 from .paths import Located, check_path_text, locate
 from .query import Param, ServiceError, parse_query, requested_location
-from .tokens import IDENTITY_SCHEME, TokenChecker, proof_address
+from .tokens import IDENTITY_SCHEME, TokenChecker, parse_identity_address, proof_address
 
 DEFAULT_PORT = 8765
 MAX_URL = 4096
@@ -238,6 +241,10 @@ class ServeConfig:
     # SERVE_LIMITS, or None for SERVE_LIMITS.
     limits: Any = None
     identity_key: bytes | None = None
+    # Addresses clients call that are not the one the service listens on (a published
+    # container port, a proxy), as "ADDRESS:PORT": a request whose Host header names one
+    # gets its /v1/identity proof for that address and port (docs/API.md 8.16).
+    identity_addresses: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if not isinstance(self.roots, Roots) or not len(self.roots):
@@ -252,6 +259,11 @@ class ServeConfig:
         if isinstance(self.port, bool) or not isinstance(self.port, int) or not 0 <= self.port <= 65535:
             raise InvalidArgumentError("a port is 0 to 65535", detail={"parameter": "port"})
         self.allowed_hosts = tuple(self.allowed_hosts)
+        if isinstance(self.identity_addresses, str):
+            self.identity_addresses = (self.identity_addresses,)
+        self.identity_addresses = tuple(self.identity_addresses)
+        for text in self.identity_addresses:
+            parse_identity_address(text)  # refused here, before anything binds
         self.deadlines = {**DEFAULT_DEADLINES, **dict(self.deadlines)}
         self.response_caps = {**DEFAULT_CAPS, **dict(self.response_caps)}
         for name in (
@@ -589,6 +601,7 @@ class Server:
                 f"cannot listen on {bind_host} port {config.port}: {exc.strerror or exc}"
             ) from None
         self.host, self.port = self.httpd.server_address[:2]
+        self._identity_addresses = {parse_identity_address(t) for t in config.identity_addresses}
         self._allowed = self._host_allowlist()
 
     # ------------------------------------------------------------------ life cycle
@@ -848,17 +861,38 @@ class Server:
                 out.add((parts.hostname, parts.port or self.port))
         return out
 
-    def host_allowed(self, header: str | None) -> bool:
+    @staticmethod
+    def _host_and_port(header: str | None) -> tuple[str, int] | None:
+        """The name and port a ``Host`` header gives (port 80 when it gives none), or None
+        for a header that is not one."""
         if not header or len(header) > 255 or any(c in header for c in "/\\@?#") or not header.isprintable():
-            return False
+            return None
         try:
             parts = urlsplit("//" + header)
             port = parts.port
         except ValueError:  # "[::1" and other junk
-            return False
+            return None
         if not parts.hostname:
+            return None
+        return parts.hostname, port if port is not None else 80
+
+    def host_allowed(self, header: str | None) -> bool:
+        named = self._host_and_port(header)
+        if named is None:
             return False
-        return (parts.hostname, port if port is not None else 80) in self._allowed
+        return named in self._allowed or self.identity_address_for(header) is not None
+
+    def identity_address_for(self, header: str | None) -> tuple[str, int] | None:
+        """The ``--identity-address`` a ``Host`` header names, as the proof covers it, or
+        None: then the proof covers the address and port the connection reached."""
+        named = self._host_and_port(header)
+        if named is None or not self._identity_addresses:
+            return None
+        try:
+            address = proof_address(named[0])
+        except ValueError:  # a name, not an address
+            return None
+        return (address, named[1]) if (address, named[1]) in self._identity_addresses else None
 
     def too_many_failures(self, peer: str) -> bool:
         with self._fail_lock:
@@ -1693,9 +1727,14 @@ class _Handler(BaseHTTPRequestHandler):
         if route.kind == "identity":
             # The address and port this connection reached, as this process sees them: a
             # program that forwards the question from another address or port gets a proof
-            # for this one, which its client will not accept (8.16).
+            # for this one, which its client will not accept (8.16). Behind a port mapping
+            # the service sees the forwarded connection, so a Host header naming one of the
+            # --identity-address entries gets its proof for that address instead.
             host, port = self.connection.getsockname()[:2]
             address = proof_address(host)
+            named = app.identity_address_for(self.headers.get("Host"))
+            if named is not None:
+                address, port = named
             proof = app.tokens.identity(q["client"], q["nonce"], address, port)
             data = model.build_identity(
                 scheme=IDENTITY_SCHEME,

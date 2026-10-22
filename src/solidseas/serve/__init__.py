@@ -31,6 +31,7 @@ from .tokens import (
     identity_proof,
     load_identity_key,
     load_tokens,
+    parse_identity_address,
     proof_address,
 )
 
@@ -53,6 +54,7 @@ __all__ = [
     "identity_proof",
     "load_identity_key",
     "load_tokens",
+    "parse_identity_address",
     "proof_address",
     "run_until_signalled",
 ]

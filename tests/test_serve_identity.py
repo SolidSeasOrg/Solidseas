@@ -35,7 +35,7 @@ from jsonschema_subset import validate
 from serve_support import OTHER_TOKEN, TOKEN, Running
 from solidseas import model
 from solidseas.errors import IdentityKeyError
-from solidseas.serve import IDENTITY_SCHEME, identity_proof, proof_address
+from solidseas.serve import IDENTITY_SCHEME, identity_proof, parse_identity_address, proof_address
 from solidseas.serve.tokens import TokenChecker
 from support import ASSEMBLY, fixture_path
 
@@ -450,6 +450,207 @@ def test_a_forwarder_on_another_address_of_the_same_port_is_refused(srv):
         assert len(impostor.seen) == 1 and impostor.tokens_received == []
     finally:
         impostor.close()
+
+
+# --------------------------------------------------------------------------- port mappings (a8d)
+class PortMapping:
+    """A TCP relay standing for a published container port or a proxy: each connection to
+    its own loopback port is joined, byte for byte, to one it opens to ``target``, so the
+    service sees the relay's connection, not the address the client called. Its port is
+    taken when it is made, so a service can be told about it before it starts."""
+
+    def __init__(self) -> None:
+        self.sock = socket.create_server(("127.0.0.1", 0))
+        self.port = self.sock.getsockname()[1]
+        self.target: int | None = None
+        threading.Thread(target=self._accept, daemon=True).start()
+
+    def _accept(self) -> None:
+        while True:
+            try:
+                client, _ = self.sock.accept()
+            except OSError:
+                return
+            try:
+                upstream = socket.create_connection(("127.0.0.1", self.target), timeout=10)
+            except (OSError, TypeError):
+                client.close()
+                continue
+            for src, dst in ((client, upstream), (upstream, client)):
+                threading.Thread(target=self._pipe, args=(src, dst), daemon=True).start()
+
+    @staticmethod
+    def _pipe(src: socket.socket, dst: socket.socket) -> None:
+        try:
+            while chunk := src.recv(65536):
+                dst.sendall(chunk)
+        except OSError:
+            pass
+        finally:
+            for s in (src, dst):
+                try:
+                    s.shutdown(socket.SHUT_RDWR)
+                except OSError:
+                    pass
+                s.close()
+
+    def close(self) -> None:
+        self.sock.close()
+
+
+@pytest.mark.parametrize(
+    ("text", "covered"),
+    [
+        ("127.0.0.1:8765", ("127.0.0.1", 8765)),
+        ("[::1]:9000", ("::1", 9000)),
+        ("[0:0:0:0:0:0:0:1]:9000", ("::1", 9000)),
+        ("[::ffff:127.0.0.1]:80", ("127.0.0.1", 80)),
+        ("198.51.100.7:65535", ("198.51.100.7", 65535)),
+    ],
+)
+def test_an_identity_address_is_read_as_the_proof_covers_it(text, covered):
+    assert parse_identity_address(text) == covered
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "",
+        "localhost:8765",
+        "127.0.0.1",
+        "127.0.0.1:0",
+        "127.0.0.1:08765",
+        "127.0.0.1:65536",
+        "0.0.0.0:8765",
+        "[::]:8765",
+        "224.0.0.1:8765",
+        "[fe80::1%eth0]:8765",
+        "http://127.0.0.1:8765",
+        "127.0.0.1:8765/x",
+        "user@127.0.0.1:8765",
+        " 127.0.0.1:8765",
+        "::1:8765",
+    ],
+)
+def test_an_identity_address_that_is_not_one_is_refused(text):
+    from solidseas.errors import InvalidArgumentError
+
+    with pytest.raises(InvalidArgumentError) as caught:
+        parse_identity_address(text)
+    assert caught.value.detail == {"parameter": "identity_address"}
+
+
+def test_an_identity_address_lets_a_client_behind_a_port_mapping_check_the_service(tmp_path):
+    """Behind a published port the service sees the mapping's connection, so its proof
+    covers the wrong address and a checking client fails closed (the control, with the
+    mapping's address allowed in the Host header so that only the proof differs). Named
+    with ``identity_addresses``, the address the client called is the one proved, and
+    the documented client checks, then fetches, through the mapping."""
+    root = _root(tmp_path / "jobs")
+    client = _documented_python()
+    mapping = PortMapping()
+    named = f"127.0.0.1:{mapping.port}"
+    try:
+        plain = Running({"jobs": root}, tokens=TOKENS, workers=1, allowed_hosts=(named,))
+        mapping.target = plain.port
+        try:
+            with pytest.raises(client["NotTheService"]):
+                _fetch_document(client, "127.0.0.1", mapping.port)
+            assert plain.get("version").status == 200  # control: the service itself answers
+        finally:
+            plain.close()
+        running = Running({"jobs": root}, tokens=TOKENS, workers=1, identity_addresses=(named,))
+        mapping.target = running.port
+        try:
+            assert _fetch_document(client, "127.0.0.1", mapping.port)["data"]["doc_type"] == "part"
+            assert _fetch_document(client, "127.0.0.1", running.port)["data"]["doc_type"] == "part"  # direct
+        finally:
+            running.close()
+    finally:
+        mapping.close()
+
+
+def test_the_host_header_chooses_the_covered_address_only_among_those_named(tmp_path):
+    """The proof covers a named address only for a request whose Host header names it,
+    and nothing else: a name, another port or an address not named gets the service's
+    own address (or the Host check's refusal), and the answer says which it covered."""
+    named_port = 40000 + secrets.randbelow(20000)
+    running = Running(
+        {"jobs": _root(tmp_path / "jobs")},
+        tokens=TOKENS,
+        workers=1,
+        identity_addresses=(f"127.0.0.1:{named_port}", f"[::1]:{named_port}"),
+    )
+    nonce = secrets.token_urlsafe(32)
+    query = f"/v1/identity?client=erp&nonce={nonce}"
+    try:
+        for host, status, covered in (
+            (f"127.0.0.1:{named_port}", 200, ("127.0.0.1", named_port)),
+            (f"[::1]:{named_port}", 200, ("::1", named_port)),
+            (f"[::ffff:127.0.0.1]:{named_port}", 200, ("127.0.0.1", named_port)),
+            (f"127.0.0.1:{running.port}", 200, ("127.0.0.1", running.port)),
+            (f"localhost:{running.port}", 200, ("127.0.0.1", running.port)),
+            (f"localhost:{named_port}", 403, None),  # a name is never an identity address
+            (f"127.0.0.1:{named_port + 1}", 403, None),
+            (f"127.0.0.2:{named_port}", 403, None),
+        ):
+            r = running.request(query, token=None, headers={"Host": host})
+            assert r.status == status, host
+            if covered is not None:
+                data = r.json()["data"]
+                assert (data["address"], data["port"]) == covered, host
+                assert data["proof"] == _expected(TOKEN, "erp", nonce, *covered), host
+            else:
+                assert r.json()["error"]["code"] == "forbidden_host", host
+        named = {"Host": f"127.0.0.1:{named_port}"}
+        assert running.request("/v1/version", headers=named).status == 200  # the Host check accepts it
+    finally:
+        running.close()
+
+
+def test_a_relay_elsewhere_cannot_borrow_a_named_address(tmp_path):
+    """A program on another port that forwards each question with the Host header
+    rewritten to a named address gets a proof for that address, which a client that
+    called the program rejects: naming an address helps only whoever holds it."""
+    named_port = 40000 + secrets.randbelow(20000)
+    running = Running(
+        {"jobs": _root(tmp_path / "jobs")},
+        tokens=TOKENS,
+        workers=1,
+        identity_addresses=(f"127.0.0.1:{named_port}",),
+    )
+
+    def rewrite(path: str) -> bytes:
+        conn = http.client.HTTPConnection("127.0.0.1", running.port, timeout=10)
+        try:
+            conn.request("GET", path, headers={"Host": f"127.0.0.1:{named_port}"})
+            return conn.getresponse().read()
+        finally:
+            conn.close()
+
+    client = _documented_python()
+    impostor = Impostor(rewrite)
+    try:
+        with pytest.raises(client["NotTheService"]):
+            _fetch_document(client, "127.0.0.1", impostor.port)
+        assert len(impostor.seen) == 1 and impostor.tokens_received == []
+        relayed = _query(impostor.seen[0][0])
+        proof = rewrite(f"/v1/identity?client=erp&nonce={relayed['nonce']}")
+        assert json.loads(proof)["data"]["port"] == named_port  # the relay did get a named proof
+    finally:
+        impostor.close()
+        running.close()
+
+
+def test_the_cli_refuses_an_identity_address_before_anything_is_written(tmp_path, capsys):
+    from solidseas import cli
+
+    token_file = tmp_path / "tokens"
+    argv = ["serve", "--root", f"a={tmp_path}", "--port", "0", "--token-file", str(token_file)]
+    code = cli.main([*argv, "--identity-address", "localhost:8765", "--json"])
+    env = json.loads(capsys.readouterr().out)
+    assert code == 2 and env["error"]["code"] == "invalid_argument"
+    assert env["error"]["detail"] == {"parameter": "identity_address"} and not token_file.exists()
 
 
 def test_a_program_that_takes_the_port_of_a_stopped_service_gets_no_token(tmp_path):

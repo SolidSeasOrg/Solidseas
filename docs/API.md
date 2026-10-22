@@ -5572,7 +5572,8 @@ category, then path.
 
   `scheme` names how `proof` is computed (an open set: a later scheme would
   get a new name); `client` and `nonce` are the query's; `address` and `port`
-  are the service's side of the connection that asked.
+  are what the proof covers: the service's side of the connection that asked,
+  or the `--identity-address` its `Host` header named (8.16).
 - `roots` (`/v1/roots`): each configured root by its id, never by its folder:
 
   ```json
@@ -6117,7 +6118,7 @@ it.
 | `sldprt DESIGN` | `-o FILE` (or a folder that exists; default: the design's name with `.SLDPRT` in the current folder), `--allow-partial`, `--allow-source-dir`; never replaces a file, so no `--force` | `sldprt_written` (provisional) |
 | `list FOLDER` | `--formats solidworks\|all\|IDS` (default `solidworks`), `--recursive`, `--include properties,configurations`, `--preview none`, `meta` (default) or `inline`, `--max-depth N`, `--limit N`, `--max-examined N`, `--timeout SECONDS`, `--file-timeout SECONDS` (default 30), `--memory-mb N` (default 2048), `--in-process` | `listing` |
 | `batch FOLDER -o DIR` | `--no-recurse`, `--no-preview`, `--no-parasolid`, `--text`, `--configuration NAME`, `--allow-partial`, `--other-configurations` and `--include-hidden` (assemblies), `--max-mb N`, `--jobs N` (1 to 64, default 1), `--file-timeout SECONDS` (default 300), `--memory-mb N` (default 2048), `--in-process`, `--max-examined N`, `--force`, `--allow-source-dir` | `batch_summary` |
-| `serve` | `--root ID=DIR` (repeatable), `--library ID=DIR`, `--port N` (default 8765; 0 picks a free port), `--bind ADDRESS` (default 127.0.0.1), `--token-file PATH`, `--identity-key-file PATH`, `--workers N`, `--allow-remote`, `--allowed-host NAME`, `--catalog`, `--catalog-rescan SECONDS` (default 300), `--formats solidworks\|all\|IDS` (default `solidworks`) | `serve_started`, one compact line when it is ready; then it serves until stopped (section 8) |
+| `serve` | `--root ID=DIR` (repeatable), `--library ID=DIR`, `--port N` (default 8765; 0 picks a free port), `--bind ADDRESS` (default 127.0.0.1), `--token-file PATH`, `--identity-key-file PATH`, `--workers N`, `--allow-remote`, `--allowed-host NAME`, `--identity-address ADDRESS:PORT` (repeatable), `--catalog`, `--catalog-rescan SECONDS` (default 300), `--formats solidworks\|all\|IDS` (default `solidworks`) | `serve_started`, one compact line when it is ready; then it serves until stopped (section 8) |
 | `index FOLDER...` | `--root ID=DIR`, `--library DIR` or `ID=DIR` (each repeatable), `--catalog NAME`, `--db FILE` or `--in-project`, `--formats IDS`, `--hash all\|duplicates\|none`, `--no-previews`, `--part-number-property NAME`, `--workers N` (default 2), `--file-timeout SECONDS` (default 30), `--timeout SECONDS` | `catalog_scan` (provisional) |
 | `where-used FILE` | `--configuration NAME`, `--direct`, `--max-depth N` (default 32), `--catalog NAME`, `--db FILE` or `--in-project` | `where_used` (provisional) |
 | `search TEXT...` | `--sort relevance\|name\|modified`, `--limit N` (1 to 500, default 100), `--cursor C`, `--catalog NAME`, `--db FILE` or `--in-project` | `catalog_search` (provisional) |
@@ -6465,7 +6466,8 @@ provisional.
 ```text
 solidseas serve --root ID=DIR [--root ID=DIR ...] [--library ID=DIR ...] [--port 8765]
                 [--bind 127.0.0.1] [--token-file PATH] [--identity-key-file PATH] [--workers N]
-                [--allow-remote --allowed-host NAME ...] [--catalog [--catalog-rescan SECONDS]]
+                [--allow-remote --allowed-host NAME ...] [--identity-address ADDRESS:PORT ...]
+                [--catalog [--catalog-rescan SECONDS]]
                 [--json]
 ```
 
@@ -6616,8 +6618,8 @@ These checks run on every request before anything else, including the answer
 lower-case `get`) included:
 
 - `Host` must name the bound address with the bound port: `127.0.0.1:<port>`,
-  `localhost:<port>`, `[::1]:<port>` when bound there, or an `--allowed-host`
-  name. It is parsed with `urlsplit`; a missing, repeated or unparseable `Host`,
+  `localhost:<port>`, `[::1]:<port>` when bound there, an `--allowed-host`
+  name, or an `--identity-address` (8.16). It is parsed with `urlsplit`; a missing, repeated or unparseable `Host`,
   another name or another port answers 403 `forbidden_host`. This stops DNS
   rebinding, where a page's own host name is made to resolve to 127.0.0.1.
 - Any `Origin` header, and any `Sec-Fetch-Site` other than `none` or
@@ -7155,8 +7157,9 @@ WantedBy=multi-user.target
 
 **Docker.** A non-root user, a read-only filesystem, the roots mounted `:ro`,
 `--bind 0.0.0.0 --allow-remote --allowed-host solidseas` inside a private
-compose network, and no published port (or only `127.0.0.1:8765:8765`, through
-which a client's identity check fails, 8.16). Keep the token file and the
+compose network, and no published port (or only `127.0.0.1:8765:8765`, with
+`--identity-address 127.0.0.1:8765` so that a client's identity check passes
+through it, 8.16). Keep the token file and the
 identity key file in a volume the service's user owns; a token file mounted
 read-only needs its key file made beside it first, or `--identity-key-file` in
 a writable volume.
@@ -7232,7 +7235,18 @@ name, add the service's address to its `--allowed-host` names, so that a client
 that cannot see the peer address (Node's `fetch`) can call the address instead.
 Behind a port mapping (a published container port, a proxy) the service sees
 the forwarded connection, not the address the client called, so the check
-fails, and fails closed: run such clients inside the container network.
+fails, and fails closed. Either run such clients inside the container network,
+or name the address they call with `--identity-address ADDRESS:PORT`: an IP
+address and its port (`127.0.0.1:8765`, `[::1]:8765`; repeat for more). A
+question whose `Host` header names one is answered with a proof for that
+address and port, which is what a client that called it computes, and the Host
+check accepts it (8.4). Name only an address that the mapping holds for as long
+as the service runs, as Docker's published port is held while its container
+runs: whoever holds a named address while the service runs, and can reach the
+service, can forward a client's question and pass the check, which is exactly
+what the mapping does. A name never counts, and a program on another address or
+port that forwards a question with its `Host` header rewritten to a named
+address gets a proof that its own client rejects.
 
 The route needs no token, so it answers anyone: an unknown name gets a proof
 too, under a stand-in key derived from the service's identity key (8.3), which

@@ -32,12 +32,15 @@ comments.
   the address and port the connection reached, so a client can tell the real
   service from an impostor, or from a program that forwards its question to the
   real service from another address, before the token leaves it
-  (``docs/API.md`` 8.16). An unknown client name gets a proof no token matches,
-  under a stand-in key derived from the service's identity key, so it stays as
-  stable as a real name's proof, across restarts and edits of the token file
-  alike. Since anyone may ask, a proof lets guesses at a token be tested
-  offline: every token must come from :func:`new_token`
-  (``secrets.token_urlsafe(32)``), never from a person.
+  (``docs/API.md`` 8.16). Behind a port mapping, which the service sees as a
+  connection from elsewhere, ``--identity-address`` names the address clients
+  call (:func:`parse_identity_address`), and a request whose ``Host`` header
+  names it gets its proof for that address. An unknown client name gets a
+  proof no token matches, under a stand-in key derived from the service's
+  identity key, so it stays as stable as a real name's proof, across restarts
+  and edits of the token file alike. Since anyone may ask, a proof lets
+  guesses at a token be tested offline: every token must come from
+  :func:`new_token` (``secrets.token_urlsafe(32)``), never from a person.
 * **The identity key** is the service's own secret, kept in a file of its own
   beside the token file (:func:`default_identity_key_file`), created on the
   first start that finds none and checked on every start by the same rules as
@@ -59,8 +62,9 @@ import secrets
 import stat
 import sys
 from collections.abc import Mapping
+from urllib.parse import urlsplit
 
-from ..errors import IdentityKeyError, TokenFileError
+from ..errors import IdentityKeyError, InvalidArgumentError, TokenFileError
 
 TOKEN_NAME = re.compile(r"[a-z0-9_-]{1,32}\Z")
 TOKEN_TEXT = re.compile(r"[A-Za-z0-9_-]{32,128}\Z")
@@ -81,6 +85,8 @@ IDENTITY_KEY_HEADER = (
     "# Keep this file private and leave it as it is: it is not a client token.\n"
 )
 IDENTITY_KEY_SUFFIX = ".identity"
+# An identity address's port, as --port takes one: digits, no sign, no leading zero.
+_PORT_TEXT = re.compile(r":[1-9][0-9]{0,4}\Z")
 # Windows SIDs that may own a token file or its folder besides the user's own: SYSTEM and
 # Administrators. An allow entry may also name OWNER RIGHTS, which then means one of them.
 # Entries are compared as S-1-... text, after SDDL aliases (SY, BA, OW, and LS or NS for a
@@ -580,6 +586,32 @@ def proof_address(host: str) -> str:
     return str(addr)
 
 
+def parse_identity_address(text: str) -> tuple[str, int]:
+    """``ADDRESS:PORT`` (``127.0.0.1:8765``, ``[::1]:8765``) as ``--identity-address``
+    gives it: an address clients call that is not the one the service listens on, such
+    as a published container port. Returns the address as the proof covers it
+    (:func:`proof_address`) and the port. A host name, a missing port, an address no
+    client can call (``0.0.0.0``, ``::``, multicast) or a zone is refused with
+    :class:`~solidseas.errors.InvalidArgumentError`."""
+    bad = InvalidArgumentError(
+        "an identity address is an IP address and a port, as 127.0.0.1:8765 or [::1]:8765",
+        detail={"parameter": "identity_address"},
+    )
+    if not isinstance(text, str) or not 1 <= len(text) <= 64 or not text.isprintable():
+        raise bad
+    if any(c in text for c in "/\\@?#% ") or not _PORT_TEXT.search(text):
+        raise bad
+    try:
+        parts = urlsplit("//" + text)
+        host, port = parts.hostname, parts.port
+        address = ipaddress.ip_address(host or "")
+    except ValueError:
+        raise bad from None
+    if port is None or not 1 <= port <= 65535 or address.is_unspecified or address.is_multicast:
+        raise bad
+    return proof_address(str(address)), port
+
+
 class TokenChecker:
     """Checks an ``Authorization`` header against every configured token, and proves the
     service holds a client's token without sending it (:meth:`identity`). ``identity_key``
@@ -650,5 +682,6 @@ __all__ = [
     "load_identity_key",
     "load_tokens",
     "new_token",
+    "parse_identity_address",
     "proof_address",
 ]
