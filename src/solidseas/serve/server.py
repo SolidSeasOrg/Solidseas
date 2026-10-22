@@ -76,8 +76,9 @@ meets them:
     anything read from a file.
 
 The service never writes, renames or deletes anything under a root; its only
-write is its own token file, on first start, besides the catalog in the cache
-folder and the OCCT helper's temporary copies (item 8).
+writes are its own token file and identity key file, on the first start that
+finds none, besides the catalog in the cache folder and the OCCT helper's
+temporary copies (item 8).
 """
 
 import base64
@@ -200,9 +201,12 @@ def default_workers() -> int:
 @dataclass
 class ServeConfig:
     """What ``solidseas serve`` runs with. ``tokens`` maps each client's name to its
-    bearer token (:func:`.tokens.load_tokens`). The limits are per route kind:
-    ``deadlines`` in seconds (``document``, ``preview``, ``path_report``,
-    ``list_page``, ``list_file``) and ``response_caps`` in bytes."""
+    bearer token (:func:`.tokens.load_tokens`), and ``identity_key`` is the service's own
+    secret behind ``/v1/identity``'s answers for names without a token
+    (:func:`.tokens.ensure_identity_key`; without one they are keyed by the tokens, and
+    change when the token file does). The limits are per route kind: ``deadlines`` in
+    seconds (``document``, ``preview``, ``path_report``, ``list_page``, ``list_file``)
+    and ``response_caps`` in bytes."""
 
     roots: Roots
     tokens: Mapping[str, str]
@@ -233,6 +237,7 @@ class ServeConfig:
     # The bounds of every model-file read (provisional): a Limits, a mapping of changes to
     # SERVE_LIMITS, or None for SERVE_LIMITS.
     limits: Any = None
+    identity_key: bytes | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.roots, Roots) or not len(self.roots):
@@ -558,7 +563,7 @@ class Server:
             config.host, allow_remote=config.allow_remote, allowed_hosts=config.allowed_hosts
         )
         self.config = config
-        self.tokens = TokenChecker(config.tokens)
+        self.tokens = TokenChecker(config.tokens, identity_key=config.identity_key)
         self._states = [_RootState(r) for r in config.roots]
         self._by_id = {s.id: s for s in self._states}
         self._pool = pool

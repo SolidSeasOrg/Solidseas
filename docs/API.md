@@ -429,6 +429,7 @@ its bases, so existing `except` clauses catch exactly what they caught before.
 | `WorkerJobError` | `SolidSeasError` | the code of the error inside the worker process (3.13) |
 | `BindRefusedError` | `SolidSeasError` | `bind_refused`: `solidseas serve` refused a non-loopback address (8.2) |
 | `TokenFileError` | `SolidSeasError` | `token_file_refused`: the service's token file cannot be used (8.3) |
+| `IdentityKeyError` | `SolidSeasError` | `identity_key_refused`: the service's identity key file cannot be made or used (8.3) |
 | `AddressUnavailableError` | `SolidSeasError` | `address_unavailable`: the service could not listen on its port (8.1) |
 | `NotInCatalogError` | `SolidSeasError`, `LookupError` | `not_in_catalog`: the catalog holds no row for that file (3.18); provisional |
 | `CatalogIncompatibleError` | `SolidSeasError` | `catalog_incompatible`: not a catalog, written by a newer SolidSeas, or damaged (`detail["rule"]` says which, 3.18); provisional |
@@ -5159,7 +5160,7 @@ The codes are in section 3.5.
 | `forbidden_host`, `forbidden_origin` | 403 | | no |
 | `path_refused`, `link_refused`, `feature_disabled` | 403 | 3 | no |
 | `permission_denied` | 403 | 1 | no |
-| `output_refused`, `bind_refused`, `token_file_refused` | | 3 | no |
+| `output_refused`, `bind_refused`, `token_file_refused`, `identity_key_refused` | | 3 | no |
 | `address_unavailable` | | 1 | no |
 | `nothing_to_export`, `not_representable` | | 1 | no |
 | `not_found`, `configuration_not_found`, `stream_not_found`, `no_preview` | 404 | 1 | no |
@@ -6116,7 +6117,7 @@ it.
 | `sldprt DESIGN` | `-o FILE` (or a folder that exists; default: the design's name with `.SLDPRT` in the current folder), `--allow-partial`, `--allow-source-dir`; never replaces a file, so no `--force` | `sldprt_written` (provisional) |
 | `list FOLDER` | `--formats solidworks\|all\|IDS` (default `solidworks`), `--recursive`, `--include properties,configurations`, `--preview none`, `meta` (default) or `inline`, `--max-depth N`, `--limit N`, `--max-examined N`, `--timeout SECONDS`, `--file-timeout SECONDS` (default 30), `--memory-mb N` (default 2048), `--in-process` | `listing` |
 | `batch FOLDER -o DIR` | `--no-recurse`, `--no-preview`, `--no-parasolid`, `--text`, `--configuration NAME`, `--allow-partial`, `--other-configurations` and `--include-hidden` (assemblies), `--max-mb N`, `--jobs N` (1 to 64, default 1), `--file-timeout SECONDS` (default 300), `--memory-mb N` (default 2048), `--in-process`, `--max-examined N`, `--force`, `--allow-source-dir` | `batch_summary` |
-| `serve` | `--root ID=DIR` (repeatable), `--library ID=DIR`, `--port N` (default 8765; 0 picks a free port), `--bind ADDRESS` (default 127.0.0.1), `--token-file PATH`, `--workers N`, `--allow-remote`, `--allowed-host NAME`, `--catalog`, `--catalog-rescan SECONDS` (default 300), `--formats solidworks\|all\|IDS` (default `solidworks`) | `serve_started`, one compact line when it is ready; then it serves until stopped (section 8) |
+| `serve` | `--root ID=DIR` (repeatable), `--library ID=DIR`, `--port N` (default 8765; 0 picks a free port), `--bind ADDRESS` (default 127.0.0.1), `--token-file PATH`, `--identity-key-file PATH`, `--workers N`, `--allow-remote`, `--allowed-host NAME`, `--catalog`, `--catalog-rescan SECONDS` (default 300), `--formats solidworks\|all\|IDS` (default `solidworks`) | `serve_started`, one compact line when it is ready; then it serves until stopped (section 8) |
 | `index FOLDER...` | `--root ID=DIR`, `--library DIR` or `ID=DIR` (each repeatable), `--catalog NAME`, `--db FILE` or `--in-project`, `--formats IDS`, `--hash all\|duplicates\|none`, `--no-previews`, `--part-number-property NAME`, `--workers N` (default 2), `--file-timeout SECONDS` (default 30), `--timeout SECONDS` | `catalog_scan` (provisional) |
 | `where-used FILE` | `--configuration NAME`, `--direct`, `--max-depth N` (default 32), `--catalog NAME`, `--db FILE` or `--in-project` | `where_used` (provisional) |
 | `search TEXT...` | `--sort relevance\|name\|modified`, `--limit N` (1 to 500, default 100), `--cursor C`, `--catalog NAME`, `--db FILE` or `--in-project` | `catalog_search` (provisional) |
@@ -6390,7 +6391,7 @@ and a root that does not exist exits 1 (`not_found`).
 | 0 | Success | |
 | 1 | Failed: the document could not be read, something asked for is absent, the service could not listen, or an internal error | `permission_denied`, `address_unavailable`, `not_found`, `configuration_not_found`, `stream_not_found`, `no_preview`, `not_in_catalog`, `nothing_to_export`, `not_representable`, `placeholder_file`, `unknown_format`, `format_not_supported`, `damaged_file`, `limit_exceeded`, `file_too_large`, `locked`, `internal`, `worker_crashed`, `not_implemented`, `busy`, `root_unavailable`, `timeout`, `drawing_invalid`, `drawing_too_complex`, `model_not_found`, `version_not_found`, `version_unavailable` |
 | 2 | Usage: the arguments are wrong | `invalid_argument`, `unknown_parameter`, `duplicate_parameter` |
-| 3 | Refused by a safety rule | `path_refused`, `link_refused`, `feature_disabled`, `output_refused`, `bind_refused`, `token_file_refused`, `catalog_incompatible`, `drawing_released` |
+| 3 | Refused by a safety rule | `path_refused`, `link_refused`, `feature_disabled`, `output_refused`, `bind_refused`, `token_file_refused`, `identity_key_refused`, `catalog_incompatible`, `drawing_released` |
 | 4 | Partial: a folder listing or batch run finished, and at least one item failed (for a batch, also a folder that could not be read, a walk cut short by its limits, or an assembly's Parasolid that left out components); a reference resolution whose folder index a limit cut short; an incomplete path report; an incomplete bill of materials; an export that left out instances of an assembly; an assembly's Parasolid that left out components (`--allow-partial`); a STEP export that left bodies out (`--allow-partial`); a native part that left features out (sldprt with `--allow-partial`); a catalog index run in which a file could not be read, or that a limit or a cancel stopped; or a `drawing check` that found an error-level check (with `--strict`, a warning too) or a model that is not the drawing's | |
 | 130 | Interrupted | `interrupted` |
 
@@ -6463,7 +6464,7 @@ provisional.
 
 ```text
 solidseas serve --root ID=DIR [--root ID=DIR ...] [--library ID=DIR ...] [--port 8765]
-                [--bind 127.0.0.1] [--token-file PATH] [--workers N]
+                [--bind 127.0.0.1] [--token-file PATH] [--identity-key-file PATH] [--workers N]
                 [--allow-remote --allowed-host NAME ...] [--catalog [--catalog-rescan SECONDS]]
                 [--json]
 ```
@@ -6486,9 +6487,10 @@ solidseas serve --root ID=DIR [--root ID=DIR ...] [--library ID=DIR ...] [--port
   process with `os._exit`: exit 0, or 1 when a thread was left behind. A stuck
   read therefore never keeps the process alive (`python-stuck-thread-exit`).
 - Before it serves: exit 2 for bad arguments; exit 3 for a non-loopback `--bind`
-  without its settings (`bind_refused`, 8.2) or a token file that cannot be
+  without its settings (`bind_refused`, 8.2), a token file that cannot be
   created or read, or is unsafe or malformed (`token_file_refused`, 8.3; a
-  `--token-file` in a folder that does not exist is `folder_missing`);
+  `--token-file` in a folder that does not exist is `folder_missing`), or an
+  identity key file of which the same is true (`identity_key_refused`, 8.3);
   exit 1 for a root that does not exist, or a port that is in use or an address
   that is not this machine's (`address_unavailable`). A refused bind is decided
   before the token file is touched and before anything listens.
@@ -6575,6 +6577,19 @@ solidseas serve --root ID=DIR [--root ID=DIR ...] [--library ID=DIR ...] [--port
   delete a line to revoke that client alone. Tokens are read at start, so
   restart the service after editing the file. The access log names the client
   by its token's name, never by the token.
+- **The identity key file** sits beside the token file, under its name with
+  `.identity` added (`serve-tokens.identity`; `--identity-key-file` names
+  another). It holds the service's own secret behind `/v1/identity`'s answer
+  for a name the token file does not hold (8.16), and is not a client's token:
+  leave it as it is. The first start that finds none creates it with one key
+  from `secrets.token_urlsafe(32)`, readable by the current user alone exactly
+  as a new token file is, and every start checks it by the token file's rules.
+  A key file the service cannot create (in a folder only administrators may
+  change, as in 8.14), or one that is unreadable, unsafe or malformed (anything
+  but one line of 32 to 128 URL-safe characters besides `#` comments), refuses
+  the start with `identity_key_refused` (exit 3) and the same `detail.rule`
+  values. Deleting it makes the next start create a new key, which changes
+  every unknown name's proof once.
 - **Make every token with `secrets.token_urlsafe(32)`**, as the service makes
   the first one: `python -c "import secrets; print(secrets.token_urlsafe(32))"`
   or `solidseas.serve.tokens.new_token()`. Never write one by hand:
@@ -6983,10 +6998,10 @@ reach the path report.
 ### 8.13 What the service never does
 
 - Write, create, rename or delete anything under a root, or lock a file. Its
-  only write is its own token file, on first start, besides the catalog in the
-  cache folder with `--catalog` and, for an IGES or BREP file read through the
-  OCCT backend, the copy its helper reads in a temporary folder, removed after
-  the file.
+  only writes are its own token file and identity key file (8.3), each on the
+  first start that finds none, besides the catalog in the cache folder with
+  `--catalog` and, for an IGES or BREP file read through the OCCT backend, the
+  copy its helper reads in a temporary folder, removed after the file.
 - Follow a link, junction, mount point or hard link out of a root, or go
   through one: every component of a path is checked before the next is used.
   Nor does it read a cloud placeholder. With `--formats`, this holds for the
@@ -7039,7 +7054,8 @@ Register-ScheduledTask -TaskName "SolidSeas serve" -Action $action -Trigger $tri
 - The settings matter: by default Task Scheduler stops a task after 72 hours,
   and does not start one, or stops it, while a laptop runs on battery.
 - The token file is the default one, `%LOCALAPPDATA%\SolidSeas\serve-tokens`,
-  created on the first start; the user's own clients read it from there.
+  created on the first start with the identity key file beside it; the user's
+  own clients read the token from there.
 - With no window there is no output: the ready line and the log go nowhere.
   When it does not start, the task's last run result is the exit code (3: the
   token file or the bind was refused; 1: a root is missing or the port is in
@@ -7066,6 +7082,8 @@ icacls $dir /setowner "*S-1-5-32-544"
 icacls $dir /inheritance:r /grant:r "*S-1-5-18:(OI)(CI)F" "*S-1-5-32-544:(OI)(CI)F" "*S-1-5-19:(OI)(CI)R"
 $tokens = "$dir\serve-tokens"
 & $py -c "import secrets,sys; open(sys.argv[1], 'x').write('erp:' + secrets.token_urlsafe(32) + '\n')" $tokens
+# The service's identity key (8.3): LOCAL SERVICE may not add files to the folder, so make it now.
+& $py -c "import secrets,sys; open(sys.argv[1], 'x').write(secrets.token_urlsafe(32) + '\n')" "$tokens.identity"
 $action = New-ScheduledTaskAction -Execute $py -Argument "-m solidseas serve --root jobs=D:\Jobs --token-file $tokens"
 $trigger = New-ScheduledTaskTrigger -AtStartup
 $principal = New-ScheduledTaskPrincipal -UserId "NT AUTHORITY\LOCAL SERVICE" -LogonType ServiceAccount
@@ -7082,8 +7100,11 @@ SERVICE cannot read them (the task ends with exit code 1 and a
 `PermissionError` on `solidseas\__main__.py`).
 
 The folder is new, owned by Administrators, and its access list is set before
-the token file exists, so the file never grants anyone but SYSTEM,
-Administrators and LOCAL SERVICE, which the start-up check accepts (8.3). The
+the token file and the identity key file exist, so neither ever grants anyone
+but SYSTEM, Administrators and LOCAL SERVICE, which the start-up check accepts
+(8.3). LOCAL SERVICE may only read the folder, so it cannot make the identity
+key file itself: without the line that makes it, the task ends with exit code 3
+(`identity_key_refused`). The
 check verifies it on every start: a folder or file another account owns, or a
 folder another account could write to, refuses the start (`not_owner`,
 `folder_writable`). Add a line per client to the file, as an administrator,
@@ -7123,8 +7144,9 @@ RestartSec=5
 WantedBy=multi-user.target
 ```
 
-- The service creates its token file in its state folder on the first start,
-  with mode 0600; read the token from there as root to give it to clients.
+- The service creates its token file and its identity key file in its state
+  folder on the first start, both with mode 0600; read the token from there as
+  root to give it to clients.
 - `MemoryMax` is the workers times their 2 GiB cap plus 512 MiB (four workers
   here). `KillMode=control-group` ends the workers with the service.
 - Its log goes to the journal: `journalctl -u solidseas`.
@@ -7134,7 +7156,10 @@ WantedBy=multi-user.target
 **Docker.** A non-root user, a read-only filesystem, the roots mounted `:ro`,
 `--bind 0.0.0.0 --allow-remote --allowed-host solidseas` inside a private
 compose network, and no published port (or only `127.0.0.1:8765:8765`, through
-which a client's identity check fails, 8.16).
+which a client's identity check fails, 8.16). Keep the token file and the
+identity key file in a volume the service's user owns; a token file mounted
+read-only needs its key file made beside it first, or `--identity-key-file` in
+a writable volume.
 
 ### 8.15 Examples
 
@@ -7210,12 +7235,12 @@ the forwarded connection, not the address the client called, so the check
 fails, and fails closed: run such clients inside the container network.
 
 The route needs no token, so it answers anyone: an unknown name gets a proof
-too, under a stand-in key derived from all the configured tokens, which no
-token matches and no one without them can compute. Like a real name's proof,
-it stays the same across restarts for as long as the token file does, so the
-answer does not tell which names exist. (Once the file is edited, every
-unknown name's proof changes while a name whose line was kept keeps its own,
-so someone who asked before and after an edit can tell which names it kept.)
+too, under a stand-in key derived from the service's identity key (8.3), which
+no token matches and no one without that key can compute. Like a real name's
+proof, it stays the same across restarts and across edits of the token file,
+so the answer does not tell which names exist. An edit shows only what it
+changed: a name added or deleted, or a token replaced, changes that name's
+proof, so someone who asked about that name before and after can tell.
 It reads no document, its query is never logged, and it does not count toward
 the failure limit of 8.3. Because anyone may ask, a proof also lets anyone
 test guesses at a client's token offline, as fast as they can compute HMACs:

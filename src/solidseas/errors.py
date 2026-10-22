@@ -255,6 +255,14 @@ class TokenFileError(SolidSeasError):
     code = "token_file_refused"
 
 
+class IdentityKeyError(SolidSeasError):
+    """The service's identity key file (the secret behind ``/v1/identity``'s answers for
+    names the token file does not hold) cannot be created or used, so the service
+    refuses to start (``detail["rule"]`` says why, with the token file's rule names)."""
+
+    code = "identity_key_refused"
+
+
 # --------------------------------------------------------------------------- drawings (provisional)
 # The four codes of docs/DRAWINGS.md 14. Each class derives from the class the drawing code
 # raised before the codes existed, so an ``except`` clause written for that class still
@@ -527,6 +535,7 @@ __all__ = [
     "DrawingTooComplexError",
     "FileTooLargeError",
     "FormatNotSupportedError",
+    "IdentityKeyError",
     "InvalidArgumentError",
     "LinkRefusedError",
     "LockedFileError",

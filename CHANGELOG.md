@@ -8,6 +8,12 @@ while the project takes shape.
 
 ### Changed
 
+- **Stable identity answers from the REST service.** The service keeps an
+  identity key file beside its token file, so /v1/identity's answers for names
+  without a token no longer change when the token file is edited. It is created
+  on first start; a service whose folder it may not write to (the shared-machine
+  recipe in the API guide) needs an administrator to create it once.
+
 - **The REST service reads only what it was started for.** `serve --formats` now
   refuses a file whose content is a format it was not started with, whatever its
   name says, and reads model files within its own bounds (10 million triangles,

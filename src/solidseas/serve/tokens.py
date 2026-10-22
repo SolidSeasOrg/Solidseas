@@ -33,10 +33,17 @@ comments.
   service from an impostor, or from a program that forwards its question to the
   real service from another address, before the token leaves it
   (``docs/API.md`` 8.16). An unknown client name gets a proof no token matches,
-  under a stand-in key derived from all the tokens, so it stays as stable as a
-  real name's proof. Since anyone may ask, a proof lets guesses at a token be
-  tested offline: every token must come from :func:`new_token`
+  under a stand-in key derived from the service's identity key, so it stays as
+  stable as a real name's proof, across restarts and edits of the token file
+  alike. Since anyone may ask, a proof lets guesses at a token be tested
+  offline: every token must come from :func:`new_token`
   (``secrets.token_urlsafe(32)``), never from a person.
+* **The identity key** is the service's own secret, kept in a file of its own
+  beside the token file (:func:`default_identity_key_file`), created on the
+  first start that finds none and checked on every start by the same rules as
+  the token file (:class:`~solidseas.errors.IdentityKeyError`, exit 3). Nobody
+  edits it, so the stand-in proofs it keys do not change when tokens are added
+  or revoked.
 
 The default file is ``%LOCALAPPDATA%\\SolidSeas\\serve-tokens`` on Windows and
 ``$XDG_CONFIG_HOME/solidseas/serve-tokens`` (``~/.config/solidseas/serve-tokens``)
@@ -53,7 +60,7 @@ import stat
 import sys
 from collections.abc import Mapping
 
-from ..errors import TokenFileError
+from ..errors import IdentityKeyError, TokenFileError
 
 TOKEN_NAME = re.compile(r"[a-z0-9_-]{1,32}\Z")
 TOKEN_TEXT = re.compile(r"[A-Za-z0-9_-]{32,128}\Z")
@@ -64,10 +71,16 @@ _UNKNOWN_LABEL = b"solidseas-identity-unknown-v1"
 NONCE_TEXT = re.compile(r"[A-Za-z0-9_-]{32,128}\Z")
 MAX_TOKEN_FILE = 64 << 10
 MAX_TOKENS = 256
+MAX_IDENTITY_KEY_FILE = 4 << 10
 HEADER = (
     "# SolidSeas service tokens: one name:token line per client. Keep this file private.\n"
     "# Make each token with secrets.token_urlsafe(32), never by hand (docs/API.md 8.3).\n"
 )
+IDENTITY_KEY_HEADER = (
+    "# SolidSeas service identity key: the service's own secret for /v1/identity (docs/API.md 8.16).\n"
+    "# Keep this file private and leave it as it is: it is not a client token.\n"
+)
+IDENTITY_KEY_SUFFIX = ".identity"
 # Windows SIDs that may own a token file or its folder besides the user's own: SYSTEM and
 # Administrators. An allow entry may also name OWNER RIGHTS, which then means one of them.
 # Entries are compared as S-1-... text, after SDDL aliases (SY, BA, OW, and LS or NS for a
@@ -125,8 +138,9 @@ def sddl_mask(text: str) -> int | None:
     return mask
 
 
-def _refuse(rule: str, message: str) -> TokenFileError:
-    return TokenFileError(message, detail={"rule": rule})
+def _refuse(rule: str, message: str, error: type = TokenFileError) -> TokenFileError | IdentityKeyError:
+    """A refusal of the token file (or, with ``error``, of the identity key file)."""
+    return error(message, detail={"rule": rule})
 
 
 def default_token_file() -> str:
@@ -320,33 +334,35 @@ if sys.platform == "win32":
         finally:
             _k32.LocalFree(ctypes.cast(psid, wintypes.HLOCAL))
 
-    def _owner_and_entries(sddl: str, what: str) -> tuple[str | None, list[tuple[str, str, str, str]]]:
+    def _owner_and_entries(
+        sddl: str, what: str, error: type = TokenFileError
+    ) -> tuple[str | None, list[tuple[str, str, str, str]]]:
         if "D:" not in sddl or "D:NO_ACCESS_CONTROL" in sddl:
-            raise _refuse("shared_access", f"the {what} has no access list, so anyone can use it")
+            raise _refuse("shared_access", f"the {what} has no access list, so anyone can use it", error)
         owner = _OWNER.match(sddl)
         entries = _ACE.findall(sddl.split("D:", 1)[1].split("S:", 1)[0])
         return (canonical_sid(owner.group(1)) if owner else None), entries
 
-    def _check_private(path: str) -> None:
+    def _check_private(path: str, what: str = "token file", error: type = TokenFileError) -> None:
         me = canonical_sid(current_user_sid())
         trusted = _TRUSTED_OWNERS | {me}
-        owner, entries = _owner_and_entries(security_descriptor(path), "token file")
+        owner, entries = _owner_and_entries(security_descriptor(path), what, error)
         # An owner can always rewrite the access list, whatever it says now, and an OWNER
         # RIGHTS entry grants that owner: both are only as safe as the owner is.
         if owner is None or owner not in trusted:
-            raise _refuse("not_owner", "the token file belongs to another account")
+            raise _refuse("not_owner", f"the {what} belongs to another account", error)
         for kind, _flags, _rights, text in entries:
             if kind not in ("A", "OA", "XA", "ZA"):
                 continue
             sid = canonical_sid(text)  # an entry Windows cannot read as a SID fails closed
             if sid is None or (sid not in _TRUSTED_SIDS and sid != me):
-                raise _refuse("shared_access", "another account can read the token file")
+                raise _refuse("shared_access", f"another account can read the {what}", error)
         # The folder: whoever may add to it, delete from it or re-permission it can swap the
         # file for one of their own while the service is stopped.
         folder = os.path.dirname(os.path.abspath(path))
-        owner, entries = _owner_and_entries(security_descriptor(folder), "token file's folder")
+        owner, entries = _owner_and_entries(security_descriptor(folder), f"{what}'s folder", error)
         if owner is None or owner not in trusted:
-            raise _refuse("not_owner", "the token file's folder belongs to another account")
+            raise _refuse("not_owner", f"the {what}'s folder belongs to another account", error)
         for kind, flags, rights, text in entries:
             if kind not in ("A", "OA", "XA", "ZA") or "IO" in flags.upper():
                 continue  # an inherit-only entry grants nothing on the folder itself
@@ -356,7 +372,7 @@ if sys.platform == "win32":
             mask = sddl_mask(rights)
             if sid is None or mask is None or mask & _FOLDER_WRITE:
                 raise _refuse(
-                    "folder_writable", "another account can replace files in the token file's folder"
+                    "folder_writable", f"another account can replace files in the {what}'s folder", error
                 )
 
 else:  # pragma: no cover - exercised on Linux and macOS
@@ -369,19 +385,21 @@ else:  # pragma: no cover - exercised on Linux and macOS
         with open(fd, "wb", closefd=True) as fh:
             fh.write(data)
 
-    def _check_private(path: str) -> None:
+    def _check_private(path: str, what: str = "token file", error: type = TokenFileError) -> None:
         st = os.stat(path)
         if st.st_mode & 0o077:
-            raise _refuse("shared_access", "the token file's mode lets other accounts read it; use 0600")
+            raise _refuse("shared_access", f"the {what}'s mode lets other accounts read it; use 0600", error)
         if hasattr(os, "geteuid") and st.st_uid != os.geteuid():
-            raise _refuse("not_owner", "the token file belongs to another account")
+            raise _refuse("not_owner", f"the {what} belongs to another account", error)
         folder = os.stat(os.path.dirname(os.path.abspath(path)))
         if hasattr(os, "geteuid") and folder.st_uid not in (os.geteuid(), 0):
-            raise _refuse("not_owner", "the token file's folder belongs to another account")
+            raise _refuse("not_owner", f"the {what}'s folder belongs to another account", error)
         # group or other write lets another account rename the file away and put its own
         # there, unless the sticky bit keeps each file to its owner (as in /tmp)
         if folder.st_mode & 0o022 and not folder.st_mode & stat.S_ISVTX:
-            raise _refuse("folder_writable", "another account can replace files in the token file's folder")
+            raise _refuse(
+                "folder_writable", f"another account can replace files in the {what}'s folder", error
+            )
 
 
 # --------------------------------------------------------------------------- the file
@@ -464,6 +482,85 @@ def ensure_token_file(path: str | os.PathLike | None = None) -> tuple[str, dict[
     return path, load_tokens(path), created
 
 
+# --------------------------------------------------------------------------- the identity key
+def default_identity_key_file(token_file: str | os.PathLike) -> str:
+    """Where the service keeps its identity key unless ``--identity-key-file`` says
+    otherwise: beside the token file, under its name with ``.identity`` added."""
+    return os.fspath(token_file) + IDENTITY_KEY_SUFFIX
+
+
+def create_identity_key_file(path: str | os.PathLike) -> None:
+    """Create the identity key file with a new key, readable by the current user alone.
+    Raises ``FileExistsError`` when it exists (never overwritten)."""
+    _create_private(os.fspath(path), (IDENTITY_KEY_HEADER + new_token() + "\n").encode("ascii"))
+
+
+def load_identity_key(path: str | os.PathLike) -> bytes:
+    """The key in the identity key file, after the checks the token file gets (only the
+    service's account, SYSTEM and Administrators may read it or own it and its folder).
+    Raises :class:`~solidseas.errors.IdentityKeyError` with ``detail["rule"]``: ``missing``,
+    ``unreadable``, ``shared_access``, ``not_owner``, ``folder_writable``, ``too_large``,
+    ``malformed`` (anything but one line of 32 to 128 URL-safe characters besides the
+    comments) or ``empty``."""
+    path = os.fspath(path)
+
+    def refuse(rule: str, message: str) -> IdentityKeyError:
+        return _refuse(rule, message, IdentityKeyError)
+
+    try:
+        st = os.stat(path)
+    except FileNotFoundError:
+        raise refuse("missing", "the identity key file does not exist") from None
+    except OSError:
+        raise refuse("unreadable", "the identity key file cannot be read") from None
+    if not stat.S_ISREG(st.st_mode):
+        raise refuse("unreadable", "the identity key file is not a regular file")
+    if st.st_size > MAX_IDENTITY_KEY_FILE:
+        raise refuse("too_large", "the identity key file is too large")
+    try:
+        _check_private(path, "identity key file", IdentityKeyError)
+        with open(path, "rb") as fh:
+            raw = fh.read(MAX_IDENTITY_KEY_FILE + 1)
+    except IdentityKeyError:
+        raise
+    except OSError:
+        raise refuse("unreadable", "the identity key file cannot be read") from None
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError:
+        raise refuse("malformed", "the identity key file is not UTF-8 text") from None
+    lines = [line.strip() for line in text.splitlines()]
+    keys = [line for line in lines if line and not line.startswith("#")]
+    if not keys:
+        raise refuse("empty", "the identity key file holds no key")
+    if len(keys) > 1 or not TOKEN_TEXT.match(keys[0]):
+        raise refuse("malformed", "the identity key file holds one line of 32 to 128 URL-safe characters")
+    return keys[0].encode("ascii")
+
+
+def ensure_identity_key(path: str | os.PathLike) -> tuple[str, bytes, bool]:
+    """The identity key file's path, its key, and whether it was created now: created on
+    the first start that finds none, never replaced, and checked on every start. Its
+    folder must exist (``folder_missing``); one the service may not write to, as in a
+    folder only administrators change, refuses the start until an administrator creates
+    the file (``unreadable``). Raises :class:`~solidseas.errors.IdentityKeyError`."""
+    path = os.path.abspath(os.fspath(path))
+    created = False
+    if not os.path.lexists(path):
+        if not os.path.isdir(os.path.dirname(path)):
+            message = "the identity key file's folder does not exist; create it first"
+            raise _refuse("folder_missing", message, IdentityKeyError)
+        try:
+            create_identity_key_file(path)
+            created = True
+        except FileExistsError:
+            pass  # another start created it a moment ago: check it like any other
+        except OSError:
+            message = "the identity key file could not be created there; create it as the token file was"
+            raise _refuse("unreadable", message, IdentityKeyError) from None
+    return path, load_identity_key(path), created
+
+
 def identity_proof(token: str, *, client: str, nonce: str, address: str, port: int) -> str:
     """The proof ``/v1/identity`` answers with (``docs/API.md`` 8.16): the lowercase hex
     HMAC-SHA256, keyed with the client's token, of five lines joined by ``\\n``: the
@@ -485,9 +582,11 @@ def proof_address(host: str) -> str:
 
 class TokenChecker:
     """Checks an ``Authorization`` header against every configured token, and proves the
-    service holds a client's token without sending it (:meth:`identity`)."""
+    service holds a client's token without sending it (:meth:`identity`). ``identity_key``
+    is the service's own secret (:func:`ensure_identity_key`), which keys the proofs for
+    names the token file does not hold."""
 
-    def __init__(self, tokens: Mapping[str, str]) -> None:
+    def __init__(self, tokens: Mapping[str, str], identity_key: bytes | None = None) -> None:
         items = [(n, t) for n, t in tokens.items()]
         if not items:
             raise _refuse("empty", "the service needs at least one token")
@@ -496,20 +595,27 @@ class TokenChecker:
                 raise _refuse("malformed", "a token name matches [a-z0-9_-]{1,32}")
             if not isinstance(token, str) or not TOKEN_TEXT.match(token):
                 raise _refuse("malformed", "a token is 32 to 128 URL-safe characters")
+        if identity_key is not None and (not isinstance(identity_key, bytes) or len(identity_key) < 32):
+            raise _refuse("malformed", "the identity key is at least 32 bytes", IdentityKeyError)
         self._tokens = [(n, t.encode("ascii")) for n, t in items]
         self._by_name = dict(items)
-        # Keys the stand-in proofs for unknown names. It comes from every configured token,
-        # so no one without them can compute it, and it lasts as long as the tokens do: an
-        # unknown name's proof is the same after a restart, as a real name's is. A key made
-        # new at each start would change it, which would tell the two apart.
-        material = "\n".join(f"{n}:{t}" for n, t in sorted(items)).encode("ascii")
-        self._unknown = hmac.new(material, _UNKNOWN_LABEL, hashlib.sha256).digest()
+        # Keys the stand-in proofs for unknown names: no one without it can compute them,
+        # and it lasts, so an unknown name's proof is the same after a restart, as a real
+        # name's is (a key made new at each start would change it, which would tell the two
+        # apart). The identity key outlasts edits of the token file too: a stand-in made
+        # from the tokens changed for every unknown name when one line was added or deleted
+        # while every kept name's proof stayed, so asking before and after an edit told
+        # which names were kept. Without an identity key (a caller of the Python API that
+        # gives none), it still comes from every configured token, as it did before.
+        if identity_key is None:
+            identity_key = "\n".join(f"{n}:{t}" for n, t in sorted(items)).encode("ascii")
+        self._unknown = hmac.new(identity_key, _UNKNOWN_LABEL, hashlib.sha256).digest()
 
     def identity(self, client: str, nonce: str, address: str, port: int) -> str:
         """The :func:`identity_proof` for ``client``'s token. An unknown name gets a proof
-        under a stand-in key derived from all the configured tokens, computed the same way
-        and as stable as a real name's proof while the tokens stay the same, so the answer
-        does not say which names exist."""
+        under a stand-in key derived from the service's identity key, computed the same way
+        and as stable as a real name's proof, so the answer does not say which names
+        exist."""
         stand_in = hmac.new(self._unknown, client.encode("ascii"), hashlib.sha256).hexdigest()
         token = self._by_name.get(client, stand_in)
         return identity_proof(token, client=client, nonce=nonce, address=address, port=port)
@@ -534,10 +640,14 @@ __all__ = [
     "NONCE_TEXT",
     "TOKEN_NAME",
     "TokenChecker",
+    "create_identity_key_file",
     "create_token_file",
+    "default_identity_key_file",
     "default_token_file",
+    "ensure_identity_key",
     "ensure_token_file",
     "identity_proof",
+    "load_identity_key",
     "load_tokens",
     "new_token",
     "proof_address",

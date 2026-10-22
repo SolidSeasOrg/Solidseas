@@ -1986,7 +1986,9 @@ def cmd_serve(args: argparse.Namespace) -> int:
         Server,
         check_bind,
         configure_logging,
+        default_identity_key_file,
         default_workers,
+        ensure_identity_key,
         ensure_token_file,
         run_until_signalled,
     )
@@ -1998,7 +2000,9 @@ def cmd_serve(args: argparse.Namespace) -> int:
     for r in roots:
         if not os.path.isdir(r.path):
             raise FileNotFoundError(2, f"root {r.id}: no such folder", r.path)
-    _path, tokens, created = ensure_token_file(args.token_file)
+    token_path, tokens, created = ensure_token_file(args.token_file)
+    key_file = args.identity_key_file or default_identity_key_file(token_path)
+    _key_path, identity_key, key_created = ensure_identity_key(key_file)
     config = ServeConfig(
         roots=Roots(roots),
         tokens=tokens,
@@ -2010,6 +2014,7 @@ def cmd_serve(args: argparse.Namespace) -> int:
         catalog=args.catalog,
         catalog_rescan_s=args.catalog_rescan,
         formats=args.formats,
+        identity_key=identity_key,
     )
     server = Server(config)  # binds: a port in use stops here (address_unavailable)
     configure_logging()
@@ -2027,6 +2032,8 @@ def cmd_serve(args: argparse.Namespace) -> int:
         _say(f"solidseas serve: listening on {data['url']} (roots: {', '.join(data['roots'])})")
         if created:
             _say("created the token file, holding one token named default (it is never printed)")
+        if key_created:
+            _say("created the identity key file, the service's own secret for /v1/identity (never printed)")
         _say("clients send Authorization: Bearer <token>, with a token from the token file")
     sys.stdout.flush()
     run_until_signalled(server)  # ends the process
@@ -3888,6 +3895,13 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="the bearer-token file (name:token lines), created on first start readable by you alone; "
         "its folder must exist",
+    )
+    sp.add_argument(
+        "--identity-key-file",
+        default=None,
+        metavar="PATH",
+        help="the service's own secret for /v1/identity (default: beside the token file, under its name "
+        "with .identity added), created on first start readable by you alone; its folder must exist",
     )
     sp.add_argument(
         "--allow-remote",

@@ -12,7 +12,7 @@ SOLIDWORKS (``open_model``, ``open_any``; provisional). ``docs/API.md``
 documents them.
 """
 
-__version__ = "0.2.445"
+__version__ = "0.2.446"
 
 from .errors import (  # noqa: E402  (__version__ comes first: submodules may import it)
     AddressUnavailableError,
@@ -25,6 +25,7 @@ from .errors import (  # noqa: E402  (__version__ comes first: submodules may im
     DrawingTooComplexError,
     FileTooLargeError,
     FormatNotSupportedError,
+    IdentityKeyError,
     InvalidArgumentError,
     LinkRefusedError,
     LockedFileError,
@@ -71,6 +72,7 @@ __all__ = [
     "FileInfo",
     "FileTooLargeError",
     "FormatNotSupportedError",
+    "IdentityKeyError",
     "InvalidArgumentError",
     "LinkRefusedError",
     "LockedFileError",

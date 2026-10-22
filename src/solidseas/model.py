@@ -237,6 +237,13 @@ ERROR_CODES: dict[str, ErrorCode] = _codes(
         "token_file_refused", None, 3, False, "The service's token file is missing, unsafe or malformed."
     ),
     ErrorCode(
+        "identity_key_refused",
+        None,
+        3,
+        False,
+        "The service's identity key file cannot be created, or is unsafe or malformed.",
+    ),
+    ErrorCode(
         "address_unavailable",
         None,
         1,

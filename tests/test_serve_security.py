@@ -39,8 +39,24 @@ from serve_support import (
 )
 from solidseas import Root, Roots, cli, open_document
 from solidseas import walk as walk_mod
-from solidseas.errors import BindRefusedError, LinkRefusedError, TokenFileError, WorkerJobError
-from solidseas.serve import ROUTES, ServeConfig, check_bind, ensure_token_file, load_tokens
+from solidseas.errors import (
+    BindRefusedError,
+    IdentityKeyError,
+    LinkRefusedError,
+    TokenFileError,
+    WorkerJobError,
+)
+from solidseas.serve import (
+    ROUTES,
+    ServeConfig,
+    check_bind,
+    create_identity_key_file,
+    default_identity_key_file,
+    ensure_identity_key,
+    ensure_token_file,
+    load_identity_key,
+    load_tokens,
+)
 from solidseas.serve import tokens as token_mod
 from solidseas.workers import WorkerPool
 from support import NATIVE, PARTS, fixture_path
@@ -457,6 +473,110 @@ def test_a_token_file_in_a_missing_folder_says_so(tmp_path, capsys):
     assert env["error"]["detail"] == {"rule": "folder_missing"} and not (tmp_path / "absent").exists()
     (tmp_path / "absent").mkdir()
     assert ensure_token_file(path)[2] is True  # control: with its folder there, it is created
+
+
+def test_the_identity_key_file_is_made_beside_the_token_file_for_the_user_alone(tmp_path):
+    folder = tmp_path / "state"
+    folder.mkdir(mode=0o700)
+    token_path, tokens, _created = ensure_token_file(folder / "tokens")
+    path = default_identity_key_file(token_path)
+    assert path == str(folder / "tokens.identity")
+    got, key, created = ensure_identity_key(path)
+    assert created and got == path and re.fullmatch(rb"[A-Za-z0-9_-]{43}", key)
+    assert ensure_identity_key(path) == (path, key, False)  # never replaced
+    assert key.decode() not in tokens.values()  # its own secret, not a client's token
+    if WINDOWS:
+        entry = re.fullmatch(r"D:P\(A;;FA;;;([^)]+)\)", token_mod.access_list(path))
+        assert entry and token_mod.canonical_sid(entry.group(1)) == token_mod.current_user_sid()
+    else:  # pragma: no cover - POSIX
+        assert os.stat(path).st_mode & 0o777 == 0o600
+
+
+@pytest.mark.parametrize(
+    ("content", "rule"),
+    [
+        (b"", "empty"),
+        (b"# only a comment\n", "empty"),
+        (b"A" * 43 + b"\n" + b"B" * 43 + b"\n", "malformed"),
+        (b"default:" + b"A" * 43 + b"\n", "malformed"),
+        (b"short\n", "malformed"),
+        (b"\xff" * 43 + b"\n", "malformed"),
+        (b"#" * (5 << 10), "too_large"),
+    ],
+    ids=["empty", "comment", "two_keys", "token_line", "short", "not_utf8", "too_large"],
+)
+def test_a_bad_identity_key_file_refuses_the_start(tmp_path, content, rule):
+    path = tmp_path / "tokens.identity"
+    token_mod._create_private(str(path), content)
+    with pytest.raises(IdentityKeyError) as caught:
+        load_identity_key(path)
+    assert caught.value.code == "identity_key_refused" and caught.value.detail == {"rule": rule}
+    with pytest.raises(IdentityKeyError) as caught:
+        load_identity_key(tmp_path / "missing")
+    assert caught.value.detail == {"rule": "missing"}
+    good = tmp_path / "good.identity"
+    token_mod._create_private(str(good), b"# a comment\n\n" + b"K" * 43 + b"\n")
+    assert load_identity_key(good) == b"K" * 43  # control: comments and blank lines are fine
+
+
+def test_an_identity_key_file_others_can_read_refuses_the_start(tmp_path, capsys):
+    folder = tmp_path / "state"
+    folder.mkdir(mode=0o700)
+    tokens = folder / "tokens"
+    ensure_token_file(tokens)
+    key = default_identity_key_file(tokens)
+    ensure_identity_key(key)
+    assert load_identity_key(key)  # control: the file as created is accepted
+    if WINDOWS:
+        done = subprocess.run(["icacls", key, "/grant", "*S-1-1-0:(R)"], capture_output=True)
+        assert done.returncode == 0
+    else:  # pragma: no cover - POSIX
+        os.chmod(key, 0o644)
+    with pytest.raises(IdentityKeyError) as caught:
+        load_identity_key(key)
+    assert caught.value.detail == {"rule": "shared_access"}
+    code, env = _cli(capsys, "serve", "--root", f"a={tmp_path}", "--port", "0", "--token-file", str(tokens))
+    assert code == 3 and env["error"]["code"] == "identity_key_refused"
+    assert env["error"]["detail"] == {"rule": "shared_access"}
+
+
+@pytest.mark.skipif(WINDOWS or not hasattr(os, "geteuid") or os.geteuid() == 0, reason="POSIX folder modes")
+def test_an_identity_key_the_service_cannot_create_refuses_the_start(tmp_path, capsys):  # pragma: no cover
+    """As in a folder only administrators may change (API 8.14): the token file is there, the
+    key file is not, and the service may not add it. It refuses the start rather than run
+    without one, and runs once an administrator has made it."""
+    folder = tmp_path / "state"
+    folder.mkdir(mode=0o700)
+    tokens = folder / "tokens"
+    ensure_token_file(tokens)
+    base = ["serve", "--root", f"a={tmp_path}", "--port", "0", "--token-file", str(tokens)]
+    os.chmod(folder, 0o500)
+    try:
+        code, env = _cli(capsys, *base)
+    finally:
+        os.chmod(folder, 0o700)
+    assert code == 3 and env["error"]["code"] == "identity_key_refused"
+    assert env["error"]["detail"] == {"rule": "unreadable"} and not (folder / "tokens.identity").exists()
+    create_identity_key_file(folder / "tokens.identity")  # as the administrator would
+    os.chmod(folder, 0o500)
+    try:
+        assert ensure_identity_key(folder / "tokens.identity")[2] is False  # control: now it is read
+    finally:
+        os.chmod(folder, 0o700)
+
+
+def test_an_identity_key_file_in_a_missing_folder_says_so(tmp_path, capsys):
+    folder = tmp_path / "state"
+    folder.mkdir(mode=0o700)
+    path = tmp_path / "absent" / "key"
+    code, env = _cli(
+        capsys,
+        "serve",
+        *("--root", f"a={tmp_path}", "--port", "0", "--token-file", str(folder / "tokens")),
+        *("--identity-key-file", str(path)),
+    )
+    assert code == 3 and env["error"]["code"] == "identity_key_refused"
+    assert env["error"]["detail"] == {"rule": "folder_missing"} and not (tmp_path / "absent").exists()
 
 
 def test_the_serve_help_says_the_log_goes_to_standard_error(capsys):

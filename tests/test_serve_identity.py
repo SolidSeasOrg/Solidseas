@@ -34,6 +34,7 @@ import pytest
 from jsonschema_subset import validate
 from serve_support import OTHER_TOKEN, TOKEN, Running
 from solidseas import model
+from solidseas.errors import IdentityKeyError
 from solidseas.serve import IDENTITY_SCHEME, identity_proof, proof_address
 from solidseas.serve.tokens import TokenChecker
 from support import ASSEMBLY, fixture_path
@@ -105,8 +106,9 @@ def test_an_unknown_name_gets_a_proof_that_looks_like_any_other(srv):
 def test_an_unknown_names_proof_survives_a_restart_as_a_real_names_does():
     """Two checkers over the same tokens stand for the service before and after a restart:
     a real name's proof is the same on both, so an unknown name's must be too, or asking
-    before and after would tell which names exist. The stand-in comes from the tokens,
-    so it changes with them, and it is not anything computable without them."""
+    before and after would tell which names exist. Without an identity key the stand-in
+    comes from the tokens, so it changes with them, and it is not anything computable
+    without them."""
     nonce, where = "n" * 43, ("127.0.0.1", 8765)
     before, after = TokenChecker(TOKENS), TokenChecker(dict(reversed(TOKENS.items())))
     assert before.identity("erp", nonce, *where) == after.identity("erp", nonce, *where)  # control
@@ -118,6 +120,139 @@ def test_an_unknown_names_proof_survives_a_restart_as_a_real_names_does():
     public = [hashlib.sha256(b"nobody").hexdigest(), "nobody", "", IDENTITY_SCHEME]
     assert unknown not in {_expected(key, "nobody", nonce, *where) for key in public}
     assert unknown not in {_expected(t, "nobody", nonce, *where) for t in TOKENS.values()}
+
+
+# --------------------------------------------------------------------------- the identity key (26a)
+IDENTITY_KEY = ("identity-key-" + "Kk7_" * 8).encode("ascii")
+
+
+def test_an_unknown_names_proof_survives_an_edit_of_the_token_file():
+    """With the service's identity key, a line added to the token file or deleted from it
+    changes no other name's proof, known or not: asking before and after an edit tells
+    nothing but what the edit itself added or removed. The control is the stand-in made
+    from the tokens, which changed for every unknown name while kept names kept theirs."""
+    nonce, where = "n" * 43, ("127.0.0.1", 8765)
+    before = TokenChecker(TOKENS, identity_key=IDENTITY_KEY)
+    edits = {
+        "added": TokenChecker({**TOKENS, "newcomer": "N" * 43}, identity_key=IDENTITY_KEY),
+        "deleted": TokenChecker({"erp": TOKEN}, identity_key=IDENTITY_KEY),
+        "reordered": TokenChecker(dict(reversed(TOKENS.items())), identity_key=IDENTITY_KEY),
+    }
+    unknown = before.identity("nobody", nonce, *where)
+    for label, after in edits.items():
+        assert after.identity("nobody", nonce, *where) == unknown, label
+        assert after.identity("erp", nonce, *where) == before.identity("erp", nonce, *where), label
+    # what the edit itself did does show: a deleted name gets a stand-in, an added one its token's proof
+    assert edits["deleted"].identity("store", nonce, *where) != before.identity("store", nonce, *where)
+    added = edits["added"].identity("newcomer", nonce, *where)
+    assert added == _expected("N" * 43, "newcomer", nonce, *where)
+    # control: keyed by the tokens alone, the same edit changes every unknown name's proof
+    plain_before, plain_after = TokenChecker(TOKENS), TokenChecker({**TOKENS, "newcomer": "N" * 43})
+    assert plain_after.identity("nobody", nonce, *where) != plain_before.identity("nobody", nonce, *where)
+    assert plain_after.identity("erp", nonce, *where) == plain_before.identity("erp", nonce, *where)
+    # the stand-in is the key's: another key gives another, and nothing public or a token computes it
+    other = TokenChecker(TOKENS, identity_key=IDENTITY_KEY[::-1]).identity("nobody", nonce, *where)
+    assert other != unknown and re.fullmatch(r"[0-9a-f]{64}", unknown)
+    public = [IDENTITY_KEY.decode(), "nobody", "", IDENTITY_SCHEME, *TOKENS.values()]
+    assert unknown not in {_expected(key, "nobody", nonce, *where) for key in public}
+
+
+def test_an_identity_key_too_short_to_be_one_is_refused():
+    with pytest.raises(IdentityKeyError) as caught:
+        TokenChecker(TOKENS, identity_key=b"short")
+    assert caught.value.code == "identity_key_refused" and caught.value.detail == {"rule": "malformed"}
+    with pytest.raises(IdentityKeyError):
+        TokenChecker(TOKENS, identity_key=IDENTITY_KEY.decode())  # text, not bytes
+    assert TokenChecker(TOKENS, identity_key=IDENTITY_KEY)  # control
+
+
+def test_the_service_keeps_an_unknown_names_proof_across_an_edit_of_its_tokens(tmp_path):
+    """The same through the service, restarted on the same port as an administrator would
+    after editing the token file: the unknown name's answer is the same before and after."""
+    root = _root(tmp_path / "jobs")
+    nonce = secrets.token_urlsafe(32)
+    proofs = []
+    port = 0
+    for tokens in (TOKENS, {**TOKENS, "newcomer": "N" * 43}, {"erp": TOKEN}):
+        running = None
+        deadline = time.monotonic() + 10
+        while running is None:
+            try:
+                running = Running(
+                    {"jobs": root}, tokens=tokens, workers=1, port=port, identity_key=IDENTITY_KEY
+                )
+            except OSError:
+                if time.monotonic() > deadline:
+                    pytest.skip("the service's port could not be taken again here")
+                time.sleep(0.2)
+        try:
+            port = running.port
+            proofs.append(_identity(running, client="nobody", nonce=nonce).json()["data"]["proof"])
+            assert _identity(running, client="erp", nonce=nonce).json()["data"]["proof"] == _expected(
+                TOKEN, "erp", nonce, "127.0.0.1", port
+            )
+        finally:
+            running.close()
+    assert len(proofs) == 3 and len(set(proofs)) == 1
+
+
+def test_the_cli_keeps_its_identity_key_beside_the_token_file(tmp_path, capsys, monkeypatch):
+    """``solidseas serve`` makes the identity key file on its first start and reads it on
+    every later one: an unknown name's proof is the same after the token file gains a
+    line, and changes only when the key file is replaced (the control)."""
+    import logging
+
+    from solidseas import cli
+
+    root = _root(tmp_path / "jobs")
+    folder = tmp_path / "state"
+    folder.mkdir(mode=0o700)
+    token_file = folder / "tokens"
+    nonce = secrets.token_urlsafe(32)
+    proofs: list[str] = []
+
+    def serve_once(server) -> None:  # in place of run_until_signalled: one question, then stop
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        try:
+            conn = http.client.HTTPConnection("127.0.0.1", server.port, timeout=30)
+            conn.request("GET", f"/v1/identity?client=nobody&nonce={nonce}")
+            proofs.append(json.loads(conn.getresponse().read())["data"]["proof"])
+            conn.close()
+        finally:
+            server.shutdown(close_pool=True)
+
+    monkeypatch.setattr("solidseas.serve.run_until_signalled", serve_once)
+    log = logging.getLogger("solidseas.serve")  # leave the service's logger as it was
+    monkeypatch.setattr(log, "handlers", list(log.handlers))
+    monkeypatch.setattr(log, "propagate", log.propagate)
+    with socket.socket() as probe:  # one port for every start: the proof covers the port
+        probe.bind(("127.0.0.1", 0))
+        port = probe.getsockname()[1]
+    argv = ["serve", "--root", f"jobs={root}", "--port", str(port), "--workers", "1"]
+    argv += ["--token-file", str(token_file)]
+
+    def start():
+        deadline = time.monotonic() + 10
+        while (code := cli.main(argv)) == 1 and time.monotonic() < deadline:
+            capsys.readouterr()  # address_unavailable: the last start's socket is still going
+            time.sleep(0.2)
+        assert code == 0
+        return capsys.readouterr()
+
+    first = start()
+    assert "created the identity key file" in first.out
+    key_file = folder / "tokens.identity"
+    key = key_file.read_bytes()
+    with open(token_file, "a", encoding="ascii") as fh:  # an administrator adds a client
+        fh.write("newcomer:" + "N" * 43 + "\n")
+    second = start()
+    assert "created the identity key file" not in second.out and key_file.read_bytes() == key
+    assert len(proofs) == 2 and proofs[0] == proofs[1]
+    key_file.unlink()  # control: a new key, a new stand-in
+    third = start()
+    assert "created the identity key file" in third.out and key_file.read_bytes() != key
+    assert len(proofs) == 3 and proofs[2] != proofs[0]
+    assert key.decode("ascii").splitlines()[-1] not in first.out + second.out + third.out  # never printed
 
 
 def test_the_route_needs_no_token_and_counts_no_failure(tmp_path):
