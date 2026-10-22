@@ -2599,6 +2599,19 @@ polygon-based algorithm could accelerate hidden lines is a stage 4 question; it
 would need a direct geometry hand-off and source-edge mapping, not a route
 through STEP.
 
+The harness is built (`tests/test_occt_drawings.py`, `tests/drawing_occt.py`
+and the child `tests/occt_hlr_child.py`; `tests/README.md` says how to run it).
+It votes on each of the six principal views of a part, with hidden lines, and
+checks the drawing SolidSeas plans for it: every linear dimension must measure
+between places where OCCT draws a line in that view, a round feature by both its
+sides, and every diameter a circle OCCT draws. Since OCCT's edges carry no link
+to their source edges, this is how a dimension is checked against it. On the
+fixtures o02, o07, o10, o11 and o12 the engine is never the odd one out in the
+thirty views and every dimension checked is on OCCT's lines; OCCT's exact
+algorithm is the odd one out in o11's right and left views (2.5 mm of hidden
+torus outline drawn visible, `docs/OCCT.md` 6.1). `python tests/drawing_occt.py
+PART` runs it on any part, the corpus included.
+
 ## 26. Questions and their defaults
 
 | # | Question | Status and answer |

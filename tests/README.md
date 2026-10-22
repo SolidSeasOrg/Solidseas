@@ -158,6 +158,37 @@ python -m pytest -q -s tests/test_occt_corpus.py
   sampled ones are new, and asserts only that SolidSeas never failed and no file
   changed.
 
+### The drawings cross-check
+
+`test_occt_drawings.py` holds SolidSeas' drawing views to OCCT's two hidden-line
+algorithms, `HLRBRep_Algo` (exact) and `HLRBRep_PolyAlgo` (on OCCT's own mesh at
+0.01 mm), as `docs/DRAWINGS.md` section 25 describes. `occt_hlr_child.py` runs
+both on SolidSeas' STEP of a part, under the oracle's process model, and
+`drawing_occt.py` compares, in plain Python:
+
+- **The vote.** Each of the six principal views, with hidden lines, as SolidSeas
+  draws it and as each algorithm does, sampled along every line; two lines within
+  a thousandth of the part's diagonal (at least 0.02 mm) are one. For visible and
+  hidden lines apart, the vote gives the length all three draw and, for each, the
+  length it is the odd one out for: what it misses that both others draw, and what
+  it alone draws. A hidden line on a visible line of its own set is left out, as a
+  drawing never draws it, and a smooth (tangent) edge agrees with a line but need
+  not be drawn, as a drawing shows tangent edges by a setting of its own.
+- **The dimensions.** Each linear dimension of the drawing SolidSeas plans must
+  measure between places where OCCT draws a line in that view (a round feature by
+  both its sides), and each diameter a circle OCCT draws.
+
+On o02, o07, o10, o11 and o12, SolidSeas is never the odd one out in any of the
+thirty views, and every dimension checked is on OCCT's lines. OCCT's exact
+algorithm is the odd one out in o11's right and left views, where it draws 2.5 mm
+of the torus outline's hidden stretch as visible (`docs/OCCT.md` 6.1); its polygon
+algorithm and SolidSeas agree there. The tests without OCCT check the vote and the
+dimension check on drawn line sets.
+
+For a part no test names, a corpus part say, `python tests/drawing_occt.py
+PART.SLDPRT` (with `SOLIDSEAS_OCCT_PYTHON` set and `src` on the path) prints each
+view's vote and the dimensions OCCT draws nothing for.
+
 ### How OCCT is measured
 
 The defaults are not good enough. OCCT's default `BRepGProp.VolumeProperties` and
