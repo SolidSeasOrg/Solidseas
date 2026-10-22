@@ -105,7 +105,10 @@ photo; they are on Letter paper and about 10 mm thick." The chat then:
    length, width and area, and a drawing of the outlines, numbered left to right. Check the
    sizes, and tell the chat what each tool is;
 3. saves the outlines that are tools into the library, by name (`gridfinity_save_tools`);
-4. makes the bin (`gridfinity_make_bin`) and shows a drawing of it from above. The STL is
+4. lays the bin out and shows you a drawing of it from above, before anything is made
+   (`gridfinity_preview_bin`). Change it in words: "turn the pliers 90 degrees", "put the
+   knife on the left" (see Placing tools by hand below);
+5. makes the bin (`gridfinity_make_bin`) and shows a drawing of it from above. The STL is
    saved in `%USERPROFILE%\Documents\Gridfinity bins`, named after the bin and its size, as
    in `wrench and socket 5x2x3.stl` (5 units across, 2 deep, 3 high). A bin larger than your
    printer's bed (256 mm unless you say) also comes as a zip of parts that fit. Ask for a
@@ -121,6 +124,7 @@ Saved tools stay in the library, so a later bin can use them without a new photo
 | `gridfinity_save_tools` | Saves outlines of a trace into the library, each with a name and a finger scoop (unless asked not to). |
 | `gridfinity_tools` | The library, newest first: id, name, length and width. |
 | `gridfinity_edit_tool` | Renames a tool, or adds or takes off the finger scoop SolidSeas placed. |
+| `gridfinity_preview_bin` | Lays tools out as `gridfinity_make_bin` would and makes nothing: returns the grid, where each tool goes (its turn, its centre and its pocket in mm), the room for pockets and a drawing. Takes the same arguments, and each tool can be turned (`turned_deg`) or placed by hand (`centre_mm`). |
 | `gridfinity_make_bin` | Lays tools out and has Tracefinity make the bin, with a text label if asked; saves its files and returns the grid, the file names, a drawing and the bin's address in Tracefinity. |
 
 ## How a bin is made
@@ -144,7 +148,33 @@ Saved tools stay in the library, so a later bin can use them without a new photo
   units (a half-grid base has no magnet holes).
 - **By hand.** The bin opens in Tracefinity exactly as laid out, at the address the chat
   gives, label included, to move a tool or a label, add a finger hole, and download again
-  from there.
+  from there. The chat can also place tools by hand before the bin is made (below).
+
+## Placing tools by hand
+
+Before the bin is made the chat shows you its layout (`gridfinity_preview_bin`), and you can
+change it in words, as you would drag tools in Tracefinity's editor:
+
+- **Turn a tool.** "Turn the pliers 90 degrees" turns them that far, clockwise seen from
+  above unless you say otherwise. In a layout SolidSeas made, the other tools are then laid
+  out around them again, in the smallest bin they fit; in one placed by hand, they stay
+  where they are.
+- **Move tools.** "Put the knife on the left" or "move the pliers to the front": the chat
+  then gives every tool's place, as the last layout had them with the ones you asked about
+  moved, and SolidSeas puts each tool exactly there. The bin is the smallest that holds
+  them, or the grid you asked for.
+
+A layout by hand is checked, not changed: every pocket must stay inside the bin's walls or
+stacking lip, and at least the gap between pockets (3 mm unless you said) from every other
+pocket, its finger scoop included. Pockets are compared by their own shapes, so a small tool
+can sit in the crook of a larger one, where the automatic layout, which keeps whole
+rectangles apart, never puts it. If a pocket does not fit, nothing is made, and the chat is
+told which pocket and by how many millimetres, so it can move it and show you the layout
+again. A label along the back edge needs a strip free of pockets there; with tools placed by
+hand, the chat is told how far forward to move them if there is not one.
+
+The layout the chat showed you is the bin it makes: making a bin with the same arguments
+lays it out the same way.
 
 ## Labels
 
@@ -233,6 +263,11 @@ layout (every pocket inside the bin and apart from the others, no smaller bin th
 placement the way Tracefinity's editor rebuilds it), labels (a lip label inside the lip and
 clear of the pockets, a floor label inside its pocket and clear of the scoop, sunk or raised
 as asked, made smaller and then refused when too long), files never written over,
-cancelling, and the tools as the MCP server serves them. The label's size is worked out from
+cancelling, and the tools as the MCP server serves them. Placing by hand is tested the same
+way: a turn kept by the layout, each tool placed where it is asked in the smallest bin that
+holds it, a pocket past the room or too near another refused with by how much, a tool in the
+crook of another, finger scoops counted, a packed layout given back by hand making the same
+bin, a preview that makes nothing and matches the bin made from the same arguments, and the
+lip label's strip with tools placed by hand. The label's size is worked out from
 the widest of the fonts Tracefinity may draw with; the letters themselves are drawn by
 Tracefinity and were not checked against a running one.

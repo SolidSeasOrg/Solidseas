@@ -58,7 +58,7 @@ through an SSH tunnel, for instance:
 | `run_plan` | A plan in the closed vocabulary (`solidseas/ai/prompts.py:OPERATIONS`), against the handles of the latest `read_part`: validated, gated, and carried out as an Automatic run. Returns each step's result and the part's summary afterwards. With `"pictures": true` (off unless set) it also returns a picture of the part after each step that passed SolidSeas' checks (below). Refused, with nothing run, when the part changed in SOLIDWORKS since that `read_part`: the chat reads it again. |
 | `keep_run` | Keeps a run's changes. |
 | `revert_run` | Takes a run's steps off, newest first. |
-| `gridfinity_photos`, `gridfinity_trace`, `gridfinity_save_tools`, `gridfinity_tools`, `gridfinity_edit_tool`, `gridfinity_make_bin` | Gridfinity bins from photos of tools on a sheet of paper, made by Tracefinity on this PC: `docs/GRIDFINITY.md`. They never reach SOLIDWORKS. |
+| `gridfinity_photos`, `gridfinity_trace`, `gridfinity_save_tools`, `gridfinity_tools`, `gridfinity_edit_tool`, `gridfinity_preview_bin`, `gridfinity_make_bin` | Gridfinity bins from photos of tools on a sheet of paper, made by Tracefinity on this PC: `docs/GRIDFINITY.md`. They never reach SOLIDWORKS. |
 
 ### Pictures after each step
 

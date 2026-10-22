@@ -41,7 +41,7 @@ before it can be switched on.
 
 | Extension | Front, in the core | Package | Needs | Reaches |
 |---|---|---|---|---|
-| Gridfinity | the six `gridfinity_*` chat tools and their settings | none (built in) | Tracefinity, on this PC or a server | loopback, and ssh to the server when one is named |
+| Gridfinity | the seven `gridfinity_*` chat tools and their settings | none (built in) | Tracefinity, on this PC or a server | loopback, and ssh to the server when one is named |
 | CAD Bridge | the assistant's live mode and Automatic mode, the chat tools for SOLIDWORKS parts | `SolidSeas.SwBridge.exe` | SOLIDWORKS 2024 or later | SOLIDWORKS on this PC only |
 | Video export | Save Animation in the 3D view | an encoder helper with ffmpeg | nothing else | nothing |
 | OCCT backend | IGES and BREP files read and written through `solidseas.convert`'s `occt` backend | `solidseas-occt.exe`, a helper with its own Python and OCP | nothing else | nothing |

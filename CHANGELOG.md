@@ -16,6 +16,14 @@ while the project takes shape.
 
 ### Added
 
+- **Gridfinity bins laid out in words.** The chat now shows you a bin's layout
+  before it is made, and you can change it in words: "turn the pliers 90
+  degrees" keeps them turned while the rest are laid out around them, and "put
+  the knife on the left" places the tools exactly where the chat says. A pocket
+  that would go through the wall or sit too close to another is refused, saying
+  which one and by how many millimetres, and a small tool can sit in the crook
+  of a larger one. The bin made is the layout you were shown.
+
 - **A machine policy an administrator can set.** Run as administrator,
   `SolidSeasViewer.exe --set-policy NAME=VALUE ...` writes the policy that
   restricts SolidSeas on a PC (`HKLM\SOFTWARE\Policies\SolidSeas`): it can turn

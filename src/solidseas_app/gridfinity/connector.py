@@ -12,6 +12,12 @@
   parts when it is larger than the printer's bed, and a 3MF when it has a label). A label
   (:mod:`.labels`) goes along the bin's back edge, with room kept for it in the layout, or
   on the floor of each pocket, as big as fits.
+* ``gridfinity_preview_bin`` takes the same arguments and lays the bin out the same way,
+  making nothing, so the person sees the layout before the bin is made. A tool's
+  ``turned_deg`` keeps it turned that way; ``centre_mm`` on every tool places them by hand,
+  as Tracefinity's editor does (:func:`.layout.place_by_hand`), and the layout is checked
+  instead of made, any pocket outside the room or too near another refused with by how
+  much.
 
 What the chat chooses is checked before it is used: a photo is named by a file that is in
 the photos folder itself (a plain file, not a link), ids are checked before they become part
@@ -30,6 +36,7 @@ import threading
 import time
 import uuid
 from collections.abc import Callable
+from dataclasses import dataclass
 from typing import Any
 
 from solidseas.ai.http import Cancel
@@ -57,6 +64,8 @@ from .layout import (
     long_side_angle,
     max_depth,
     mean,
+    normal_turn,
+    place_by_hand,
     placed_about,
     placed_points,
     size,
@@ -84,6 +93,105 @@ _PHOTO = {"type": "string", "description": "a photo's file name from gridfinity_
 _TRACE = {"type": "string", "description": "the trace id gridfinity_trace returned"}
 _TOOL = {"type": "string", "description": "a tool id from gridfinity_save_tools or gridfinity_tools"}
 _WRITES = {"readOnlyHint": False, "destructiveHint": False, "idempotentHint": False, "openWorldHint": False}
+# What gridfinity_preview_bin and gridfinity_make_bin take: the same arguments lay the same bin out.
+_BIN_ARGS: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "tools": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": MAX_BIN_TOOLS,
+            "items": {
+                "type": "object",
+                "properties": {
+                    "tool": _TOOL,
+                    "depth_mm": {
+                        "type": "number",
+                        "description": "this tool's pocket depth, if not depth_mm",
+                    },
+                    "turned_deg": {
+                        "type": "number",
+                        "minimum": -360,
+                        "maximum": 360,
+                        "description": (
+                            "how far the tool is turned, in degrees clockwise seen from above, as a layout's "
+                            "turned_deg gives it; omit to let the layout choose"
+                        ),
+                    },
+                    "centre_mm": {
+                        "type": "array",
+                        "items": {"type": "number"},
+                        "minItems": 2,
+                        "maxItems": 2,
+                        "description": (
+                            "places the tool by hand: where its centre goes, [mm from the bin's left, mm "
+                            "from its back], as a layout's centre_mm gives it. Give it, with turned_deg, "
+                            "for every tool or for none"
+                        ),
+                    },
+                },
+                "required": ["tool"],
+                "additionalProperties": False,
+            },
+        },
+        "depth_mm": {"type": "number", "minimum": 2, "maximum": 133, "description": "pocket depth"},
+        "name": {"type": "string", "maxLength": 200, "description": "the bin's name and file name"},
+        "grid": {
+            "type": "array",
+            "items": {"type": "number"},
+            "minItems": 2,
+            "maxItems": 2,
+            "description": "[units across, units deep], 42 mm a unit; omit for the smallest",
+        },
+        "height_units": {"type": "integer", "minimum": 2, "maximum": MAX_HEIGHT_UNITS},
+        "magnets": {"type": "boolean", "default": True},
+        "stacking_lip": {"type": "boolean", "default": True},
+        "half_grid": {"type": "boolean", "default": False, "description": "allow half units"},
+        "clearance_mm": {"type": "number", "minimum": 0, "maximum": 5, "default": 1.0},
+        "gap_mm": {"type": "number", "minimum": 1, "maximum": 30, "default": 3.0},
+        "bed_mm": {
+            "type": "number",
+            "default": 256,
+            "description": "the printer bed; a larger bin is also given in parts. 0: never split",
+        },
+        "label": {
+            "type": "object",
+            "description": (
+                "a text label on the bin, sized to fit; omit for none, {} for the default. "
+                "lip: one label along the back edge of the bin's top, saying text, else the "
+                "tool's name (the bin's name for several tools). floor: each tool's name in "
+                "the floor of its pocket, seen when the tool is out"
+            ),
+            "properties": {
+                "text": {"type": "string", "maxLength": labels.MAX_CHARS},
+                "placement": {"type": "string", "enum": list(labels.PLACEMENTS), "default": "lip"},
+                "style": {
+                    "type": "string",
+                    "enum": list(labels.STYLES),
+                    "default": "deboss",
+                    "description": "deboss: sunk into the surface; emboss: raised from it",
+                },
+                "height_mm": {
+                    "type": "number",
+                    "minimum": labels.MIN_CAP,
+                    "maximum": labels.MAX_CAP,
+                    "default": labels.DEFAULT_CAP,
+                    "description": "capital letters' height; made smaller to fit, to the minimum",
+                },
+                "depth_mm": {
+                    "type": "number",
+                    "minimum": labels.MIN_DEPTH,
+                    "maximum": labels.MAX_DEPTH,
+                    "default": labels.DEFAULT_DEPTH,
+                    "description": "how far the letters are sunk or raised",
+                },
+            },
+            "additionalProperties": False,
+        },
+    },
+    "required": ["tools", "depth_mm"],
+    "additionalProperties": False,
+}
 TOOLS: list[dict[str, Any]] = [
     {
         "name": "gridfinity_photos",
@@ -182,92 +290,31 @@ TOOLS: list[dict[str, Any]] = [
         "annotations": _WRITES,
     },
     {
+        "name": "gridfinity_preview_bin",
+        "title": "Gridfinity: lay a bin out without making it",
+        "description": (
+            "Lay tools out as gridfinity_make_bin would, and make nothing: returns the grid, each tool's "
+            "turn, centre and pocket in mm, the room for pockets and a drawing of the layout, for the "
+            "person to check before the bin is made. To turn a tool, give it turned_deg. To put tools "
+            "where the person says, give every tool centre_mm and turned_deg, from the last layout's "
+            "numbers changed for the tools to move: SolidSeas checks each pocket is inside the room and "
+            "clear of the others, and says by how much one is not. Then make the bin with the same "
+            "arguments."
+        ),
+        "inputSchema": _BIN_ARGS,
+        "annotations": {"readOnlyHint": True, "openWorldHint": False},
+    },
+    {
         "name": "gridfinity_make_bin",
         "title": "Gridfinity: make a bin",
         "description": (
             "Lay tools out in the smallest Gridfinity bin they fit (or the grid asked for), each in a "
             "pocket of its outline, have Tracefinity make the bin, and save its STL in the "
             "person's bins folder. Returns the grid, the files and a drawing of the layout. depth_mm is "
-            "how deep the pockets are: ask how thick the tools are. A tool listed twice gets two pockets."
+            "how deep the pockets are: ask how thick the tools are. A tool listed twice gets two pockets. "
+            "turned_deg and centre_mm turn and place tools as in gridfinity_preview_bin."
         ),
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "tools": {
-                    "type": "array",
-                    "minItems": 1,
-                    "maxItems": MAX_BIN_TOOLS,
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "tool": _TOOL,
-                            "depth_mm": {
-                                "type": "number",
-                                "description": "this tool's pocket depth, if not depth_mm",
-                            },
-                        },
-                        "required": ["tool"],
-                        "additionalProperties": False,
-                    },
-                },
-                "depth_mm": {"type": "number", "minimum": 2, "maximum": 133, "description": "pocket depth"},
-                "name": {"type": "string", "maxLength": 200, "description": "the bin's name and file name"},
-                "grid": {
-                    "type": "array",
-                    "items": {"type": "number"},
-                    "minItems": 2,
-                    "maxItems": 2,
-                    "description": "[units across, units deep], 42 mm a unit; omit for the smallest",
-                },
-                "height_units": {"type": "integer", "minimum": 2, "maximum": MAX_HEIGHT_UNITS},
-                "magnets": {"type": "boolean", "default": True},
-                "stacking_lip": {"type": "boolean", "default": True},
-                "half_grid": {"type": "boolean", "default": False, "description": "allow half units"},
-                "clearance_mm": {"type": "number", "minimum": 0, "maximum": 5, "default": 1.0},
-                "gap_mm": {"type": "number", "minimum": 1, "maximum": 30, "default": 3.0},
-                "bed_mm": {
-                    "type": "number",
-                    "default": 256,
-                    "description": "the printer bed; a larger bin is also given in parts. 0: never split",
-                },
-                "label": {
-                    "type": "object",
-                    "description": (
-                        "a text label on the bin, sized to fit; omit for none, {} for the default. "
-                        "lip: one label along the back edge of the bin's top, saying text, else the "
-                        "tool's name (the bin's name for several tools). floor: each tool's name in "
-                        "the floor of its pocket, seen when the tool is out"
-                    ),
-                    "properties": {
-                        "text": {"type": "string", "maxLength": labels.MAX_CHARS},
-                        "placement": {"type": "string", "enum": list(labels.PLACEMENTS), "default": "lip"},
-                        "style": {
-                            "type": "string",
-                            "enum": list(labels.STYLES),
-                            "default": "deboss",
-                            "description": "deboss: sunk into the surface; emboss: raised from it",
-                        },
-                        "height_mm": {
-                            "type": "number",
-                            "minimum": labels.MIN_CAP,
-                            "maximum": labels.MAX_CAP,
-                            "default": labels.DEFAULT_CAP,
-                            "description": "capital letters' height; made smaller to fit, to the minimum",
-                        },
-                        "depth_mm": {
-                            "type": "number",
-                            "minimum": labels.MIN_DEPTH,
-                            "maximum": labels.MAX_DEPTH,
-                            "default": labels.DEFAULT_DEPTH,
-                            "description": "how far the letters are sunk or raised",
-                        },
-                    },
-                    "additionalProperties": False,
-                },
-            },
-            "required": ["tools", "depth_mm"],
-            "additionalProperties": False,
-        },
+        "inputSchema": _BIN_ARGS,
         "annotations": _WRITES,
     },
 ]
@@ -278,6 +325,7 @@ _HANDLERS = {
     "gridfinity_save_tools": "_save_tools",
     "gridfinity_tools": "_list_tools",
     "gridfinity_edit_tool": "_edit_tool",
+    "gridfinity_preview_bin": "_preview_bin",
     "gridfinity_make_bin": "_make_bin",
 }
 
@@ -290,10 +338,22 @@ INSTRUCTIONS = """Gridfinity bins from photos, with the person's Tracefinity:
    the outlines numbered. Check the sizes with the person; ask what each tool is.
 3. gridfinity_save_tools saves the outlines that are tools, with names. gridfinity_tools lists
    the library; gridfinity_edit_tool renames a tool or adds or takes off its finger scoop.
-4. gridfinity_make_bin lays tools out in the smallest bin they fit and saves its STL.
-   Ask how thick the tools are for depth_mm, and offer a label (the tool's name along the
-   bin's back edge, or each tool's name in its pocket's floor). Returns a drawing of the layout and an address
-   where the person can adjust the bin by hand in Tracefinity."""
+4. gridfinity_preview_bin lays tools out in the smallest bin they fit and returns a drawing of
+   the layout, making nothing: show it to the person. Ask how thick the tools are for
+   depth_mm, and offer a label (the tool's name along the bin's back edge, or each tool's
+   name in its pocket's floor). To turn a tool ("turn the pliers 90 degrees"), give it
+   turned_deg; to move tools ("put the knife on the left"), give every tool centre_mm and
+   turned_deg, from the last layout's numbers changed for the tools to move, and preview
+   again. x grows to the right and y toward the front; room_mm is where pockets may go.
+5. gridfinity_make_bin, with the same arguments, makes the bin and saves its STL. It returns
+   a drawing of the layout and an address where the person can adjust the bin by hand in
+   Tracefinity."""
+PREVIEW_NEXT = (
+    "Show the person the drawing. To turn a tool, give it turned_deg; to move tools, give every tool "
+    "centre_mm and turned_deg from this layout, changed for the ones to move (x grows to the right, y toward "
+    "the front, and room_mm is where pockets may go), and preview again. Nothing is made until "
+    "gridfinity_make_bin, with the same arguments."
+)
 
 
 class BadArguments(ValueError):
@@ -515,6 +575,55 @@ def _lip_label(text: str, label: dict, shapes: list[Shape], options: dict) -> tu
     )
 
 
+def _lip_label_by_hand(text: str, label: dict, layout: Layout, stacking_lip: bool) -> Label:
+    """A lip label on a layout by hand, at the largest size from the one asked for down to
+    :data:`labels.MIN_CAP` that fits across the bin and between the lip and the pockets. The
+    pockets stay where the person put them, so a label with no room is refused, saying what
+    would make room."""
+    if not text:
+        raise Refused(
+            "The label has no letters, digits or punctuation Tracefinity's font draws: give its text."
+        )
+    pad = inset(stacking_lip)
+    across, _ = layout.grid
+    room = interior(across, pad)
+    back = BIN_GAP / 2 + pad
+    first = min(p.box[1] for p in layout.placements)
+    for cap in labels.sizes(label["height_mm"]):
+        found = labels.on_lip(
+            text,
+            cap,
+            across_mm=across * GRID,
+            room=room,
+            between=(back, first),
+            emboss=label["emboss"],
+            depth=label["depth_mm"],
+        )
+        if found is not None:
+            return found
+    need = labels.width(text, labels.MIN_CAP) + 2 * labels.MARGIN
+    if need > room + 1e-9:
+        raise Refused(
+            f"The label {text!r} is too long for a bin {across:g} units across: at the smallest size, "
+            f"{labels.MIN_CAP:g} mm tall, it needs {need:.0f} mm and the bin has {room:.0f} mm inside its "
+            "lip. Give a shorter label, or a wider grid."
+        )
+    strip, left = labels.band(labels.MIN_CAP), max(0.0, first - back)
+    raise Refused(
+        f"A label along the back edge needs a strip {strip:.1f} mm deep behind the pockets, and they leave "
+        f"{left:.1f} mm: move the pockets at least {strip - left:.1f} mm forward, or put the label on the "
+        "floor of the pockets."
+    )
+
+
+def _centre(value: Any) -> tuple[float, float]:
+    """A ``centre_mm`` the chat gave, checked: two numbers inside the largest bin."""
+    if not isinstance(value, list) or len(value) != 2:
+        raise BadArguments("centre_mm is [mm from the bin's left, mm from its back]")
+    top = MAX_UNITS * GRID
+    return _number(value[0], "centre_mm", 0, top), _number(value[1], "centre_mm", 0, top)
+
+
 def _floor_label(
     label: dict,
     detail: dict,
@@ -567,6 +676,40 @@ def _label_reply(
         if unlabelled:
             reply["unlabelled"] = unlabelled
     return reply
+
+
+@dataclass
+class _BinPlan:
+    """A bin laid out and checked: what Tracefinity is given to make it, and what the reply
+    and the drawing say about it."""
+
+    name: str
+    tool_ids: list[str]
+    details: dict[str, dict]
+    depth: float
+    height: int
+    lip: bool
+    magnets: bool
+    half: bool
+    by_hand: bool
+    layout: Layout
+    config: dict[str, Any]
+    placed: list[dict]
+    pockets: list
+    scoops: list
+    placed_labels: list[Label]
+    label: dict | None
+    on_lip: Label | None
+    in_pockets: list[dict]
+    unlabelled: list[dict]
+
+    def tool_name(self, index: int) -> str:
+        return _name_of(self.details[self.tool_ids[index]])
+
+
+def _name_of(detail: dict) -> str:
+    """A library tool's name, as a reply gives it: printable characters, cut short."""
+    return "".join(c for c in str(detail.get("name", "")) if c.isprintable())[:MAX_NAME]
 
 
 def _hole_reach(hole: dict) -> Hole | None:
@@ -927,7 +1070,10 @@ class Gridfinity:
         }, []
 
     # ----------------------------------------------------------------- bins
-    def _make_bin(self, args: dict, cancel: Cancel | None) -> tuple[dict, list[bytes]]:
+    def _plan_bin(self, args: dict, cancel: Cancel | None) -> _BinPlan:
+        """The arguments of gridfinity_preview_bin and gridfinity_make_bin, checked, and the
+        bin they ask for laid out (by hand when every tool has ``centre_mm``), with its labels:
+        everything up to asking Tracefinity to make it."""
         _only(
             args,
             ("tools", "depth_mm"),
@@ -967,16 +1113,28 @@ class Gridfinity:
                 raise BadArguments("grid is in whole units, or halves with half_grid")
         depths: list[float | None] = []
         tool_ids: list[str] = []
+        turns: list[float | None] = []
+        centres: list[tuple[float, float] | None] = []
         for item in entries:
             if not isinstance(item, dict):
                 raise BadArguments("each tool is an object with a tool id")
-            _only(item, ("tool",), ("depth_mm",))
+            _only(item, ("tool",), ("depth_mm", "turned_deg", "centre_mm"))
             tool_ids.append(segment(item["tool"], "tool"))
             depths.append(
                 _number(item["depth_mm"], "depth_mm", 2, max_depth(MAX_HEIGHT_UNITS))
                 if "depth_mm" in item
                 else None
             )
+            turned = _number(item["turned_deg"], "turned_deg", -360, 360) if "turned_deg" in item else None
+            turns.append(normal_turn(turned) if turned is not None else None)
+            centres.append(_centre(item["centre_mm"]) if "centre_mm" in item else None)
+        by_hand = any(c is not None for c in centres)
+        if by_hand and any(c is None for c in centres):
+            raise BadArguments(
+                "centre_mm places the tools by hand: give it, with turned_deg, for every tool or for none"
+            )
+        if by_hand and any(t is None for t in turns):
+            raise BadArguments("a tool placed by hand with centre_mm needs its turned_deg too")
         deepest = max(d if d is not None else depth for d in depths)
         if "height_units" in args:
             height = args["height_units"]
@@ -1009,14 +1167,27 @@ class Gridfinity:
             ]
             shapes.append(Shape(tuple(points), tuple(holes)))
         options = {"clearance": clearance, "gap": gap, "stacking_lip": lip, "grid": grid, "half": half}
-        layout = lay_out(shapes, **options)
+        if by_hand:
+            called = [f"tool {i + 1} ({_name_of(details[t]) or 'tool'})" for i, t in enumerate(tool_ids)]
+            layout = place_by_hand(
+                shapes,
+                [c for c in centres if c is not None],
+                [t for t in turns if t is not None],
+                names=called,
+                **options,
+            )
+        else:
+            layout = lay_out(shapes, turns=turns, **options)
         names = list(dict.fromkeys(str(details[t].get("name") or "tool") for t in tool_ids))
         if name is None:
             name = _text(" + ".join(names), "name")
         on_lip: Label | None = None
         if label is not None and label["placement"] == "lip":
             text = label["text"] if label["text"] is not None else names[0] if len(names) == 1 else name
-            layout, on_lip = _lip_label(labels.clean(text), label, shapes, options)
+            if by_hand:
+                on_lip = _lip_label_by_hand(labels.clean(text), label, layout, lip)
+            else:
+                layout, on_lip = _lip_label(labels.clean(text), label, shapes, {**options, "turns": turns})
         elif label is not None and label["text"] is not None and len(set(tool_ids)) > 1:
             raise BadArguments(
                 "a floor label names each tool in its own pocket: give label text only for a lip label "
@@ -1084,11 +1255,90 @@ class Gridfinity:
             "bed_size": bed,
             "partial_bins_values": [True] * (math.ceil(across) * math.ceil(deep)),
         }
-        made = client.create_bin(name, config, cancel=cancel)
+        return _BinPlan(
+            name=name,
+            tool_ids=tool_ids,
+            details=details,
+            depth=depth,
+            height=height,
+            lip=lip,
+            magnets=magnets,
+            half=half,
+            by_hand=by_hand,
+            layout=layout,
+            config=config,
+            placed=placed,
+            pockets=pockets,
+            scoops=scoops,
+            placed_labels=placed_labels,
+            label=label,
+            on_lip=on_lip,
+            in_pockets=in_pockets,
+            unlabelled=unlabelled,
+        )
+
+    @staticmethod
+    def _layout_reply(plan: _BinPlan) -> dict[str, Any]:
+        """What a reply says about a bin's layout: its size, where each tool went (its turn,
+        centre and pocket, to 0.01, so a chat can place the tools by hand from them) and where
+        pockets may go."""
+        across, deep = plan.layout.grid
+        edge = BIN_GAP / 2 + inset(plan.lip)
+        data: dict[str, Any] = {
+            "name": plan.name,
+            "grid": [across, deep],
+            "height_units": plan.height,
+            "outside_mm": [_mm(across * GRID - 0.5), _mm(deep * GRID - 0.5), _mm(plan.height * HEIGHT_UNIT)],
+            "pocket_depth_mm": plan.depth,
+            "placed": "by hand" if plan.by_hand else "automatically",
+            "room_mm": [round(v, 2) for v in (edge, edge, across * GRID - edge, deep * GRID - edge)],
+            "tools": [
+                {
+                    "number": p.index + 1,
+                    "tool": plan.tool_ids[p.index],
+                    "name": plan.tool_name(p.index),
+                    "turned_deg": round(p.rotation, 2),
+                    "centre_mm": [round(p.centre[0], 2), round(p.centre[1], 2)],
+                    "pocket_mm": [round(v, 2) for v in p.box],
+                }
+                for p in plan.layout.placements
+            ],
+        }
+        if plan.label is not None:
+            data["label"] = _label_reply(plan.label, plan.on_lip, plan.in_pockets, plan.unlabelled, plan.lip)
+        if plan.lip:
+            data["stacking_lip"] = True
+        if plan.half and plan.magnets:
+            data["magnets"] = "a half-grid base has no magnet holes"
+        return data
+
+    @staticmethod
+    def _drawing(plan: _BinPlan) -> bytes:
+        return bin_drawing(
+            plan.layout,
+            plan.pockets,
+            plan.scoops,
+            stacking_lip=plan.lip,
+            height_units=plan.height,
+            labels=[lb.box for lb in plan.placed_labels],
+        )
+
+    def _preview_bin(self, args: dict, cancel: Cancel | None) -> tuple[dict, list[bytes]]:
+        plan = self._plan_bin(args, cancel)
+        data = self._layout_reply(plan)
+        data["drawing"] = "attached: the bin from above, the tools numbered as given"
+        data["next"] = PREVIEW_NEXT
+        return data, [self._drawing(plan)]
+
+    def _make_bin(self, args: dict, cancel: Cancel | None) -> tuple[dict, list[bytes]]:
+        plan = self._plan_bin(args, cancel)
+        client = self.client
+        across, deep = plan.layout.grid
+        made = client.create_bin(plan.name, plan.config, cancel=cancel)
         bin_id = segment(made.get("id"), "bin")
-        fields: dict[str, Any] = {"bin_config": config, "placed_tools": placed}
-        if placed_labels:
-            fields["text_labels"] = [lb.for_tracefinity() for lb in placed_labels]
+        fields: dict[str, Any] = {"bin_config": plan.config, "placed_tools": plan.placed}
+        if plan.placed_labels:
+            fields["text_labels"] = [lb.for_tracefinity() for lb in plan.placed_labels]
         client.update_bin(bin_id, fields, cancel=cancel)
         generated = client.generate(bin_id, cancel=cancel)
         wanted = [("bin.stl", ".stl")]
@@ -1098,56 +1348,27 @@ class Gridfinity:
         if generated.get("zip_url"):
             wanted.append(("bin_parts.zip", " parts.zip"))
         contents = [(client.bin_file(bin_id, remote, cancel=cancel), ending) for remote, ending in wanted]
-        files = self._save(safe_file_name(f"{name} {across:g}x{deep:g}x{height}"), contents)
+        files = self._save(safe_file_name(f"{plan.name} {across:g}x{deep:g}x{plan.height}"), contents)
 
-        data: dict[str, Any] = {
-            "bin": bin_id,
-            "name": name,
-            "grid": [across, deep],
-            "height_units": height,
-            "outside_mm": [_mm(across * GRID - 0.5), _mm(deep * GRID - 0.5), _mm(height * HEIGHT_UNIT)],
-            "pocket_depth_mm": depth,
-            "tools": [
-                {
-                    "number": p.index + 1,
-                    "tool": tool_ids[p.index],
-                    "name": "".join(
-                        c for c in str(details[tool_ids[p.index]].get("name", "")) if c.isprintable()
-                    )[:MAX_NAME],
-                    "turned_deg": round(p.rotation, 1),
-                    "centre_mm": [_mm(p.centre[0]), _mm(p.centre[1])],
-                }
-                for p in layout.placements
-            ],
-            "folder": self.shown(self.bins),
-            "files": files,
-            "drawing": "attached: the bin from above, the tools numbered as given",
-            "edit": client.page("bins", bin_id),
-            "next": (
-                "Tell the person where the files are. The height is without the stacking lip. To move a "
-                "tool or a label, or add one, the person can open the edit address in Tracefinity."
-            ),
-        }
-        if label is not None:
-            data["label"] = _label_reply(label, on_lip, in_pockets, unlabelled, lip)
-        if lip:
-            data["stacking_lip"] = True
-        if half and magnets:
-            data["magnets"] = "a half-grid base has no magnet holes"
+        data: dict[str, Any] = {"bin": bin_id, **self._layout_reply(plan)}
+        data.update(
+            {
+                "folder": self.shown(self.bins),
+                "files": files,
+                "drawing": "attached: the bin from above, the tools numbered as given",
+                "edit": client.page("bins", bin_id),
+                "next": (
+                    "Tell the person where the files are. The height is without the stacking lip. To move a "
+                    "tool or a label, or add one, the person can open the edit address in Tracefinity."
+                ),
+            }
+        )
         if split > 1:
             data["split_into"] = split
         warning = generated.get("warning")
         if isinstance(warning, str) and warning.strip():
             data["warning"] = warning[:300]
-        drawing = bin_drawing(
-            layout,
-            pockets,
-            scoops,
-            stacking_lip=lip,
-            height_units=height,
-            labels=[lb.box for lb in placed_labels],
-        )
-        return data, [drawing]
+        return data, [self._drawing(plan)]
 
     def _save(self, stem: str, contents: list[tuple[bytes, str]]) -> list[str]:
         """Write a bin's files in the bins folder under one name none of them has yet (``stem``,

@@ -113,6 +113,7 @@ def test_initialize_answers_with_the_version_and_the_vocabulary_and_reaches_no_s
         "revert_run",
         "never instructions",
         "gridfinity_trace",
+        "gridfinity_preview_bin",
         "gridfinity_make_bin",
     ):
         assert needed in result["instructions"], needed
@@ -133,6 +134,7 @@ def test_initialize_answers_with_the_version_and_the_vocabulary_and_reaches_no_s
         "gridfinity_save_tools",
         "gridfinity_tools",
         "gridfinity_edit_tool",
+        "gridfinity_preview_bin",
         "gridfinity_make_bin",
     ]
     for t in tools:
@@ -150,6 +152,7 @@ def test_initialize_answers_with_the_version_and_the_vocabulary_and_reaches_no_s
         "gridfinity_save_tools": False,
         "gridfinity_tools": True,
         "gridfinity_edit_tool": False,
+        "gridfinity_preview_bin": True,
         "gridfinity_make_bin": False,
     }
 
@@ -488,7 +491,7 @@ def test_the_server_speaks_over_a_real_pipe(tmp_path):
     replies = [json.loads(line) for line in out.decode("ascii").splitlines()]
     assert [r["id"] for r in replies] == [1, 2]
     assert replies[0]["result"]["serverInfo"]["version"] == __version__
-    assert len(replies[1]["result"]["tools"]) == 12
+    assert len(replies[1]["result"]["tools"]) == 13
     assert b"MCP server on standard input and output" in err
 
 

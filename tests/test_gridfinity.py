@@ -768,6 +768,185 @@ def test_label_arguments_are_checked(fake, home):
     assert labels.clean("  Café   crème\t10 mm ") == "Cafe creme 10 mm"
 
 
+# --------------------------------------------------------------------------- laying a bin out with the chat
+def made_files(home) -> list[str]:
+    folder = home / "Documents" / "Gridfinity bins"
+    return sorted(p.name for p in folder.iterdir()) if folder.exists() else []
+
+
+def entries(reply: dict, **changed: dict) -> list[dict]:
+    """The tools of a layout's reply as a chat gives them back to place them by hand: every
+    tool's centre_mm and turned_deg, with ``changed`` (by name) put in."""
+    out = []
+    for t in reply["tools"]:
+        entry = {"tool": t["tool"], "centre_mm": t["centre_mm"], "turned_deg": t["turned_deg"]}
+        out.append({**entry, **changed.get(t["name"], {})})
+    return out
+
+
+def test_a_preview_lays_the_bin_out_as_making_it_would_and_makes_nothing(fake, home):
+    g = connector(fake, home)
+    wrench, socket_ = saved_pair(g, home)
+    args = {"tools": [{"tool": wrench}, {"tool": socket_}], "depth_mm": 10, "name": "tray"}
+    preview, images = g.call("gridfinity_preview_bin", args)
+    assert fake.bins == {} and made_files(home) == [], "nothing is made or saved"
+    assert fake.calls("POST", r"/api/bins.*") == [] and fake.calls("PUT", r"/api/bins/.*") == []
+    assert (preview["grid"], preview["height_units"], preview["placed"]) == ([6.0, 2.0], 3, "automatically")
+    edge = round(layout.BIN_GAP / 2 + layout.inset(True), 2)
+    assert preview["room_mm"] == [edge, edge, round(6 * 42 - edge, 2), round(2 * 42 - edge, 2)]
+    first, second = preview["tools"]
+    assert (first["number"], first["name"], second["name"]) == (1, "wrench", "socket")
+    for t in preview["tools"]:
+        x0, y0, x1, y1 = t["pocket_mm"]
+        assert x0 < t["centre_mm"][0] < x1 and y0 < t["centre_mm"][1] < y1
+        assert all(round(v, 2) == v for v in [*t["centre_mm"], *t["pocket_mm"], t["turned_deg"]])
+    assert "turned_deg" in preview["next"] and "gridfinity_make_bin" in preview["next"]
+    (drawing,) = images
+    assert png_size(drawing)[0] > png_size(drawing)[1]
+    made, made_images = g.call("gridfinity_make_bin", args)
+    assert made["bin"] in fake.bins and made["files"] == ["tray 6x2x3.stl"]
+    for key in ("grid", "height_units", "tools", "room_mm", "placed"):
+        assert made[key] == preview[key], key
+    assert made_images == images, "the same arguments draw the same bin"
+
+
+def test_turning_a_tool_from_the_chat_keeps_it_turned(fake, home):
+    g = connector(fake, home)
+    wrench, socket_ = saved_pair(g, home)
+    args = {"tools": [{"tool": wrench}, {"tool": socket_}], "depth_mm": 10}
+    before, _ = g.call("gridfinity_preview_bin", args)
+    turned = before["tools"][0]["turned_deg"] + 90  # "turn the wrench 90 degrees"
+    after, _ = g.call(
+        "gridfinity_preview_bin",
+        {**args, "tools": [{"tool": wrench, "turned_deg": turned}, {"tool": socket_}]},
+    )
+    assert after["tools"][0]["turned_deg"] == pytest.approx(layout.normal_turn(turned))
+    x0, y0, x1, y1 = after["tools"][0]["pocket_mm"]
+    assert y1 - y0 > x1 - x0, "the wrench now lies along the bin's depth"
+    assert after["grid"][1] >= 5
+    made, _ = g.call(
+        "gridfinity_make_bin", {**args, "tools": [{"tool": wrench, "turned_deg": turned}, {"tool": socket_}]}
+    )
+    (placed_wrench, _) = fake.bins[made["bin"]]["placed_tools"]
+    assert placed_wrench["rotation"] == pytest.approx(layout.normal_turn(turned))
+
+
+def test_tools_placed_by_hand_from_the_chat_go_where_it_says(fake, home):
+    g = connector(fake, home)
+    wrench, socket_ = saved_pair(g, home)
+    args = {"tools": [{"tool": wrench}, {"tool": socket_}], "depth_mm": 10, "name": "tray"}
+    packed, _ = g.call("gridfinity_preview_bin", args)
+    w, s = packed["tools"]
+    left = packed["room_mm"][0]
+    # "put the socket on the left": the socket's pocket at the left of the room, the wrench 3 mm after it
+    ds = left - s["pocket_mm"][0]
+    dw = s["pocket_mm"][2] + ds + 3.0 - w["pocket_mm"][0]
+    socket_at = [round(s["centre_mm"][0] + ds, 2), s["centre_mm"][1]]
+    wrench_at = [round(w["centre_mm"][0] + dw, 2), w["centre_mm"][1]]
+    by_hand = {
+        **args,
+        "tools": entries(packed, wrench={"centre_mm": wrench_at}, socket={"centre_mm": socket_at}),
+    }
+    preview, _ = g.call("gridfinity_preview_bin", by_hand)
+    assert preview["placed"] == "by hand" and preview["grid"] == packed["grid"]
+    assert [t["centre_mm"] for t in preview["tools"]] == [wrench_at, socket_at]
+    assert preview["tools"][1]["pocket_mm"][2] < preview["tools"][0]["pocket_mm"][0], (
+        "the socket is on the left"
+    )
+    assert fake.bins == {}
+    made, _ = g.call("gridfinity_make_bin", by_hand)
+    assert made["placed"] == "by hand" and made["files"] == ["tray 6x2x3.stl"]
+    placed = fake.bins[made["bin"]]["placed_tools"]
+    for p, at in zip(placed, (wrench_at, socket_at), strict=True):
+        library = fake.tools[p["tool_id"]]
+        mx = sum(q["x"] for q in p["points"]) / len(p["points"])
+        my = sum(q["y"] for q in p["points"]) / len(p["points"])
+        assert (mx, my) == (pytest.approx(at[0], abs=1e-3), pytest.approx(at[1], abs=1e-3))
+        again = rebuilt(library["points"], p["points"], p["rotation"])  # as Tracefinity's editor rebuilds it
+        assert (
+            max(abs(a - q["x"]) + abs(b - q["y"]) for (a, b), q in zip(again, p["points"], strict=True))
+            < 1e-3
+        )
+    # the packed layout's own numbers, given back by hand, make the same bin
+    same, _ = g.call("gridfinity_preview_bin", {**args, "tools": entries(packed)})
+    assert same["grid"] == packed["grid"]
+    for a, b in zip(same["tools"], packed["tools"], strict=True):
+        assert a["pocket_mm"] == pytest.approx(b["pocket_mm"], abs=0.02)
+
+
+def test_a_layout_by_hand_that_does_not_fit_says_why_and_makes_nothing(fake, home):
+    g = connector(fake, home)
+    wrench, socket_ = saved_pair(g, home)
+    args = {"tools": [{"tool": wrench}, {"tool": socket_}], "depth_mm": 10}
+    packed, _ = g.call("gridfinity_preview_bin", args)
+    w, s = packed["tools"]
+    on_top = entries(packed, socket={"centre_mm": w["centre_mm"]})
+    for tool in ("gridfinity_preview_bin", "gridfinity_make_bin"):
+        with pytest.raises(Refused, match=r"pockets of tool 1 \(wrench\) and tool 2 \(socket\) overlap"):
+            g.call(tool, {**args, "tools": on_top})
+    off = entries(packed, socket={"centre_mm": [5.0, s["centre_mm"][1]]})
+    with pytest.raises(Refused, match=r"tool 2 \(socket\) reaches .* past the left edge"):
+        g.call("gridfinity_make_bin", {**args, "tools": off})
+    with pytest.raises(Refused, match=r"past the right edge .* in a 4 x 2 bin"):
+        g.call("gridfinity_make_bin", {**args, "tools": entries(packed), "grid": [4, 2]})
+    assert fake.bins == {} and made_files(home) == []
+    one_only = [{"tool": wrench, "centre_mm": w["centre_mm"], "turned_deg": 0}, {"tool": socket_}]
+    no_turn = [
+        {"tool": wrench, "centre_mm": w["centre_mm"]},
+        {"tool": socket_, "centre_mm": s["centre_mm"], "turned_deg": 0},
+    ]
+    for bad in (
+        one_only,
+        no_turn,
+        [{"tool": wrench, "turned_deg": 400}],
+        [{"tool": wrench, "turned_deg": "90"}],
+        [{"tool": wrench, "turned_deg": True}],
+        *(
+            [{"tool": wrench, "turned_deg": 0, "centre_mm": centre}]
+            for centre in (
+                "100,40",
+                [100],
+                [100, 40, 3],
+                [-1, 40],
+                [100, 1e9],
+                [True, 40],
+                [100, float("nan")],
+            )
+        ),
+    ):
+        with pytest.raises(BadArguments):
+            g.call("gridfinity_preview_bin", {**args, "tools": bad})
+    assert fake.bins == {}
+
+
+def test_a_lip_label_on_a_layout_by_hand_says_how_far_to_move_the_pockets(fake, home):
+    g = connector(fake, home)
+    wrench, _ = saved_pair(g, home)
+    args = {"tools": [{"tool": wrench}], "depth_mm": 8, "label": {}}
+    packed, _ = g.call("gridfinity_preview_bin", args)  # the packing keeps a strip free for the label
+    (w,) = packed["tools"]
+    room_back = packed["room_mm"][1]
+    pushed_back = [w["centre_mm"][0], round(w["centre_mm"][1] - (w["pocket_mm"][1] - room_back), 2)]
+    need = f"{labels.band(labels.MIN_CAP):.1f}"  # the strip for the smallest letters
+    with pytest.raises(Refused, match=rf"they leave 0\.0 mm: move the pockets at least {need} mm forward"):
+        g.call(
+            "gridfinity_preview_bin", {**args, "tools": entries(packed, wrench={"centre_mm": pushed_back})}
+        )
+    # as the packing left it, by hand, there is room: the label goes in front of the lip
+    kept, _ = g.call("gridfinity_preview_bin", {**args, "tools": entries(packed)})
+    assert kept["label"]["text"] == "wrench" and kept["label"]["height_mm"] == packed["label"]["height_mm"]
+    # a floor label goes in its pocket wherever the pocket is
+    floor, _ = g.call(
+        "gridfinity_preview_bin",
+        {
+            **args,
+            "label": {"placement": "floor"},
+            "tools": entries(packed, wrench={"centre_mm": pushed_back}),
+        },
+    )
+    assert floor["label"]["pockets"][0]["text"] == "wrench"
+
+
 def test_the_layout_keeps_a_strip_along_the_back_edge_when_asked():
     bar = layout.Shape(((-70, -15), (70, -15), (70, 15), (-70, 15)))
     plain = layout.lay_out([bar], clearance=1, gap=3, stacking_lip=True)
@@ -859,6 +1038,140 @@ def test_too_many_tools_for_any_bin_are_refused():
     big = layout.Shape(((0, 0), (1500, 0), (1500, 10), (0, 10)))
     with pytest.raises(layout.LayoutError, match="do not fit in any bin"):
         layout.lay_out([big], clearance=1, gap=3, stacking_lip=True)
+
+
+# --------------------------------------------------------------------------- placing by hand
+def rect_shape(w: float, h: float, holes=()) -> layout.Shape:
+    return layout.Shape(((-w / 2, -h / 2), (w / 2, -h / 2), (w / 2, h / 2), (-w / 2, h / 2)), tuple(holes))
+
+
+EDGE = layout.BIN_GAP / 2 + layout.inset(True)  # where the room for pockets starts, with a stacking lip
+HAND = {"clearance": 1.0, "gap": 3.0, "stacking_lip": True}
+
+
+def test_a_turn_the_person_asks_for_is_kept_by_the_packing():
+    bar = rect_shape(140, 30)
+    (along,) = layout.lay_out([bar], **HAND).placements
+    assert along.rotation == 0 and along.box[2] - along.box[0] == pytest.approx(142)
+    turned = layout.lay_out([bar], turns=[90.0], **HAND)
+    (p,) = turned.placements
+    assert p.rotation == 90.0 and p.box[3] - p.box[1] == pytest.approx(142), "the bar lies along the depth"
+    assert turned.grid == (1.0, 4.0)
+    assert layout.lay_out([bar, bar], turns=[None, 30.0], **HAND).placements[1].rotation == 30.0
+    assert layout.normal_turn(270) == -90 and layout.normal_turn(-180) == 180 and layout.normal_turn(45) == 45
+
+
+def test_placing_by_hand_puts_each_tool_where_it_is_asked_in_the_smallest_bin_that_holds_it():
+    shapes = [rect_shape(100, 20), rect_shape(30, 30)]
+    result = layout.place_by_hand(shapes, [(60, 20), (60, 58)], [0.0, 45.0], **HAND)
+    first, second = result.placements
+    assert first.centre == (60, 20) and first.box == pytest.approx((9, 9, 111, 31))
+    assert second.rotation == 45.0 and second.centre == (60, 58)
+    half = 15 * math.sqrt(2) + 1  # a 30 mm square turned 45 degrees, and the clearance
+    assert second.box == pytest.approx((60 - half, 58 - half, 60 + half, 58 + half), abs=1e-3)
+    # pockets reach 111 mm from the left and 80.2 mm from the back: inside the lip of a 3 x 2 bin
+    assert result.grid == (3.0, 2.0)
+    held = layout.place_by_hand(shapes, [(60, 20), (60, 58)], [0.0, 45.0], grid=(5, 3), **HAND)
+    assert held.grid == (5, 3) and held.placements == result.placements
+    deeper = layout.place_by_hand(shapes, [(60, 20), (60, 60)], [0.0, 45.0], **HAND)
+    assert deeper.grid == (3.0, 3.0), "82.2 mm from the back is past a 2-unit bin's lip"
+
+
+@pytest.mark.parametrize(
+    "centre, grid, message",
+    [
+        ((50 + 1 + EDGE - 3.2, 40), None, r"tool 1 reaches 3\.2 mm past the left edge .* to the right"),
+        ((100, 10 + 1 + EDGE - 0.6), None, r"reaches 0\.6 mm past the back edge .* forward"),
+        (
+            (42 * 3 - EDGE - 51 + 2.5, 40),
+            (3, 2),
+            r"2\.5 mm past the right edge .* in a 3 x 2 bin: move it left",
+        ),
+        ((60, 84 - EDGE - 11 + 7), (3, 2), r"7\.0 mm past the front edge .* give a deeper grid"),
+    ],
+)
+def test_a_pocket_past_the_room_says_which_edge_and_how_far(centre, grid, message):
+    with pytest.raises(layout.LayoutError, match=message):
+        layout.place_by_hand([rect_shape(100, 20)], [centre], [0.0], grid=grid, **HAND)
+
+
+def test_pockets_too_near_each_other_say_how_far_apart_they_are():
+    shapes = [rect_shape(60, 20), rect_shape(60, 20)]
+    named = {"names": ["tool 1 (knife)", "tool 2 (pliers)"]}
+    # outlines 4.5 mm apart: the pockets, grown by 1 mm each, are 2.5 mm apart
+    with pytest.raises(
+        layout.LayoutError, match=r"tool 1 \(knife\) and tool 2 \(pliers\) are 2\.5 mm apart: they need 3"
+    ):
+        layout.place_by_hand(shapes, [(40, 20), (40, 44.5)], [0.0, 0.0], **HAND, **named)
+    with pytest.raises(layout.LayoutError, match="overlap"):
+        layout.place_by_hand(shapes, [(40, 20), (60, 25)], [0.0, 0.0], **HAND, **named)
+    with pytest.raises(layout.LayoutError, match="overlap"):  # one turned across the other
+        layout.place_by_hand(shapes, [(80, 50), (80, 50)], [0.0, 90.0], **HAND, **named)
+    fine = layout.place_by_hand(shapes, [(40, 20), (40, 45)], [0.0, 0.0], **HAND, **named)
+    assert [p.centre for p in fine.placements] == [(40, 20), (40, 45)]
+
+
+def test_a_tool_may_sit_in_the_crook_of_another_when_placed_by_hand():
+    # an L 120 mm long and 80 mm tall, its arms 20 mm thick, and a 40 mm square in its crook
+    ell = layout.Shape(((0, 0), (20, 0), (20, 60), (120, 60), (120, 80), (0, 80)))
+    square = rect_shape(40, 40)
+    mx, my = layout.mean(ell.points)
+    # each pocket reaches 1 mm past its outline, and the two stay 5 mm apart from both arms
+    x, y = 20 + 1 + 5 + 1 + 20, 60 - 1 - 5 - 1 - 20
+    result = layout.place_by_hand([ell, square], [(mx + 10, my + 10), (x + 10, y + 10)], [0, 0], **HAND)
+    a, b = (p.box for p in result.placements)
+    assert a[0] < b[0] < b[2] < a[2] and a[1] < b[1] < b[3] < a[3], "the boxes overlap; the pockets do not"
+    # the packing keeps the boxes apart, so it never nests them, and needs a bigger bin
+    packed = layout.lay_out([ell, square], **HAND)
+    assert result.grid == (4.0, 3.0) and packed.grid[0] * packed.grid[1] > 12
+    with pytest.raises(layout.LayoutError, match=r"are 2\.0 mm apart"):  # 3 mm nearer the long arm
+        layout.place_by_hand([ell, square], [(mx + 10, my + 10), (x + 10, y + 13)], [0, 0], **HAND)
+
+
+def test_finger_holes_are_part_of_a_pocket_placed_by_hand():
+    scooped = rect_shape(60, 20, [layout.Hole(0, 10, 12)])  # a scoop half over its front edge
+    plain = rect_shape(60, 20)
+    # outlines 14 mm apart, but the scoop reaches 12 mm toward the other: 2 mm, less the clearances
+    with pytest.raises(layout.LayoutError, match="overlap"):
+        layout.place_by_hand([scooped, plain], [(40, 20), (40, 54)], [0, 0], **HAND)
+    clear = layout.place_by_hand([scooped, plain], [(40, 20), (40, 60)], [0, 0], **HAND)
+    assert len(clear.placements) == 2
+
+
+def test_a_packed_layout_copied_back_by_hand_is_the_same_bin():
+    """A chat moves one tool by giving every tool's centre_mm and turned_deg as the last
+    layout's reply gave them, to 0.01: the others must not then be refused for the rounding."""
+    shapes = [
+        rect_shape(150, 20),
+        rect_shape(30, 30),
+        rect_shape(30, 30),
+        rect_shape(60, 15),
+        rect_shape(15, 90),
+    ]
+    for lip in (True, False):
+        packed = layout.lay_out(shapes, clearance=1.0, gap=3.0, stacking_lip=lip)
+        centres = [(round(p.centre[0], 2), round(p.centre[1], 2)) for p in packed.placements]
+        turns = [round(p.rotation, 2) for p in packed.placements]
+        by_hand = layout.place_by_hand(shapes, centres, turns, clearance=1.0, gap=3.0, stacking_lip=lip)
+        assert by_hand.grid == packed.grid
+        for a, b in zip(packed.placements, by_hand.placements, strict=True):
+            assert a.box == pytest.approx(b.box, abs=0.02)
+
+
+def test_the_distance_between_outlines():
+    square = [(0, 0), (10, 0), (10, 10), (0, 10)]
+
+    def moved(points, dx, dy):
+        return [(x + dx, y + dy) for x, y in points]
+
+    assert layout.outline_gap(square, moved(square, 15, 0), 50) == pytest.approx(5)
+    assert layout.outline_gap(square, moved(square, 13, 14), 50) == pytest.approx(5)  # corner to corner
+    assert layout.outline_gap(square, moved(square, 5, 5), 50) == 0  # overlapping
+    assert layout.outline_gap(square, [(2, 2), (4, 2), (4, 4)], 50) == 0  # one inside the other
+    bar = [(0, 4), (20, 4), (20, 6), (0, 6)]
+    cross = [(9, -5), (11, -5), (11, 15), (9, 15)]
+    assert layout.outline_gap(bar, cross, 50) == 0  # crossing, no corner inside the other
+    assert layout.outline_gap(square, moved(square, 100, 0), 7) == 7  # not measured past the reach
 
 
 # --------------------------------------------------------------------------- drawings

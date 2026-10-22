@@ -11,6 +11,12 @@ A tool's place is given the way Tracefinity's bin editor rebuilds it
 of its vertices, that mean landing on the placed position, and the finger holes moved with
 it. So the bin is the same when the person opens it in Tracefinity.
 
+A tool can also be turned as the person asks (``turns``), and then the packing keeps that
+turn, or placed by hand (:func:`place_by_hand`): each tool turned and centred where the
+person says, as in Tracefinity's editor, and the layout checked rather than made. A layout
+by hand compares the pockets' own shapes, not their boxes, so one tool may sit in the
+crook of another.
+
 The numbers follow Tracefinity 0.10's generator: 42 mm grid units, 7 mm height units, a
 bin 0.5 mm smaller than its cells, pockets kept clear of the wall or stacking lip, and
 4.75 mm of base and 2 mm of floor under the deepest pocket.
@@ -39,6 +45,9 @@ SCOOP_REACH = 6.0  # mm a scoop across a tool reaches past each side of it
 SCOOP_MIN, SCOOP_MAX = 10.0, 20.0  # a scoop's radius across a tool
 NARROW = 14.0  # a tool at most twice this wide at its middle gets its scoop across it
 EDGE_SCOOP = 12.0  # the radius of a scoop at the edge of a wider tool
+# mm a layout by hand may miss by: a layout's reply gives its numbers to 0.01 mm and 0.01
+# degrees, and a pocket the packing placed, given back by hand, must not then be refused
+HAND_TOLERANCE = 0.05
 _EPS = 1e-9
 
 
@@ -292,19 +301,26 @@ def lay_out(
     half: bool = False,
     reserve: float = 0.0,
     min_across: float = 1.0,
+    turns: Sequence[float | None] | None = None,
 ) -> Layout:
     """Place every shape in the smallest bin it fits, at least ``min_across`` units across,
     or in ``grid`` (units across, units deep), keeping a strip ``reserve`` mm deep free of
     pockets along the back edge (for a label); raises :class:`LayoutError` when they do not
-    fit."""
+    fit. A shape whose entry in ``turns`` is a number keeps that turn; the others are laid
+    along the bin's width or its depth, whichever packs better."""
     if not shapes:
         raise LayoutError("A bin needs at least one tool.")
     pad = inset(stacking_lip)
     options: list[tuple[_Item, _Item]] = []
     for i, shape in enumerate(shapes):
-        along = long_side_angle(shape.points)
+        fixed = turns[i] if turns is not None else None
+        if fixed is None:
+            along = long_side_angle(shape.points)
+            rotations = (along, _half_turn(along + 90.0))
+        else:
+            rotations = (fixed, fixed)
         pair = []
-        for rotation in (along, _half_turn(along + 90.0)):
+        for rotation in rotations:
             foot = _footprint(shape, rotation)
             pair.append(
                 _Item(i, rotation, foot, foot[2] - foot[0] + 2 * clearance, foot[3] - foot[1] + 2 * clearance)
@@ -399,6 +415,196 @@ def _place(
     return Layout((across, deep), tuple(placements))
 
 
+# ----------------------------------------------------------------- placing by hand
+def normal_turn(degrees: float) -> float:
+    """``degrees`` as the same turn in (-180, 180]."""
+    angle = math.fmod(degrees, 360.0)
+    if angle <= -180.0:
+        angle += 360.0
+    elif angle > 180.0:
+        angle -= 360.0
+    return angle
+
+
+def _cross(o: Point, a: Point, b: Point) -> float:
+    return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+
+
+def _point_segment(p: Point, a: Point, b: Point) -> float:
+    dx, dy = b[0] - a[0], b[1] - a[1]
+    length2 = dx * dx + dy * dy
+    t = 0.0 if length2 == 0 else max(0.0, min(1.0, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / length2))
+    return math.hypot(p[0] - a[0] - t * dx, p[1] - a[1] - t * dy)
+
+
+def _segment_gap(a: Point, b: Point, c: Point, d: Point) -> float:
+    """The distance between the segments a-b and c-d, 0 when they cross."""
+    if _cross(c, d, a) * _cross(c, d, b) < 0 and _cross(a, b, c) * _cross(a, b, d) < 0:
+        return 0.0
+    return min(
+        _point_segment(a, c, d), _point_segment(b, c, d), _point_segment(c, a, b), _point_segment(d, a, b)
+    )
+
+
+def _inside(p: Point, ring: Sequence[Point]) -> bool:
+    """Whether ``p`` is inside the outline ``ring`` (even-odd)."""
+    x, y = p
+    inside = False
+    for i in range(len(ring)):
+        (xi, yi), (xj, yj) = ring[i], ring[i - 1]
+        if (yi > y) != (yj > y) and x < (xj - xi) * (y - yi) / (yj - yi) + xi:
+            inside = not inside
+    return inside
+
+
+def _edges_near(ring: Sequence[Point], box: tuple[float, float, float, float], reach: float) -> list:
+    """The edges of ``ring`` that come within ``reach`` of ``box``."""
+    x0, y0, x1, y1 = box[0] - reach, box[1] - reach, box[2] + reach, box[3] + reach
+    return [
+        (ring[i - 1], ring[i])
+        for i in range(len(ring))
+        if max(ring[i - 1][0], ring[i][0]) >= x0
+        and min(ring[i - 1][0], ring[i][0]) <= x1
+        and max(ring[i - 1][1], ring[i][1]) >= y0
+        and min(ring[i - 1][1], ring[i][1]) <= y1
+    ]
+
+
+def outline_gap(p: Sequence[Point], q: Sequence[Point], reach: float) -> float:
+    """The distance between the regions two outlines bound: 0 when they overlap or one holds
+    the other, and ``reach`` when they are at least that far apart (not measured further)."""
+    if _inside(p[0], q) or _inside(q[0], p):
+        return 0.0
+    best = reach
+    near_q = _edges_near(q, extent(p), reach)
+    for a, b in _edges_near(p, extent(q), reach):
+        for c, d in near_q:
+            # two segments' boxes as far apart as the best so far cannot come nearer
+            if (
+                max(c[0], d[0]) < min(a[0], b[0]) - best
+                or min(c[0], d[0]) > max(a[0], b[0]) + best
+                or max(c[1], d[1]) < min(a[1], b[1]) - best
+                or min(c[1], d[1]) > max(a[1], b[1]) + best
+            ):
+                continue
+            best = min(best, _segment_gap(a, b, c, d))
+            if best == 0.0:
+                return 0.0
+    return best
+
+
+def _point_gap(point: Point, ring: Sequence[Point]) -> float:
+    """The distance from ``point`` to the region ``ring`` bounds: 0 inside it."""
+    if _inside(point, ring):
+        return 0.0
+    return min(_point_segment(point, ring[i - 1], ring[i]) for i in range(len(ring)))
+
+
+Region = tuple[list[Point], list[tuple[float, float, float]]]  # a placed outline and its holes
+
+
+def _region_gap(a: Region, b: Region, reach: float) -> float:
+    """The distance between two placed tools: each its outline and its finger holes."""
+    (outline_a, holes_a), (outline_b, holes_b) = a, b
+    best = outline_gap(outline_a, outline_b, reach)
+    for outline, holes in ((outline_a, holes_b), (outline_b, holes_a)):
+        for x, y, r in holes:
+            best = min(best, max(0.0, _point_gap((x, y), outline) - r))
+    for xa, ya, ra in holes_a:
+        for xb, yb, rb in holes_b:
+            best = min(best, max(0.0, math.hypot(xa - xb, ya - yb) - ra - rb))
+    return best
+
+
+def place_by_hand(
+    shapes: Sequence[Shape],
+    centres: Sequence[Point],
+    turns: Sequence[float],
+    *,
+    clearance: float,
+    gap: float,
+    stacking_lip: bool,
+    grid: tuple[float, float] | None = None,
+    half: bool = False,
+    names: Sequence[str] | None = None,
+) -> Layout:
+    """Each shape turned by its turn about its outline's vertex mean, which lands on its centre
+    (the bin's mm, x from its left, y from its back), as the person places it in Tracefinity's
+    editor; the bin is ``grid``, or the smallest that holds every pocket. Raises
+    :class:`LayoutError`, naming the pocket (``names``, default "tool 1" and on) and by how
+    much, when one reaches past the room for pockets or comes nearer another than ``gap``. A
+    pocket is the outline grown by the clearance, with its finger holes; two pockets are
+    compared by those shapes, so one may sit in the crook of another."""
+    if not shapes:
+        raise LayoutError("A bin needs at least one tool.")
+    called = list(names) if names is not None else [f"tool {i + 1}" for i in range(len(shapes))]
+    edge = BIN_GAP / 2 + inset(stacking_lip)
+    placements: list[Placement] = []
+    regions: list[Region] = []
+    for i, (shape, centre, rotation) in enumerate(zip(shapes, centres, turns, strict=True)):
+        fx0, fy0, fx1, fy1 = _footprint(shape, rotation)
+        cx, cy = centre
+        box = (cx + fx0 - clearance, cy + fy0 - clearance, cx + fx1 + clearance, cy + fy1 + clearance)
+        placement = Placement(i, rotation, (round(cx, 4), round(cy, 4)), tuple(round(v, 4) for v in box))
+        placements.append(placement)
+        pivot = mean(shape.points)
+        holes = [(*placed_about([(h.x, h.y)], pivot, placement)[0], h.radius) for h in shape.holes]
+        regions.append((placed_about(shape.points, pivot, placement), holes))
+    for p in placements:
+        if p.box[0] < edge - HAND_TOLERANCE:
+            raise LayoutError(
+                f"The pocket of {called[p.index]} reaches {edge - p.box[0]:.1f} mm past the left edge of the "
+                "room for pockets: move it at least that far to the right."
+            )
+        if p.box[1] < edge - HAND_TOLERANCE:
+            raise LayoutError(
+                f"The pocket of {called[p.index]} reaches {edge - p.box[1]:.1f} mm past the back edge of the "
+                "room for pockets: move it at least that far forward."
+            )
+    right = max(p.box[2] for p in placements)
+    front = max(p.box[3] for p in placements)
+    if grid is None:
+        step = 0.5 if half else 1.0
+        across = max(1.0, math.ceil((right + edge - HAND_TOLERANCE) / (GRID * step) - _EPS) * step)
+        deep = max(1.0, math.ceil((front + edge - HAND_TOLERANCE) / (GRID * step) - _EPS) * step)
+        if max(across, deep) > MAX_UNITS + _EPS or math.ceil(across) * math.ceil(deep) > MAX_CELLS:
+            raise LayoutError(
+                f"The pockets reach {right + edge:.0f} mm across and {front + edge:.0f} mm deep, more than "
+                f"any bin up to {_units(MAX_UNITS)} units a side and {MAX_CELLS} cells holds."
+            )
+    else:
+        across, deep = grid
+        bin_ = f"a {_units(across)} x {_units(deep)} bin"
+        for p in placements:
+            over = p.box[2] - (across * GRID - edge)
+            if over > HAND_TOLERANCE:
+                raise LayoutError(
+                    f"The pocket of {called[p.index]} reaches {over:.1f} mm past the right edge of the room "
+                    f"for pockets in {bin_}: move it left, or give a wider grid."
+                )
+            over = p.box[3] - (deep * GRID - edge)
+            if over > HAND_TOLERANCE:
+                raise LayoutError(
+                    f"The pocket of {called[p.index]} reaches {over:.1f} mm past the front edge of the room "
+                    f"for pockets in {bin_}: move it back, or give a deeper grid."
+                )
+    reach = gap + 2 * clearance
+    for i, a in enumerate(placements):
+        for j in range(i + 1, len(placements)):
+            b = placements[j]
+            apart = max(b.box[0] - a.box[2], a.box[0] - b.box[2], b.box[1] - a.box[3], a.box[1] - b.box[3])
+            if apart >= gap - HAND_TOLERANCE:
+                continue  # their boxes are apart, so the pockets in them are
+            between = _region_gap(regions[i], regions[j], reach) - 2 * clearance
+            if between < gap - HAND_TOLERANCE:
+                how = "overlap" if between <= 0 else f"are {between:.1f} mm apart"
+                raise LayoutError(
+                    f"The pockets of {called[i]} and {called[j]} {how}: they need {gap:g} mm between them. "
+                    "Move or turn one of them."
+                )
+    return Layout((across, deep), tuple(placements))
+
+
 def _units(value: float) -> str:
     return f"{value:g}"
 
@@ -416,6 +622,7 @@ def placed_about(points: Iterable[Point], about: Point, placement: Placement) ->
 
 __all__ = [
     "GRID",
+    "HAND_TOLERANCE",
     "HEIGHT_UNIT",
     "Hole",
     "Layout",
@@ -431,6 +638,9 @@ __all__ = [
     "long_side_angle",
     "max_depth",
     "mean",
+    "normal_turn",
+    "outline_gap",
+    "place_by_hand",
     "placed_about",
     "placed_points",
     "size",
