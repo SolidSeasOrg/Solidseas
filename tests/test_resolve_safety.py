@@ -207,7 +207,7 @@ def test_point_lookups_decide_links_and_placeholders_by_tag(tmp_path, monkeypatc
     seen = []
     for name, st, expected in cases:
         monkeypatch.setattr(gateway_mod, "_lstat", lambda path, _st=st: _st)
-        got = Gateway().point_lookup(host)
+        got = Gateway().point_lookup(host, trusted=len(host.parts) - 1)  # the folder is the test's
         kind = got if isinstance(got, str) else ("placeholder" if got.placeholder else "file")
         assert kind == expected, name
         if not isinstance(got, str):
@@ -223,11 +223,114 @@ def test_a_placeholder_is_never_opened(tmp_path, monkeypatch):
         gateway_mod, "_lstat", lambda path: FakeStat(ARCHIVE | FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS, 0, 7)
     )
     gw = Gateway()
-    hit = gw.point_lookup(host_split(str(tmp_path / "cloud.SLDPRT")))
+    host = host_split(str(tmp_path / "cloud.SLDPRT"))
+    hit = gw.point_lookup(host, trusted=len(host.parts) - 1)
     assert hit.placeholder is True
     ident = gw.read_identity(hit.path, within=str(tmp_path), placeholder=True)
     assert ident.placeholder and ident.creation_time is None and opened == []
     assert gw.calls[-1] == ("identity", hit.path, "placeholder_not_read")
+
+
+def _watch_lstat(monkeypatch, fake: dict[str, object] | None = None) -> list[str]:
+    """Record every path the gateway gives ``lstat``, answering those in ``fake`` with
+    their stand-in and the others from the disk."""
+    seen: list[str] = []
+    real = gateway_mod._lstat
+
+    def lstat(path):
+        seen.append(path)
+        return (fake or {}).get(path) or real(path)
+
+    monkeypatch.setattr(gateway_mod, "_lstat", lstat)
+    return seen
+
+
+@pytest.mark.parametrize(
+    ("what", "st", "expected"),
+    [
+        ("junction", FakeStat(DIRECTORY | REPARSE, 0xA0000003), "link_on_path"),
+        ("symbolic link", FakeStat(DIRECTORY | REPARSE, 0xA000000C), "link_on_path"),
+        ("wsl symlink", FakeStat(DIRECTORY | REPARSE, 0xA000001D), "link_on_path"),
+        ("unreported tag", FakeStat(DIRECTORY | REPARSE, 0), "link_on_path"),
+        (
+            "cloud placeholder",
+            FakeStat(DIRECTORY | FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS, 0x9000701A),
+            "placeholder_on_path",
+        ),
+        ("a file", FakeStat(ARCHIVE, 0, 5), "absent"),
+    ],
+)
+def test_a_point_lookup_stops_at_a_folder_it_must_not_go_through(tmp_path, monkeypatch, what, st, expected):
+    """Each folder on the way is read before the one below it, so the lookup stops at a
+    junction, symbolic link or cloud placeholder folder (as Windows reports them) before
+    anything goes through it, and says so."""
+    target = tmp_path / "Lib" / "Parts" / "p.SLDPRT"
+    _write(target, part_with_creation_time(CT))
+    host = host_split(str(target))
+    own = len(host_split(str(tmp_path)).parts)  # the test's own folders, as a document's are
+    seen = _watch_lstat(monkeypatch, {str(tmp_path / "Lib"): st})
+    gw = Gateway()
+    assert gw.point_lookup(host, trusted=own) == expected, what
+    assert seen == [str(tmp_path / "Lib")]  # nothing below it was asked for
+    stop = "absent" if expected == "absent" else f"refused:{expected}"
+    assert gw.calls == [("point", str(target), stop)]
+
+
+def test_a_point_lookup_goes_on_through_ordinary_folders(tmp_path, monkeypatch):
+    """A deduplicated folder (a reparse point that is no link) and plain folders are gone
+    through, each read once for every lookup the gateway makes."""
+    for name in ("a.SLDPRT", "b.SLDPRT"):
+        _write(tmp_path / "Lib" / "Parts" / name, part_with_creation_time(CT))
+    own = len(host_split(str(tmp_path)).parts)
+    dedup = FakeStat(DIRECTORY | REPARSE, 0x80000013)
+    seen = _watch_lstat(monkeypatch, {str(tmp_path / "Lib"): dedup})
+    gw = Gateway()
+    for name in ("a.SLDPRT", "b.SLDPRT"):
+        hit = gw.point_lookup(host_split(str(tmp_path / "Lib" / "Parts" / name)), trusted=own)
+        assert hit.name == name and not hit.placeholder
+    folders = [str(tmp_path / "Lib"), str(tmp_path / "Lib" / "Parts")]
+    assert seen == [
+        *folders,
+        str(tmp_path / "Lib" / "Parts" / "a.SLDPRT"),
+        str(tmp_path / "Lib" / "Parts" / "b.SLDPRT"),
+    ]
+    assert gw.point_lookup(host_split(str(tmp_path / "Lib" / "Gone" / "c.SLDPRT")), trusted=own) == "absent"
+
+
+@pytest.mark.skipif(WINDOWS, reason="symbolic links need a privilege on Windows")
+def test_a_link_on_a_stored_paths_way_is_never_gone_through(
+    tmp_path, monkeypatch, no_fake_drives
+):  # pragma: no cover - POSIX
+    """The user's assembly in ``New/Proj``, saved in ``Q:\\Old\\Proj`` with its part in
+    ``Q:\\Old\\lib``: the part's place relative to the assembly is ``New/lib``, here a
+    symbolic link someone made to another folder. The lookup stops at the link; a real
+    ``lib`` folder is found (the control), and a link in the document's own folder, the
+    caller's, is gone through."""
+    elsewhere, new = tmp_path / "Elsewhere", tmp_path / "New"
+    _write(elsewhere / "p.SLDPRT", part_with_creation_time(CT))
+    (new / "Proj").mkdir(parents=True)
+    os.symlink(elsewhere, new / "lib")
+    assert (new / "lib" / "p.SLDPRT").is_file()  # control: the link really leads to the part
+    doc = _write(new / "Proj" / "asm.SLDASM", _assembly("Q:\\Old\\lib\\p.SLDPRT", "Q:\\Old\\Proj\\"))
+    seen = _watch_lstat(monkeypatch)
+    gw = Gateway()
+    with open_document(doc) as d:
+        (r,) = resolve_references(d, roots={"proj": str(new / "Proj")}, gateway=gw).results.values()
+    assert r.status == "missing" and r.match is None
+    assert ("point", str(new / "lib" / "p.SLDPRT"), "refused:link_on_path") in gw.calls
+    assert not [p for p in seen if p.startswith(str(new / "lib") + os.sep)]  # nothing through it
+    os.remove(new / "lib")
+    (new / "lib").mkdir()
+    _write(new / "lib" / "p.SLDPRT", part_with_creation_time(CT))
+    with open_document(doc) as d:
+        (r,) = resolve_references(d, roots={"proj": str(new / "Proj")}).results.values()
+    assert (r.status, r.rule, r.match.path) == ("moved", "rebased", str(new / "lib" / "p.SLDPRT"))
+    # Opened through a link of the caller's own, the assembly still finds its part beside it.
+    os.symlink(new, tmp_path / "Shortcut")
+    via = tmp_path / "Shortcut" / "Proj" / "asm.SLDASM"
+    with open_document(via) as d:
+        (r,) = resolve_references(d, roots={"proj": str(tmp_path / "Shortcut" / "Proj")}).results.values()
+    assert (r.status, r.match.path) == ("moved", str(tmp_path / "Shortcut" / "lib" / "p.SLDPRT"))
 
 
 def test_the_gateway_opens_only_what_it_found(tmp_path, monkeypatch):

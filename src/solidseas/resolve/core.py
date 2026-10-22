@@ -529,11 +529,14 @@ class Resolver:
             key=("point", fold(p.path) if HOST_WINDOWS else p.path),
         )
 
-    def _lookup(self, host: HostPath, rule: str, configured: HostPath | None = None) -> list[_Hit] | str:
+    def _lookup(
+        self, host: HostPath, rule: str, configured: HostPath | None = None, trusted: int = 0
+    ) -> list[_Hit] | str:
         """The documents at ``host`` (a file path): from the index of the first root that
-        covers its folder, else by a point lookup through the gateway. Returns hits, or
-        the gateway's reason for not looking."""
-        memo_key = (host.key, configured.key if configured else None)
+        covers its folder, else by a point lookup through the gateway, which reads the
+        folders on the way past the first ``trusted`` (the document's own folder). Returns
+        hits, or the gateway's reason for not looking."""
+        memo_key = (host.key, configured.key if configured else None, trusted)
         found = self._memo.get(memo_key)
         if found is None:
             folder = HostPath(host.anchor, host.parts[:-1])
@@ -545,7 +548,7 @@ class Resolver:
                     found = [(index, f, nfc) for f in files]
                     break
             if found is None:
-                p = self.gateway.point_lookup(host, configured=configured)
+                p = self.gateway.point_lookup(host, configured=configured, trusted=trusted)
                 found = p if isinstance(p, str) else [p]
             self._memo[memo_key] = found
         if isinstance(found, str):
@@ -580,6 +583,12 @@ class Resolver:
                     ref,
                     "stored_network_drive_not_checked",
                     "the stored path is on a mapped network drive; it was not checked",
+                )
+            elif found in ("link_on_path", "placeholder_on_path"):
+                self._note(
+                    ref,
+                    "stored_path_refused",
+                    "the stored path goes through a link, junction or cloud folder, which is never followed",
                 )
             return []
         return found
@@ -620,12 +629,13 @@ class Resolver:
                 k += 1
             ups = len(fs.parts) - k
             if ups <= len(a.parts):
-                target = HostPath(a.anchor, (*a.parts[: len(a.parts) - ups], *sp.folder[k:], name))
-                found = self._lookup(target, "rebased")
+                kept = len(a.parts) - ups  # the document's own folders, then the stored path's
+                target = HostPath(a.anchor, (*a.parts[:kept], *sp.folder[k:], name))
+                found = self._lookup(target, "rebased", trusted=kept)
                 if not isinstance(found, str) and found:
                     groups["rebased"] = [found]
         if a is not None and name is not None:
-            found = self._lookup(a.child(name), "same_folder")
+            found = self._lookup(a.child(name), "same_folder", trusted=len(a.parts))
             if not isinstance(found, str) and found:
                 groups["same_folder"] = [found]
             probe = self._suffix_probe(ref, a, name)

@@ -20,10 +20,14 @@ makes one. The gateway applies the rules of ``docs/API.md`` C2:
   without a path map.
 * A point lookup reads the entry with ``lstat`` and decides it with the
   walker's own rules (:func:`solidseas.walk.classify`): a link is not
-  followed, and a cloud placeholder is found but never opened. A junction or
-  link earlier on a local path is resolved by the operating system as for any
-  local path; only the text of the path is classified, and making such a link
-  takes write access to this machine's disk.
+  followed, and a cloud placeholder is found but never opened. The folders on
+  the way are read the same way first, from the anchor down, each only after
+  the ones above it passed (:meth:`Gateway._way`), so a link, junction or
+  cloud placeholder folder earlier on the path refuses the lookup before
+  anything goes through it: the operating system would otherwise follow a
+  junction there, or a symbolic link to a share, as for any local path. A
+  path map's target is configuration (C6), so only the folders below it are
+  read this way.
 * **Identity reads** open a document read-only, ``within`` its root (or, outside
   the roots, within its own folder), so no link below that folder is crossed
   and, on Windows, a placeholder is never recalled. Only paths this gateway
@@ -139,6 +143,7 @@ class Gateway:
         self._within: set[str] = set()  # index roots: folders identity reads may open below
         self._found: set[str] = set()  # fold(path) of files point lookups found
         self._drive_types: dict[str, int] = {}
+        self._folders: dict[str, str | None] = {}  # fold(folder) -> why a lookup stops there, or None
 
     # ------------------------------------------------------------------ text only
     def document_folder(self, path: str) -> HostPath:
@@ -209,25 +214,40 @@ class Gateway:
         self._within.add(fold(index.host.join()))
 
     # ------------------------------------------------------------------ outside the roots
-    def point_lookup(self, host: HostPath, *, configured: HostPath | None = None) -> PointHit | str:
+    def point_lookup(
+        self, host: HostPath, *, configured: HostPath | None = None, trusted: int = 0
+    ) -> PointHit | str:
         """Look up one known file outside every root. Returns a :class:`PointHit`, or why
         there is none: ``absent``, ``not_a_document`` (a folder, link, lock file or
-        device), ``outside_roots`` (lookups outside the roots are not allowed), or the
-        refused anchor class (``unc``, ``network_drive``, ``device_path``,
-        ``other_drive``, ``relative``). ``configured`` is a path map's target: its
-        anchor is configuration and may be any class but a device path."""
+        device), ``link_on_path`` or ``placeholder_on_path`` (a folder on the way is a
+        link, junction or other name surrogate, or a cloud placeholder: :meth:`_way`),
+        ``outside_roots`` (lookups outside the roots are not allowed), or the refused
+        anchor class (``unc``, ``network_drive``, ``device_path``, ``other_drive``,
+        ``relative``). ``configured`` is a path map's target: its anchor is configuration
+        and may be any class but a device path, and its own folders are not read on the
+        way. ``trusted`` is how many folders below the anchor the caller vouches for (the
+        document's own folder, which the caller opened), not read on the way either."""
         path = host.join()
         cls = self.anchor_class(host)
-        trusted = configured is not None and fold(configured.anchor) == fold(host.anchor)
+        mapped = configured is not None and fold(configured.anchor) == fold(host.anchor)
         if cls == "absent_drive":
             self.calls.append(("point", path, "absent_drive"))
             return "absent"
-        if cls != "local" and not (trusted and cls != "device_path"):
+        if cls != "local" and not (mapped and cls != "device_path"):
             self.calls.append(("point", path, f"refused:{cls}"))
             return cls
         if not self.allow_outside_roots:
             self.calls.append(("point", path, "refused:outside_roots"))
             return "outside_roots"
+        own = trusted
+        if mapped and configured is not None:
+            n = len(configured.parts)
+            if [fold(p) for p in host.parts[:n]] == [fold(p) for p in configured.parts]:
+                own = max(own, n)
+        stop = self._way(host, own)
+        if stop is not None:
+            self.calls.append(("point", path, stop))
+            return stop.removeprefix("refused:")
         try:
             st = _lstat(path)
         except (OSError, ValueError):
@@ -240,6 +260,37 @@ class Gateway:
         self.calls.append(("point", path, e.kind))
         self._found.add(fold(path))
         return PointHit(host, path, host.parts[-1], e.size, e.mtime_ns, e.kind == "placeholder")
+
+    def _way(self, host: HostPath, own: int) -> str | None:
+        """Why a lookup of ``host`` stops on its way, or None when the way is clear. The
+        folders from the anchor down, past the first ``own`` (the caller's), are read with
+        ``lstat`` and decided by :func:`solidseas.walk.classify`, each only after the ones
+        above it passed, so nothing goes through a link on the way: ``absent`` when one is
+        not there or is not a folder, ``refused:link_on_path`` when one is a link, junction
+        or other name surrogate, and ``refused:placeholder_on_path`` when one is a cloud
+        placeholder folder, which the walker never enters either. A folder's answer is
+        kept for the gateway's later lookups."""
+        for k in range(own, len(host.parts) - 1):
+            folder = HostPath(host.anchor, host.parts[: k + 1]).join()
+            key = fold(folder) if HOST_WINDOWS else folder
+            if key not in self._folders:
+                stop: str | None = None
+                try:
+                    st = _lstat(folder)
+                except (OSError, ValueError):
+                    stop = "absent"
+                else:
+                    e = walk_mod.classify(_Probe(host.parts[k], st), os.path.dirname(folder), "", 1)
+                    if e.kind == "link":
+                        stop = "refused:link_on_path"
+                    elif e.kind == "placeholder":
+                        stop = "refused:placeholder_on_path"
+                    elif e.kind != "folder":
+                        stop = "absent"
+                self._folders[key] = stop
+            if self._folders[key] is not None:
+                return self._folders[key]
+        return None
 
     # ------------------------------------------------------------------ identity
     def read_identity(self, path: str, *, within: str, placeholder: bool) -> Identity:

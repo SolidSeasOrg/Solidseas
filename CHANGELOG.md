@@ -8,6 +8,10 @@ while the project takes shape.
 
 ### Changed
 
+- **Stored paths through links.** A file named by a stored path that goes
+  through a link, junction or cloud folder is no longer looked for through it;
+  it is reported with the stored-path-refused warning.
+
 - **When OpenGL starts.** The 3D View setting's note and the guide now say
   starting OpenGL holds the window when the setting is turned on, or when the
   viewer starts with it on, rather than at the first part.

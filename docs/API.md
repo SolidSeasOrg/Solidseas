@@ -1028,9 +1028,16 @@ are two candidates, so the result is `ambiguous` unless identity decides.
   `allow_outside_roots` is true and the drive is a local fixed or removable one
   (or the path is under a path mapping's target). The entry is read with
   `lstat` and decided with the walker's rules: a link is not followed, and a
-  cloud placeholder is found but never opened (`placeholder_not_read`). A
-  junction earlier on such a local path is resolved by the operating system,
-  as for any local path: only the path's text is classified.
+  cloud placeholder is found but never opened (`placeholder_not_read`). The
+  folders on the way that come from the stored path are read the same way
+  first, from the top down, each only after the ones above it passed, so a
+  link, junction or cloud placeholder folder there stops the lookup before
+  anything goes through it (for the stored path itself, with the warning
+  `stored_path_refused`). The document's own folders and a path mapping's
+  target are the caller's and are not read on the way. On Windows the
+  profile folders' compatibility junctions (`C:\Documents and Settings`, a
+  profile's `My Documents`) are junctions too, so a path stored through one
+  is not followed.
 - A stored UNC path, or a path on a mapped network drive, is never touched
   (`stored_unc_not_checked`, `stored_network_drive_not_checked`). On Linux and
   macOS no stored path is a path on this machine except through a path
