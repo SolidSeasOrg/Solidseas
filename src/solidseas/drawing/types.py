@@ -50,6 +50,11 @@ ARRANGEMENTS = ("baseline", "ordinate")
 DIRECTIONS = ("+x", "-x", "+y", "-y", "+z", "-z")
 SHEET_CHOICES = ("auto", "A", "B", "C", "D", "E")
 VIEW_NAMES = ("front", "top", "right", "left", "bottom", "back", "isometric")
+# The views a drawing may put on a sheet after its first (docs/DRAWINGS.md 11.7): those that
+# stand apart from the front, needing no projection alignment with it. The isometric now;
+# sections and details join it once the planner makes them.
+SHEET_VIEWS = ("isometric",)
+MAX_SHEET = 64  # a drawing's sheets at the most (display.MAX_SHEETS)
 STATUSES = ("PRELIMINARY", "CHECKED", "RELEASED")
 
 ID_PATTERN = re.compile(r"[a-z0-9-]{1,64}")
@@ -106,6 +111,24 @@ def parts_list_text(table_spec: Any) -> str:
 MAX_BALLOON_OFFSET = 2000.0  # paper millimetres, more than the largest sheet
 
 
+def _check_view_sheets(entries: Any) -> None:
+    def bad(why: str) -> InvalidArgumentError:
+        return InvalidArgumentError(f"view_sheets: {why}", detail={"parameter": "view_sheets"})
+
+    if not isinstance(entries, tuple) or len(entries) > len(SHEET_VIEWS):
+        raise bad("a tuple of (view, sheet)")
+    seen = set()
+    for entry in entries:
+        if not (isinstance(entry, tuple) and len(entry) == 2):
+            raise bad("each is (view, sheet)")
+        view, number = entry
+        if view not in SHEET_VIEWS or view in seen:
+            raise bad(f"each names the {' or '.join(SHEET_VIEWS)} view once")
+        seen.add(view)
+        if isinstance(number, bool) or not isinstance(number, int) or not 2 <= number <= MAX_SHEET:
+            raise bad(f"a view's sheet is 2 to {MAX_SHEET}: the first holds every other view")
+
+
 def _check_balloons(balloons: Any) -> None:
     def bad(why: str) -> InvalidArgumentError:
         return InvalidArgumentError(f"balloons: {why}", detail={"parameter": "balloons"})
@@ -156,12 +179,17 @@ class DrawingOptions:
     # leader ends on, paper millimetres, so it follows its part when the views move
     balloons: tuple[tuple[str, float, float], ...] = ()
     mode: str = "expert"
+    # views the user put on a sheet after the first: (view name, sheet number), each name
+    # from SHEET_VIEWS once and each sheet 2 or more; layout numbers those sheets from 2 in
+    # the order asked, before the sheets of a long parts list (docs/DRAWINGS.md 11.7)
+    view_sheets: tuple[tuple[str, int], ...] = ()
 
     def __post_init__(self) -> None:
         _choice(self.process, PROCESSES, "process")
         _choice(self.detail, DETAIL_LEVELS, "detail")
         _choice(self.mode, DRAWING_MODES, "mode")
         _check_balloons(self.balloons)
+        _check_view_sheets(self.view_sheets)
         if self.parts_list is not None:
             parts_list_spec(self.parts_list)
         if self.scheme is not None:
@@ -1006,7 +1034,9 @@ __all__ = [
     "REQUIREMENT_KINDS",
     "ROLES",
     "SCHEMES",
+    "MAX_SHEET",
     "SHEET_CHOICES",
+    "SHEET_VIEWS",
     "STANDARD_VIEWS",
     "STATUSES",
     "STYLES",

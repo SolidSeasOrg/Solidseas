@@ -31,7 +31,7 @@ the sheet is compact on a line of its own.
 | `generator` | `{"name": "SolidSeas", "version": ...}` of the SolidSeas that wrote the file |
 | `created`, `modified` | ISO 8601 times with the local offset; `save` sets `modified` |
 | `model` | the model's name, its path relative to the drawing's folder, its absolute path only when there is no relative one, format, configuration, the file's SHA-256, the geometry digest, the properties digest, part number, model revision, units and their origin, and `extents` (the part's extents in the datum frame, which matching normalises by; an addition to 13.1's example) |
-| `options` | frozen at creation: process, profile, units, scheme, arrangement, front direction and turn, the view set, sheet, scale, hidden and tangent modes, bodies, quality, configuration; and only when they are set, the parts list, the detail level, moved balloons and `mode` (`express` for an Express drawing, DRAWINGS.md 10.4b) |
+| `options` | frozen at creation: process, profile, units, scheme, arrangement, front direction and turn, the view set, sheet, scale, hidden and tangent modes, bodies, quality, configuration; and only when they are set, the parts list, the detail level, moved balloons, `mode` (`express` for an Express drawing, DRAWINGS.md 10.4b) and `view_sheets`, the views put on a sheet of their own (`{"isometric": 2}`, DRAWINGS.md 11.7) |
 | `settings` | the Drawing Settings snapshot, as `settings.to_dict` writes it (the logo's SHA-256 is in it; the logo's PNG travels in the sheet's image item) |
 | `title` | title fields by name, each with its text and origin (`part`, `list`, `typed`) |
 | `features` | id, descriptor (type, size signature, adjacency, position) and the user's decisions (a datum letter, a thread confirmation...) |

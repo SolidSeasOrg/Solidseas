@@ -82,6 +82,12 @@ while the project takes shape.
 
 ### Added
 
+- **The isometric on a sheet of its own.** Drawing > Isometric on Its Own Sheet
+  puts the isometric view, with an assembly's balloons, on a second sheet, and
+  back again; `solidseas drawing new --isometric-sheet` does the same. When an
+  isometric has no room on the sheet, the checklist now says so and offers the
+  move.
+
 - **Fillets in parts made without SOLIDWORKS.** The .sldprt export now writes a
   fillet of constant radius on all four edges of a box along its depth, and a
   fillet on the edge of a hole cut through the box, on its far face. Other

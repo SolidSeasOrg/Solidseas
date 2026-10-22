@@ -143,6 +143,7 @@ OPERATIONS = (
     "set_parts_list",
     "add_view",
     "remove_view",
+    "set_view_sheet",
     "edit_notes",
     "add_flag_note",
     "set_title",
@@ -362,7 +363,7 @@ def options_to_json(options: Any) -> dict[str, Any]:
     out: dict[str, Any] = {}
     for f in dataclasses.fields(options):
         v = getattr(options, f.name)
-        if f.name in ("arrangement", "balloons"):
+        if f.name in ("arrangement", "balloons", "view_sheets"):
             v = [list(e) for e in v]
         elif isinstance(v, tuple):
             v = list(v)
@@ -391,6 +392,13 @@ def options_from_json(value: Any) -> Any:
                 "arrangement is pairs of view/axis and scheme", detail={"parameter": "arrangement"}
             )
         kw["arrangement"] = tuple((p[0], p[1]) for p in pairs)
+    if "view_sheets" in kw:
+        pairs = kw["view_sheets"]
+        if not isinstance(pairs, list) or not all(isinstance(p, list) and len(p) == 2 for p in pairs):
+            raise InvalidArgumentError(
+                "view_sheets are pairs of view and sheet", detail={"parameter": "view_sheets"}
+            )
+        kw["view_sheets"] = tuple((p[0], p[1]) for p in pairs)
     if "balloons" in kw:
         moved = kw["balloons"]
         if not isinstance(moved, list) or not all(isinstance(e, list) and len(e) == 3 for e in moved):

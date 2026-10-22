@@ -2114,11 +2114,10 @@ def drawing_summary_data(drawing: Any) -> dict[str, Any]:
     views = list(options.views) if isinstance(options.views, tuple) else []
     states = [getattr(d, "state", "shown") for d in drawing.dimensions]
     attention = sum(1 for d in drawing.dimensions if "needs_attention" in getattr(d, "flags", ()))
-    annotations = sheet.annotations if sheet is not None else ()
     pages = display.sheets_of(sheet)
     lists = [a for page in pages for a in page.annotations if isinstance(a, display.PartsList)]
     items = sum(len(a.rows) for a in lists)
-    balloons = sum(1 for a in annotations if isinstance(a, display.Balloon))
+    balloons = sum(1 for page in pages for a in page.annotations if isinstance(a, display.Balloon))
     created = getattr(drawing, "created", None)
     modified = getattr(drawing, "modified", None)
     return to_json_data(
@@ -2165,7 +2164,7 @@ def drawing_summary_data(drawing: Any) -> dict[str, Any]:
                 "removed": sum(1 for s in states if s == "removed"),
                 "needs_attention": attention,
                 "notes": len(drawing.notes),
-                "views": len(sheet.views) if sheet is not None else len(views),
+                "views": sum(len(page.views) for page in pages) if sheet is not None else len(views),
                 "items": items,
                 "balloons": balloons,
                 "sheets": len(pages),

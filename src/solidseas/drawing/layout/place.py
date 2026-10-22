@@ -11,9 +11,13 @@ dropped silently: an item with no clear place is put at its best and reported.
 
 The result is a :class:`~solidseas.drawing.display.Sheet` (geometry, annotations
 and the painted layer) and the layout checks. Placement is deterministic: stable
-sort keys and no randomness. An assembly's parts list too long for the sheet's
-columns goes on to sheets after it (``docs/DRAWINGS.md`` 11.7), the sheet's
-``continuation``: the title block, border, stamps and the rest of the list.
+sort keys and no randomness. The sheets after the first are the sheet's
+``continuation`` (``docs/DRAWINGS.md`` 11.7): first those of the views the drawing
+puts on a sheet of their own (``view_sheets``, the isometric), each laid out by a
+run of its own on the plan's part drawn there (:func:`sheet_views`,
+:func:`on_sheet`, :meth:`_Run.lay_apart`); then those an assembly's parts list too
+long for the first goes on to: the continuation title block, border, stamps and the
+rest of the list.
 """
 
 from __future__ import annotations
@@ -204,13 +208,17 @@ class _Run:
         sheets=DEFAULT_LIMITS.sheets,
         measure=False,
         forced=None,
+        apart=(),
     ):
-        self.sheets = sheets  # the most sheets the drawing may take
+        self.sheets = sheets  # the most sheets the first and its parts list's may take
         # with ``measure``, why an item is placed with a conflict, on its check (.measure)
         self.measure = measure
         self.steps = M.Steps()
         self.room_kept = True  # whether the arrangement kept the datum symbols their room
         self.forced = forced  # a choice of sheet, scale and arrangement to lay out on (roomier)
+        # the plans of the sheets after the first that hold views standing apart from the
+        # front (layout's view sheets), in order; a long parts list's sheets come after them
+        self.apart = tuple(apart)
         self.planned = planned
         self.plan = planned.plan
         self.detail = planned.detail
@@ -419,10 +427,10 @@ class _Run:
 
     # ------------------------------------------------------------------ the whole sheet
 
-    def run(self) -> LayoutResult:
-        t0 = time.perf_counter()
-        f, sc, arr, cramped_words = self.choose()
-        self.chose = (f.name, sc, cramped_words)
+    def _start(self, f, arr) -> list:
+        """Begin laying out sheet frame ``f`` with the views as ``arr`` arranges them: a
+        new pen, index and lists, and the views and reserved areas in the index as
+        obstacles. Returns the views' placements (an isometric with no room left out)."""
         self.frame = f
         self.arr = arr
         self.pen = Pen()
@@ -438,8 +446,6 @@ class _Run:
         self.looked = 0  # places a leader item's text was tried at
         self.extra = 0  # of those, the ones beyond the first search of each leader item
         self.counting = False
-        if cramped_words:
-            self.cramped.append(("", cramped_words))
         placements = []
         for v, s in arr.slots.items():
             if s.spec.kind == "isometric" and arr.iso is None:
@@ -451,8 +457,17 @@ class _Run:
             self.index.add(VIEW, s.outline, v)
         for r in f.reserved:
             self.index.add(HARD, r, "reserved")
+        return placements
+
+    def run(self) -> LayoutResult:
+        t0 = time.perf_counter()
+        f, sc, arr, cramped_words = self.choose()
+        self.chose = (f.name, sc, cramped_words)
+        placements = self._start(f, arr)
+        if cramped_words:
+            self.cramped.append(("", cramped_words))
         more = self.continuation_shapes(f.name) if self.plan.bom else []
-        self.sheet_count = 1 + len(more)
+        self.sheet_count = 1 + len(self.apart) + len(more)
         self.paint_views()
         self.paint_bands()
         self.paint_datums()
@@ -461,6 +476,16 @@ class _Run:
         self.paint_furniture(sc)
         deep = self.deep_bands()
         painted = patterns.strokes(self.geometry, self.layers) + self.pen.items
+        found = self._checks(f)
+        views = dict(self.views)
+        later: list[D.Sheet] = []
+        for number, planned in enumerate(self.apart, 2):  # the views standing apart, each sheet's
+            made, checks, also_deep, also_views = self._run_for(planned).lay_apart(
+                f.name, sc, number, self.sheet_count
+            )
+            later.append(made)
+            found += [replace(c, message=f"on sheet {number}, {c.message}") for c in checks]
+            deep, views = deep | also_deep, {**views, **also_views}
         result_sheet = D.Sheet(
             f.name,
             f.width,
@@ -470,8 +495,66 @@ class _Run:
             tuple(self.geometry),
             tuple(self.annotations),
             tuple(painted),
-            self.paint_continuation(sc, more),
+            (*later, *self.paint_continuation(sc, more, 2 + len(later))),
         )
+        return LayoutResult(result_sheet, found, deep, f, time.perf_counter() - t0, sc, views)
+
+    def _run_for(self, planned: Planned) -> _Run:
+        """A run of ``planned`` (the views of a sheet after the first) with this run's
+        options, settings, title fields, status and signatures."""
+        return _Run(
+            planned,
+            self.options,
+            self.settings,
+            logo=self.logo,
+            logo_sha=self.logo_sha,
+            source=self.source,
+            fields=self.fields,
+            revisions=self.revisions,
+            status=self.status,
+            signed=self.signed,
+            sheets=1,
+            measure=self.measure,
+        )
+
+    def lay_apart(self, name: str, sc, number: int, count: int):
+        """This run's views on sheet ``number`` of the drawing's ``count``: views that
+        stand apart from the front (the isometric the user put there, 11.7), on a sheet
+        of the first's size ``name`` and at its scale ``sc``, centred above the
+        continuation title block, with the border, zones and stamps, and no notes,
+        revision block or parts list, which the first sheet carries for the drawing.
+        Returns the sheet, its layout checks, its deep bands and its datum symbols drawn
+        in another view than planned."""
+        f = sheet.continuation_frame(name, self.settings)
+        arr = A.arrange_apart(f, self.slots_at(standards.scale_factor(sc)), self.balloon_pads())
+        placements = self._start(f, arr)
+        self.sheet_count = count
+        self.paint_views()
+        self.paint_bands()
+        self.paint_datums()
+        self.paint_leaders()
+        self.paint_balloons()
+        fields = self.title_fields(sc, number)
+        unit = self.ctx.unit
+        self.annotations += titleblock.continuation_block(self.pen, f.title, unit=unit, fields=fields)
+        self.annotations += self.paint_stamps(self.pen, f)
+        if self.ctx.process == "printed":
+            self._build_arrows()
+        painted = patterns.strokes(self.geometry, self.layers) + self.pen.items
+        made = D.Sheet(
+            f.name,
+            f.width,
+            f.height,
+            sc,
+            tuple(placements),
+            tuple(self.geometry),
+            tuple(self.annotations),
+            tuple(painted),
+        )
+        return made, self._checks(f), self.deep_bands(), dict(self.views)
+
+    def _checks(self, f) -> list:
+        """The layout checks of the sheet frame ``f`` just painted, measured when asked."""
         found = C.run(
             self.pen,
             f,
@@ -482,7 +565,7 @@ class _Run:
         )
         if self.measure:
             found = [self._overlap_facts(c) if c.code == "L.overlap" else c for c in found]
-        return LayoutResult(result_sheet, found, deep, f, time.perf_counter() - t0, sc, dict(self.views))
+        return found
 
     # ------------------------------------------------------------------ measuring (.measure)
 
@@ -1577,17 +1660,18 @@ class _Run:
         if ctx.process == "printed":
             self._build_arrows()
 
-    def paint_continuation(self, sc, shapes: list[PL.Shape]) -> tuple[D.Sheet, ...]:
-        """The sheets after the first, one for each of ``shapes``: the rest of the parts
-        list, each column with its headings, on the continuation title block (the
-        drawing's number and SHEET n OF m), in the border with its zones and stamps. No
-        views, revision block or notes: the first sheet carries those for the drawing."""
+    def paint_continuation(self, sc, shapes: list[PL.Shape], first: int = 2) -> tuple[D.Sheet, ...]:
+        """The sheets of the rest of the parts list, one for each of ``shapes``, numbered
+        from ``first`` (after any sheets of views standing apart): the list, each column
+        with its headings, on the continuation title block (the drawing's number and
+        SHEET n OF m), in the border with its zones and stamps. No views, revision block
+        or notes: the first sheet carries those for the drawing."""
         if not shapes:
             return ()
         heads, narrow, rows = self.parts_rows()
         start = self.parts_shape(sheet.frame(self.frame.name, self.settings)).lines
         out = []
-        for number, shape in enumerate(shapes, 2):
+        for number, shape in enumerate(shapes, first):
             f = sheet.continuation_frame(
                 self.frame.name, self.settings, parts_height=shape.height, parts_width=shape.total_width
             )
@@ -1655,14 +1739,21 @@ def layout(
     sheets: int = DEFAULT_LIMITS.sheets,
     measure: bool = False,
 ) -> LayoutResult:
-    """Lay a plan out on a sheet (11), and on the sheets after it an assembly's parts
-    list too long for the first goes on to, at most ``sheets`` in all. With ``measure``
-    each check of an item placed with a conflict, or of text over text, says how layout
-    came to it (:mod:`.measure`), which changes nothing on the sheet."""
+    """Lay a plan out on a sheet (11); the views the drawing puts on sheets after the
+    first (``options.view_sheets``) on those, and after them the sheets an assembly's
+    parts list too long for the first goes on to (11.7), at most ``sheets`` in all. With
+    ``measure`` each check of an item placed with a conflict, or of text over text, says
+    how layout came to it (:mod:`.measure`), which changes nothing on the sheet."""
+    groups = sheet_views(planned.plan, options, sheets)
+    on_first = planned
+    if groups:
+        moved = {v for group in groups for v in group}
+        on_first = on_sheet(planned, {s.id for s in planned.plan.views if s.id not in moved}, first=True)
+    apart = tuple(on_sheet(planned, set(group), first=False) for group in groups)
 
     def run(forced=None) -> tuple[_Run, LayoutResult]:
         made = _Run(
-            planned,
+            on_first,
             options,
             settings,
             logo=logo,
@@ -1672,9 +1763,10 @@ def layout(
             revisions=tuple(revisions),
             status=status,
             signed=dict(signed or {}),
-            sheets=sheets,
+            sheets=sheets - len(groups),
             measure=measure,
             forced=forced,
+            apart=apart,
         )
         return made, made.run()
 
@@ -1696,4 +1788,46 @@ def _collisions(result: LayoutResult) -> int:
     return sum(1 for c in result.checks if c.code in ("L.overlap", "L.placement"))
 
 
-__all__ = ["LayoutResult", "attach", "layout", "severity"]
+# The kinds of view that stand apart from the front, needing no projection alignment with it:
+# the ones a drawing may put on a sheet after its first (types.SHEET_VIEWS names them).
+APART = ("isometric", "section", "detail")
+
+
+def sheet_views(plan, options, sheets: int = DEFAULT_LIMITS.sheets) -> tuple[tuple[str, ...], ...]:
+    """The views a drawing puts on sheets after its first (``options.view_sheets``):
+    each such sheet's view ids, the sheets in the order of the numbers asked for and
+    numbered from 2 without a gap. Only a view the plan has, of a kind that stands apart
+    from the front, moves; a drawing held to fewer ``sheets`` keeps the rest on its
+    first."""
+    asked = dict(options.view_sheets)
+    by_sheet: dict[int, list[str]] = {}
+    for spec in plan.views:
+        number = asked.get(spec.name)
+        if number is not None and spec.kind in APART:
+            by_sheet.setdefault(number, []).append(spec.id)
+    groups = tuple(tuple(by_sheet[n]) for n in sorted(by_sheet))
+    return groups[: max(0, sheets - 1)]
+
+
+def on_sheet(planned: Planned, views: set[str], *, first: bool) -> Planned:
+    """``planned`` with the views ``views`` alone and what is drawn in them: their
+    dimensions, and the balloons whose first view is among them, each one's other views
+    kept to those. The first sheet keeps the notes and the parts list; a later one has
+    neither."""
+    plan = planned.plan
+    kept = replace(
+        plan,
+        views=tuple(s for s in plan.views if s.id in views),
+        dimensions=tuple(d for d in plan.dimensions if d.view in views),
+        balloons=tuple(
+            replace(b, others=tuple(o for o in b.others if o[0] in views))
+            for b in plan.balloons
+            if b.view in views
+        ),
+    )
+    if not first:
+        kept = replace(kept, notes=(), bom=())
+    return Planned(kept, planned.detail)
+
+
+__all__ = ["APART", "LayoutResult", "attach", "layout", "on_sheet", "severity", "sheet_views"]

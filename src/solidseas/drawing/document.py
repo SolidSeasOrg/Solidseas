@@ -140,6 +140,7 @@ OPTION_KEYS = (
     "detail",
     "balloons",
     "mode",
+    "view_sheets",
 )
 DIMENSION_KEYS = (
     "key",
@@ -380,6 +381,8 @@ def _options_out(o: DrawingOptions, settings: Any) -> dict:
         out["balloons"] = {item: [dx, dy] for item, dx, dy in o.balloons}
     if o.mode != "expert":  # likewise: how an Express drawing was started
         out["mode"] = o.mode
+    if o.view_sheets:  # likewise: the views put on a sheet after the first, {view: sheet}
+        out["view_sheets"] = {view: number for view, number in o.view_sheets}
     return out
 
 
@@ -1082,6 +1085,9 @@ class _Reader:
             found["detail"] = raw["detail"]
         if "mode" in raw:
             found["mode"] = raw["mode"]
+        if "view_sheets" in raw:
+            v = raw["view_sheets"]
+            found["view_sheets"] = tuple(v.items()) if isinstance(v, dict) else v
         if "balloons" in raw:
             b = raw["balloons"]
             if isinstance(b, dict) and all(isinstance(v, list) and len(v) == 2 for v in b.values()):

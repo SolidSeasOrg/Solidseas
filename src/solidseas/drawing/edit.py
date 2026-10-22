@@ -293,7 +293,7 @@ def _named(drawing: types.Drawing) -> frozenset[str]:
 def _plan_key(drawing: types.Drawing) -> tuple:
     """What the plan reads from a drawing: an edit that changes none of it is laid out
     again without planning."""
-    options = replace(drawing.options, sheet="auto", scale="auto")
+    options = replace(drawing.options, sheet="auto", scale="auto", view_sheets=())
     return (
         options,
         drawing.settings,
@@ -1197,6 +1197,28 @@ def remove_view(drawing: types.Drawing, name: str) -> tuple[types.Drawing, tuple
     return relayout(replace(drawing, options=replace(drawing.options, views=views)))
 
 
+def set_view_sheet(drawing: types.Drawing, view: str, sheet: int) -> tuple[types.Drawing, tuple]:
+    """Draw ``view``, one that stands apart from the front (``isometric``), on sheet
+    ``sheet``: 1 puts it back on the first sheet with the other views, and 2 or more on a
+    sheet after the first, which layout numbers from 2 before the sheets of a long parts
+    list (11.7). The front and its projected views stay on the first sheet."""
+    _editable(drawing)
+    if view not in types.SHEET_VIEWS:
+        raise InvalidArgumentError(
+            f"only the {' or '.join(types.SHEET_VIEWS)} view goes on a sheet of its own; the front "
+            "and the views projected from it stay on the first sheet",
+            detail={"parameter": "view"},
+        )
+    if isinstance(sheet, bool) or not isinstance(sheet, int) or not 1 <= sheet <= types.MAX_SHEET:
+        raise InvalidArgumentError(f"sheet must be 1 to {types.MAX_SHEET}", detail={"parameter": "sheet"})
+    if view not in _view_names(drawing):
+        raise InvalidArgumentError(f"the drawing has no {view} view", detail={"parameter": "view"})
+    kept = tuple((v, n) for v, n in drawing.options.view_sheets if v != view)
+    if sheet > 1:
+        kept += ((view, sheet),)
+    return relayout(replace(drawing, options=_options(drawing.options, view_sheets=kept)))
+
+
 def _view_names(drawing: types.Drawing) -> tuple[str, ...]:
     views = drawing.options.views
     if views == "auto":
@@ -1411,6 +1433,7 @@ __all__ = [
     "set_tolerance",
     "set_tolerance_block",
     "set_units",
+    "set_view_sheet",
     "sign",
     "start_revision",
     "unlink",

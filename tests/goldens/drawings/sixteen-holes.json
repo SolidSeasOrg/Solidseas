@@ -146,7 +146,8 @@
         "information R6.signatures CHECKED: CHECKED is not signed",
         "error R6.title DRAWN: nobody is named as DRAWN, with the date",
         "error R6.title finish: the title block's FINISH is empty",
-        "error R6.title material: the title block's MATERIAL is empty"
+        "error R6.title material: the title block's MATERIAL is empty",
+        "information R12.views v-4: the isometric has no room on the sheet, so it is left out"
       ]
     },
     "svg": {

@@ -248,7 +248,7 @@ broken-out sections, chain dimensioning, hole tables, ISO, mesh sources,
 `BLENDED_EDGE` recognition as blends, DXF R12, SVG export, REST routes,
 free-pick Add Dimension, Settings import and export, Key coverage and critical
 flags, the geometry cache, several sheets (built since for an assembly's long
-parts list alone, 11.7), `.SLDDRW`.
+parts list and an isometric on a sheet of its own, 11.7), `.SLDDRW`.
 
 ### 3.5 Stage 2: release 1.1
 
@@ -291,8 +291,11 @@ hole tables; mesh sources with "REFERENCE ONLY - NOT FOR MANUFACTURE";
 DXF R12; SVG export; REST routes and `ssdrw_summary`; free-pick Add Dimension;
 Settings import and export and a Presentation page; Key coverage, critical and
 inspection marks, and the print file named in printed notes; the geometry
-cache; the DXF TOLERANCE entity; dual dimensions; several sheets (views on a
-second sheet; a long parts list's sheets are built, 11.7); PDF/A with an
+cache; the DXF TOLERANCE entity; dual dimensions; several sheets (sections,
+details and removed projected views on later sheets, with the sheet and zone
+references between a view and its cutting plane or parent, and views moved there
+when they do not fit; a long parts list's sheets and an isometric's own sheet are
+built, 11.7); PDF/A with an
 embedded single-stroke font; the Windows Share sheet; email routes for the CLI;
 Hole Wizard records; STEP AP242 PMI; sheet metal; assemblies (views, balloons,
 the BOM table); and the OCCT hidden-line accelerator question (section 25).
@@ -1391,6 +1394,7 @@ Each operation returns a new `Drawing` and its checks:
 | `move`, `flip`, `reset_position` | placement relative to attach points |
 | `set_sheet`, `set_scale`, `set_units` | for this drawing; re-lays out |
 | `add_view(detail or section)`, `remove_view` | sections 8.9 and 8.10 |
+| `set_view_sheet(view, sheet)` | a view that stands apart from the front (the isometric) on a sheet of its own, or back on the first (11.7); re-lays out without planning |
 | `set_tolerance_block`, `edit_notes`, `add_flag_note(note, items)` | per drawing; the settings snapshot otherwise unchanged |
 | `confirm_thread(feature, spec)`, `confirm_end(feature)` | user decisions stored on the feature |
 | `sign(row, person)`, `release()`, `start_revision(description)` | section 13 |
@@ -1512,19 +1516,44 @@ degrees, moved placements that had to be reset, cramped features.
 
 ### 11.7 More than one sheet
 
-A drawing has one sheet, except an assembly's whose parts list is longer than
-the columns its first sheet holds (`docs/drawings/assemblies.md`). The first
-sheet then fills those columns and the list goes on to sheets of the same size
-after it, as many as it needs and at most `DrawingLimits.sheets` in all. Each of
-those sheets has the border with its zones, the PRELIMINARY stamp while the
-drawing is unreleased, the plot stamp, the continuation title block (11.4) and the
-rest of the list in columns standing on that block, each column with its headings, as many
-columns as the border's width holds, each as tall as the field above the title
-block; the last sheet's columns share its lines evenly. The views, balloons,
-notes and revision block stay on the first sheet. Every title block says SHEET n
-OF m, the first sheet's too (`1 OF 3`); a drawing of one sheet says `1 OF 1` as
-before. A drawing at the limit puts every line left on its last sheet, its
-columns taller than the field when they must be, and a drawing held to one sheet
+A drawing has one sheet unless it puts a view on a sheet of its own or is an
+assembly whose parts list is longer than the columns its first sheet holds. Its
+sheets are then, in this order: the first; the sheets of views standing apart;
+the sheets of the rest of the parts list. Every one is the first's size, at the
+drawing's one scale, with the border and its zones, the PRELIMINARY stamp while
+the drawing is unreleased, the plot stamp and, after the first, the continuation
+title block (11.4). Every title block says SHEET n OF m, the first sheet's too
+(`1 OF 3`); a drawing of one sheet says `1 OF 1` as before. The notes and the
+revision block stay on the first sheet, with the front and the views projected
+from it, which keep their projection alignment there. A drawing has at most
+`DrawingLimits.sheets` sheets.
+
+**Views on a sheet of their own.** A view that stands apart from the front,
+needing no projection alignment with it, may go on a sheet after the first: the
+isometric now, sections and details once the planner makes them
+(`types.SHEET_VIEWS`). The drawing's `view_sheets` option names the view and its
+sheet (`edit.set_view_sheet`; the editor's Drawing > Isometric on Its Own Sheet).
+Views given the same number share a sheet, and the sheets asked for are numbered
+from 2 in the order of their numbers, with no gap. Each is laid out by the same
+engine as the first (`layout.place.on_sheet` keeps the plan's views, dimensions
+and balloons that are drawn there; `_Run.lay_apart`): the isometric centred in
+the field above the continuation title block, else beside it, at full scale or
+smaller as on the first sheet, and the balloons whose first view it is go with it.
+Where a view goes is the layout's choice, not the plan's, so moving one lays the
+drawing out again without planning. The first sheet's views stand where they
+stood. An isometric with no room on the first sheet is left off it, as before, and
+the checks now say so (R12.views, as information, with Move to Its Own Sheet as
+the fix); on a sheet of its own it is left off only when it fits there at no
+scale either. A drawing held to fewer sheets keeps the views it has no room for on
+its first.
+
+**A long parts list.** The first sheet fills its columns and the list goes on to
+sheets after the sheets of views, as many as it needs. Each of them has the rest
+of the list in columns standing on the continuation title block, each column
+with its headings, as many columns as the border's width holds, each as tall as
+the field above the block; the last sheet's columns share its lines evenly. A
+drawing at the limit puts every line left on its last sheet, its columns taller
+than the field when they must be, and a drawing held to one sheet
 (`DrawingLimits(sheets=1)`) stands its columns taller instead, as every drawing
 did before.
 
@@ -1532,7 +1561,11 @@ The sheets after the first are `display.Sheet.continuation` of the first
 (`display.sheets_of` lists them all), so everything that carries a drawing's
 sheet carries them, and a layout lays them out again with the first. `R8.sheet`
 checks each is the first's size with a title block numbering it among the rest and
-naming the first's drawing number and revision.
+naming the first's drawing number and revision. The checks read views, labels,
+balloons and build arrows on every sheet; the text checks that run without the
+model (R8.sheet's text in a block, R10.text, R11) read the first sheet, and in a
+live run the layout checks the first sheet and each sheet of views, a later
+sheet's findings beginning "on sheet n".
 
 ## 12. Writers and where files go
 
@@ -1737,7 +1770,10 @@ Members:
   change from a save that only touched properties), the properties digest
   (tells that a title block refresh is due); configuration, part number, model
   revision, units.
-- `options`: frozen at the first save (section 6.8).
+- `options`: frozen at the first save (section 6.8). The views put on a sheet of
+  their own are `view_sheets`, `{"isometric": 2}`, written only when there are
+  any (11.7); a SolidSeas from before them keeps the member unread and writes it
+  back.
 - `settings`: the snapshot.
 - `features`: id, descriptor and the user's decisions.
 - `dimensions`: key, id, origin, state, placement, overrides, tolerance, frame.
@@ -1995,9 +2031,12 @@ A `QMainWindow` per drawing, with the operations of section 10.12:
 - **Sheets:** a drawing of several sheets (11.7) shows one at a time, the status
   bar saying which ("Sheet 2 of 3"); Next Sheet and Previous Sheet (Ctrl+Page
   Down, Ctrl+Page Up, on the Drawing menu and the toolbar, shown only for such a
-  drawing) page through them. Every edit is about the first sheet, which holds
-  everything but the rest of the parts list, and selecting a dimension, a note or
-  a view shows it again.
+  drawing) page through them. Drawing > Isometric on Its Own Sheet (a tick)
+  moves the isometric, with its balloons, to the sheet after the first and back,
+  and shows the sheet it went to; the check that says an isometric had no room
+  offers the same as its fix. Every other edit is about the first sheet, which
+  holds everything but the isometric on its own sheet and the rest of the parts
+  list, and selecting a dimension, a note or a view shows it again.
 
 Nothing geometric runs on the UI thread.
 
@@ -2094,7 +2133,7 @@ copy of the sheet format is asked each time (Q13).
 | seconds | source 30, tessellation 30, features 20, views 90 in all, plan 20, layout 20; 150 in total | worst measured before the fixes: 185.6 s for a 19,064-face part |
 | model extent | 1 µm to 100 m | |
 | requirements; generated dimensions | 5,000; 2,000 | |
-| views a sheet; sheets | 12; 16 (at most 64) | the corpus drawings have at most 6 views and one sheet; more sheets hold only a long parts list (11.7) |
+| views a sheet; sheets | 12; 16 (at most 64) | the corpus drawings have at most 6 views and one sheet; more sheets hold an isometric put on its own and a long parts list (11.7) |
 | title field; note; any string | 256; 2,000; 4,096 characters | |
 | settings file; drawing file; its sheet; unknown members | 256 KiB; 16 MiB; 12 MiB; 1 MiB | |
 | logo stored | 512 KiB, 1,200 px a side | |
@@ -2261,7 +2300,7 @@ once the user has installed them; Email PDF with the user's webmail.
 | R10.text | heights at or above the minimum; labels larger; upper case; no compressed text | error |
 | R11.collisions | no hard conflict | error |
 | R11.spacing, R11.leaders | spacing, gap and overrun; leaders 15 to 75 degrees | warning |
-| R12.views | no idle view; sections replace their projected view; labels and letters | warning |
+| R12.views | no idle view; sections replace their projected view; labels and letters; an isometric left off for want of room (information) | warning |
 | R13.scheme | locations from the datums; ordinate where stacks are deep | warning |
 | R13.plusminus | plus/minus locations between features under Y14.5-2018 | warning (information on printed parts) |
 | R14.notes | fillet note radius; chamfers `leg X angle`; edge break note | warning |

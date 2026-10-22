@@ -59,6 +59,14 @@ sheet or scale is kept as it is.
   their shared axes, the gap between two views their facing bands (or datum
   symbols) and two text heights. The group is centred beside the title column, or above it. The
   isometric goes in the free area left, at full scale or smaller (C25).
+- A view the drawing puts on a sheet of its own (`view_sheets`, DRAWINGS.md 11.7;
+  the isometric now) is left out of the first sheet's arrangement and laid out on
+  its sheet by a run of its own (`place.sheet_views` and `place.on_sheet` split the
+  plan, `_Run.lay_apart` lays it out): the first sheet's size and scale, the
+  continuation title block, and `arrange.arrange_apart` centring the isometric in
+  the field above that block, else beside it, at the first of
+  `arrange.ISO_FACTORS` it fits at. Its balloons go with it, and its layout checks
+  join the first sheet's, saying "on sheet n".
 
 ## Placement
 

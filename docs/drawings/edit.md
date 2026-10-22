@@ -120,6 +120,7 @@ The planner reads them:
 | `move(d, id, along_mm, across_mm)`, `flip(d, id)`, `reset_position(d, id)` | see Placement below |
 | `set_sheet`, `set_scale`, `set_units` | for this drawing |
 | `add_view(d, name)`, `remove_view(d, name)` | principal views; the front stays |
+| `set_view_sheet(d, view, sheet)` | the isometric on a sheet of its own after the first (2 or more; the sheets asked for are numbered from 2 without a gap), or back on the first (1); the front and its projected views stay on the first. The drawing's `view_sheets` option, laid out again without planning (DRAWINGS.md 11.7) |
 | `edit_notes(d, texts)` | notes in order; an unchanged note keeps its id and origin, others are the user's |
 | `set_title(d, key, text)` | a typed title field; a material or finish in the list shows as its callout |
 | `set_tolerance_block(d, rows)` | the block of the drawing's unit, in its settings snapshot |

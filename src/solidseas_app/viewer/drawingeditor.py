@@ -31,6 +31,10 @@ under 15.5.
   then) page through the sheets and the status bar says which is shown; everything
   but the rest of the list is on the first sheet, and selecting a dimension, a note
   or a view goes back to it.
+* **Isometric on Its Own Sheet** (Drawing menu, a tick; ``edit.set_view_sheet``) puts
+  the isometric, with an assembly's balloons in it, on the sheet after the first, and
+  back, then shows the sheet it went to; it is the fix of the check that says an
+  isometric had no room on the sheet.
 * **Status bar:** the status and revision, and the model: "Model unchanged", "The
   model has changed. Update Drawing", "Model not found. Find...".
 
@@ -222,6 +226,18 @@ def _unit(drawing: Any) -> str:
 def _snapshot(drawing: Any) -> drawing_settings.DrawingSettings:
     s = getattr(drawing, "settings", None)
     return s if isinstance(s, drawing_settings.DrawingSettings) else drawing_settings.DrawingSettings()
+
+
+def has_isometric(drawing: Any) -> bool:
+    """Whether the drawing's views include the isometric: its frozen view set, else the
+    default views of its process in its settings snapshot."""
+    if drawing is None:
+        return False
+    views = drawing.options.views
+    if isinstance(views, tuple):
+        return "isometric" in views
+    defaults = _snapshot(drawing).defaults.views.get(drawing.options.process, {})
+    return bool(defaults.get("isometric"))
 
 
 def view_names(drawing: Any) -> dict[str, str]:
@@ -637,6 +653,13 @@ class DrawingEditor(QMainWindow):
         a["find"] = self._action(dwg, "&Find the Model...", self.find_model)
         dwg.addSeparator()
         a["sheet"] = self._action(dwg, "Sheet and Scale...", self.sheet_and_scale)
+        a["iso_sheet"] = self._action(
+            dwg,
+            "Isometric on Its Own Sheet",
+            self.isometric_sheet,
+            tip="Draw the isometric on a sheet of its own after the first, or back on the first",
+        )
+        a["iso_sheet"].setCheckable(True)
         a["units"] = self._action(dwg, "Units...", self.set_units)
         a["block"] = self._action(dwg, "Tolerance Block...", self.tolerance_block)
         a["notes"] = self._action(dwg, "Notes...", self.edit_notes)
@@ -1122,6 +1145,8 @@ class DrawingEditor(QMainWindow):
         )
         a["find"].setEnabled(have)
         a["revision"].setEnabled(released and self.model_state in (*_MODEL_OK, "changed"))
+        a["iso_sheet"].setEnabled(edit and has_isometric(self.drawing))
+        a["iso_sheet"].setChecked(have and "isometric" in dict(self.drawing.options.view_sheets))
         count = len(self.sheets)
         for key in ("previous_sheet", "next_sheet"):
             a[key].setVisible(count > 1)
@@ -1735,6 +1760,8 @@ class DrawingEditor(QMainWindow):
             self._say(f"Add Detail View: {LATER}")
         elif fix == "Sheet and Scale":
             self.sheet_and_scale()
+        elif fix == "Move to Its Own Sheet":
+            self.isometric_sheet(True)
         elif fix == "Edit the Title Block":
             self.select("")
         else:
@@ -1766,6 +1793,24 @@ class DrawingEditor(QMainWindow):
                 ops.append(("set_scale", [scale]))
         if ops:
             self.edits(ops, "Sheet and scale")
+
+    def isometric_sheet(self, apart: bool | None = None) -> None:
+        """Isometric on Its Own Sheet: draw the isometric on a sheet of its own after the
+        first (``apart``), its balloons with it, or back on the first; toggled when not
+        given (``edit.set_view_sheet``, ``docs/DRAWINGS.md`` 11.7)."""
+        if not self._can_edit() or not has_isometric(self.drawing):
+            self._update_actions()
+            return
+        now = "isometric" in dict(self.drawing.options.view_sheets)
+        apart = not now if apart is None else bool(apart)
+        if apart != now:
+            words = "Isometric on its own sheet" if apart else "Isometric on the first sheet"
+            # then the sheet it is on is shown: the second, which follows the first, or the first
+            page = 1 if apart else 0
+            args = ["isometric", 2 if apart else 1]
+            self.edit("set_view_sheet", args, words, then=lambda: self.show_sheet(page))
+        else:
+            self._update_actions()
 
     def set_units(self, units: str | None = None) -> None:
         """Units: inches or millimetres for this drawing."""

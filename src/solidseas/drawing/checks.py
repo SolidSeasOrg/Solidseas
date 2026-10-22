@@ -287,6 +287,9 @@ class _In:
         if sheet is None and layout is not None:
             sheet = layout.sheet
         self.sheet: D.Sheet | None = sheet
+        self.sheets = D.sheets_of(sheet)
+        # every view drawn, on whichever of the drawing's sheets: the sheet it is on, from 1
+        self.placed = {p.view: n for n, page in enumerate(self.sheets, 1) for p in page.views}
         self.process = drawing.options.process
         self.assembly = is_assembly(drawing)
         self.unit = self._unit()
@@ -411,8 +414,8 @@ class _In:
     # ------------------------------------------------------------------ the sheet
 
     def view_boxes(self) -> dict[str, Box]:
-        """Each view's box on the sheet: its geometry and centre marks (a box no larger
-        than the one layout measured bands from)."""
+        """Each view's box on the sheet it is on: its geometry and centre marks (a box no
+        larger than the one layout measured bands from)."""
         if self._view_boxes is not None:
             return self._view_boxes
         boxes: dict[str, list[float]] = {}
@@ -427,10 +430,10 @@ class _In:
                 cur[0], cur[1] = min(cur[0], b[0]), min(cur[1], b[1])
                 cur[2], cur[3] = max(cur[2], b[2]), max(cur[3], b[3])
 
-        if self.sheet is not None:
-            for g in self.sheet.geometry:
+        for page in self.sheets:  # a view is on one sheet: its box is in that sheet's frame
+            for g in page.geometry:
                 grow(getattr(getattr(g, "src", None), "view", ""), _box_of(g))
-            for a in self.annotations:
+            for a in page.annotations:
                 if isinstance(a, D.CentreMark):
                     c, r = a.centre, a.radius
                     grow(a.view, (c[0] - r, c[1] - r, c[0] + r, c[1] + r))
@@ -2124,7 +2127,7 @@ def _r11_leaders(s: _In, out: _Out) -> None:
 def _r12_views(s: _In, out: _Out) -> None:
     if s.sheet is None:
         return
-    labels = [a for a in s.annotations if isinstance(a, D.ViewLabel)]
+    labels = [a for page in s.sheets for a in page.annotations if isinstance(a, D.ViewLabel)]
     letters: dict[str, str] = {}
     for a in labels:
         m = _LABEL.match(a.text)
@@ -2153,13 +2156,15 @@ def _r12_views(s: _In, out: _Out) -> None:
     specs = s.specs()
     if not specs:
         return
-    placed = {p.view for p in s.sheet.views}
+    placed = set(s.placed)  # on any of the drawing's sheets
     labelled = {a.view for a in labels}
     used: dict[str, int] = {}
     for d in s.shown:
         used[d.view] = used.get(d.view, 0) + 1
     for vid, spec in sorted(specs.items(), key=lambda kv: _natural(kv[0])):
         if vid not in placed:
+            if spec.kind == "isometric":
+                _r12_left_out(s, out, vid)
             continue
         if spec.kind in ("base", "projected", "isometric") and vid in labelled:
             out.add("R12.views", f"{vid} is a principal view and is labelled; principal views are not", vid)
@@ -2174,6 +2179,27 @@ def _r12_views(s: _In, out: _Out) -> None:
                 vid,
                 ("Remove the View",),
             )
+
+
+def _r12_left_out(s: _In, out: _Out, vid: str) -> None:
+    """The plan's isometric is on no sheet: it had no room. Said as information, the
+    drawing being whole without it, with the way to give it room (11.7)."""
+    if "isometric" in dict(s.drawing.options.view_sheets):
+        out.add(
+            "R12.views",
+            "the isometric has no room even on a sheet of its own, so it is left out",
+            vid,
+            ("Sheet and Scale", "Remove the View"),
+            level="information",
+        )
+        return
+    out.add(
+        "R12.views",
+        "the isometric has no room on the sheet, so it is left out",
+        vid,
+        ("Move to Its Own Sheet", "Remove the View"),
+        level="information",
+    )
 
 
 # --------------------------------------------------------------------------- R13: schemes
@@ -2342,22 +2368,23 @@ def _r15_process(s: _In, out: _Out) -> None:
 
 def _build_arrows(s: _In, out: _Out) -> None:
     """A printed part's build-direction arrow on each view carrying Z dimensions (and on
-    the isometric, in a live run)."""
-    arrows = [
-        (r.x, r.y)
-        for r in s.sheet.painted
-        if isinstance(r, D.TextRun) and r.owner == "build" and "BUILD" in r.text
-    ]
+    the isometric, in a live run), looked for on the sheet the view is on."""
+    arrows: dict[int, list[tuple[float, float]]] = {}
+    for n, page in enumerate(s.sheets, 1):
+        arrows[n] = [
+            (r.x, r.y)
+            for r in page.painted
+            if isinstance(r, D.TextRun) and r.owner == "build" and "BUILD" in r.text
+        ]
     boxes = s.view_boxes()
     views = {d.view for d in s.shown if d.axis == "z"}
     views |= {vid for vid, spec in s.specs().items() if spec.kind == "isometric"}
-    placed = {p.view for p in s.sheet.views}
-    for vid in sorted(views & placed, key=_natural):
+    for vid in sorted(views & set(s.placed), key=_natural):
         box = boxes.get(vid)
         if box is None:
             continue
         near = box.grow(32.0)  # an arrow set beside the view, with its label
-        if not any(near.x0 <= x <= near.x1 and near.y0 <= y <= near.y1 for x, y in arrows):
+        if not any(near.x0 <= x <= near.x1 and near.y0 <= y <= near.y1 for x, y in arrows[s.placed[vid]]):
             out.add(
                 "R15.process",
                 f"{vid} has no build-direction arrow",
@@ -2590,7 +2617,8 @@ def _asm_parts(s: _In, out: _Out) -> None:
     rows = [r for pl in lists for r in pl.rows if r]
     items = {r[0] for r in rows}
     shown: set[str] = set()
-    for b in (a for a in s.annotations if isinstance(a, D.Balloon)):
+    # the balloons of every sheet: a view put on a sheet of its own takes its balloons there
+    for b in (a for page in s.sheets for a in page.annotations if isinstance(a, D.Balloon)):
         shown.add(b.item)
         if b.item not in items:
             out.add(

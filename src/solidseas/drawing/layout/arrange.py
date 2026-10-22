@@ -11,7 +11,8 @@
    to its right, aligned on their shared axis; the gap between two views the sum of
    their facing bands and two text heights. The group is centred in the drawing
    area beside the title column, or above it. The isometric goes in the free area
-   left, at full scale or smaller (C25).
+   left, at full scale or smaller (C25). An isometric the user put on a sheet of its
+   own is centred there instead (:func:`arrange_apart`).
 3. **Scale and sheet**: :mod:`.sheet`.
 """
 
@@ -32,6 +33,7 @@ LEADER_KINDS = ("hole_callout", "diameter", "radius", "chamfer", "leader_note", 
 SIDES = ("below", "above", "left", "right")
 LEADER_ROOM = 16.0  # a leader and its shoulder, beside the widest text block
 DATUM_CLEAR = 1.5  # mm between a datum feature symbol and the first row of dimensions past it
+ISO_FACTORS = (1.0, 0.75, 0.5, 0.35)  # the isometric's scale against the sheet's, tried in turn (C25)
 
 
 @dataclass
@@ -451,6 +453,51 @@ def arrange(
     return out
 
 
+def arrange_apart(
+    frame: SheetFrame, slots: dict[str, Slot], pads: dict[str, float] | None = None
+) -> Arrangement:
+    """The views of a sheet after the first, which stand apart from the front (the
+    isometric the user put on a sheet of its own, ``docs/DRAWINGS.md`` 11.7): centred
+    in the field above the title block, else beside it, at full scale or smaller as on
+    the first sheet (C25), with ``pads`` more all round where balloons go. An
+    isometric with no room even there is left off (``iso`` None), as on the first."""
+    pads = pads or {}
+    out = Arrangement(slots, {v: {} for v in slots}, Box(0.0, 0.0, 0.0, 0.0))
+    iso = next((v for v, s in slots.items() if s.spec.kind == "isometric"), None)
+    if iso is not None:
+        out.iso, out.iso_factor = iso, _centre_iso(frame, slots[iso], pads.get(iso, 0.0))
+        if out.iso_factor == 0.0:
+            out.iso = None
+        else:
+            out.group = slots[iso].box
+    return out
+
+
+def _centre_iso(frame: SheetFrame, s: Slot, pad: float = 0.0) -> float:
+    """Room for the isometric on a sheet of its own: centred in the field above the
+    title block, else in the field beside it clear of the plot stamp, at the first of
+    :data:`ISO_FACTORS` it fits at; its factor, or 0 when it fits nowhere."""
+    area = frame.area
+    rooms = (
+        Box(area.x0, frame.title.y1 + GAP, area.x1, area.y1),
+        Box(area.x0, frame.plot.y1 + GAP, frame.title.x0 - GAP, area.y1),
+    )
+    base_k = s.k
+    margin = max(GAP, pad)
+    for f in ISO_FACTORS:
+        s.k = base_k * f
+        s.origin = (0.0, 0.0)
+        b = s.box
+        w, hgt = b.width + 2 * margin, b.height + 2 * margin
+        for room in rooms:
+            if w <= room.width and hgt <= room.height:
+                x, y = (room.x0 + room.x1 - w) / 2, (room.y0 + room.y1 - hgt) / 2
+                s.origin = (x + margin - b.x0, y + margin - b.y0)
+                return f
+    s.k = base_k
+    return 0.0
+
+
 def _place_iso(frame: SheetFrame, s: Slot, taken: list[Box], pad: float = 0.0) -> float:
     """Find room for the isometric, at full scale or smaller (C25), with ``pad`` more
     all round where its balloons go: its factor, or 0 when it fits nowhere. Tried
@@ -459,7 +506,7 @@ def _place_iso(frame: SheetFrame, s: Slot, taken: list[Box], pad: float = 0.0) -
     blocked = taken + frame.reserved
     base_k = s.k
     margin = max(GAP, pad)
-    for f in (1.0, 0.75, 0.5, 0.35):
+    for f in ISO_FACTORS:
         s.k = base_k * f
         s.origin = (0.0, 0.0)
         b = s.box
@@ -480,12 +527,14 @@ def _place_iso(frame: SheetFrame, s: Slot, taken: list[Box], pad: float = 0.0) -
 
 
 __all__ = [
+    "ISO_FACTORS",
     "LEADER_KINDS",
     "Arrangement",
     "Band",
     "BandDim",
     "Slot",
     "arrange",
+    "arrange_apart",
     "bands",
     "dim_width",
     "frame_width",

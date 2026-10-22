@@ -4650,7 +4650,7 @@ name (`stages`) and the run stopped after one (`until`). `make_drawing` is
 `set_scheme`, `set_depth_reference`, `set_tolerance`, `set_precision`,
 `set_prefix`, `set_suffix`, `override_value`, `set_frame`, `set_datum`, `move`,
 `flip`, `reset_position`, `set_sheet`, `set_scale`, `set_units`, `add_view`,
-`remove_view`, `edit_notes`, `set_title`, `set_tolerance_block`,
+`remove_view`, `set_view_sheet`, `edit_notes`, `set_title`, `set_tolerance_block`,
 `use_settings`, `confirm_thread`, `confirm_end`, `sign`, `release_drawing` and
 `start_revision`. Each takes a drawing and returns `(drawing, checks)`, never
 changing the drawing given. Laying the sheet out again needs the model: the run

@@ -155,6 +155,10 @@ the dimensions by view, Properties, and the checklist with its fixes.
   Sheet** (Ctrl+Page Down and Ctrl+Page Up) page through them, and the status
   bar says which one you are looking at. You make your edits on the first
   sheet; choosing a dimension or a note takes you back to it.
+- **Drawing > Isometric on Its Own Sheet** moves the isometric view to a second
+  sheet, at the drawing's scale or smaller to fit, and back again. On an
+  assembly its balloons go with it. When the isometric has no room on the
+  sheet, the checklist says so and offers the same move.
 
 **The model:** the status bar says whether the part has changed. A changed part
 leaves the drawing view-only until **Update Drawing**, which keeps your edits and

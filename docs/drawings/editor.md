@@ -54,6 +54,7 @@ changed model, which Update Drawing takes.
 | Edit | Add Dimension (D), Remove Dimension (Delete), Reset Position | as the panels do |
 | Drawing | Update from Model, Find the Model... | see The model below |
 | Drawing | Sheet and Scale..., Units..., Tolerance Block..., Notes... | `set_sheet` and `set_scale` (one undo step), `set_units`, `set_tolerance_block`, `edit_notes` |
+| Drawing | Isometric on Its Own Sheet (a tick) | `set_view_sheet`: the isometric, with its balloons, on the sheet after the first, or back on the first; the sheet it went to is shown. On only for a drawing whose views include the isometric. The check that says an isometric had no room offers it as Move to Its Own Sheet |
 | Drawing | Add Detail View, Add Section | disabled: coming in a later release (`edit.add_view` refuses them with rule `later_release`) |
 | Drawing | Use Current Drawing Settings, Drawing Settings... | `edit.use_settings` with the current settings; the dialog of `viewer/drawingsettings.py`, whose saved settings become the editor's current ones |
 | Status | Sign..., Release..., Start Revision... | see Signing, release and revisions below |

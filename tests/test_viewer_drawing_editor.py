@@ -564,6 +564,60 @@ def test_a_drawing_of_one_sheet_shows_no_sheet_paging(place, opened, tmp_path):
     assert not a["next_sheet"].isVisible() and not a["previous_sheet"].isVisible()
 
 
+def test_the_isometric_goes_on_its_own_sheet_and_back(place, opened, tmp_path):
+    from solidseas.drawing.checks import Check
+
+    editor, said = opened(drawing_file(place, tmp_path))
+    a = editor.actions_by_name
+    action = a["iso_sheet"]
+    assert action.isCheckable() and action.isEnabled() and not action.isChecked()
+    assert "v-4" in [vp.view for vp in editor.scene.sheet.views]
+    action.trigger()
+    d = done(editor)
+    assert d.options.view_sheets == (("isometric", 2),) and action.isChecked()
+    # the sheet it went to is shown: the views stay on the first, the isometric on the second
+    assert len(editor.sheets) == 2 and editor.page == 1 and editor.sheet_label.text() == "Sheet 2 of 2"
+    assert [vp.view for vp in editor.scene.sheet.views] == ["v-4"]
+    assert "v-4" not in [vp.view for vp in editor.sheets[0].views]
+    assert a["previous_sheet"].isVisible() and editor.last_message == "Isometric on its own sheet"
+    action.trigger()  # and back
+    d = done(editor)
+    assert d.options.view_sheets == () and len(editor.sheets) == 1 and editor.page == 0
+    assert not action.isChecked() and not a["next_sheet"].isVisible()
+    editor.undo()
+    assert editor.drawing.options.view_sheets == (("isometric", 2),) and action.isChecked()
+    editor.undo()
+    assert editor.drawing.options.view_sheets == () and not action.isChecked()
+    # the fix the checks offer for an isometric with no room on the sheet does the same
+    left_out = Check(
+        "R12.views",
+        "information",
+        "the isometric has no room on the sheet, so it is left out",
+        "v-4",
+        ("Move to Its Own Sheet", "Remove the View"),
+    )
+    editor.apply_fix(left_out, "Move to Its Own Sheet")
+    assert done(editor).options.view_sheets == (("isometric", 2),) and editor.page == 1
+    assert said.asked == []
+
+
+def test_a_drawing_without_an_isometric_offers_no_sheet_for_it():
+    from solidseas.drawing.types import Drawing
+    from solidseas_app.viewer import drawingeditor as E
+
+    def drawn(options, settings=None):
+        return Drawing("x", options, settings or S.DrawingSettings())
+
+    assert not E.has_isometric(drawn(DrawingOptions(views=("front", "top")))) and not E.has_isometric(None)
+    assert E.has_isometric(drawn(DrawingOptions(views=("front", "isometric"))))
+    assert E.has_isometric(drawn(DrawingOptions()))  # the settings' default views have it
+    views = S.DrawingSettings().defaults.views
+    plain = {proc: {**v, "views": list(v["views"]), "isometric": False} for proc, v in views.items()}
+    assert not E.has_isometric(
+        drawn(DrawingOptions(), S.with_value(S.DrawingSettings(), "defaults", "views", plain))
+    )
+
+
 # --------------------------------------------------------------------------- Add Dimension
 def test_add_dimension_on_the_four_holes_plate(place, opened, tmp_path):
     from solidseas_app.viewer import drawingeditor as E

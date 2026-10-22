@@ -285,7 +285,11 @@ is null, since an assembly has no features to cover.
   paged through with Drawing > Next Sheet and Previous Sheet (Ctrl+Page Down and
   Ctrl+Page Up, also on the toolbar), the status bar saying which sheet is shown;
   edits are made on the first sheet, which a selected dimension, note or view
-  brings back.
+  brings back, except a balloon's move on the isometric's own sheet.
+  Drawing > Isometric on Its Own Sheet puts the isometric on the sheet after the
+  first, its balloons with it (the plan puts each balloon in the isometric first),
+  leaving the first sheet's other views and the start of the parts list more
+  room; the parts list's own sheets follow it.
 - **The self-test's dry run** draws an assembly as it draws a part, leaving out
   removing a dimension, and checks that the sheet carries the parts list and a
   balloon.
@@ -294,6 +298,7 @@ is null, since an assembly has no features to cover.
 
 - A balloon's own edits beyond moving it (a second leader, stacking by hand).
 - Exploded views, sections of assemblies.
-- Views on a second sheet: only the parts list goes on to more sheets.
+- Views on later sheets beyond the isometric: the projected views stay on the
+  first sheet with the front.
 - A reference dimension to the tip of a curved face (the overall size is then a
   note).
