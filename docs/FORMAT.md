@@ -516,6 +516,8 @@ code found in any History stream falls in August to October of the year
 before the label, and codes continue for about 13 months. Other values (for
 example 16800, 10191, 4058) occur only inside histories and are pre-release
 builds (HYPOTHESIS). 18000 (SOLIDWORKS 2025) is not in the corpus: UNKNOWN.
+A release gets a VERIFIED row here only after the check in
+`tests/fixtures/README.md` ("Checking a new SOLIDWORKS release") has run on it.
 
 ### 7.5 Secondary stamps
 

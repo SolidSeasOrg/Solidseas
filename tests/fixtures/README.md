@@ -178,6 +178,56 @@ and update the per-save values that `tests/test_model.py` pins for o04 and o06
 
 The SOLIDWORKS-made fixtures were saved with a commercial SOLIDWORKS licence.
 
+## Checking a new SOLIDWORKS release
+
+SolidSeas reads SOLIDWORKS documents through layouts worked out from files
+(`docs/FORMAT.md`), and a new release can change them: the container, a stream,
+the Parasolid schema. A release counts as supported only after this check has
+run on it and `docs/FORMAT.md` says what changed. The documents here stay the
+SOLIDWORKS 2024 SP1 set, because the native part writer's specification is
+proved byte for byte against them (`tests/test_sldprt_spec.py`), so the new
+release's documents are checked beside them and never replace them.
+
+1. On a Windows machine with the new release installed and activated, run the
+   kit as for the documents here: current-account mode
+   (`Generate-Fixtures.ps1 -CurrentAccount`), the same recipes, and templates
+   that follow the rules under "How they were made". An upgrade can carry the
+   old release's settings over, default template folders included, so check
+   which templates the new release's defaults name before the run, and give
+   the kit an output folder of its own.
+2. Read the new `scrub_report.txt` and go on only if its verdict says the
+   output is publishable, then run the kit's `check_fixtures.py` on the output
+   folder with `PYTHONPATH` set to a checkout's `src`.
+3. In a scratch worktree of `main`, replace every file in `tests/fixtures`
+   that the kit writes with the new output, and delete
+   `ground_truth.private.json` there (the kit's own `ground_truth.json` has
+   the account fields). Run the whole suite, then
+   `tests/test_fixture_paths.py` with `SOLIDSEAS_CORPUS_MANIFEST` set. The new
+   release's shipped templates may name other template authors: review them
+   before extending any allowlist. Nothing in that worktree is committed.
+4. Sort the failures. Some are expected, and each of those is checked to be
+   only what it seems: the version, build code and Parasolid schema key the
+   tests pin for 2024 SP1, the per-save values `tests/test_model.py` pins, and
+   the native part writer's byte-for-byte tests. Every other failure is a
+   reader meeting a changed layout, and gets a bead and a fix proved on the
+   new documents before the release is called supported.
+5. Record in `docs/FORMAT.md` the release's internal version (section 7.1),
+   build date code (7.3), its row in 7.4 marked VERIFIED, every layout change
+   with the version it starts at (7.7), the Parasolid schema it writes (10.3),
+   and any other claim the run contradicted, each with its evidence label.
+   When the private corpus has files the new release saved, run the corpus
+   sweep (`tests/test_corpus.py`) and add their counts to sections 7.1 and 17.
+6. Keep the kit's output for that release with the private fixtures, in a
+   folder named for the release, so the next release's check can be compared
+   with it, and add a CHANGELOG entry saying which release SolidSeas now reads.
+
+The SOLIDWORKS bridge is a separate check: `tests/test_swapi.py` and
+`tests/test_swapi_live.py` name the 2024 templates folder, so they need the new
+release's folder and their build check (`SOLIDSEAS_SWAPI_BUILD_CHECK=1`) before
+the bridge is said to work with it. Whether the new release opens the parts
+the native part writer makes is that writer's own check
+(`docs/NATIVE_SLDPRT_WRITER.md`).
+
 ## Files made by script
 
 `tests/generated/` holds files that a script in the same folder writes,
