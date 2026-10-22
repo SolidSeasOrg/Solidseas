@@ -143,10 +143,13 @@ preview and its properties within seconds of the first scan.
   Studio. Built in the viewer preview, for every format SolidSeas reads: 3MF,
   STL or STEP (for a part the STEP export writes), whichever the chosen
   program takes, written as a new dated file next to the model.
-- 3D viewer in the app. Built in the viewer preview: an OpenGL view of every
-  format with a view cube, Home, turning about the point under the pointer,
-  picking, an exploded view, and hide, isolate and transparency per component.
-  Whether the app's 3D viewer grows from it is not decided.
+- 3D viewer in the app. Built in the viewer, which is the app: an OpenGL view
+  of every format that rotates (free or turntable), pans and zooms parts and
+  assemblies, with a view cube, Home, turning about the point under the
+  pointer, picking, an exploded view, and hide, isolate and transparency per
+  component, kept for each document between runs. The app's 3D viewer grows
+  from it rather than from three.js in Qt WebEngine (decided 2026-10-14,
+  `docs/ARCHITECTURE.md` section 8).
 - Open CASCADE as an opt-in test oracle (tier 0 of `docs/OCCT.md`): it
   measures what the STEP export writes and what the STEP reader draws, in
   tests that skip unless an OCP interpreter is named, and is never a
