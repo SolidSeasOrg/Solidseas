@@ -874,7 +874,7 @@ provider is configured but the machine policy forbids it, or forbids Automatic
 mode, the affected controls stay visible, disabled, with "Set by your
 administrator".
 
-It follows the `` pattern:
+It follows the `ai-provider-seam` pattern:
 
 - `solidseas/ai/base.py` defines the `ModelProvider` interface and imports no
   provider SDK. Only `health_check` is abstract, and its result is cached for

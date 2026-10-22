@@ -189,7 +189,7 @@ The full design is in `docs/ASSISTANT.md`.
   answering every item under "Confirm before building" in `docs/ASSISTANT.md`.
   Each answer confirms the design or turns into a stop or refusal in it.
   Done: the eight answers are recorded there.
-- AI connector (`solidseas.ai`) following the `` pattern:
+- AI connector (`solidseas.ai`) following the `ai-provider-seam` pattern:
   provider interface, shared prompts and parsers, Anthropic, OpenAI, Gemini and
   Ollama providers, `solidseas/ai/context.py:build_model_summary` as the only
   way document data reaches a prompt, enforced budgets and timeouts, keys in
@@ -225,7 +225,7 @@ The full design is in `docs/ASSISTANT.md`.
   Built: the reader, both chokepoints and `--set-policy`
   (`solidseas_app/setpolicy.py`); the AI settings page's "Lock for all users"
   button, which would start it, is not.
-- `docs/SECURITY_REVIEW.md`, written to the ``
+- `docs/SECURITY_REVIEW.md`, written to the `desktop-app-security-review`
   skill: a findings table with severity and status; the complete set of
   outbound connections, each marked verified or by inspection with the command
   that repeats the check; the code execution surface (the runner module and the

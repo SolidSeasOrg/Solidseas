@@ -1,7 +1,7 @@
 # Security review
 
 For the administrator who decides whether SolidSeas may run on a managed PC or
-server. It is written to the `` pattern: the
+server. It is written to the `desktop-app-security-review` pattern: the
 findings come first, with a severity and a status, then the evidence. Every
 claim is marked **verified** (by a test in the suite, or by a check run during
 this review) or **by inspection** (read in the code), and section 1.7 lists the

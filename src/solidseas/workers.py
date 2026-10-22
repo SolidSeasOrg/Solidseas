@@ -4,7 +4,7 @@ A hostile or merely broken file can make a parser hang, run out of memory or
 crash the process. The REST service (``solidseas serve``) reads every document
 in a :class:`WorkerPool`, and so can any integrator that reads files from other
 people: a fixed set of spawn worker processes, each with its own pipe, as the
-```` skill describes.
+``windows-worker-job-object`` skill describes.
 
 * **JSON only.** A job travels to a worker as JSON, and its result comes back as
   one JSON frame read with ``recv_bytes(maxlength)``, plus at most one raw

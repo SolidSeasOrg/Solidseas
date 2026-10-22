@@ -1,4 +1,4 @@
-"""The service's bearer tokens (```` and
+"""The service's bearer tokens (``secrets-and-credentials`` and
 ``authentication-and-trust``).
 
 Every route but ``/v1/health`` needs ``Authorization: Bearer <token>``, on

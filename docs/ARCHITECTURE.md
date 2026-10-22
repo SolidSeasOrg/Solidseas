@@ -21,7 +21,7 @@ system can take as much or as little as it needs.
 | Licence | Apache-2.0 | 2026-09-30 |
 | Language and UI | Python, Qt via PySide6 | 2026-09-30 |
 | Modeling assistant | Review mode (AI drafts code, user edits or approves it) and Automatic mode (AI plans a goal once from a closed set of checked operations and carries it out on one part) | 2026-09-30 |
-| AI connector | Optional provider seam following the `` pattern; only the assistant needs it | 2026-09-30 |
+| AI connector | Optional provider seam following the `ai-provider-seam` pattern; only the assistant needs it | 2026-09-30 |
 | SOLIDWORKS bridge | A separate C# process, never loaded into the Python process | 2026-09-30 |
 | Version tracking | git history inside git repositories, SolidSeas snapshots everywhere else | 2026-09-30 |
 | Format work | Black-box analysis, published API, open-source prior art; no decompiling | 2026-09-30 |
@@ -758,7 +758,7 @@ it, on the catalog it already indexes.
   **Machine policy.** On a managed PC an administrator can disable Automatic
   mode or restrict the assistant to a local provider, under
   `HKLM\SOFTWARE\Policies\SolidSeas`. The policy is read fail-closed, following
-  the `` pattern: a missing policy means no
+  the `fail-closed-machine-policy` pattern: a missing policy means no
   restriction, and a policy that cannot be read means the restriction is on.
   Group Policy or Intune deploys it; on one PC, `SolidSeasViewer.exe
   --set-policy`, run as administrator as a step of its own

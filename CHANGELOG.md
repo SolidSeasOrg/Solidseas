@@ -1723,6 +1723,10 @@ while the project takes shape.
 
 ### Fixed
 
+- **Names back in the documentation.** In fourteen places the documentation and
+  the code's own notes showed an empty pair of backticks where the design
+  pattern they follow should be named. They name it again.
+
 - **Switching the OCCT backend extension on or off takes effect at once.**
   Before, switching it on while the viewer was open was not enough: IGES and
   BREP files were listed as readable but would not open, and the message said

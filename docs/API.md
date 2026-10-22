@@ -5707,7 +5707,7 @@ without SOLIDWORKS (section 7.1).
 `JSON.parse` turns every number into a double, which keeps an integer exactly
 only up to 2^53 - 1. The encoding rules (4.2) are written so that nothing
 SolidSeas sends changes on the way into a page or a Node service, but a client
-has to keep three of them in mind (``):
+has to keep three of them in mind (`json-big-integers-in-js`):
 
 - **`mtime_ns` is a string, and must stay one.** A file's modification time in
   nanoseconds is about 1.8e18, far past 2^53. `Number("1790292487225708352")` is
@@ -6135,7 +6135,7 @@ solidseas serve --root ID=DIR [--root ID=DIR ...] [--library ID=DIR ...] [--port
   still waiting for a worker answers 500 `worker_crashed`), logs where any
   request thread is still stuck (as module, function and line) and ends the
   process with `os._exit`: exit 0, or 1 when a thread was left behind. A stuck
-  read therefore never keeps the process alive (``).
+  read therefore never keeps the process alive (`python-stuck-thread-exit`).
 - Before it serves: exit 2 for bad arguments; exit 3 for a non-loopback `--bind`
   without its settings (`bind_refused`, 8.2) or a token file that cannot be
   created or read, or is unsafe or malformed (`token_file_refused`, 8.3; a

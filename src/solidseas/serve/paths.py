@@ -1,5 +1,5 @@
 """Where a request's ``path`` is on disk, found without ever joining client text into a
-path (``docs/API.md`` C3; critique 3.16; ```` and
+path (``docs/API.md`` C3; critique 3.16; ``windows-path-confinement`` and
 ``loopback-browser-dashboard``).
 
 1. :func:`check_path_text` checks the text alone, with no filesystem access,

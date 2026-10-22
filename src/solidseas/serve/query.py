@@ -1,6 +1,6 @@
 """Strict parsing of a request's query string, one allowlist per route.
 
-Following the ```` and ``falsy-zero-defaults``
+Following the ``request-schema-allowlist`` and ``falsy-zero-defaults``
 skills: a parameter a route does not name is refused by name
 (``unknown_parameter``), never dropped; a repeated one is refused
 (``duplicate_parameter``); an empty value is refused, never read as absence;

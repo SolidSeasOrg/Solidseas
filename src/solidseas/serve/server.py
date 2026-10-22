@@ -17,7 +17,7 @@ meets them:
    makes the service hold more. A request may carry no body, and must name
    HTTP/1.0 or 1.1. At most ``max_connections`` connections are open at once;
    one closed because its head did not arrive in time is logged.
-3. **Host, Origin and Fetch Metadata** (````),
+3. **Host, Origin and Fetch Metadata** (``loopback-browser-dashboard``),
    before routing: the ``Host`` header must name the bound address or an
    allowed host, with the bound port, which stops DNS rebinding. Any
    ``Origin`` header, and a ``Sec-Fetch-Site`` other than ``none`` or
@@ -1694,7 +1694,7 @@ class _Stop(BaseException):
 
 def run_until_signalled(server: Server) -> None:  # pragma: no cover - runs in a service process
     """Serve until SIGINT, SIGTERM or Ctrl+Break, then shut down within the budget and
-    end the process with ``os._exit`` (````): exit 0, or 1
+    end the process with ``os._exit`` (``python-stuck-thread-exit``): exit 0, or 1
     when a request thread was still stuck, after logging where it was."""
 
     def stop(signum, frame) -> None:
