@@ -1731,6 +1731,10 @@ while the project takes shape.
 
 ### Fixed
 
+- **The assistant's page in the user guide.** It no longer says attaching to
+  SOLIDWORKS is still to come: the assistant attaches through the CAD Bridge
+  extension.
+
 - **Names back in the documentation.** In fourteen places the documentation and
   the code's own notes showed an empty pair of backticks where the design
   pattern they follow should be named. They name it again.

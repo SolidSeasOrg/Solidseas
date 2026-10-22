@@ -103,9 +103,9 @@ draft code that works through `solidseas.swapi.live` ([API.md](../API.md) 3.22),
 the SOLIDWORKS operations SolidSeas offers, but nothing stops a script from doing
 more.
 
-Attaching to a running SOLIDWORKS comes with the live operations of the bridge
-in a later stage. Until then the window says so, and runs only scripts that do
-not use SOLIDWORKS.
+The assistant reaches the SOLIDWORKS running on your PC through the CAD Bridge
+extension (Tools > Extensions), on Windows. Without it the window says why, and
+runs only scripts that do not use SOLIDWORKS.
 
 ## Setting up the AI
 
