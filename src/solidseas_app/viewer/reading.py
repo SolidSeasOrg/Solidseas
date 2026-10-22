@@ -7,7 +7,10 @@ the folder listing opens it: no link below that folder is crossed and a cloud
 placeholder is never recalled. A component's file that reference resolution
 found outside that folder is opened within its own folder instead, as the
 resolution's identity reads open it, and a virtual component is read as the
-nested document it is, from inside its assembly (:class:`Source`).
+nested document it is, from inside its assembly (:class:`Source`). Resolution
+looks at a stored path outside the opened folder, on a drive of this computer,
+unless ``outside`` is false (Settings, Look for Referenced Files Only in the
+Opened Folder): then it looks in that folder alone.
 ``open_document`` reads the file whole and closes the handle before it
 returns, so the viewer never holds a document open.
 
@@ -153,24 +156,39 @@ def roots_for(folder: str) -> Roots:
     return Roots([Root(ROOT_ID, os.path.abspath(folder))])
 
 
-def _references(doc, folder: str, cache: IndexCache | None, keep: dict | None = None) -> dict[str, Any]:
+def _references(
+    doc, folder: str, cache: IndexCache | None, keep: dict | None = None, *, outside: bool = True
+) -> dict[str, Any]:
     if doc.doc_type not in ("assembly", "drawing"):
         return {"kind": doc.doc_type or "unknown"}
-    res = resolve_references(doc, roots_for(folder), cache=cache)
+    res = resolve_references(doc, roots_for(folder), cache=cache, allow_outside_roots=outside)
     if keep is not None:
         keep["resolution"] = res
     return {"kind": doc.doc_type, "references": model.build_references(doc, resolution=res)}
 
 
 def _bom(
-    doc, folder: str, cache: IndexCache | None, configuration: str | None = None, resolution=None
+    doc,
+    folder: str,
+    cache: IndexCache | None,
+    configuration: str | None = None,
+    resolution=None,
+    *,
+    outside: bool = True,
 ) -> dict[str, Any]:
     """The ``bom`` data of every BOM type of one configuration, each file read once, with
     the opened folder as the root (and ``resolution`` when the references section made
-    one)."""
+    one); ``outside`` as for :func:`read_document`."""
     if doc.doc_type != "assembly":
         return {"kind": doc.doc_type or "unknown"}
-    boms = bom_lib.build_boms(doc, configuration, roots=roots_for(folder), resolution=resolution, cache=cache)
+    boms = bom_lib.build_boms(
+        doc,
+        configuration,
+        roots=roots_for(folder),
+        resolution=resolution,
+        cache=cache,
+        allow_outside_roots=outside,
+    )
     first = next(iter(boms.values()))
     return {
         "kind": "assembly",
@@ -187,6 +205,7 @@ def read_document(
     cancelled: Callable[[], bool] = lambda: False,
     within: str | None = None,
     nested: tuple[str, ...] = (),
+    outside: bool = True,
 ) -> Iterator[tuple[str, Section]]:
     """Read one document for the details panel, a section at a time.
 
@@ -196,7 +215,9 @@ def read_document(
     index between documents; it is not thread-safe, so share it only between
     reads that run one after another.
 
-    ``folder`` is the opened folder, the one root reference resolution searches.
+    ``folder`` is the opened folder, the one root reference resolution searches,
+    and with ``outside`` (the default) a stored path outside it on a drive of this
+    computer is looked at too; without it, nothing outside it is.
     The file is opened within ``within`` (by default ``folder``), and ``nested``
     reads a nested document inside it instead (:class:`Source`).
     """
@@ -213,8 +234,8 @@ def read_document(
             ("summary", lambda: _summary(doc, path, nested)),
             ("preview", lambda: _preview(doc)),
             ("components", lambda: _components(doc)),
-            ("references", lambda: _references(doc, folder, cache, made)),
-            ("bom", lambda: _bom(doc, folder, cache, resolution=made.get("resolution"))),
+            ("references", lambda: _references(doc, folder, cache, made, outside=outside)),
+            ("bom", lambda: _bom(doc, folder, cache, resolution=made.get("resolution"), outside=outside)),
             ("paths", lambda: model.build_path_report(doc)),
         )
         for name, step in steps:
@@ -248,12 +269,14 @@ def read_bom(
     cache: IndexCache | None = None,
     within: str | None = None,
     nested: tuple[str, ...] = (),
+    outside: bool = True,
 ) -> Section:
-    """The bom section for another assembly configuration."""
+    """The bom section for another assembly configuration (``outside`` as for
+    :func:`read_document`)."""
 
     def run() -> dict[str, Any]:
         with opened(path, within or folder, nested) as doc:
-            return _bom(doc, folder, cache, configuration)
+            return _bom(doc, folder, cache, configuration, outside=outside)
 
     return _timed(run)
 

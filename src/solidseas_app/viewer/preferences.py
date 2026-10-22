@@ -136,6 +136,15 @@ SESSION_NOTE = (
     "Off, the viewer also puts back Qt's record of the last folder its folder dialogs showed. "
     "Windows' own folder dialog keeps a recent folder for each program, which the viewer cannot clear."
 )
+INSIDE_ONLY_TEXT = "Look for referenced files only in the opened folder"
+INSIDE_ONLY_NOTE = (
+    "An assembly or a drawing names each file it uses by the path it had when it was saved. Off (the "
+    "default), when that path is outside the folder you opened but on a drive of this computer, the "
+    "viewer looks there too and reads the file it finds, read-only: it is shown as found there, drawn in "
+    "3D, and printed, exported and opened from there. On, only the opened folder and its subfolders are "
+    "searched, and a file that is not in them is shown as not found. A network path is never looked at "
+    "either way."
+)
 
 
 def _note(text: str) -> QLabel:
@@ -312,6 +321,15 @@ class PreferencesDialog(QDialog):
         li.addRow("Re-index automatically when older than:", self.reindex_after)
         li.addRow("Recent folders remembered:", self.recent_count)
 
+        # -- where a referenced file is looked for. On the Settings window's General page alone,
+        # as the folders are.
+        self.inside_only = QCheckBox(INSIDE_ONLY_TEXT)
+        box_refs = QGroupBox("Referenced files", self)
+        box_refs.hide()  # shown where the Settings window places it
+        lr = QVBoxLayout(box_refs)
+        lr.addWidget(self.inside_only)
+        lr.addWidget(_note(INSIDE_ONLY_NOTE))
+
         # -- drawings: on or off, with what experimental means for them. Shown on the Settings
         # window's Drawings page alone.
         self.drawings = QCheckBox(DRAWINGS_TEXT)
@@ -397,7 +415,7 @@ class PreferencesDialog(QDialog):
 
         # The groups by the Settings window's page each goes on (:mod:`.settingswindow`).
         self.sections = {
-            "general": (box_list, box_session, box_index),
+            "general": (box_list, box_session, box_index, box_refs),
             "view3d": (box_3d, box_mouse),
             "print": tuple(print_rows),
             "drawings": (box_drawings,),
@@ -439,6 +457,7 @@ class PreferencesDialog(QDialog):
         self.reindex_after.setCurrentIndex(index)
         self.reindex_after.setEnabled(s.keep_index)
         self.recent_count.setValue(s.recent_count)
+        self.inside_only.setChecked(s.references_inside_only)
         self.drawings.setChecked(s.drawings)
         self.drawing_mode.setCurrentIndex(max(0, self.drawing_mode.findData(s.drawing_mode)))
         self.drawing_mode.setEnabled(s.drawings)
@@ -474,6 +493,7 @@ class PreferencesDialog(QDialog):
             keep_index=self.keep_index.isChecked(),
             reindex_after_hours=int(self.reindex_after.currentData()),
             recent_count=self.recent_count.value(),
+            references_inside_only=self.inside_only.isChecked(),
             drawings=self.drawings.isChecked(),
             drawing_mode=self.drawing_mode.currentData(),
         )

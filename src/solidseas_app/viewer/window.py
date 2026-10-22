@@ -1800,12 +1800,13 @@ class MainWindow(QMainWindow):
         gen, cache = self._generation, self._cache
         within, nested = source.within, source.nested
         pool, cap = self.models, self.settings.triangle_cap
+        outside = not self.settings.references_inside_only
 
         def sections(cancelled):
             if model_file:
                 return reading.read_model(path, folder, pool, within=within, cap=cap, cancelled=cancelled)
             return reading.read_document(
-                path, folder, cache=cache, cancelled=cancelled, within=within, nested=nested
+                path, folder, cache=cache, cancelled=cancelled, within=within, nested=nested, outside=outside
             )
 
         def work(emit, cancelled):
@@ -1880,7 +1881,7 @@ class MainWindow(QMainWindow):
             on_finished=lambda section, g=gen: self._section(g, "components", section),
         )
         if self.details.bom_reread(configuration):  # the BOM follows the assembly's configuration
-            cache = self._cache
+            cache, outside = self._cache, not self.settings.references_inside_only
             self._start(
                 self.work_pool,
                 Job(
@@ -1891,6 +1892,7 @@ class MainWindow(QMainWindow):
                         cache=cache,
                         within=source.within,
                         nested=source.nested,
+                        outside=outside,
                     )
                 ),
                 on_finished=lambda section, g=gen: self._section(g, "bom", section),
@@ -2275,7 +2277,7 @@ class MainWindow(QMainWindow):
         token, reader = object(), self.mesh_reader
         assembly, configuration = pane.doc_type == "assembly", pane.configuration
         root, cache_key = self.folder, (self.folder, self._folder_epoch)
-        model_file = self.details.model_file
+        model_file, outside = self.details.model_file, not self.settings.references_inside_only
         job = Job(
             lambda _emit, cancelled: reader.read(
                 source.path,
@@ -2289,6 +2291,7 @@ class MainWindow(QMainWindow):
                 configuration=configuration,
                 cache_key=cache_key,
                 model_file=model_file,
+                outside=outside,
             )
         )
         self._mesh, self._mesh_token = job, token
@@ -2372,6 +2375,8 @@ class MainWindow(QMainWindow):
             if not self._listing_follows:
                 # with or without the other formats: that choice's own saved index, else a listing
                 self.open_folder(self.folder)
+        if not initial and new.references_inside_only != old.references_inside_only:
+            self._references_scope_changed(new.references_inside_only)
         if save:
             self.store.save(new)
             if old.remember_session and not new.remember_session:
@@ -2379,6 +2384,29 @@ class MainWindow(QMainWindow):
                 self.store.save_session(Session(recent=self.store.load_session().recent))
             if new.recent_count != old.recent_count:
                 self._fill_recent_menu()
+
+    def _references_scope_changed(self, inside_only: bool) -> None:
+        """Look for Referenced Files Only in the Opened Folder was turned on or off. On, Back
+        forgets the documents outside the opened folder, which only a look outside it
+        found, and one shown from there is closed; the document shown is read again, so its
+        references, 3D view and BOM follow the setting."""
+        folder = self.folder
+        if inside_only and folder is not None:
+            self._history = [p for p in self._history if printing.inside(p.source.path, folder)]
+        entry, source = self._entry, self._source
+        if entry is None or source is None:
+            self._update_actions()
+            return
+        if inside_only and folder is not None and not printing.inside(source.path, folder):
+            name = self.details.title.text()
+            self._show(None, None)
+            self.statusBar().showMessage(
+                f"{name} was found outside the opened folder, where referenced files are no longer "
+                "looked for.",
+                15000,
+            )
+            return
+        self._show(entry, source, apart=self._apart)
 
     def print_target(self) -> PrintTarget | None:
         """What 3D Print sends: where the part or assembly the details show is read from,
@@ -3065,6 +3093,8 @@ class MainWindow(QMainWindow):
             "name": target.name,
             "overwrite": dialog.overwrite.isChecked(),
         }
+        if self.settings.references_inside_only:  # an assembly's files: the opened folder's
+            request["outside"] = False
 
         def work(_emit, cancelled):
             return printing.export_in_process(request, cancelled)

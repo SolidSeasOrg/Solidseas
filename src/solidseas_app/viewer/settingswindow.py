@@ -2,7 +2,8 @@
 
 The pages, in order:
 
-* **General**: the document list and what happens at start (Preferences).
+* **General**: the document list, what happens at start, the folders' indexes and where a
+  referenced file is looked for (Preferences).
 * **3D View**: the interactive 3D view, its mesh limit, and the mouse and keys (Preferences).
 * **3D Print**: printing from the shown folder or as is, and the program and format 3D
   Print uses (Preferences).

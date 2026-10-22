@@ -57,18 +57,23 @@ def step_of(
     configuration: str | None = None,
     *,
     allow_partial: bool = False,
+    outside: bool = True,
 ):
     """The STEP model Export STEP writes of the open document ``doc`` (opened from
     ``path``, ``nested`` inside it, in the opened ``folder``): its solid bodies in
     ``configuration``, or its surface (sheet) bodies when it has no solid, an assembly's
-    component files found in the opened folder. File > Convert sends the same model."""
+    component files found in the opened folder (and, with ``outside``, at a stored path
+    outside it on a drive of this computer). File > Convert sends the same model."""
     from solidseas.errors import NothingToExportError
     from solidseas.step import step_model
 
     stem = reading.export_stem(path, nested)
     roots = reading.roots_for(folder) if doc.doc_type == "assembly" else None  # finds its parts
     try:
-        return step_model(doc, configuration, name=stem, allow_partial=allow_partial, roots=roots)
+        return step_model(
+            doc, configuration, name=stem, allow_partial=allow_partial, roots=roots,
+            allow_outside_roots=outside,
+        )
     except NothingToExportError as exc:
         if (exc.detail or {}).get("rule") != "sheets_not_asked":
             raise
@@ -80,6 +85,7 @@ def step_of(
             allow_partial=allow_partial,
             body_types=("solid", "sheet"),
             roots=roots,
+            allow_outside_roots=outside,
         )
 
 
@@ -94,10 +100,13 @@ def export_step_file(
     allow_partial: bool = False,
     overwrite: bool = False,
     token: str | None = None,
+    outside: bool = True,
 ) -> dict[str, Any]:
     """Export the document at ``path`` (opened read-only ``within`` the opened ``folder``,
     or the nested document ``nested`` leads to; a SOLIDWORKS part or assembly, or a
-    Parasolid file's part or assembly) as STEP to ``target``: its solid bodies, or its
+    Parasolid file's part or assembly, whose files are found in ``folder``, and with
+    ``outside`` at a stored path outside it on a drive of this computer) as STEP to
+    ``target``: its solid bodies, or its
     surface (sheet) bodies when it has no solid. Returns what was written, for the window; raises what
     :func:`step_model` raises (``NotRepresentableError`` naming each body refused,
     ``UnsupportedOperationError`` for a file of another format) and
@@ -121,7 +130,9 @@ def export_step_file(
             detail={"rule": "output_extension"},
         )
     with _opened(path, within or folder, tuple(nested)) as doc:
-        model = step_of(doc, path, folder, tuple(nested), configuration, allow_partial=allow_partial)
+        model = step_of(
+            doc, path, folder, tuple(nested), configuration, allow_partial=allow_partial, outside=outside
+        )
     part = part_path(target, token or os.urandom(8).hex())
     result = write_step(model, part, file_name=os.path.basename(target))  # created new; removed on failure
     try:

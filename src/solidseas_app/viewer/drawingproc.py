@@ -950,8 +950,9 @@ def _answer(raw: bytes) -> tuple[bytes, list[bytes]]:
         from solidseas.drawing.assembly import searching
 
         folder = _path(request, "folder", optional=True)
-        # An assembly's parts are looked for in the folder the viewer has open, as 3D Print does.
-        with searching([folder] if folder else []):
+        # An assembly's parts are looked for in the folder the viewer has open, as 3D Print does,
+        # and at their stored paths outside it unless the request says not to.
+        with searching([folder] if folder else [], outside=request.get("outside", True) is not False):
             result, frames = _HANDLERS[request["op"]](request)
         seconds = result.setdefault("seconds", {})
         seconds["total"] = time.perf_counter() - t0
@@ -1612,6 +1613,10 @@ class DrawingWorker:
         # The folder the viewer has open, where an assembly's parts are looked for too: a
         # path, or a function giving the one open at each request.
         self.folder: str | Callable[[], str | None] | None = None
+        # Whether a part's stored path outside the folders searched is looked at too, on a
+        # drive of this computer (Settings, Look for Referenced Files Only in the Opened
+        # Folder off): a flag, or a function giving it at each request.
+        self.outside: bool | Callable[[], bool] = True
         _WORKERS.add(self)
 
     # -- the UI thread -----------------------------------------------------------------
@@ -1900,6 +1905,8 @@ class DrawingWorker:
         folder = self.folder() if callable(self.folder) else self.folder
         if folder:
             request["folder"] = folder
+        if not (self.outside() if callable(self.outside) else self.outside):
+            request["outside"] = False
         payload = json.dumps(request, ensure_ascii=False, allow_nan=False).encode("utf-8", "surrogatepass")
         if len(payload) > MAX_REQUEST_BYTES:
             raise self.limits.exceeded(

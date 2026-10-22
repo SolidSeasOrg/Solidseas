@@ -544,6 +544,8 @@ class PrintController(QObject):
             "confine": self.confine,
             "date": self.today(),
         }
+        if self.window.settings.references_inside_only:  # an assembly's files: the opened folder's
+            request["outside"] = False
         export = self.export or printing.export_in_process
 
         def work(_emit, cancelled):

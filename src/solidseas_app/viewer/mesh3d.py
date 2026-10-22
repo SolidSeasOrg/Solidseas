@@ -693,13 +693,15 @@ def read_assembly_scene(
     nested: tuple[str, ...] = (),
     configuration: str | None = None,
     cache=None,
+    outside: bool = True,
 ) -> dict[str, Any]:
     """Read an assembly for the 3D view, in the mesh process.
 
     The document is opened read-only within ``within`` (or the nested document
     ``nested`` leads to inside it), and its component files are found by
     reference resolution in ``root``, the opened folder, as the details panel
-    finds them (``cache`` keeps that folder's index between reads). ``cap`` is the
+    finds them (``cache`` keeps that folder's index between reads), and without
+    ``outside`` in that folder alone. ``cap`` is the
     triangle cap over every mesh read, and its byte budget the display data read.
 
     Returns ``{"state", "seconds", ...}``. ``state`` is ``ok`` (``data`` is a
@@ -740,8 +742,9 @@ def read_assembly_scene(
                 # As the details panel resolves the references: a file found outside the
                 # opened folder, on a local drive (never a network path), is drawn too,
                 # read-only like every read. The Components tab shows it as found there,
-                # and it opens from there too (docs/ARCHITECTURE.md, the viewer).
-                allow_outside_roots=True,
+                # and it opens from there too (docs/ARCHITECTURE.md, the viewer). Not with
+                # Look for Referenced Files Only in the Opened Folder on (``outside``).
+                allow_outside_roots=outside,
                 cache=cache,
                 max_triangles=cap,
                 max_bytes=byte_budget(cap),

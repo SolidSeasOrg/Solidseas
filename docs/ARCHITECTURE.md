@@ -493,7 +493,13 @@ assembly's references exactly as the details panel does, `allow_outside_roots`
 on by design: a component file found at its stored path on a local drive
 outside the opened folder (never a network path) is the file the Components
 and References tabs show as found and the one Go to file opens, so its mesh is
-read too, read-only and within its own folder. It is bounded like every 3D
+read too, read-only and within its own folder. The user's setting Look for
+Referenced Files Only in the Opened Folder (`references_inside_only`, off by
+default) turns `allow_outside_roots` off for every read the viewer makes: the
+details panel's references and BOM, the 3D read, 3D Print, both exports and the
+drawing process (`drawing.assembly.searching(..., outside=False)`), each told
+through its own request; turning it on drops Back's places outside the opened
+folder and closes one shown. It is bounded like every 3D
 read: the triangle cap and its byte budget over what is read, and a drawn
 budget (twenty times the cap) over every instance's triangles, so a frame never
 asks the GPU for more than that. An instance the geometry places without a

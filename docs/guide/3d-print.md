@@ -180,7 +180,9 @@ The file is saved in the same folder as the model it was made from: the part's
 or assembly's own file, or for a virtual component the assembly (or
 sub-assembly) that stores it. A component found outside the folder you opened,
 on a drive of this computer (a shared library folder, say), gets its print file
-next to its own file there.
+next to its own file there. With Settings > General > Look for referenced files
+only in the opened folder on, such a component is not looked for there, and an
+assembly is printed without it.
 
 The file is named after the document and the date it was made, in your
 computer's local time:

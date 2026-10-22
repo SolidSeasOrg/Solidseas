@@ -860,8 +860,11 @@ class DrawingController(QObject):
             factory = self.make_worker or _worker_class()
             self.worker = factory(_limits(settings))
         # An assembly's parts are looked for in the folder the window has open at each
-        # request, as 3D Print looks.
+        # request, as 3D Print looks, and outside it only as the window's settings allow.
         self.worker.folder = lambda: getattr(self.window, "folder", None) or None
+        self.worker.outside = lambda: (
+            not getattr(getattr(self.window, "settings", None), "references_inside_only", False)
+        )
         return self.worker
 
     def close_all(self) -> bool:

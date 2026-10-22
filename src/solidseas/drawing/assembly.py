@@ -286,18 +286,25 @@ def _read_part(doc: Any, path: str | None, nested: tuple[str, ...], configuratio
 # The folders an assembly's component files are looked for in while a drawing is made from
 # it (:func:`searching`); none set, the assembly's own folder, as SOLIDWORKS looks.
 _SEARCH: contextvars.ContextVar[tuple[str, ...]] = contextvars.ContextVar("drawing_search", default=())
+# Whether a component's stored path outside those folders is looked at too, on a local drive
+# (``allow_outside_roots``); :func:`searching` sets it.
+_OUTSIDE: contextvars.ContextVar[bool] = contextvars.ContextVar("drawing_search_outside", default=True)
 
 
 @contextlib.contextmanager
-def searching(folders) -> Iterator[None]:
+def searching(folders, *, outside: bool = True) -> Iterator[None]:
     """Look for assembly components in ``folders`` (and each assembly's own folder) while
     drawings are made, updated or merged inside this block: the viewer gives the folder it
     has open, as 3D Print and the 3D view do, so an assembly opened from a project folder
-    finds parts kept elsewhere in it."""
+    finds parts kept elsewhere in it. Without ``outside``, a component's stored path
+    outside them is not looked at, even on a local drive (the viewer's Look for Referenced
+    Files Only in the Opened Folder)."""
     token = _SEARCH.set(tuple(os.path.abspath(os.fspath(f)) for f in folders if f))
+    outside_token = _OUTSIDE.set(bool(outside))
     try:
         yield
     finally:
+        _OUTSIDE.reset(outside_token)
         _SEARCH.reset(token)
 
 
@@ -362,11 +369,12 @@ def open_assembly(
                 detail={"rule": "format_later", "value": str(doc.doc_type)},
             )
         warnings = [str(w) for w in doc.warnings]
-        roots = _search_roots(path)
+        roots, outside = _search_roots(path), _OUTSIDE.get()
         g = display_geometry(
             doc,
             configuration,
             roots=roots,
+            allow_outside_roots=outside,
             sources=("nested", "file", "brep"),
             max_instances=limits.instances,
             max_brep_seconds=limits.seconds_source,
@@ -382,6 +390,7 @@ def open_assembly(
             bom_types=BOM_TYPES,
             roots=roots,
             resolution=g.resolution,
+            allow_outside_roots=outside,
             max_seconds=limits.seconds_source,
         )
         bom = boms.get(BOM_TYPE) if boms else None

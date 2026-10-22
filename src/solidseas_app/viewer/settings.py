@@ -88,6 +88,10 @@ class Settings:
     keep_index: bool = True
     reindex_after_hours: int = 24
     recent_count: int = 10  # folders remembered under File > Recent Folders (0: none)
+    # A file an assembly or a drawing names is looked for in the opened folder alone: never at
+    # its stored path outside it, which is otherwise looked at on a drive of this computer
+    # (``allow_outside_roots``, :mod:`.reading`). Off by default, as before the setting.
+    references_inside_only: bool = False
     # Drawings (File > New Drawing, Open Drawing, Make Drawing): experimental, on unless the
     # user switched them off; a file saved before this setting existed has them on.
     drawings: bool = True

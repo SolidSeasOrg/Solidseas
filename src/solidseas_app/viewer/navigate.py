@@ -4,7 +4,8 @@ where Open and Show in File Explorer (:mod:`.opening`) find the file.
 The details panel already holds the document's ``references`` section, whose
 files carry their resolution against the opened folder (``solidseas.resolve``
 with that folder as the one root, :data:`.reading.ROOT_ID`, and point lookups
-of a stored path on a local drive allowed). :func:`target` turns one file of
+of a stored path on a local drive allowed unless Look for Referenced Files Only in
+the Opened Folder is on). :func:`target` turns one file of
 it into a :class:`Target`, the place the window goes to:
 
 * ``listed``: found in or below the opened folder, at ``rel``; the window
@@ -72,6 +73,10 @@ _WARNINGS = {
 }
 _IDENTITY_DIFFERS = (
     "its creation time is not the one stored for it, so it may be another document with the same name"
+)
+OUTSIDE_NOT_SEARCHED = (
+    "A stored path outside the opened folder is not looked at: Look for referenced files only in the "
+    "opened folder is on (Settings > General)."
 )
 
 
@@ -171,7 +176,8 @@ def target(
     """The :class:`Target` for the referenced file ``file`` (a file of the
     ``references`` kind, with its ``resolution``). ``pending`` says the references
     are still being read; ``outside_roots`` whether the search also looked at stored
-    paths outside the opened folder (the viewer always allows it); ``model`` that
+    paths outside the opened folder (the viewer does unless its setting Look for
+    Referenced Files Only in the Opened Folder is on); ``model`` that
     the file is named by a model file (an Alibre component), which is searched for
     as :func:`missing_text` says."""
     if file is None:
@@ -256,6 +262,8 @@ def missing_text(
         if outside_roots:
             searched += ", and the stored path when it is on a drive of this computer"
         lines = [f"No file of that name was found. Searched {searched}."]
+        if not outside_roots:
+            lines.append(OUTSIDE_NOT_SEARCHED)
     if not (status or "").startswith("embedded"):  # nothing was looked for on disk
         lines += explain(rr.get("warnings"))
     return "\n\n".join(lines)

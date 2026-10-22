@@ -128,7 +128,7 @@ class StepController(QObject):
             if overwrite and not self.confirm(f"{os.path.basename(path)} already exists.\n\nReplace it?"):
                 return None
         self.last_folder = os.path.dirname(path)
-        return {
+        request = {
             "job": "step",
             "path": source.path,
             "folder": folder,
@@ -139,6 +139,9 @@ class StepController(QObject):
             "overwrite": overwrite,
             "allow_partial": False,
         }
+        if self.window.settings.references_inside_only:  # an assembly's files: the opened folder's
+            request["outside"] = False
+        return request
 
     def _run(self, request: dict[str, Any]) -> None:
         export = self.export or printing.export_in_process

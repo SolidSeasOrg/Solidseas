@@ -132,6 +132,7 @@ def _serve(conn) -> None:
                     nested=tuple(request["nested"]),
                     configuration=request.get("configuration"),
                     cache=cache,
+                    outside=request.get("outside", True) is not False,
                 )
                 scene = result.pop("data", None)
                 if scene is not None:
@@ -353,10 +354,12 @@ class MeshReader:
         configuration: str | None = None,
         cache_key: object = None,
         model_file: bool = False,
+        outside: bool = True,
     ) -> dict:
         """:func:`.mesh3d.read_part_mesh` in the child, or with ``assembly``
         :func:`.mesh3d.read_assembly_scene`: ``root`` is the folder reference
-        resolution searches (``folder`` by default) and ``cache_key`` says when the
+        resolution searches (``folder`` by default), without ``outside`` the only one,
+        and ``cache_key`` says when the
         child must index it again. With ``model_file``, a file of another format
         than SOLIDWORKS: :func:`.mesh3d.read_model_scene`. ``seconds`` gains
         ``start`` when a child had to be started for it and ``transfer`` for the
@@ -382,6 +385,8 @@ class MeshReader:
             "configuration": configuration,
             "cache_key": None if cache_key is None else repr(cache_key),
         }
+        if not outside:
+            request["outside"] = False
         try:
             result = self._read(request, cancelled, child)
         finally:

@@ -26,6 +26,23 @@ The Settings menu also has quick toggles for:
 The Settings window also sets the 3D view's triangle limit, the thumbnail size
 and whether the list starts as details or icons.
 
+### Where referenced files are looked for
+
+An assembly or a drawing names each file it uses by the path that file had when
+it was saved. The viewer looks for it in the folder you opened and its
+subfolders and, when the stored path is outside that folder but on a drive of
+this computer, at that path too: a file found there is shown as found there,
+and drawn in 3D, printed, exported and opened from there, read-only like every
+read. A network path is never looked at.
+
+**Settings > General > Look for referenced files only in the opened folder**
+(off by default) keeps every one of those reads inside the folder you opened:
+the details tabs, the 3D view, 3D Print, File > Export STEP and Export for 3D
+Printing, and drawings of assemblies. A file that is only outside it is then
+shown as not found, and the message for it says the setting is on. Turning the
+setting on closes a document that was found outside the folder, and Back no
+longer returns to one; the document shown is read again.
+
 Settings are kept in `%APPDATA%\SolidSeas\Viewer.ini`, never next to your files;
 a damaged or hand-edited value falls back to its default. With Remember Last
 Folder off, the viewer also puts back Qt's record of the last folder its folder
@@ -79,7 +96,10 @@ An assembly is drawn from the meshes it stores of its components (SOLIDWORKS
 keeps one for each component, in recent versions and in older ones alike). Where
 it has none, the mesh comes from the component's own file, found as the
 References tab finds it: in the folder you opened, or at its stored path on a
-drive of this computer (never a network path), read-only like every read.
+drive of this computer (never a network path, and not with Look for referenced
+files only in the opened folder on: see
+[Where referenced files are looked for](#where-referenced-files-are-looked-for)),
+read-only like every read.
 Failing that, it comes from the meshes a sub-assembly keeps in its own file.
 
 A part saved with no display mesh anywhere is drawn from its own geometry: the

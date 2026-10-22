@@ -1024,10 +1024,11 @@ def _active_instead(doc, configuration: str | None):
     )
 
 
-def step_for_print(doc, configuration: str | None, name: str, roots=None):
+def step_for_print(doc, configuration: str | None, name: str, roots=None, *, outside: bool = True):
     """The STEP of ``doc`` for a print, in ``configuration`` (None: the active one) and
     named ``name``, as File > Export STEP maps it (:func:`solidseas.step.step_model`,
-    its solid bodies; an assembly's component files found under ``roots``):
+    its solid bodies; an assembly's component files found under ``roots``, and with
+    ``outside`` at a stored path outside them on a drive of this computer):
     ``(model, None)``, or ``(None, why)`` when it cannot be one: an assembly with
     instances the export cannot write, or a part it refuses (geometry
     STEP cannot hold without loss, an approximation past its limit, its time or size
@@ -1046,12 +1047,12 @@ def step_for_print(doc, configuration: str | None, name: str, roots=None):
             return None, why
     try:
         try:
-            model = step_model(doc, configuration, name=name, roots=roots)
+            model = step_model(doc, configuration, name=name, roots=roots, allow_outside_roots=outside)
         except NothingToExportError:
             instead = _active_instead(doc, configuration)
             if instead is None:
                 raise
-            model = step_model(doc, None, name=name, roots=roots)
+            model = step_model(doc, None, name=name, roots=roots, allow_outside_roots=outside)
             model = replace(model, warnings=(*model.warnings, instead))
     except (NotRepresentableError, NothingToExportError, NotImplementedError, SldFormatError) as exc:
         return None, step_refusal(exc)
@@ -1161,6 +1162,7 @@ def export_for_print(
     name: str | None = None,
     virtual: tuple[str, ...] = (),
     confine: str | None = None,
+    outside: bool = True,
 ) -> dict[str, Any]:
     """Export the document at ``path`` (opened read-only ``within`` the opened
     ``folder``, or the nested document ``nested`` leads to, then for each of
@@ -1171,7 +1173,7 @@ def export_for_print(
     window shows it), with the configuration exported when it is not the active one,
     and `` (assembly)`` for an assembly whose folder holds a part of its name
     (:func:`print_label`). An assembly's files are found in the opened folder, as the
-    3D view finds them.
+    3D view finds them, and without ``outside`` in that folder alone.
 
     With ``next_to_model`` the file goes to :func:`model_folder` unless
     :func:`folder_problem` refuses it, the folder is outside ``confine`` (the
@@ -1210,6 +1212,7 @@ def export_for_print(
         "name": name,
         "virtual": virtual,
         "confine": confine,
+        "outside": outside,
     }
     try:
         result = _export_once(path, folder, fmt, **options)
@@ -1246,6 +1249,7 @@ def _export_once(
     name: str | None,
     virtual: tuple[str, ...],
     confine: str | None,
+    outside: bool,
 ) -> dict[str, Any]:
     """:func:`export_for_print` as ``fmt``, its options settled, but for its time and a
     STEP its write stopped (:class:`_StepTooLarge`, raised)."""
@@ -1267,11 +1271,13 @@ def _export_once(
         roots = reading.roots_for(folder) if doc.doc_type == "assembly" else None
         model, step_why = None, None
         if fmt == STEP:
-            model, step_why = step_for_print(doc, configuration, document, roots)
+            model, step_why = step_for_print(doc, configuration, document, roots, outside=outside)
             if model is None:
                 fmt = STEP_FALLBACK
         if model is None:
-            model = print_model(doc, configuration, name=document, roots=roots, cache=cache)
+            model = print_model(
+                doc, configuration, name=document, roots=roots, cache=cache, allow_outside_roots=outside
+            )
         exported = model.configuration
         named = exported if len(doc.configurations) > 1 and exported != doc.active_configuration else None
     here = model_folder(path)
@@ -1348,9 +1354,11 @@ def export_to_folder(
     name: str | None = None,
     overwrite: bool = False,
     token: str | None = None,
+    outside: bool = True,
 ) -> dict[str, Any]:
     """File > Export for 3D Printing: the document at ``path`` (read as
-    :func:`export_for_print` reads it, any format SolidSeas reads) as ``fmt`` (``stl``
+    :func:`export_for_print` reads it, any format SolidSeas reads, ``outside`` too)
+    as ``fmt`` (``stl``
     or ``3mf``) into ``out_dir``, a folder the user chose, named after the document.
     The command line's write guards apply (:func:`.reading.output_dir`): never the
     folder of the document or the opened ``folder`` or inside either, never a
@@ -1377,7 +1385,7 @@ def export_to_folder(
         else:
             document = os.path.splitext(os.path.basename(path))[0]
         roots = reading.roots_for(folder) if doc.doc_type == "assembly" else None
-        model = print_model(doc, configuration, name=document, roots=roots)
+        model = print_model(doc, configuration, name=document, roots=roots, allow_outside_roots=outside)
     target = _cli.check_output_file(
         os.path.join(out, safe_stem(document) + EXTENSIONS[fmt]),
         [path],

@@ -49,6 +49,13 @@ while the project takes shape.
 
 ### Added
 
+- **Keep the viewer's reads inside the opened folder.** Settings > General has
+  "Look for referenced files only in the opened folder", off by default. On, the
+  viewer looks for the files an assembly or a drawing names only in the folder
+  you opened and its subfolders, for the details tabs, the 3D view, 3D Print,
+  both exports and drawings. A file found only outside is shown as not found,
+  and the message says the setting is on.
+
 - **A reference web viewer.** `solidseas serve --viewer` serves a web page that
   lists the folders and files, draws a part or an assembly in 3D, and shows an
   assembly's bill of materials and a file's properties. Everything it loads

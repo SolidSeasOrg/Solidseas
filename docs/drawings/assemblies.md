@@ -34,7 +34,11 @@ document) to `assembly.open_assembly`, which reads one configuration:
   assembly's folder as well when none of them holds it. The viewer's drawing
   process passes the folder the window has open with every request, so an
   assembly opened from a project folder finds parts kept elsewhere in it, as 3D
-  Print and the 3D view find them.
+  Print and the 3D view find them. A part's stored path outside the folders
+  searched is looked at too on a local drive, unless
+  `assembly.searching(folders, outside=False)` says not to, as the viewer's
+  drawing process does while its setting Look for Referenced Files Only in the
+  Opened Folder is on.
 - **Each part's bodies**, read once for each file and configuration used however
   many instances use it: the solid bodies SOLIDWORKS shows. Each instance gets a
   `PlacedBody` per body, named `INSTANCE/BODY` (`o02_boxA-1/Config-0/body1`).

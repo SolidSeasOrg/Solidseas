@@ -173,7 +173,9 @@ Right-click for:
 
 The viewer goes where reference resolution found the file, searching the folder
 you opened and its subfolders, and the stored path when it is on a drive of this
-computer:
+computer (unless Settings > General > Look for referenced files only in the
+opened folder is on: see
+[Where referenced files are looked for](settings.md#where-referenced-files-are-looked-for)):
 
 - A file in the list is selected there. A part opens on its Preview tab, an
   assembly on its Components tab, in the configuration the instance uses. A
