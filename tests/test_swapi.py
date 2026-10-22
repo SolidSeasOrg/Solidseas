@@ -37,12 +37,13 @@ Opt-in, on Windows:
   SOLIDWORKS adds every document it opens to the account's recent documents.
   It takes two runs, because the journal box comes only while another
   SOLIDWORKS runs and the off-hours case is SolidSeas' instance alone: first,
-  with your SOLIDWORKS closed normally, ``-k "no_recovery_behind or
-  registry_changes_put_back"`` by itself, so its first start follows a clean
-  exit (the second test there checks that batch conversion puts back the
-  registry values its SOLIDWORKS changed, and prints what changed outside
-  them); then the whole file with your SOLIDWORKS open. Each test that needs
-  one of the two cases skips in the other run.
+  with your SOLIDWORKS closed normally, ``-k solidseas_solidworks_alone`` by
+  itself, so its first start follows a clean exit (besides the recovery check,
+  it checks that batch conversion puts back the registry values its
+  SOLIDWORKS changed and prints what changed outside them, and prints the
+  instance's windows after a start and a new document and loads a STEP once a
+  document is open); then the whole file with your SOLIDWORKS open. Each test
+  that needs one of the two cases skips in the other run.
 """
 
 import datetime as dt
@@ -1847,9 +1848,10 @@ STANDIN = TESTS / "swbridge_standin_sldworks.cs"
 def _windows(pids: set[int], *, details: bool = True) -> list[dict]:
     """The top-level windows of the processes named, read without sending any window a message.
 
-    Each is ``hwnd``, ``pid``, ``visible`` and ``owned``, and with ``details`` its
-    ``class``, ``title`` and ``children`` (class and text of each window inside
-    it). A window of any other process is read no further than its process id.
+    Each is ``hwnd``, ``pid``, ``visible``, ``owned``, ``iconic`` (minimized) and
+    ``size`` (width and height in pixels), and with ``details`` its ``class``,
+    ``title`` and ``children`` (class and text of each window inside it). A window
+    of any other process is read no further than its process id.
     """
     import ctypes
     from ctypes import wintypes
@@ -1862,6 +1864,8 @@ def _windows(pids: set[int], *, details: bool = True) -> list[dict]:
     user32.GetClassNameW.argtypes = [wintypes.HWND, wintypes.LPWSTR, ctypes.c_int]
     user32.GetWindowTextW.argtypes = [wintypes.HWND, wintypes.LPWSTR, ctypes.c_int]
     user32.IsWindowVisible.argtypes = [wintypes.HWND]
+    user32.IsIconic.argtypes = [wintypes.HWND]
+    user32.GetWindowRect.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.RECT)]
     user32.GetWindow.argtypes = [wintypes.HWND, wintypes.UINT]
     user32.GetWindow.restype = wintypes.HWND
 
@@ -1882,8 +1886,11 @@ def _windows(pids: set[int], *, details: bool = True) -> list[dict]:
     user32.EnumWindows(enum_proc(top), 0)
     out = []
     for hwnd, pid in found:
+        rect = wintypes.RECT()
+        user32.GetWindowRect(hwnd, ctypes.byref(rect))
         w = {"hwnd": hwnd, "pid": pid, "visible": bool(user32.IsWindowVisible(hwnd)),
-             "owned": bool(user32.GetWindow(hwnd, 4))}  # GW_OWNER
+             "owned": bool(user32.GetWindow(hwnd, 4)),  # GW_OWNER
+             "iconic": bool(user32.IsIconic(hwnd)), "size": (rect.right - rect.left, rect.bottom - rect.top)}
         if details:
             w["class"] = read(user32.GetClassNameW, hwnd)
             w["title"] = read(user32.GetWindowTextW, hwnd)
@@ -2599,6 +2606,45 @@ def _file_changes(before: dict, after: dict) -> dict[str, list[str]]:
         if lines:
             changes[place] = lines
     return changes
+
+
+@with_solidworks
+def test_solidseas_solidworks_alone_shows_its_frame_and_loads_after_a_first_document(real_exe, tmp_path):
+    # A measurement for SolidSeas-okg and SolidSeas-283j, SolidSeas' instance alone. There the frame
+    # showed after the first new document, visible and minimized as a 160 x 28 window, the state
+    # SW_SHOWMINNOACTIVE (the show command the bridge starts SOLIDWORKS with) gives a window shown
+    # for the first time. A STEP load as an instance's first document stayed behind "Open
+    # Progress" until its timeout, and the Welcome screen shows until an instance's first
+    # document. This prints the instance's windows after the start and after a new document,
+    # beside what solidworks_info says, then loads the same STEP with a document already open.
+    if _solidworks_pids():
+        pytest.skip("needs no other SOLIDWORKS running: close yours, normally, for this run")
+    if not MBD_PART_TEMPLATE.is_file():
+        pytest.skip("needs the MBD part template SOLIDWORKS 2024 installs")
+    step = tmp_path / "o02_boxA.step"
+    shutil.copyfile(FIXTURES / "o02_boxA.step", step)
+
+    def shown(pid: int) -> list:
+        return [(w["class"], w["title"], w["iconic"], w["size"]) for w in _windows({pid})
+                if w["visible"] and not w["owned"]]
+
+    with Bridge(real_exe) as b:
+        sw_pid = b.request("start_solidworks")["pid"]
+        time.sleep(15)  # the windows a start brings
+        print(f"\nafter the start: visible {b.request('solidworks_info')['visible']}, shown {shown(sw_pid)}")
+        new = b.request("new_document", {"template": str(MBD_PART_TEMPLATE)})
+        time.sleep(5)
+        visible = b.request("solidworks_info")["visible"]
+        print(f"after a new document: visible {visible}, shown {shown(sw_pid)}")
+        start = time.monotonic()
+        loaded = b.request("import_file", {"path": str(step), "method": "load"}, timeout=180)
+        print(f"a load with a document open: {loaded['result_kind']} in {time.monotonic() - start:.1f} s, "
+              f"dialogs {[(d.get('title'), d.get('text')) for d in loaded['dialogs']]}")
+        for doc in (loaded["doc"], new["doc"]):
+            b.request("close_document", {"doc": doc})
+        assert b.request("exit_solidworks")["ended"] == "job_terminated"
+    assert loaded["result_kind"] == "solids"
+    assert not _solidworks_pids(), "a SOLIDWORKS is left running"
 
 
 @with_solidworks
