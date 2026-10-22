@@ -382,6 +382,12 @@ def test_the_bridge_keeps_an_instance_that_shows_a_document_it_did_not_open():
     foreign = _function(code, "static List<object> ForeignDocuments(")
     # Shown documents only: an assembly's components are open but not shown, and do not count.
     assert "bool ours = IsRemembered(o);" in foreign and "!ours && doc.Visible" in foreign
+    # Nor one of the bridge's own whose close failed: it is known by its name as well as its object,
+    # recorded when it was opened or made and dropped once it is closed.
+    assert "!named.Contains(NameOf(doc))" in foreign
+    assert "documentNames[handle] = name;" in _function(code, "static int Remember(")
+    close = _function(code, "static string Close(")
+    assert close.index("sw.CloseDoc(title);") < close.index("documentNames.Remove(handle);")
     keep = _function(code, "static void KeepForeignDocuments(")
     refused = keep.index('throw new BridgeException("foreign_documents"')
     assert keep.index("sw.Visible = true;") < refused and keep.index("sw.UserControl = true;") < refused

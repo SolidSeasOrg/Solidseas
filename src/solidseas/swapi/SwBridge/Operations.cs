@@ -169,6 +169,10 @@ namespace SolidSeas.SwBridge
         static WindowWatch watch;
         static ISldWorks sw;
         static readonly Dictionary<int, ModelDoc2> documents = new Dictionary<int, ModelDoc2>();
+        // Each of those by name (its path, or the title of a document never saved), read when it was
+        // opened or made, so that one whose object has gone (RPC_E_DISCONNECTED) is still known as
+        // the bridge's own when the instance is to be ended.
+        static readonly Dictionary<int, string> documentNames = new Dictionary<int, string>();
         static readonly Dictionary<int, PartWatch> watches = new Dictionary<int, PartWatch>();
         static int nextHandle = 1;
         // One SolidSeas-started SOLIDWORKS at a time in this Windows session, across bridges.
@@ -469,17 +473,21 @@ namespace SolidSeas.SwBridge
         // The titles of the documents the instance shows that this bridge did not open or create:
         // a person opened them in the seconds before the instance was hidden, or a double-click
         // reached it. A document loaded with another, such as an assembly's component, is not
-        // shown (IModelDoc2.Visible is false) and does not count.
+        // shown (IModelDoc2.Visible is false) and does not count. Nor does one of the bridge's own
+        // whose close failed, known by its name when its object is no longer the same (closing a
+        // part after the assembly that used it failed with RPC_E_DISCONNECTED, SolidSeas-d30), so
+        // the instance is never kept for a person who is not there.
         static List<object> ForeignDocuments()
         {
             List<object> titles = new List<object>();
+            HashSet<string> named = new HashSet<string>(documentNames.Values, StringComparer.OrdinalIgnoreCase);
             object[] open = sw.GetDocuments() as object[];
             if (open == null) return titles;
             foreach (object o in open)
             {
                 ModelDoc2 doc = o as ModelDoc2;
                 bool ours = IsRemembered(o);
-                if (doc != null && !ours && doc.Visible) titles.Add(doc.GetTitle());
+                if (doc != null && !ours && doc.Visible && !named.Contains(NameOf(doc))) titles.Add(doc.GetTitle());
                 if (o != null && Marshal.IsComObject(o) && !ours) Marshal.ReleaseComObject(o);
             }
             return titles;
@@ -519,6 +527,7 @@ namespace SolidSeas.SwBridge
                 catch (Exception) { }
             }
             documents.Clear();
+            documentNames.Clear();
             if (sw != null)
             {
                 try { Marshal.FinalReleaseComObject(sw); }
@@ -531,7 +540,18 @@ namespace SolidSeas.SwBridge
         {
             int handle = nextHandle++;
             documents[handle] = doc;
+            string name = null;
+            try { name = NameOf(doc); }
+            catch (Exception) { } // the object itself still marks it as the bridge's
+            if (name != null) documentNames[handle] = name;
             return handle;
+        }
+
+        // A document's path, or its title while it has never been saved.
+        static string NameOf(ModelDoc2 doc)
+        {
+            string path = doc.GetPathName();
+            return string.IsNullOrEmpty(path) ? doc.GetTitle() : path;
         }
 
         static ModelDoc2 Document(Args args, out int handle)
@@ -856,6 +876,7 @@ namespace SolidSeas.SwBridge
             // dropped afterwards, when the document may already be gone.
             sw.CloseDoc(title);
             documents.Remove(handle);
+            documentNames.Remove(handle);
             PartWatch watch;
             if (watches.TryGetValue(handle, out watch))
             {
