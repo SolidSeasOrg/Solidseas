@@ -969,6 +969,60 @@ def random_plate(seed: int, n: int = 8):
     return build(p)
 
 
+def random_block(seed: int):
+    """A seeded machined block, nearer the parts a shop draws than :func:`random_plate`: an
+    outline with corners rounded to mixed radii (some sharp), up to three pockets with
+    corner radii, a through slot half the time and two to ten holes of mixed sizes, all
+    kept apart from each other, the edges and the rounded corners. Its layouts give the
+    callouts, radii, frames and datum symbols a sheet has to find room for."""
+    rng = random.Random(seed)
+    w, d = rng.randint(60, 180), rng.randint(40, 120)  # mm, as everything below until built
+    t = rng.choice((8, 10, 12, 16, 20))
+    corners = [rng.choice((0, 0, 3, 5, 8, 10)) * MM for _ in range(4)]
+    p = prism(rounded([(0.0, 0.0), (w * MM, 0.0), (w * MM, d * MM), (0.0, d * MM)], corners), t * MM)
+    taken: list[tuple[float, float, float, float]] = []
+
+    def free(x0, y0, x1, y1, gap=3.0):
+        if x0 < 4 or y0 < 4 or x1 > w - 4 or y1 > d - 4:
+            return False
+        apart = (x1 + gap < u0 or x0 - gap > u1 or y1 + gap < v0 or y0 - gap > v1 for u0, v0, u1, v1 in taken)
+        return all(apart)
+
+    for _ in range(rng.randint(0, 3)):
+        for _try in range(50):
+            pw, ph = rng.uniform(12, w / 2.5), rng.uniform(10, d / 2.5)
+            x0, y0 = rng.uniform(6, w - pw - 6), rng.uniform(6, d - ph - 6)
+            if free(x0, y0, x0 + pw, y0 + ph):
+                r = min(rng.choice((0, 2, 3, 4, 6)), pw / 2 - 0.5, ph / 2 - 0.5)
+                pocket = rounded(rect(x0 * MM, y0 * MM, (x0 + pw) * MM, (y0 + ph) * MM), [r * MM] * 4)
+                depth = rng.choice((2, 3, 4, 5, 6))
+                if depth < t - 1:
+                    p = cut(p, pocket, depth * MM)
+                    taken.append((x0, y0, x0 + pw, y0 + ph))
+                break
+    if rng.random() < 0.5:
+        for _try in range(50):
+            length, width = rng.uniform(10, 30), rng.choice((6.0, 8.0, 10.0))
+            cx = rng.uniform(6 + length / 2 + width, w - 6 - length / 2 - width)
+            cy = rng.uniform(6 + width, d - 6 - width)
+            reach = length / 2 + width / 2
+            outline = (cx - reach, cy - width / 2, cx + reach, cy + width / 2)
+            if free(*outline):
+                p = cut(p, stadium(cx * MM, cy * MM, length * MM, width * MM))
+                taken.append(outline)
+                break
+    for k in range(rng.randint(2, 10)):
+        for _try in range(80):
+            dia = rng.choice((3.4, 4.5, 5.5, 6.6, 9.0, 11.0))
+            x, y = rng.uniform(5 + dia, w - 5 - dia), rng.uniform(5 + dia, d - 5 - dia)
+            hole = (x - dia / 2, y - dia / 2, x + dia / 2, y + dia / 2)
+            if free(*hole) and all(math.dist((x, y), c) > 14 for c in ((0, 0), (w, 0), (w, d), (0, d))):
+                p = cut_hole(p, (x * MM, y * MM, t * MM), "-z", [("bore", dia * MM, None)], f"h{k}")
+                taken.append(hole)
+                break
+    return build(p)
+
+
 POCKETS = [  # (x0, y0, length along X, width along Y, depth), mm: largest first
     (10.0, 10.0, 40.0, 35.0, 3.0),
     (61.0, 11.0, 36.0, 31.0, 4.0),

@@ -185,8 +185,8 @@ def test_a_horizontal_side_with_ordinates_keeps_its_sizes_texts_past_theirs():
 
 def test_a_first_row_of_sizes_stands_past_a_datum_symbol():
     # a datum feature symbol stands between its view and the dimensions on its side: a
-    # first row of linear dimensions stands beyond its reach, an ordinate row as it was
-    # (its texts start past the symbol)
+    # first row of linear dimensions stands beyond its reach, its texts too, an ordinate
+    # row as it was (its texts start past the symbol)
     planned, _r = laid("hole_kinds", patterns=None)
     ctx = planned.detail.ctx
     ordinate = next(d for d in planned.plan.dimensions if d.kind == "ordinate")
@@ -195,7 +195,10 @@ def test_a_first_row_of_sizes_stands_past_a_datum_symbol():
     slot = arrange.Slot(spec, geom, Box(0.0, 0.0, 0.2, 0.12), 1000.0)
     reach = 11.5
     below = arrange.bands(ctx, slot, [(linear, 0.0, 0.05, "x", 0.0)], {"below": reach})["below"]
-    assert below.offsets[0] >= reach + arrange.DATUM_CLEAR - 1e-9
+    # a horizontal row's texts are centred on its line, a boxed basic value reaching 0.95
+    # of a text height past it toward the view: they stand clear of the symbol as well
+    h = arrange.text_height(ctx.unit)
+    assert below.offsets[0] - 0.95 * h >= reach + arrange.DATUM_CLEAR - 1e-9
     left = arrange.bands(ctx, slot, [(linear, 0.0, 0.05, "y", 0.0)], {"left": reach})["left"]
     assert left.offsets[0] - left.dims[0].text_w / 2 >= reach + arrange.DATUM_CLEAR - 1e-9
     both = [(ordinate, 0.0, 0.03, "y", 0.0), (linear, 0.0, 0.05, "y", 0.0)]
@@ -361,6 +364,35 @@ def test_the_closer_look_at_leader_items_is_bounded():
         slope = math.degrees(math.atan2(abs(math.sin(math.radians(a))), abs(math.cos(math.radians(a)))))
         assert LEADER_MIN <= round(slope, 6) <= LEADER_MAX
     assert max(place.ALL_LENGTHS) == max(place.LENGTHS)
+
+
+def _block_run(seed: int, **options):
+    """A seeded machined block drawn through the pipeline as the corpus sweep draws a
+    part."""
+    import drawing_golden_support as G
+    from solidseas.drawing import pipeline
+
+    xt, truth = P.random_block(seed)
+    stage = G.source_stage("random_block", xt, truth)
+    return pipeline.run(
+        None, options=DrawingOptions(**options), settings=G.settings(), stages={"source": stage}
+    )
+
+
+def _conflicts(result) -> list[tuple[str, str, str]]:
+    return [(c.code, c.owner, c.other) for c in result.checks if c.code in ("L.overlap", "L.placement")]
+
+
+def test_a_datum_symbol_under_a_band_stands_clear_of_its_texts():
+    """This block's datum B stands up from the top of its front view, under the band of
+    sizes there. The arrangement keeps the symbol its room, and the band's first row now
+    stands far enough past it that its texts, centred on their lines, do too: the symbol
+    finds a clear spot where it stood on a basic value's box and was reported."""
+    run = _block_run(31)
+    result = run.orchestrated.result
+    assert _conflicts(result) == []
+    (b,) = [a for a in of(result.sheet, D.DatumFeature) if a.letter == "B"]
+    assert b.view == "v-1"  # in its own view, the front
 
 
 def _datum_run(seed: int, n: int, sheet: str):

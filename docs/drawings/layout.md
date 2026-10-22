@@ -46,8 +46,10 @@ sheet or scale is kept as it is.
   face and not one behind it. Where it reaches past its view it reserves that
   reach (its triangle, leader and letter box, about 10.5 mm at 3 mm lettering) on
   that side, where no band is deeper, and a first row of linear dimensions there
-  stands 1.5 mm beyond it, so the symbol sits between the view and their lines and
-  texts (an ordinate row's texts start past it as they are). The room is not
+  stands beyond it, its texts 1.5 mm clear of it (a horizontal row's line a text
+  height further out, as its texts are centred on it), so the symbol sits between
+  the view and their lines and texts (an ordinate row's texts start past it as
+  they are). The room is not
   worth a smaller scale: when the views do not fit with it, they are arranged
   without it at the same scale, and the symbol finds what room it can.
 - Third angle: the front anchors, the top above it and the right to its right on

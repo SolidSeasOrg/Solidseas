@@ -116,16 +116,16 @@
     },
     "svg": {
       "border": {"n": 117, "sum": 21870.35, "digest": "1097cb2b3fdfcd2e"},
-      "centre": {"n": 342, "sum": 49475.83, "digest": "b681098f4d572e72"},
-      "dimensions": {"n": 1096, "sum": 199501.88, "digest": "0fcf90fefdeb62ca"},
+      "centre": {"n": 342, "sum": 49276.19, "digest": "a849e09e928c36d7"},
+      "dimensions": {"n": 1096, "sum": 198963.91, "digest": "6b29691bfec0dab9"},
       "notes": {"n": 15, "sum": 3574.03, "digest": "153672f9ad330ffa"},
       "page": {"n": 10, "sum": 2971.8, "digest": "d63a6c943d5219ef"},
       "stamp": {"n": 6, "sum": 670.99, "digest": "3ab08da28807547c"},
       "title": {"n": 537, "sum": 167679.24, "digest": "c3d173aa1cab950a"},
-      "visible": {"n": 1261, "sum": 295819.36, "digest": "ae48fc27d51cbe2b"}
+      "visible": {"n": 1261, "sum": 295438.36, "digest": "152feb49418a3106"}
     },
     "pdf": {
-      "content": "67047b25b89a837d",
+      "content": "4db3d4a29de826a7",
       "operators": {"BDC": 7, "BT": 119, "EMC": 7, "ET": 119, "G": 1, "J": 2, "S": 309, "Tf": 119, "Tj": 119, "Tm": 119, "c": 192, "d": 10, "f": 26, "g": 1, "h": 101, "j": 1, "l": 431, "m": 335, "w": 6},
       "groups": [
         "Visible",
@@ -258,7 +258,7 @@
       ]
     },
     "dxf": {
-      "tags": "ff34adc70568e71c",
+      "tags": "4eb49f0c6acbe3de",
       "count": 9855,
       "entities": {"CIRCLE CENTER": 1, "CIRCLE VISIBLE": 18, "DIMENSION DIM": 17, "ELLIPSE VISIBLE": 19, "INSERT DIM": 8, "LINE BORDER": 12, "LINE CENTER": 59, "LINE TITLE": 1, "LINE VISIBLE": 56, "LWPOLYLINE BORDER": 1, "LWPOLYLINE DIM": 1, "LWPOLYLINE TITLE": 37, "SPLINE TITLE": 2, "TEXT BORDER": 16, "TEXT DIM": 1, "TEXT NOTES": 5, "TEXT STAMP": 1, "TEXT TITLE": 47},
       "blocks": {"LINE 0": 71, "LWPOLYLINE 0": 21, "POINT DEFPOINTS": 47, "SOLID 0": 26, "SPLINE 0": 10, "TEXT 0": 48}

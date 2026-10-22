@@ -1896,6 +1896,10 @@ while the project takes shape.
 
 ### Fixed
 
+- **A dimension's value and a datum symbol.** A dimension's value no longer
+  stands on a datum feature symbol placed between its view and the dimensions on
+  that side.
+
 - **Indexing a folder that holds SolidSeas' cache.** Indexing a folder that
   holds SolidSeas' cache (a home folder, say) no longer walks or indexes the
   catalogs inside it.

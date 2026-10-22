@@ -156,8 +156,9 @@ def bands(
     the dimension, its two ends along its sheet axis (view metres), that axis, and the
     middle of its witnesses across it (view metres). ``clear`` gives, by side, how far
     past the view a datum feature symbol stands (sheet mm): a first row of linear
-    dimensions stands beyond it, so the symbol sits between the view and their lines
-    and texts (an ordinate row's texts start past it as they are)."""
+    dimensions stands beyond it, its texts as well as its lines, so the symbol sits
+    between the view and their lines and texts (an ordinate row's texts start past it
+    as they are)."""
     clear = clear or {}
     h = text_height(ctx.unit)
     pre = standards.DIMENSIONS
@@ -208,7 +209,11 @@ def bands(
             for d in ords:
                 d.track = -1
         elif clear.get(side, 0.0) > 0.0:
-            first = max(first, clear[side] + DATUM_CLEAR)
+            # A horizontal band's texts are centred on their lines, so past a datum feature
+            # symbol its first line stands a text height further out (half the text, its
+            # basic box and a clearance), and the texts too stand clear of the symbol; a
+            # vertical band's first text stands half its width past it (below).
+            first = max(first, clear[side] + DATUM_CLEAR + (h if horizontal else 0.0))
         framed = {d.track for d in lins if d.pd.frame is not None}
         for t, w in enumerate(widths):
             if horizontal:
