@@ -981,6 +981,45 @@ def test_a_flat_sliver_in_a_solid_is_flipped_away():
     assert all(_area(a, b, c) > 0 for _normal, a, b, c in read_stl(export_bytes(m, "stl")))
 
 
+def test_a_flat_sliver_along_a_hole_is_dropped():
+    """A plate (open: its outline is a hole's edge) of three triangles, with M on its bottom
+    edge AB, and a sliver (A, B, M) along that edge: flat, its long edge AB used by no
+    other triangle, so there is nothing to flip it with. It is dropped, and the rest is
+    kept as it was: the plate's area, its vertices, still open. A slicer would count the
+    sliver as an error and remove it."""
+    from solidseas.export import _flat, _object
+
+    a, b, m, c, d = (0.0, 0.0, 0.0), (0.01, 0.0, 0.0), (0.005, 0.0, 0.0), (0.0, 0.01, 0.0), (0.01, 0.01, 0.0)
+    pos = array("d", [v for p in (a, b, m, c, d) for v in p])
+    tris = array("I", (0, 2, 3, 2, 1, 4, 2, 4, 3, 0, 1, 2))  # the plate, then the sliver
+    mm = array("d", (v * 1000.0 for v in pos))
+    assert _flat(mm, array("f", mm), tris) == [9]
+    obj = _object("plate", None, None, "mesh", pos, tris, None, [])
+    assert list(obj.triangles) == [0, 2, 3, 2, 1, 4, 2, 4, 3] and obj.n_vertices == 5
+    assert not obj.closed and obj.measures()["area_m2"] == pytest.approx(1e-4, rel=1e-12)
+    om = array("d", (v * 1000.0 for v in obj.positions))
+    assert _flat(om, array("f", om), obj.triangles) == []
+
+
+def test_a_stray_flat_triangle_is_dropped_and_a_lone_one_kept():
+    """A closed tetrahedron with a flat triangle of three points of its own beside it: the
+    stray is dropped, its points with it, and what is left is closed. A mesh that is only
+    a flat triangle keeps it: there would be nothing left to print."""
+    from solidseas.export import _object
+
+    tet = array("I", (2, 1, 0, 0, 1, 3, 1, 2, 3, 2, 0, 3))
+    assert oriented_closed(tet, 4)
+    stray = [(0.2, 0.0, 0.0), (0.3, 0.0, 0.0), (0.25, 0.0, 0.0)]
+    pos = array("d", [v for p in (*_TET[:4], *stray) for v in p])
+    obj = _object("tet", None, None, "mesh", pos, array("I", (*tet, 4, 5, 6)), None, [])
+    assert obj.closed and obj.n_triangles == 4 and obj.n_vertices == 4
+    assert obj.measures()["volume_m3"] == pytest.approx(_tetra_volume(), rel=1e-12)
+    lone = _object(
+        "lone", None, None, "mesh", array("d", [v for p in stray for v in p]), array("I", (0, 1, 2)), None, []
+    )
+    assert lone.n_triangles == 1 and not lone.closed
+
+
 def test_a_far_placement_merges_corners_float32_cannot_tell_apart():
     """Placed 100 m out, float32 steps are 8e-3 mm: an edge of 1e-3 mm is one point."""
     a = (0.0, 0.0, 0.0)

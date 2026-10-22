@@ -2439,8 +2439,12 @@ written and that size; the STEP export writes through it too.
   without opening the solid; instead its longest edge is flipped with the
   triangle across it, which its middle corner then cuts in two: nothing
   moves, no triangle goes, and both new triangles have area. That is done in
-  the object's own frame where the edge is free to flip; a sliver left flat
-  gets the normal (0, 0, 0) in an STL.
+  the object's own frame where the edge is free to flip. A sliver whose
+  longest edge no other triangle uses lies along the edge of a hole, with
+  nothing to flip it with: it is dropped (unless it is the object's only
+  triangle), since it has no area and the hole's edge runs along its two short
+  edges just the same; a slicer would count it as an error and remove it. A
+  sliver left flat gets the normal (0, 0, 0) in an STL.
 - **3MF.** The package holds the three parts the 3MF core specification
   requires: `[Content_Types].xml` (the `rels` and `model` content types),
   `_rels/.rels` (the start part relationship to `/3D/3dmodel.model`) and
@@ -2562,10 +2566,11 @@ before and 16 (2) now. The edge collapse merged corners in 6 parts and 13
 assembly objects (4,535 triangles dropped), 2,912 flips gave area to 3,621 of
 the 4,078 flat triangles found, and the STLs of 8 assemblies lost 1,068 more
 triangles to the collapse where items are placed far from the origin. The
-flat triangles left have no neighbour across their long edge (they border a
+flat triangles left had no neighbour across their long edge (they border a
 hole), or a flip there would leave a triangle flat or an edge doubled; in
 the assemblies' STLs there are also slivers that placing flattens. Each has
-the normal (0, 0, 0). Before, 4,011 STL normals in 81 parts and 72,209 in 59
+the normal (0, 0, 0). Those along a hole are now dropped (above), which has not
+been measured on the corpus again. Before, 4,011 STL normals in 81 parts and 72,209 in 59
 assemblies disagreed with their float32 corners; none does now. Six closed
 parts are still not closed when an STL reader joins vertices by position:
 their bodies touch or overlap exactly (the same float64 points, faces

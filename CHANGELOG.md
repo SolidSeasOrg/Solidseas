@@ -1747,6 +1747,10 @@ while the project takes shape.
 
 ### Fixed
 
+- **No slivers along holes in 3D print files.** STL and 3MF exports no longer
+  contain zero-area slivers along the edge of a hole, which slicers counted as
+  errors to repair.
+
 - **3D prints on drives without hard links.** On Linux and macOS, a 3D print of
   a model on a FAT or exFAT drive, or on a share without hard links, goes to the
   temporary folder and says the folder's file system has no hard links, instead

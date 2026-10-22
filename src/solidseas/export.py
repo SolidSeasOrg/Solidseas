@@ -35,7 +35,9 @@ with no area that the slicer counts as an error and repairs. So wherever a
 triangle's corners would meet in float32, as written, its vertices are merged and
 the triangles left with a repeated vertex dropped: an edge collapse, which keeps a
 closed solid closed (:func:`_merged_coincident`). A sliver whose corners stay
-apart but lie on one line has its longest edge flipped instead (:func:`_flipped`).
+apart but lie on one line has its longest edge flipped instead (:func:`_flipped`),
+or is dropped where no triangle lies across that edge, along a hole
+(:func:`_along_holes`).
 
 Pure Python, standard library only. Reads are bounded by the tessellation's and
 the display geometry's limits, and every write by ``max_bytes``. A file is only
@@ -420,13 +422,42 @@ def _flipped(mm: array, f32: array, triangles: array, flat: list[int]) -> array 
     return t if flipped else None
 
 
+def _along_holes(mm: array, t: array, flat: list[int]) -> array | None:
+    """``t`` without the flat triangles at ``flat`` whose longest edge no other triangle
+    uses, either way: a sliver along the edge of a hole, with no area to keep and no
+    triangle across that edge to flip with (:func:`_flipped`), which a slicer counts as
+    an error and removes. Dropping one changes nothing else: the hole's edge runs along
+    its two short edges instead, on the same line. None when there is none to drop, or
+    when they are every triangle there is."""
+    across: dict[tuple[int, int], list[int]] = {}
+    for k in flat:
+        a, b, _m = _across(mm, t, k)
+        across.setdefault((a, b), []).append(k)
+        across.setdefault((b, a), []).append(k)
+    met: set[int] = set()
+    for q in range(0, len(t), 3):
+        x, y, z = t[q], t[q + 1], t[q + 2]
+        for e in ((x, y), (y, z), (z, x)):
+            for k in across.get(e, ()):
+                if k != q:
+                    met.add(k)
+    drop = {k for k in flat if k not in met}
+    if not drop or 3 * len(drop) == len(t):
+        return None
+    out = array("I")
+    for q in range(0, len(t), 3):
+        if q not in drop:
+            out.extend(t[q : q + 3])
+    return out
+
+
 def _without_coincident(positions: array, triangles: array, closed: bool) -> tuple[array, array, bool]:
     """``positions`` (metres) and ``triangles`` with no triangle whose corners meet in
-    float32 millimetres (:func:`_merged_coincident`), compacted, and no flat triangle
-    where an edge flip can give it area (:func:`_flipped`); and whether that is
-    closed. Unchanged when there is nothing to do, or when the change would open a
-    closed solid (a vertex pair sharing a third neighbour): a slicer's repair then
-    does better than a mesh that is not closed."""
+    float32 millimetres (:func:`_merged_coincident`), compacted, no flat triangle where
+    an edge flip can give it area (:func:`_flipped`), and none along the edge of a hole
+    (:func:`_along_holes`); and whether that is closed. Unchanged when there is nothing
+    to do, or when the change would open a closed solid (a vertex pair sharing a third
+    neighbour): a slicer's repair then does better than a mesh that is not closed."""
     mm = array("d", (v * 1000.0 for v in positions))
     f32 = array("f", mm)
     pos, tris = positions, triangles
@@ -436,6 +467,9 @@ def _without_coincident(positions: array, triangles: array, closed: bool) -> tup
     flat = _flat(mm, f32, tris)
     if flat:
         tris = _flipped(mm, f32, tris, flat) or tris
+        bordering = _along_holes(mm, tris, _flat(mm, f32, tris))
+        if bordering is not None:
+            (pos, mm, f32), tris = _compacted([pos, mm, f32], bordering)
     if tris is triangles:
         return positions, triangles, closed
     now = oriented_closed(tris, len(pos) // 3)
