@@ -468,15 +468,88 @@ def mesh_measures(positions: array, triangles: array) -> dict[str, Any]:
     return {"volume_m3": vol / 6.0, "area_m2": area, "box": box}
 
 
+_WELD_CHUNK = 65_536  # vertices whose coordinates are copied out at a time, to key them
+
+
 def weld(mesh) -> tuple[array, array]:
     """A display mesh (:class:`~solidseas.formats.solidworks.mesh.Mesh`, one set of
     vertices a face) over shared vertices: vertices at the same point become one, and
-    triangles left with a repeated vertex are dropped."""
+    triangles left with a repeated vertex are dropped. The points are numbered as the
+    triangles first use them, each with the coordinates of the corner that first did.
+
+    In two passes, so that the table of points is gone before the result is built:
+    each vertex is mapped to the first vertex at its point, keyed by the bytes of its
+    three coordinates (a negative zero read as zero, as the numbers compare), then the
+    triangles are numbered through that map. That takes about 170 bytes a point at its
+    peak, where a table keyed by tuples of floats that lived beside the result took about
+    290, and on a display mesh, whose faces share only their edges, it is faster too: a
+    point is looked up once a vertex, not once a corner. Coordinates that are not all
+    finite are welded by their values, one corner at a time (:func:`_weld_by_value`):
+    a NaN equals nothing, not even itself."""
+    p, t = mesh.positions, mesh.triangles
+    if not isinstance(p, array) or p.typecode not in "fd" or not _finite(p):
+        return _weld_by_value(p, t)
+    n = len(p) // 3
+    step = 3 * p.itemsize
+    negative_zero = array(p.typecode, [-0.0]).tobytes()
+    first: dict[bytes, int] = {}
+    same = array("I", bytes(4 * n))  # each vertex's first vertex at its point
+    for start in range(0, n, _WELD_CHUNK):
+        end = min(n, start + _WELD_CHUNK)
+        raw = p[3 * start : 3 * end].tobytes()
+        check = negative_zero in raw
+        at = 0
+        for v in range(start, end):
+            key = raw[at : at + step]
+            at += step
+            if check and negative_zero in key:
+                key = array(p.typecode, (x + 0.0 for x in p[3 * v : 3 * v + 3])).tobytes()
+            same[v] = first.setdefault(key, v)
+    del first
+    number = [-1] * n  # a point's first vertex -> its number, once a triangle uses it
+    pos = array("d")
+    tris = array("I")
+    count = 0
+    for k in range(0, len(t), 3):
+        i = t[k]
+        s = same[i]
+        a = number[s]
+        if a < 0:
+            a = number[s] = count
+            count += 1
+            pos.extend((p[3 * i], p[3 * i + 1], p[3 * i + 2]))
+        i = t[k + 1]
+        s = same[i]
+        b = number[s]
+        if b < 0:
+            b = number[s] = count
+            count += 1
+            pos.extend((p[3 * i], p[3 * i + 1], p[3 * i + 2]))
+        i = t[k + 2]
+        s = same[i]
+        c = number[s]
+        if c < 0:
+            c = number[s] = count
+            count += 1
+            pos.extend((p[3 * i], p[3 * i + 1], p[3 * i + 2]))
+        if a != b and b != c and a != c:
+            tris.extend((a, b, c))
+    return pos, tris
+
+
+def _finite(values: array) -> bool:
+    """Whether every one of ``values`` is finite: their exact sum, in one pass, is."""
+    try:
+        return math.isfinite(math.fsum(values))
+    except (OverflowError, ValueError):  # a sum past float's range, or inf and -inf
+        return False
+
+
+def _weld_by_value(p, t) -> tuple[array, array]:
+    """:func:`weld`, one corner at a time, keyed by the coordinates' values."""
     index: dict[tuple[float, float, float], int] = {}
     pos = array("d")
     tris = array("I")
-    p = mesh.positions
-    t = mesh.triangles
     for k in range(0, len(t), 3):
         ids = []
         for i in (t[k], t[k + 1], t[k + 2]):

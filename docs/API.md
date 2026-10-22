@@ -2492,7 +2492,7 @@ written and that size; the STEP export writes through it too.
   the `model`.
 - **Limits.** `max_triangles` bounds the triangles tessellated or read and
   those placed, a part's display mesh included (checked before it is welded,
-  which takes about 250 bytes a vertex); `max_seconds` the time spent
+  which takes about 170 bytes a point at its peak); `max_seconds` the time spent
   tessellating (for an assembly, over the call and for each part). The reads
   are bounded as 3.14 and 3.15 say, and the closed check and the weld by the
   triangles.

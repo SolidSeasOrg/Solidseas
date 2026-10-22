@@ -486,6 +486,107 @@ def test_an_open_display_mesh_says_it_is_not_closed():
     assert len(pos) // 3 < mesh.n_vertices  # faces share their edges' points once welded
 
 
+class _Welded:
+    """What weld takes: ``positions`` (xyz) and ``triangles`` (index triples)."""
+
+    def __init__(self, positions: array, triangles: array) -> None:
+        self.positions, self.triangles = positions, triangles
+
+
+def _awkward_mesh(typecode: str, seed: int) -> _Welded:
+    """Forty points, each repeated as many vertices, with negative and positive zeros, two
+    coordinates a hair apart, triangles that repeat a vertex or a point, and vertices
+    no triangle uses."""
+    import random
+
+    rng = random.Random(seed)
+    points = [
+        (
+            rng.choice((0.0, -0.0, 1.0, 2.5)),
+            rng.choice((0.0, -0.0, 3.0)),
+            rng.choice((0.0, -0.0, 1e-3, 1e-3 + 2**-30)),
+        )
+        for _ in range(40)
+    ]
+    positions = array(typecode)
+    for _ in range(600):
+        positions.extend(rng.choice(points))
+    triangles = array("I", (rng.randrange(400) for _ in range(1500)))  # vertices 400 to 599 unused
+    return _Welded(positions, triangles)
+
+
+def _faces(n: int, faces: int) -> _Welded:
+    """An n x n grid of quads on a wavy sheet in ``faces`` strips, each strip with its own
+    float32 vertices, as a display mesh's faces have theirs: they repeat along the edges."""
+    pos, tri = array("f"), array("I")
+    rows = n // faces
+    for f in range(faces):
+        base = len(pos) // 3
+        for r in range(f * rows, (f + 1) * rows + 1):
+            for c in range(n + 1):
+                x, y = c * 1e-3, r * 1e-3
+                pos.extend((x, y, 5e-4 * math.sin(x * 300) * math.cos(y * 300)))
+        for r in range(rows):
+            for c in range(n):
+                a = base + r * (n + 1) + c
+                tri.extend((a, a + 1, a + n + 1, a + 1, a + n + 2, a + n + 1))
+    return _Welded(pos, tri)
+
+
+@pytest.mark.parametrize("typecode", ["f", "d"])
+@pytest.mark.parametrize("seed", range(4))
+@pytest.mark.parametrize("chunk", [7, 65_536])
+def test_weld_numbers_and_places_each_point_as_welding_by_value_does(monkeypatch, typecode, seed, chunk):
+    """The same points, numbered in the order the triangles first use them, each with the
+    coordinates of the corner that first did (its zero's sign included), and the same
+    triangles, whether the coordinates are keyed many chunks at a time or in one."""
+    from solidseas import export
+
+    monkeypatch.setattr(export, "_WELD_CHUNK", chunk)
+    m = _awkward_mesh(typecode, seed)
+    (pos, tris), (want_pos, want_tris) = weld(m), export._weld_by_value(m.positions, m.triangles)
+    assert pos.tobytes() == want_pos.tobytes() and tris == want_tris
+    assert 0 < len(tris) < len(m.triangles) and len(pos) // 3 < 40  # repeats dropped, points merged
+    assert any(math.copysign(1.0, v) < 0 for v in pos if v == 0.0)  # a negative zero kept as written
+
+
+def test_weld_of_coordinates_not_all_finite_is_by_value():
+    """A NaN equals nothing, not even itself: such a mesh is welded corner by corner, by
+    the coordinates' values, as it always was."""
+    from solidseas import export
+
+    m = _awkward_mesh("d", 1)
+    m.positions[5], m.positions[10] = math.nan, math.inf
+    (pos, tris), (want_pos, want_tris) = weld(m), export._weld_by_value(m.positions, m.triangles)
+    assert pos.tobytes() == want_pos.tobytes() and tris == want_tris
+
+
+def test_weld_takes_well_under_the_memory_welding_by_value_took():
+    """weld keys each point by its coordinates' bytes and builds its result once that
+    table is gone: on faces that share only their edges, as a display mesh's do, its peak
+    is under three quarters of welding by value's (about 170 bytes a point against 290,
+    measured on Python 3.12)."""
+    import tracemalloc
+
+    from solidseas import export
+
+    m = _faces(180, 18)
+
+    def peak(fn) -> int:
+        tracemalloc.start()
+        try:
+            base = tracemalloc.get_traced_memory()[0]
+            fn()
+            return tracemalloc.get_traced_memory()[1] - base
+        finally:
+            tracemalloc.stop()
+
+    new = peak(lambda: weld(m))
+    old = peak(lambda: export._weld_by_value(m.positions, m.triangles))
+    assert new < 0.75 * old, (new, old)
+    assert weld(m)[1] == export._weld_by_value(m.positions, m.triangles)[1]
+
+
 def test_nothing_to_export():
     for name in ("o01_empty.SLDPRT", "o18_drw_boxA.SLDDRW"):
         with open_document(fixture_path(name)) as doc, pytest.raises(NothingToExportError):

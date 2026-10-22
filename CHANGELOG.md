@@ -8,6 +8,10 @@ while the project takes shape.
 
 ### Changed
 
+- **Lighter 3D print preparation.** Preparing a 3D print, or an STL or 3MF
+  export, joins a mesh's vertices with about 40 percent less memory, and faster
+  for SOLIDWORKS display meshes.
+
 - **3D Print Part for a part whose file was not found.** In an assembly's 3D
   view, right-clicking a part whose own file was not found (drawn from what its
   sub-assembly stores of it) now shows 3D Print Part greyed, with the reason and
