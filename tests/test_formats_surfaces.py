@@ -7,12 +7,13 @@ import shutil
 
 import pytest
 
+import mesh_writers as mw
 from jsonschema_subset import validate
 from model_writers import box, scene_document, stl_ascii, stl_binary, two_object_assembly
 from serve_support import Running
 from solidseas import cli, jobs, model, scan
-from solidseas.errors import InvalidArgumentError
-from solidseas.formats import open_model
+from solidseas.errors import FormatNotSupportedError, InvalidArgumentError, SldLimitError
+from solidseas.formats import Limits, open_model
 from solidseas.workers import WorkerPool
 from support import fixture_path
 
@@ -148,6 +149,73 @@ def test_the_worker_pool_runs_model_summary(folder):
         assert env["ok"] and env["kind"] == "model_summary" and env["data"]["format"] == "stl"
         env = pool.run("model_summary", folder / "part.igs", within=str(folder))
         assert not env["ok"] and env["error"]["code"] == "format_not_supported"
+
+
+@pytest.fixture
+def disguised(tmp_path):
+    """A folder with ``x.stl``, which holds a 3MF, and ``box.stl``, an STL of twelve triangles."""
+    (tmp_path / "x.stl").write_bytes(mw.threemf(box(1, 1, 1)))
+    (tmp_path / "box.stl").write_bytes(stl_binary(box(1, 1, 1)))
+    return tmp_path
+
+
+def test_the_jobs_read_only_the_formats_and_within_the_limits_the_worker_has(disguised):
+    """A worker set to read STL, as ``serve --formats stl`` sets it, refuses a ``.stl`` that
+    holds a 3MF in every model-file job, and reads within the limits it was given."""
+    base = {"path": str(disguised / "x.stl"), "within": str(disguised), "name": "x.stl"}
+    jobs.configure({"roots": [str(disguised)], "formats": ["stl"], "limits": {"triangles": 10}})
+    try:
+        for job in (jobs.model_summary, jobs.model_properties, jobs.model_preview):
+            with pytest.raises(FormatNotSupportedError) as exc:
+                job(base)
+            assert exc.value.detail == {"rule": "format_not_enabled", "value": "3mf"}
+        entry, _image = jobs.model_entry({**base, "rel": "x.stl", "file": None, "include": []})
+        assert entry["status"] == "error" and entry["error"]["code"] == "format_not_supported"
+        assert entry["error"]["detail"] == {"rule": "format_not_enabled", "value": "3mf"}
+        with pytest.raises(FormatNotSupportedError):
+            jobs.catalog_document({**base, "previews": False})
+        with pytest.raises(FormatNotSupportedError):  # a listing asking for 3MF gets no more
+            jobs.model_entry({**base, "rel": "x.stl", "file": None, "include": [], "formats": ["3mf"]})
+        stl = {"path": str(disguised / "box.stl"), "within": str(disguised), "name": "box.stl"}
+        assert jobs.model_summary(stl)["format"] == "stl"
+        with pytest.raises(SldLimitError) as exc:  # twelve triangles, ten allowed
+            jobs.model_preview(stl)
+        assert exc.value.detail["limit"] == "triangles"
+    finally:
+        jobs.configure({})
+    jobs.configure({"roots": [str(disguised)]})  # a worker with no formats reads what the file holds
+    try:
+        assert jobs.model_summary(base)["format"] == "3mf"
+    finally:
+        jobs.configure({})
+
+
+def test_a_pool_carries_its_formats_and_limits_to_its_workers(disguised):
+    with WorkerPool(1, roots=[str(disguised)], formats="stl", limits=Limits(triangles=10)) as pool:
+        settings = pool._settings["job_settings"]
+        assert settings["formats"] == ["stl"] and settings["limits"] == {"triangles": 10}
+        env = pool.run("model_summary", disguised / "x.stl", within=str(disguised))
+        assert not env["ok"] and env["error"]["code"] == "format_not_supported"
+        assert env["error"]["detail"] == {"rule": "format_not_enabled", "value": "3mf"}
+        env = pool.run("model_summary", disguised / "box.stl", within=str(disguised))
+        assert env["ok"] and env["data"]["format"] == "stl"
+    with WorkerPool(1, roots=[str(disguised)]) as pool:  # none given: every format, the defaults
+        assert pool._settings["job_settings"]["formats"] is None
+        assert pool._settings["job_settings"]["limits"] is None
+
+
+def test_a_listing_reads_a_model_file_only_as_a_listed_format(disguised):
+    got = _by_path(scan(disguised, formats="stl").listing()["entries"])
+    assert got["box.stl"]["status"] == "ok"
+    assert got["x.stl"]["status"] == "error" and got["x.stl"]["error"]["detail"] == {
+        "rule": "format_not_enabled",
+        "value": "3mf",
+    }
+    with WorkerPool(1, roots=[str(disguised)]) as pool:
+        pooled = _by_path(scan(disguised, formats="stl", pool=pool).listing()["entries"])
+    assert pooled["x.stl"]["error"]["detail"]["rule"] == "format_not_enabled"
+    every = _by_path(scan(disguised, formats="all").listing()["entries"])
+    assert every["x.stl"]["status"] == "ok" and every["x.stl"]["model"]["format"] == "3mf"
 
 
 # --------------------------------------------------------------------------- the command line

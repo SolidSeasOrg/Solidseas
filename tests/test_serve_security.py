@@ -1284,6 +1284,43 @@ def test_hostile_model_files_get_strict_answers_in_time(tmp_path):
             os.rmdir(root / "jn")
 
 
+def test_a_file_is_read_only_as_a_format_the_service_reads(tmp_path):
+    """``serve --formats stl``: a ``.stl`` holding a 3MF, a glTF or a STEP file answers
+    ``format_not_supported`` (rule ``format_not_enabled``) on every route, and is never
+    read by those formats' readers; model files are read within SERVE_LIMITS."""
+    import mesh_writers as mw
+    from model_writers import box, stl_binary
+    from solidseas.serve.server import SERVE_LIMITS
+
+    (tmp_path / "box.stl").write_bytes(stl_binary(box(1, 1, 1)))
+    (tmp_path / "pkg.stl").write_bytes(mw.threemf(box(1, 1, 1)))
+    (tmp_path / "scene.stl").write_bytes(mw.gltf(box(1, 1, 1))[0])
+    (tmp_path / "step.stl").write_bytes(fixture_path("o02_boxA.step").read_bytes())
+    running = Running({"m": tmp_path}, formats="stl")
+    try:
+        assert running.server.config.limits == SERVE_LIMITS and SERVE_LIMITS.triangles == 10_000_000
+        assert running.get("document", root="m", path="box.stl").status == 200
+        for name, held in (("pkg.stl", "3mf"), ("scene.stl", "gltf"), ("step.stl", "step")):
+            for route in ("document", "properties", "preview"):
+                r = running.get(route, root="m", path=name)
+                assert r.status == 422, (name, route, r.status)
+                error = r.json()["error"]
+                assert error["code"] == "format_not_supported", (name, route)
+                assert error["detail"] == {"rule": "format_not_enabled", "value": held}, (name, route)
+        listed = {e["path"]: e for e in running.get("list", root="m").json()["data"]["entries"]}
+        assert listed["box.stl"]["status"] == "ok"
+        assert listed["pkg.stl"]["error"]["detail"] == {"rule": "format_not_enabled", "value": "3mf"}
+    finally:
+        running.close()
+    from solidseas.errors import InvalidArgumentError
+
+    with pytest.raises(InvalidArgumentError):
+        ServeConfig(roots=Roots([Root("m", str(tmp_path))]), tokens={"t": "x" * 32}, limits=7)
+    assert ServeConfig(
+        roots=Roots([Root("m", str(tmp_path))]), tokens={"t": "x" * 32}, limits={"triangles": 5}
+    ).limits == SERVE_LIMITS.replace(triangles=5)
+
+
 def test_a_slow_crashing_or_greedy_file_is_contained(tmp_path):
     for name in ("slow.SLDPRT", "crash.SLDPRT", "bomb.SLDPRT", "fine.SLDPRT"):
         shutil.copy2(O02, tmp_path / name)

@@ -56,6 +56,10 @@ deletes anything under a root. `docs/API.md` section 8 is its reference, and
 | 24 | With `--formats`, `/v1/document` gave where a model file's buffers and material libraries were found as absolute paths on the service's machine, found with an `lstat` that went through a junction in the middle of the path (and called such a file found while a read refused it). | Medium | Fixed before release: the path is relative to the document's folder, each component is read with `lstat` only after the ones above it passed, a link anywhere is `refused`, and the service sends any path that is not relative as null. Verified: `test_hostile_model_files_get_strict_answers_in_time` (no host path in any body), `test_sibling_resolution_is_relative_and_never_goes_through_a_link` |
 | 25 | With `--formats`, crafted model files answered 500 `internal` (a 3MF transform of NaN or infinity, an XML encoding Python lacks) or 501 `not_implemented` (a zip directory naming an unknown zip version), and a coordinate of 1e300 made exports fail with an overflow. Each cost one answer; none stopped the service. | Low | Fixed before release: each is a reader's own error or a warning. Verified: `test_hostile_model_files_get_strict_answers_in_time`, which also checks that every answer is strict JSON, a PNG or one of the expected error statuses within its deadline |
 | 26 | `/v1/bom` with `type=indented` worked out each row's quantity by looking through every instance of its parent again, so an assembly whose sub-assembly instances each list different components (a crafted or damaged tree; SOLIDWORKS lists one model per file and configuration) kept a worker busy up to the route's deadline. | Low | Fixed in 0.2.112: planning counts each instance once, so it is linear in the tree the instance limit bounds. Verified: `test_an_indented_plan_counts_each_instance_once_however_its_tree_is_crafted` |
+| 27 | With `--formats`, the zip pre-check read a ZIP64 end record only when the classic end record held sentinels, while Python's `zipfile` takes one whenever a locator stands before the end record: a crafted 3MF made a worker build an object for every entry of a directory up to the file's size (a 15.6 MB package peaked at 157.5 MB before it was refused). | Low (a worker's memory cap contained it) | Found by a later review of the readers; fixed after 0.2.406: the end records are read as `zipfile` reads them, and the directory `zipfile` reads is refused past `zip_directory_bytes` and has its entries counted against `zip_members` before one is built. Verified: `test_a_zip64_end_record_is_read_as_python_reads_it`, `test_the_directory_zipfile_reads_is_bounded_and_counted_before_it_is_built` |
+| 28 | With `--formats`, a glTF accessor without a buffer view was filled with zeros before its sparse block's views were checked (a 552-byte file peaked at 495 MB for 20 million positions, about 1.4 GB at the default bound), a strided view was copied as one object an element, and up to 1,000 buffers could each name the same 512 MiB file. | Low (a worker's memory cap contained it) | Found by a later review of the readers; fixed after 0.2.406: the sparse block is read and checked first and the zeros are bounded by its bytes, a strided view is copied a byte column at a time, and `sibling_total_bytes` bounds every read of a file a document names. Verified: `test_a_sparse_block_is_read_and_checked_before_any_zero_is_made`, `test_buffers_beside_the_file_are_bounded_in_total` |
+| 29 | `serve --formats stl` read a `.stl` that holds a STEP, 3MF or glTF file with those formats' readers: the workers opened model files without the service's formats, and detection lets the content win. | Medium | Found by a later review of the readers; fixed after 0.2.406: a worker reads a file only as one of the service's formats, and any other content answers 422 `format_not_supported`, rule `format_not_enabled`. Verified: `test_a_file_is_read_only_as_a_format_the_service_reads` |
+| 30 | Model files were read with the library's default bounds, which allow a scene of several gigabytes (20 million triangles of a binary STL's scene is about 3.2 GB), and a `MemoryError` outside a worker passed through as such. | Low (a worker's memory cap answered `limit_exceeded`) | Found by a later review of the readers; fixed after 0.2.406: the service reads model files within `SERVE_LIMITS` (10 million triangles, 30 million vertices, 512 MiB of named files; API 8.8), inside the 2 GiB cap, and a reader turns `MemoryError` into `limit_exceeded` (`detail.limit` `memory`) everywhere. Verified: `test_the_jobs_read_only_the_formats_and_within_the_limits_the_worker_has`, `test_running_out_of_memory_is_a_limit_error` |
 
 ### 1.2 What the service is
 
@@ -261,8 +265,10 @@ The service reads other formats only when started with `--formats` (`all` or
 format ids). What that adds, and what bounds it:
 
 - **Parsers**, all pure Python and all in the workers: a zip reader
-  (`SafeZip`: member count and directory size from the end record before
-  `zipfile` reads the directory, encrypted members and unknown methods refused,
+  (`SafeZip`: member count and directory size from the end records, a ZIP64
+  record included as `zipfile` reads it, before `zipfile` reads the directory,
+  and the directory it reads refused past its bound and counted before an entry
+  is built (finding 27), encrypted members and unknown methods refused,
   each member inflated against its own bound, the document's total and a
   ratio), `expat` for XML (DOCTYPE, entity declarations and external entities
   refused before use; depth, attribute and text lengths bounded; an encoding
@@ -278,7 +284,8 @@ format ids). What that adds, and what bounds it:
   device is refused before anything is opened; the file is opened `within`
   that folder with no link, junction or placeholder on the way, under the
   document's own `refuse_hard_links` (always on in the service) and
-  `max_file_bytes`, and counted against `siblings` and `sibling_bytes`. A
+  `max_file_bytes`, and counted against `siblings`, `sibling_bytes` and
+  `sibling_total_bytes`, every read counted (finding 28). A
   3MF's parts come only from its own package. An Alibre assembly's components
   are found by walking the assembly's own folder below the root (no link
   followed, no placeholder opened) and reading the identity stream of each
@@ -290,8 +297,10 @@ format ids). What that adds, and what bounds it:
   rewritten as a PNG SolidSeas made (API 3.20.1), and a rendered one is drawn
   by SolidSeas from the triangles.
 - **Settings it honours**: `refuse_hard_links`, `max_file_bytes`, the worker
-  deadlines and memory cap, each route's answer cap, and the readers' own
-  `Limits`.
+  deadlines and memory cap, each route's answer cap, the formats it was started
+  with, which every worker enforces on a file's content and not only on its name
+  (finding 29), and `SERVE_LIMITS`, the readers' `Limits` with a scene and the
+  files a document names bounded to fit a worker (finding 30).
 - **Verified**: `test_hostile_model_files_get_strict_answers_in_time` serves,
   with `formats="all"`, a zip bomb, a NaN transform, unknown XML encodings in
   3MF and AMF, a zip asking for an unknown version, a coordinate of 1e300, a

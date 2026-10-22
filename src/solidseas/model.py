@@ -344,6 +344,10 @@ RULE_MESSAGES: dict[tuple[str, str], str] = {
         "format_not_supported",
         "needs_extension",
     ): "SolidSeas reads this file's format through an extension that is not added or not switched on.",
+    (
+        "format_not_supported",
+        "format_not_enabled",
+    ): "The file holds a format this service or listing was not set to read, whatever its name says.",
     ("not_implemented", "model_file"): "This operation is not available for this file's format yet.",
     # versions (docs/VERSIONS.md)
     ("damaged_file", "git_object"): "The Git repository's objects or references are damaged.",

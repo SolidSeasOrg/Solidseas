@@ -126,6 +126,7 @@ def read_entry(
     max_file_bytes: int | None = None,
     refuse_hard_links: bool = False,
     formats: Collection[str] | None = None,
+    limits: Any = None,
 ) -> tuple[dict[str, Any], bytes | None]:
     """The ``listing`` entry for one document the walk found, and its preview image when
     ``include`` asks for the preview. The document is opened ``within`` the folder;
@@ -134,7 +135,8 @@ def read_entry(
     listing that has a pool; ``max_file_bytes`` and ``refuse_hard_links`` are
     passed to ``open_document``. With ``formats`` (format ids), a file wearing a
     SOLIDWORKS extension whose content is a format among them that SolidSeas reads
-    is read as that format (:func:`read_model_entry`)."""
+    is read as that format (:func:`read_model_entry`, with those ``formats`` and
+    ``limits``)."""
     try:
         with open_document(
             path,
@@ -159,6 +161,8 @@ def read_entry(
                     reader_message=reader_message,
                     max_file_bytes=max_file_bytes,
                     refuse_hard_links=refuse_hard_links,
+                    formats=formats,
+                    limits=limits,
                 )
         detected = sniff_format(path, within=within)
         if detected is not None:
@@ -189,13 +193,16 @@ def read_model_entry(
     reader_message: bool = True,
     max_file_bytes: int | None = None,
     refuse_hard_links: bool = False,
+    formats: Collection[str] | None = None,
+    limits: Any = None,
 ) -> tuple[dict[str, Any], bytes | None]:
     """The ``listing`` entry for one file of another format than SOLIDWORKS (provisional),
     and the preview it stores, as a PNG SolidSeas wrote, when ``include`` asks for the
     preview. The file is opened with :func:`solidseas.formats.open_any` ``within`` the
-    folder, holding its handle; a SOLIDWORKS document wearing another extension gets
-    a SOLIDWORKS entry. Any failure becomes the entry's error. A worker runs this for a
-    listing with a pool (the job ``model_entry``)."""
+    folder, holding its handle, reading only ``formats`` (None: every format) within
+    ``limits``; a SOLIDWORKS document wearing another extension gets a SOLIDWORKS
+    entry. Any failure becomes the entry's error. A worker runs this for a listing with
+    a pool (the job ``model_entry``)."""
     from .formats import open_any
     from .formats.base import ModelDocument
 
@@ -207,6 +214,8 @@ def read_model_entry(
             hold_open=True,
             max_file_bytes=max_file_bytes,
             refuse_hard_links=refuse_hard_links,
+            formats=formats,
+            limits=limits,
         ) as doc:
             if isinstance(doc, ModelDocument):
                 return model.model_listing_entry(rel, doc, include)
@@ -379,7 +388,10 @@ class Scan:
         return registry.signature_ok(spec, we.name, head)
 
     def _read_model(self, we: WalkEntry, rel: str, file: dict[str, Any] | None) -> dict[str, Any]:
+        """A model file's entry, read as one of the listed formats only: content of
+        another format, whatever the name says, is the entry's error."""
         pool = self.foreign_pool if self.foreign_pool is not None else self.pool
+        listed = None if self.formats == frozenset(registry.FORMATS) else sorted(self.formats)
         if pool is None:
             entry, image = read_model_entry(
                 we.path,
@@ -389,22 +401,22 @@ class Scan:
                 within=self.within,
                 include=self.include,
                 reader_message=self.reader_message,
+                formats=listed,
             )
         else:
+            params = {
+                "path": we.path,
+                "rel": rel,
+                "name": we.name,
+                "file": file,
+                "within": self.within,
+                "include": list(self.include),
+                "reader_message": self.reader_message,
+            }
+            if listed is not None:
+                params["formats"] = listed
             try:
-                result = pool.call(
-                    "model_entry",
-                    {
-                        "path": we.path,
-                        "rel": rel,
-                        "name": we.name,
-                        "file": file,
-                        "within": self.within,
-                        "include": list(self.include),
-                        "reader_message": self.reader_message,
-                    },
-                    timeout=self.file_timeout,
-                )
+                result = pool.call("model_entry", params, timeout=self.file_timeout)
                 entry, image = result.data, result.payload
             except Exception as exc:  # a worker that timed out or crashed is this entry's error
                 return model.listing_entry(rel, "file", "error", file=file, error=self._error(exc))

@@ -470,6 +470,10 @@ class WorkerPool:
     ``reader_message`` whether error objects carry the exception text (the REST
     service turns it off), ``refuse_hard_links`` whether a file with more than one
     name is refused, and ``max_file_bytes`` the largest document a job reads.
+    ``formats`` (provisional; ``"all"``, ids, or None for every format) are the only
+    formats a job reads a model file as, whatever its name says, and ``limits`` (a
+    :class:`~solidseas.formats.Limits`, a mapping of its fields, or None for the
+    defaults) bounds every model-file read.
     ``jobs`` adds or replaces job-table entries (``{"name": "module:function"}``),
     from Python only. ``priority`` is ``"normal"`` or ``"below_normal"``.
     ``helpers_per_worker`` (0 to 4, default 0) is how many processes each worker may
@@ -499,6 +503,8 @@ class WorkerPool:
         log: logging.Logger | None = None,
         priority: str = "normal",
         helpers_per_worker: int = 0,
+        formats: Any = None,
+        limits: Any = None,
     ) -> None:
         if isinstance(workers, bool) or not isinstance(workers, int) or not 1 <= workers <= 64:
             raise InvalidArgumentError("workers must be 1 to 64", detail={"parameter": "workers"})
@@ -518,6 +524,11 @@ class WorkerPool:
             raise InvalidArgumentError(
                 "priority is normal or below_normal", detail={"parameter": "priority"}
             )
+        from .formats.base import enabled_formats
+        from .formats.limits import changed_limits, check_limits
+
+        allowed = enabled_formats(formats)
+        bounds = changed_limits(check_limits(limits))
         table = dict(DEFAULT_JOBS)
         for name, target in (jobs or {}).items():
             if not isinstance(name, str) or not isinstance(target, str) or ":" not in target:
@@ -550,6 +561,8 @@ class WorkerPool:
                 ],
                 "refuse_hard_links": bool(refuse_hard_links),
                 "max_file_bytes": max_file_bytes,
+                "formats": None if allowed is None else sorted(allowed),
+                "limits": bounds or None,
             },
         }
         self._ctx = multiprocessing.get_context("spawn")

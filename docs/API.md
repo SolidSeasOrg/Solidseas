@@ -433,7 +433,7 @@ its bases, so existing `except` clauses catch exactly what they caught before.
 | `NotInCatalogError` | `SolidSeasError`, `LookupError` | `not_in_catalog`: the catalog holds no row for that file (3.18); provisional |
 | `CatalogIncompatibleError` | `SolidSeasError` | `catalog_incompatible`: not a catalog, written by a newer SolidSeas, or damaged (`detail["rule"]` says which, 3.18); provisional |
 | `BusyError` | `SolidSeasError` | `busy`: another process or scan is updating the catalog (3.18); provisional |
-| `FormatNotSupportedError` | `SolidSeasError` | `format_not_supported`: a 3D format SolidSeas knows but cannot read (`detail["rule"]` `no_reader`), one it reads only through an extension that is not added or not on (`needs_extension`, 3.20.10), or a feature of one file that stops it being read (3.20); `detail["value"]` names the format or the feature; provisional |
+| `FormatNotSupportedError` | `SolidSeasError` | `format_not_supported`: a 3D format SolidSeas knows but cannot read (`detail["rule"]` `no_reader`), one it reads only through an extension that is not added or not on (`needs_extension`, 3.20.10), content of a format the call leaves out of its `formats` (`format_not_enabled`, 3.20.1), or a feature of one file that stops it being read (3.20); `detail["value"]` names the format or the feature; provisional |
 | `UnsupportedOperationError` | `SolidSeasError`, `NotImplementedError` | `not_implemented`: an operation for SOLIDWORKS documents asked of another 3D file (`detail["rule"]` `model_file`, `detail["value"]` its format id, 3.20), or a design that needs what a part written without SOLIDWORKS cannot hold yet (`detail["rule"]` `native_write`, `detail["value"]` how many items, 7.1); provisional |
 | `DrawingInvalidError` | `InvalidArgumentError` | `drawing_invalid`: a `.ssdrw` refused whole (not a SolidSeas drawing, not strict JSON, a newer schema, outside the bounds); `detail["rule"]` is `drawing_invalid` and `detail["value"]` names the check; `solidseas.drawing.document.DrawingFileError` derives from it (3.24); provisional |
 | `DrawingTooComplexError` | `SldLimitError` | `drawing_too_complex`: a part or drawing past a bound of `DrawingLimits`, `detail["limit"]` naming it (3.24); provisional |
@@ -688,8 +688,10 @@ returns the whole `listing` data. Afterwards `counts`, `truncated_reason`,
   another format SolidSeas reads, and is no compound file or 2015+ container,
   is read as that format when `formats` names it (warning
   `extension_mismatch`); in a default listing it stays an error entry, or
-  `not_solidworks` for STEP, as before. An unknown id raises
-  `InvalidArgumentError`.
+  `not_solidworks` for STEP, as before. A model file is read only as one of the
+  listed formats: a `.stl` whose content is a 3MF is an error entry
+  (`format_not_supported`, rule `format_not_enabled`) unless `formats` names 3MF
+  too. An unknown id raises `InvalidArgumentError`.
 - Only the folder argument raises: `FileNotFoundError`, `NotADirectoryError`
   or `PermissionError`. A problem with one file becomes that entry's `error`.
   `reader_message=False` leaves the exception text out of those error objects,
@@ -1305,7 +1307,8 @@ class WorkerPool:
                  reader_message: bool = True, refuse_hard_links: bool = False,
                  max_file_bytes: int | None = None, start_timeout_s: float = 60.0,
                  log: logging.Logger | None = None, priority: str = "normal",
-                 jobs: Mapping[str, str] | None = None, helpers_per_worker: int = 0) -> None
+                 jobs: Mapping[str, str] | None = None, helpers_per_worker: int = 0,
+                 formats=None, limits=None) -> None
     def run(self, kind: str, path, *, timeout: float | None = None, **params) -> dict
     def call(self, job: str, params: dict | None = None, *, timeout: float | None = None,
              max_result_bytes: int | None = None) -> WorkerResult
@@ -1335,6 +1338,12 @@ class WorkerPool:
   (`solidseas_app.viewer.modeljobs`) and the tests' slow and crashing jobs come
   in this way. A job function returns JSON data, or `(data, payload)` for an
   image.
+- `formats` and `limits` (provisional) hold every model-file job (3.20) of the
+  pool's workers: `formats` (`"all"`, ids, or None for every format) are the only
+  formats a job reads a file as, so a file whose content is another is refused
+  whatever its name says (`format_not_supported`, rule `format_not_enabled`), and
+  `limits` (a `Limits`, a mapping of its fields, or None for the defaults) bounds
+  every model-file read. The REST service passes its own (8.8).
 - **JSON only.** A job travels to its worker as JSON, and the answer comes back
   as one JSON frame read with `recv_bytes(max_result_bytes)`, plus one raw frame
   for an image. Nothing a worker sends is ever unpickled (`Connection.recv()`
@@ -3331,7 +3340,7 @@ with open_any(path, within=folder) as doc:   # a SOLIDWORKS Document or a ModelD
 
 ```python
 open_model(src, *, name=None, format=None, within=None, max_file_bytes=None,
-           refuse_hard_links=False, hold_open=False, limits=None) -> ModelDocument
+           refuse_hard_links=False, hold_open=False, limits=None, formats=None) -> ModelDocument
 open_any(src, *, ...the same...) -> Document | ModelDocument
 ```
 
@@ -3343,9 +3352,19 @@ open_any(src, *, ...the same...) -> Document | ModelDocument
   on the open handle, and read whole (files up to 512 MiB) unless `hold_open`.
 - The format comes from the content and the name (3.20.3); `format` forces a
   reader. `limits` (a `Limits`) overrides any bound of 3.20.2.
+- `formats` names the formats the call may read (`"all"`, an id, comma-separated
+  ids or a list; None, the default, is every format). A file whose content is
+  another is refused, whatever its name says and whatever `format` forces:
+  `FormatNotSupportedError` with `detail.rule` `format_not_enabled` and
+  `detail.value` the format it holds. `open_any` reads a SOLIDWORKS document only
+  when `solidworks` is among them; without it, a file with a SOLIDWORKS name goes
+  by its content alone. The REST service's workers read only the formats it was
+  started with this way (8.8), and a listing (3.6) reads a model file only as one
+  of the formats it lists.
 - Raises what `open_document` raises, plus `FormatNotSupportedError` for a
   format SolidSeas knows but cannot read (`detail.rule` `no_reader`,
-  `detail.value` the format id) or a feature that stops one file (its reader's
+  `detail.value` the format id), content `formats` leaves out
+  (`format_not_enabled`) or a feature that stops one file (its reader's
   rules, 3.20.5 to 3.20.8). An unidentified file raises `UnknownFormatError`
   with `detail.rule` `unidentified` (its message is unchanged), and a
   SOLIDWORKS document `InvalidArgumentError` (rule `solidworks_document`): open
@@ -5106,7 +5125,9 @@ The codes are in section 3.5.
   `unexpected_schema` (`catalog_incompatible`), `no_reader` (`format_not_supported`: a format
   SolidSeas knows but cannot read yet), `needs_extension` (`format_not_supported`: a
   format SolidSeas reads or writes only through an extension that is not added or
-  not on, 3.20.10) and `model_file` (`not_implemented`: an
+  not on, 3.20.10), `format_not_enabled` (`format_not_supported`: a file whose
+  content is a format the service or the listing was not set to read, whatever
+  its name says) and `model_file` (`not_implemented`: an
   operation for SOLIDWORKS documents asked of another 3D file). The versions
   (3.26) add `git_object` and `snapshot_object` (`damaged_file`), `reftable`,
   `repository_extension` and `pack_index_version` (`format_not_supported`),
@@ -6713,7 +6734,11 @@ as HTTP/1.1 with every header of 8.11, and the connection is closed.
   unless `formats` asks for more: `all` (every format the service reads) or
   ids among them; another id answers 400 `invalid_argument`
   (`detail.parameter` `formats`). A format the service was not started to read
-  is not a document there (403 `path_refused`, rule `not_a_document`).
+  is not a document there (403 `path_refused`, rule `not_a_document`), and a
+  file whose name is one it reads but whose content is another format (a
+  `.stl` holding a 3MF, a glTF or a STEP file) is read by no reader: 422
+  `format_not_supported`, rule `format_not_enabled`, `detail.value` the format it
+  holds. Model files are read within `ServeConfig.limits` (8.8).
   IGES and BREP files (`--formats iges,occt_brep`, or `all`) are read through
   the OCCT backend extension (3.20.10): their head without it, and their tree,
   counts and rendered preview only while it is there when the service starts.
@@ -6844,6 +6869,7 @@ Each route accepts exactly the parameters in its row of 8.6
 | Requests reading documents at once | 16 | 503 `busy`, `Retry-After: 2` |
 | Worker processes | one per CPU, at most 4 (`--workers`) | requests wait for a free one, within their deadline |
 | Memory per worker | 2 GiB | 422 `limit_exceeded` |
+| Reading a model file | the library's bounds (3.20.2), but 10,000,000 triangles, 30,000,000 vertices and 512 MiB of files a document names (`SERVE_LIMITS`; `ServeConfig.limits` changes them), so a scene stays inside a worker's memory: a binary STL's scene takes about 158 bytes a triangle | 422 `limit_exceeded`, `detail.limit` the bound |
 | Document size | 256 MiB | 422 `file_too_large` |
 | Deadlines | per route, in 8.6; time spent waiting for a worker counts | 504 `timeout` |
 | Response size | per route, in 8.6. A worker's answer may be that plus 64 KiB; a longer one is refused in the worker, before the service reads it | 422 `response_too_large` |
@@ -7453,14 +7479,15 @@ provisional item can change at any commit. It is:
   `solidseas.formats.registry`, `base`, `limits`, `_source` and `stl`, and
   `solidseas.render`; `FormatNotSupportedError` (in `solidseas.__all__`) and
   `UnsupportedOperationError` with the error code `format_not_supported` and
-  the rules `no_reader` and `model_file`; the kind `model_summary`; the
+  the rules `no_reader`, `format_not_enabled` and `model_file`; the kind `model_summary`; the
   listing's `model` field, its `unsupported` status and count; `export_result`'s
   `source_format` and `file_written`'s `source`; the jobs `model_summary`,
   `model_entry`, `model_properties` and `model_preview`; `scan`'s `formats`
   and `foreign_pool`; the CLI's `list --formats`, `serve --formats`,
   `preview --render` and `--stored`, and `--max-mb` on `info`, `preview` and
-  `export`; `ServeConfig.formats`, `/v1/list`'s `formats` and `/v1/preview`'s
-  `render`; and the warning codes of 3.5's model-file table and 3.20.
+  `export`; `ServeConfig.formats` and `ServeConfig.limits`, `/v1/list`'s
+  `formats` and `/v1/preview`'s `render`; and the warning codes of 3.5's
+  model-file table and 3.20.
 - Native parts, while the generator is new: the `sldprt` command with its
   options, the kind `sldprt_written` and the rule `native_write`.
 - Versions (3.26), while they are new: `solidseas.versions` and its modules; the

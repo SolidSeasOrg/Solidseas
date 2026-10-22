@@ -225,6 +225,44 @@ def test_open_model_refusals(tmp_path):
         open_model(fixture_path("o02_boxA.STL"), within=str(tmp_path))
 
 
+def test_formats_name_what_a_call_may_read_whatever_the_name_says(tmp_path):
+    p = tmp_path / "really_3mf.stl"
+    p.write_bytes(mw.threemf(box(1, 1, 1)))
+    with open_model(p) as doc:  # every format: the content wins, as before
+        assert doc.format == "3mf" and "extension_mismatch" in {w.code for w in doc.warnings}
+    for formats in ("stl", ["stl"], "stl,obj"):
+        with pytest.raises(FormatNotSupportedError) as exc:
+            open_model(p, formats=formats)
+        assert exc.value.detail == {"rule": "format_not_enabled", "value": "3mf"}
+    assert (
+        model.error_info(exc.value)["message"]
+        == model.RULE_MESSAGES[("format_not_supported", "format_not_enabled")]
+    )
+    with open_model(p, formats=["stl", "3mf"]) as doc:
+        assert doc.format == "3mf"
+    with pytest.raises(FormatNotSupportedError):  # a forced format is held to them too
+        open_model(p, format="3mf", formats="stl")
+    with pytest.raises(InvalidArgumentError) as exc:
+        open_model(p, formats=["nope"])
+    assert exc.value.detail == {"parameter": "formats"}
+    # open_any: a SOLIDWORKS document is read only when SOLIDWORKS is among them, by its
+    # name or its content
+    with pytest.raises(FormatNotSupportedError) as exc:
+        open_any(fixture_path("o02_boxA.SLDPRT"), formats="stl")
+    assert exc.value.detail == {"rule": "format_not_enabled", "value": "solidworks"}
+    with open_any(fixture_path("o02_boxA.SLDPRT"), formats="solidworks,stl") as doc:
+        assert isinstance(doc, Document)
+    inside = tmp_path / "stl_inside.SLDPRT"
+    inside.write_bytes(stl_binary(box(1, 1, 1)))
+    with open_any(inside, formats="stl") as doc:  # a SOLIDWORKS name over STL content: the content
+        assert doc.format == "stl" and "extension_mismatch" in {w.code for w in doc.warnings}
+    disguised = tmp_path / "part.stl"
+    disguised.write_bytes(fixture_path("o02_boxA.SLDPRT").read_bytes())
+    with pytest.raises(FormatNotSupportedError) as exc:
+        open_any(disguised, formats="stl")
+    assert exc.value.detail == {"rule": "format_not_enabled", "value": "solidworks"}
+
+
 def test_a_forced_format_and_a_mismatched_extension(tmp_path):
     p = tmp_path / "really_stl.obj"
     p.write_bytes(stl_binary(box(1, 1, 1)))

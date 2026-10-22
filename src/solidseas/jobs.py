@@ -20,6 +20,12 @@ settings:
   the open handle) is refused before any byte is read (``link_refused``, rule
   ``hard_link``): another name for it may lie outside the root.
 * ``max_file_bytes``: the largest document a job reads.
+* ``formats`` (provisional): when set, the only formats a job reads a model file
+  as. A file whose content is another format is refused whatever its name says
+  (``format_not_supported``, rule ``format_not_enabled``): the REST service passes
+  the formats it was started with.
+* ``limits`` (provisional): the bounds of every model-file read, as a mapping of
+  :class:`~solidseas.formats.Limits` fields to values (the defaults for the rest).
 
 Two jobs serve the catalog (:mod:`solidseas.catalog`), whose writer process
 never parses a CAD file itself: :func:`catalog_document` reads one document's
@@ -49,6 +55,7 @@ from typing import Any
 from . import model
 from .errors import (
     FileTooLargeError,
+    FormatNotSupportedError,
     InvalidArgumentError,
     LinkRefusedError,
     NoPreviewError,
@@ -60,7 +67,13 @@ from .formats.solidworks import open_document
 MAX_IDENTITY_ITEMS = 5_000
 HASH_CHUNK = 1 << 20
 
-_settings: dict[str, Any] = {"roots": (), "refuse_hard_links": False, "max_file_bytes": None}
+_settings: dict[str, Any] = {
+    "roots": (),
+    "refuse_hard_links": False,
+    "max_file_bytes": None,
+    "formats": None,
+    "limits": None,
+}
 
 
 def _norm(folder: str) -> str:
@@ -69,11 +82,32 @@ def _norm(folder: str) -> str:
 
 def configure(settings: dict[str, Any]) -> None:
     """Set the worker's limits (see the module notes). Called once per worker."""
+    from .formats.base import enabled_formats
+    from .formats.limits import check_limits
+
     roots = settings.get("roots") or ()
     _settings["roots"] = tuple(_norm(r) for r in roots if isinstance(r, str))
     _settings["refuse_hard_links"] = bool(settings.get("refuse_hard_links"))
     limit = settings.get("max_file_bytes")
     _settings["max_file_bytes"] = limit if isinstance(limit, int) and not isinstance(limit, bool) else None
+    _settings["formats"] = enabled_formats(settings.get("formats"))
+    bounds = settings.get("limits")
+    _settings["limits"] = check_limits(dict(bounds)) if bounds else None
+
+
+def _model_formats(asked: list[str] | None = None) -> list[str] | None:
+    """The formats a model-file job reads: those ``asked`` (None: every one) that the
+    worker's ``formats`` setting allows; None when neither narrows them. Refused
+    (``format_not_supported``, rule ``format_not_enabled``) when none is left."""
+    allowed = _settings["formats"]
+    if asked is None:
+        return None if allowed is None else sorted(allowed)
+    keep = set(asked) if allowed is None else set(asked) & allowed
+    if not keep:
+        raise FormatNotSupportedError(
+            "none of the formats asked for is read here", detail={"rule": "format_not_enabled"}
+        )
+    return sorted(keep)
 
 
 def _param(
@@ -233,13 +267,17 @@ def _formats(params: dict[str, Any]) -> list[str] | None:
 def listing_entry(params: dict[str, Any]) -> tuple[dict[str, Any], bytes | None]:
     """One folder-listing entry (:func:`solidseas.listing.read_entry`), with the preview
     image as the payload when the listing inlines images. ``formats`` (format ids)
-    lets a file wearing a SOLIDWORKS extension be read as another format it holds."""
+    lets a file wearing a SOLIDWORKS extension be read as another format it holds,
+    one the worker's own ``formats`` allow."""
     from .listing import read_entry
 
     within = _param(params, "within", (str,), required=True)
     _check_within(within)
     path = _param(params, "path", (str,), required=True)
     include = tuple(_param(params, "include", (list,), []))
+    asked = _formats(params)
+    if asked is not None and _settings["formats"] is not None:
+        asked = sorted(set(asked) & _settings["formats"]) or None
     entry, image = read_entry(
         path,
         _param(params, "rel", (str,), required=True),
@@ -250,7 +288,8 @@ def listing_entry(params: dict[str, Any]) -> tuple[dict[str, Any], bytes | None]
         reader_message=_param(params, "reader_message", (bool,), True),
         max_file_bytes=_settings["max_file_bytes"],
         refuse_hard_links=_settings["refuse_hard_links"],
-        formats=_formats(params),
+        formats=asked,
+        limits=_settings["limits"],
     )
     return entry, image if "preview_data" in include else None
 
@@ -261,7 +300,8 @@ RENDER_MODES = ("auto", "never", "always")
 
 def _open_model(params: dict[str, Any]):
     """The model file ``params`` names, opened as every model-file job opens one (also
-    :mod:`solidseas_app.viewer.modeljobs`, which shares this and :func:`_param`)."""
+    :mod:`solidseas_app.viewer.modeljobs`, which shares this and :func:`_param`): only
+    as a format the worker reads, within the worker's limits."""
     from .formats import open_model
 
     path = _param(params, "path", (str,), required=True)
@@ -274,6 +314,8 @@ def _open_model(params: dict[str, Any]):
         max_file_bytes=_settings["max_file_bytes"],
         refuse_hard_links=_settings["refuse_hard_links"],
         hold_open=True,
+        formats=_model_formats(),
+        limits=_settings["limits"],
     )
 
 
@@ -307,7 +349,8 @@ def model_properties(params: dict[str, Any]) -> dict[str, Any]:
 def model_entry(params: dict[str, Any]) -> tuple[dict[str, Any], bytes | None]:
     """One folder-listing entry for a model file (:func:`solidseas.listing.read_model_entry`),
     with the stored preview as a PNG SolidSeas wrote as the payload when the listing
-    inlines images."""
+    inlines images. ``formats`` (format ids) are the formats the listing reads; the
+    file is read only as one of those that the worker reads too."""
     from .listing import read_model_entry
 
     within = _param(params, "within", (str,), required=True)
@@ -323,6 +366,8 @@ def model_entry(params: dict[str, Any]) -> tuple[dict[str, Any], bytes | None]:
         reader_message=_param(params, "reader_message", (bool,), True),
         max_file_bytes=_settings["max_file_bytes"],
         refuse_hard_links=_settings["refuse_hard_links"],
+        formats=_model_formats(_formats(params)),
+        limits=_settings["limits"],
     )
     return entry, image if "preview_data" in include else None
 
@@ -431,6 +476,8 @@ def catalog_document(params: dict[str, Any]) -> tuple[dict[str, Any], bytes | No
             max_file_bytes=_settings["max_file_bytes"],
             refuse_hard_links=_settings["refuse_hard_links"],
             hold_open=True,
+            formats=_model_formats(),
+            limits=_settings["limits"],
         ) as doc:
             if isinstance(doc, ModelDocument):
                 return build_model_record(doc, previews=previews)

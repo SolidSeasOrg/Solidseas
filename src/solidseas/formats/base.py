@@ -926,6 +926,12 @@ def _check_args(name: Any, format: Any) -> None:
         )
 
 
+def enabled_formats(formats: Any) -> frozenset[str] | None:
+    """The format ids a call may read: None (every format) for None, else ``formats``
+    (``"all"``, an id, comma-separated ids or ids) as :func:`registry.select` reads it."""
+    return None if formats is None else registry.select(formats)
+
+
 def _display_name(src: Any, name: str | None) -> str | None:
     if name is not None:
         return name
@@ -946,9 +952,11 @@ def _open(
     limits: Any,
     allow_solidworks: bool,
     unknown: UnknownFormatError | None = None,
+    formats: Any = None,
 ) -> Any:
     lim = check_limits(limits)
     max_file_bytes = check_max_file_bytes(max_file_bytes)
+    allowed = enabled_formats(formats)
     source, path, info = open_source(
         src,
         within=within,
@@ -971,6 +979,11 @@ def _open(
             raise UnknownFormatError(
                 f"{path or '<memory>'}: SolidSeas does not know this file's format",
                 detail={"rule": "unidentified"},
+            )
+        if allowed is not None and fid not in allowed:
+            raise FormatNotSupportedError(
+                f"the file holds {registry.FORMATS[fid].name} data, a format not read here",
+                detail={"rule": "format_not_enabled", "value": fid},
             )
         if fid == registry.SOLIDWORKS:
             if not allow_solidworks:
@@ -1037,6 +1050,7 @@ def open_model(
     refuse_hard_links: bool = False,
     hold_open: bool = False,
     limits: Any = None,
+    formats: Any = None,
 ) -> ModelDocument:
     """Open a 3D file that is not a SOLIDWORKS document, read-only (provisional).
 
@@ -1045,14 +1059,17 @@ def open_model(
     content and the name (:func:`solidseas.formats.registry.detect`); ``format``
     forces a reader. ``within``, ``max_file_bytes``, ``refuse_hard_links`` and
     ``hold_open`` behave as for ``open_document``; ``limits`` (a :class:`Limits`)
-    overrides any bound.
+    overrides any bound. ``formats`` names the formats this call may read (``"all"``,
+    an id, comma-separated ids or ids; None: every one): a file whose content is
+    another is refused, whatever its name says.
 
     Raises what ``open_document`` raises, plus
     :class:`~solidseas.errors.FormatNotSupportedError` for a format SolidSeas
-    knows but cannot read (``detail["rule"]`` ``no_reader``) or a feature that
-    stops this document; an unidentified file raises ``UnknownFormatError``
-    (``detail["rule"]`` ``unidentified``), and a SOLIDWORKS document
-    ``InvalidArgumentError`` (use :func:`open_any`)."""
+    knows but cannot read (``detail["rule"]`` ``no_reader``), content of a format
+    ``formats`` leaves out (``format_not_enabled``, ``detail["value"]`` the format it
+    holds) or a feature that stops this document; an unidentified file raises
+    ``UnknownFormatError`` (``detail["rule"]`` ``unidentified``), and a SOLIDWORKS
+    document ``InvalidArgumentError`` (use :func:`open_any`)."""
     _check_args(name, format)
     return _open(
         src,
@@ -1064,6 +1081,7 @@ def open_model(
         hold_open=hold_open,
         limits=limits,
         allow_solidworks=False,
+        formats=formats,
     )
 
 
@@ -1077,19 +1095,23 @@ def open_any(
     refuse_hard_links: bool = False,
     hold_open: bool = False,
     limits: Any = None,
+    formats: Any = None,
 ) -> Any:
     """A SOLIDWORKS :class:`~solidseas.formats.solidworks.Document` for a SOLIDWORKS
     file, else a :class:`ModelDocument` (provisional). A file with a SOLIDWORKS
     extension is opened by ``open_document`` exactly as before; only when that
     finds no SOLIDWORKS container and the content is a format SolidSeas reads is
     it read as that format (with the warning ``extension_mismatch``), else the
-    ``UnknownFormatError`` stands. The arguments are those of :func:`open_model`."""
+    ``UnknownFormatError`` stands. With ``formats`` leaving SOLIDWORKS out, such a
+    file goes by its content alone. The arguments are those of :func:`open_model`."""
     _check_args(name, format)
     shown = _display_name(src, name)
     spec = registry.by_extension(shown)
-    if format == registry.SOLIDWORKS or (
+    allowed = enabled_formats(formats)
+    named = format == registry.SOLIDWORKS or (
         format is None and spec is not None and spec.id == registry.SOLIDWORKS
-    ):
+    )
+    if named and (allowed is None or registry.SOLIDWORKS in allowed):
         from .solidworks import open_document
 
         try:
@@ -1116,6 +1138,7 @@ def open_any(
             limits=limits,
             allow_solidworks=False,
             unknown=unknown,
+            formats=allowed,
         )
     return _open(
         src,
@@ -1127,6 +1150,7 @@ def open_any(
         hold_open=hold_open,
         limits=limits,
         allow_solidworks=True,
+        formats=allowed,
     )
 
 
@@ -1155,6 +1179,7 @@ __all__ = [
     "SceneItem",
     "SceneOptions",
     "SkippedItem",
+    "enabled_formats",
     "guarded",
     "is_model",
     "make_property",

@@ -179,4 +179,14 @@ def check_limits(value: Any) -> Limits:
     raise InvalidArgumentError("limits must be a Limits object", detail={"parameter": "limits"})
 
 
-__all__ = ["DEFAULT_LIMITS", "FLOAT_FIELDS", "Limits", "check_limits"]
+def changed_limits(limits: Limits) -> dict[str, Any]:
+    """The fields of ``limits`` that differ from the defaults, with their values: what a
+    worker's settings carry, and :func:`check_limits` turns back into the same object."""
+    return {
+        f.name: getattr(limits, f.name)
+        for f in fields(limits)
+        if getattr(limits, f.name) != getattr(DEFAULT_LIMITS, f.name)
+    }
+
+
+__all__ = ["DEFAULT_LIMITS", "FLOAT_FIELDS", "Limits", "changed_limits", "check_limits"]

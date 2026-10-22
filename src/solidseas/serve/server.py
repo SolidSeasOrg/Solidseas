@@ -41,9 +41,11 @@ meets them:
 8. **Reading.** The server process never opens a CAD file. Every document is
    read in a :class:`~solidseas.workers.WorkerPool` worker, opened ``within`` the
    root, with a deadline per route; a worker that misses it is replaced and the
-   request answers 504. At most ``in_flight`` requests read at once; more
-   answer 503 ``busy``. A worker starts no process, but for a service whose
-   ``formats`` hold IGES or BREP while the OCCT backend is there when it starts
+   request answers 504. A worker reads a file only as one of the formats the
+   service reads (``formats``), whatever its name says, and a model file within
+   :data:`SERVE_LIMITS` (``limits``). At most ``in_flight`` requests read at once;
+   more answer 503 ``busy``. A worker starts no process, but for a service
+   whose ``formats`` hold IGES or BREP while the OCCT backend is there when it starts
    (:func:`solidseas.convert.occt.helpers_per_worker`): then each worker may start
    that backend's helper, which reads such a file's geometry from a copy in a
    temporary folder of its own, removed after the file.
@@ -113,6 +115,7 @@ from ..errors import (
     WorkerTimeoutError,
 )
 from ..formats import registry
+from ..formats.limits import DEFAULT_LIMITS, Limits, check_limits
 from ..formats.solidworks._io import check_folder_within
 from ..formats.solidworks.preview import PNG_SIGNATURE
 from ..listing import Scan
@@ -134,6 +137,14 @@ REFUSED_DRAIN_S = 0.1  # how long a refused connection's bytes are read before i
 # What a worker's answer may hold beyond the route's cap (the server adds only the envelope):
 # a longer one is refused in the worker, or at the pipe, before this process parses it.
 REPLY_MARGIN = 64 << 10
+# The bounds of a model-file read in the service: the library's, but for a scene that fits
+# a worker's 2 GiB (a binary STL's scene takes about 158 bytes a triangle, so the library's
+# 20 million triangles would need about 3.2 GB) and for the files a document names.
+SERVE_LIMITS = DEFAULT_LIMITS.replace(
+    triangles=10_000_000,
+    vertices=30_000_000,
+    sibling_total_bytes=512 << 20,
+)
 CATALOG_WORKERS = 2  # the catalog's own workers (at most the service's), below normal priority
 CATALOG_SCANS_KEPT = 10  # the last scans' results the service keeps (Server.catalog_scans)
 LOG = logging.getLogger("solidseas.serve")
@@ -214,11 +225,20 @@ class ServeConfig:
     catalog_cache_dir: str | None = None
     # The file formats the service reads (provisional): "solidworks", "all" or format ids.
     formats: Any = registry.SOLIDWORKS
+    # The bounds of every model-file read (provisional): a Limits, a mapping of changes to
+    # SERVE_LIMITS, or None for SERVE_LIMITS.
+    limits: Any = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.roots, Roots) or not len(self.roots):
             raise InvalidArgumentError("the service needs at least one root", detail={"parameter": "root"})
         self.formats = tuple(sorted(registry.select(self.formats)))
+        if self.limits is None:
+            self.limits = SERVE_LIMITS
+        elif isinstance(self.limits, Mapping):
+            self.limits = SERVE_LIMITS.replace(**dict(self.limits))
+        elif not isinstance(self.limits, Limits):
+            self.limits = check_limits(self.limits)  # raises: a Limits, a mapping or None
         if isinstance(self.port, bool) or not isinstance(self.port, int) or not 0 <= self.port <= 65535:
             raise InvalidArgumentError("a port is 0 to 65535", detail={"parameter": "port"})
         self.allowed_hosts = tuple(self.allowed_hosts)
@@ -583,6 +603,8 @@ class Server:
                 # backend is there when the service starts; otherwise no worker starts any
                 # process (the catalog's workers read only a file's head and never do)
                 helpers_per_worker=helpers_per_worker(self.config.formats),
+                formats=self.config.formats,
+                limits=self.config.limits,
             )
         for s in self._states:
             threading.Thread(
@@ -690,6 +712,8 @@ class Server:
             max_result_bytes=record.REPLY_LIMIT,
             priority="below_normal",
             log=LOG,
+            formats=self.config.formats,
+            limits=self.config.limits,
         )
 
     def _catalog_loop(self) -> None:

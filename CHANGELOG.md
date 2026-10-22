@@ -8,6 +8,12 @@ while the project takes shape.
 
 ### Changed
 
+- **The REST service reads only what it was started for.** `serve --formats` now
+  refuses a file whose content is a format it was not started with, whatever its
+  name says, and reads model files within its own bounds (10 million triangles,
+  30 million vertices, 512 MiB of named files). In a root served without its
+  subfolders, a model file reads the files it names from its own folder only.
+
 - **IGES and BREP through the REST service.** `solidseas serve` reads the tree,
   counts and preview of IGES and BREP files when it is started with `--formats`
   including them and the OCCT backend extension is on; its workers may then
