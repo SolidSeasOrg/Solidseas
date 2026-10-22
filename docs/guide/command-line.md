@@ -174,6 +174,13 @@ solidseas serve --root jobs=D:\Jobs
 to approve it. The service's `/v1/bom`, the catalog routes (`--catalog`) and the
 other formats (`--formats`) are provisional and may change.
 
+With `--formats` naming IGES or BREP (`--formats all`, or
+`--formats solidworks,iges,occt_brep`), the service reads those files through the
+OCCT backend extension when it is there as the service starts: their trees,
+counts and rendered previews come from Open CASCADE, whose helper each of the
+service's workers may then start. Switching the extension on or off takes effect
+the next time the service starts.
+
 ## One answer, three ways
 
 For a document the JSON is the same whichever way you ask: the Python library,

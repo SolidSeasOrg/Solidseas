@@ -241,9 +241,12 @@ and Open CASCADE's notices (beads SolidSeas-3he, SolidSeas-7r8 and SolidSeas-e2z
   can read have changed. The saved folder index is kept per set of readable extension
   formats (`savedindex.extension_formats`), so a folder read with the backend on is not
   shown from its index once it is off, nor the other way round. The 3D view's and the
-  export's processes have no such limit. The other pools (the REST service's, the catalog's, `solidseas
-  list`) are left as they were, so on Windows they read an IGES or BREP file's head but
-  not its geometry.
+  export's processes have no such limit. The REST service's pool decides the same way
+  when the service starts, for the formats it was started to read
+  (`solidseas.convert.occt.helpers_per_worker`): one helper per worker when they hold
+  IGES or BREP and the backend is there, else none. The catalog's pools and
+  `solidseas list` read only a model file's head, never its geometry, so their workers
+  still start nothing.
 - **The front** is the registry's `backend` field: `iges` and `occt_brep` are readable
   exactly while the backend is available, and open as `solidseas.formats.occt` documents,
   whose head is read in pure Python and whose geometry is the backend's STEP model read by

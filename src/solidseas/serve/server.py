@@ -42,7 +42,11 @@ meets them:
    read in a :class:`~solidseas.workers.WorkerPool` worker, opened ``within`` the
    root, with a deadline per route; a worker that misses it is replaced and the
    request answers 504. At most ``in_flight`` requests read at once; more
-   answer 503 ``busy``.
+   answer 503 ``busy``. A worker starts no process, but for a service whose
+   ``formats`` hold IGES or BREP while the OCCT backend is there when it starts
+   (:func:`solidseas.convert.occt.helpers_per_worker`): then each worker may start
+   that backend's helper, which reads such a file's geometry from a copy in a
+   temporary folder of its own, removed after the file.
 9. **Answering.** Every JSON answer is built by the same builder the Python API
    and the CLI use (:mod:`solidseas.model`), wrapped in an envelope whose
    ``source`` is ``{"root", "path"}``. Error objects never carry the reader's
@@ -70,7 +74,8 @@ meets them:
     anything read from a file.
 
 The service never writes, renames or deletes anything under a root; its only
-write is its own token file, on first start.
+write is its own token file, on first start, besides the catalog in the cache
+folder and the OCCT helper's temporary copies (item 8).
 """
 
 import base64
@@ -561,6 +566,8 @@ class Server:
         """Start the workers (unless a pool was given) and build each root's folder
         index in the background; requests for a root answer 503 until it is ready."""
         if self._pool is None:
+            from ..convert.occt import helpers_per_worker
+
             self._pool = WorkerPool(
                 self.config.workers,
                 timeout_s=max(self.config.deadlines.values()),
@@ -571,6 +578,11 @@ class Server:
                 max_file_bytes=self.config.max_file_bytes,
                 max_result_bytes=max(self.config.response_caps.values()) + REPLY_MARGIN,
                 log=LOG,
+                # a service that reads IGES or BREP files lets each worker start the OCCT
+                # backend's helper, in a Job Object of its own inside the pool's, while that
+                # backend is there when the service starts; otherwise no worker starts any
+                # process (the catalog's workers read only a file's head and never do)
+                helpers_per_worker=helpers_per_worker(self.config.formats),
             )
         for s in self._states:
             threading.Thread(

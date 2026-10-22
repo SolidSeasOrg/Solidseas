@@ -1354,8 +1354,11 @@ class WorkerPool:
   Job Object with a per-process memory limit of `memory_mb`, an active-process
   limit equal to the worker count (a worker cannot start another process; with
   `helpers_per_worker`, 0 to 4, each worker may start that many, which stay in
-  the Job Object under the same caps: the viewer's model pool allows one, the
-  OCCT backend's helper of 3.20.10),
+  the Job Object under the same caps: the viewer's model pool, and the REST
+  service's when it reads IGES or BREP files, allow one, the OCCT backend's
+  helper of 3.20.10, while that backend is there when the pool starts;
+  `solidseas.convert.occt.helpers_per_worker(formats)` gives the number for a
+  pool that reads `formats`),
   kill-on-close (closing the pool, or the parent dying, ends every worker) and
   die-on-unhandled-exception, and the worker calls `SetErrorMode` so a crash
   never opens a dialog. On Linux the worker sets `RLIMIT_AS` to `memory_mb` and
@@ -6422,6 +6425,15 @@ as HTTP/1.1 with every header of 8.11, and the connection is closed.
   ids among them; another id answers 400 `invalid_argument`
   (`detail.parameter` `formats`). A format the service was not started to read
   is not a document there (403 `path_refused`, rule `not_a_document`).
+  IGES and BREP files (`--formats iges,occt_brep`, or `all`) are read through
+  the OCCT backend extension (3.20.10): their head without it, and their tree,
+  counts and rendered preview only while it is there when the service starts.
+  Then, and only then, each of the service's workers may start that backend's
+  helper (`helpers_per_worker`, 3.13), which reads the file's geometry from a
+  copy in a temporary folder of its own and removes it afterwards; otherwise
+  no worker starts any process. Without the backend those routes answer 422
+  `format_not_supported` with `detail.rule` `needs_extension`. The catalog's
+  workers read only a model file's head, so they never start the helper.
 - **The catalog routes** answer only when the service runs with `--catalog`
   (403 `feature_disabled` otherwise). The service then keeps a catalog of its
   roots in the cache folder of the account it runs as (3.18), never under a
@@ -6641,7 +6653,10 @@ reach the path report.
 ### 8.13 What the service never does
 
 - Write, create, rename or delete anything under a root, or lock a file. Its
-  only write is its own token file, on first start.
+  only write is its own token file, on first start, besides the catalog in the
+  cache folder with `--catalog` and, for an IGES or BREP file read through the
+  OCCT backend, the copy its helper reads in a temporary folder, removed after
+  the file.
 - Follow a link, junction, mount point or hard link out of a root, or go
   through one: every component of a path is checked before the next is used.
   Nor does it read a cloud placeholder. With `--formats`, this holds for the

@@ -121,6 +121,25 @@ def standin(tmp_path, monkeypatch, fresh):
     return log
 
 
+@pytest.fixture
+def standin_program(tmp_path, monkeypatch, fresh):
+    """The backend set up from a checkout whose interpreter is a program that runs the
+    stand-in, so the processes this one starts (a worker, the export's process) find the
+    stand-in too, through their own copy of the backend."""
+    if os.name == "nt":
+        pytest.skip("the stand-in interpreter is a shell script")
+    script = tmp_path / "standin.py"
+    script.write_text(STANDIN, encoding="utf-8")
+    program = tmp_path / "standin-python"
+    program.write_text(f'#!/bin/sh\nexec "{sys.executable}" "{script}" "$@"\n', encoding="utf-8")
+    program.chmod(0o755)
+    log = tmp_path / "standin.log"
+    monkeypatch.setenv(occt.ENV_PYTHON, str(program))
+    monkeypatch.setenv("OCCT_STANDIN_STEP", str(STEP_FIXTURE))
+    monkeypatch.setenv("OCCT_STANDIN_LOG", str(log))
+    return log
+
+
 def _requests(log: Path) -> list[dict]:
     return [json.loads(line) for line in log.read_text().splitlines()] if log.exists() else []
 
@@ -381,6 +400,49 @@ def test_convert_writes_a_new_file_through_the_backend(tmp_path, standin, capsys
     assert "IGES through Open CASCADE: 1 solid(s), 6 face(s)" in capsys.readouterr().out
 
 
+def test_the_rest_service_s_workers_start_the_helper_only_for_iges_and_brep(
+    tmp_path, standin_program, monkeypatch
+):
+    from serve_support import Running
+
+    root = tmp_path / "root"
+    root.mkdir()
+    (root / "bracket.igs").write_bytes(iges())
+    running = Running({"m": root}, workers=1, formats=("iges",))
+    try:
+        assert running.server.pool.helpers_per_worker == 1
+        doc = running.get("document", root="m", path="bracket.igs")
+        assert doc.status == 200, doc.body[:300]
+        data = doc.json()["data"]
+        assert data["format"] == "iges" and data["counts"]["faces"] == 6
+        assert data["tree"]["nodes"][0]["name"] == "o02_boxA"  # the stand-in's STEP model
+        picture = running.get("preview", root="m", path="bracket.igs")
+        assert picture.status == 200 and picture.body.startswith(b"\x89PNG")
+        assert running.get("properties", root="m", path="bracket.igs").status == 200
+    finally:
+        running.close()
+    # the worker converted the file once, for the tree and the picture, from its own copy
+    (sent,) = _requests(standin_program)
+    assert sent["args"]["from"] == "iges" and not os.path.exists(sent["args"]["path"])
+    assert not str(sent["args"]["path"]).startswith(str(root))
+    # a service that reads no IGES or BREP lets its workers start nothing
+    running = Running({"m": root}, workers=1, formats=("step", "stl"))
+    try:
+        assert running.server.pool.helpers_per_worker == 0
+    finally:
+        running.close()
+    # nor does one whose backend is not there, which says so for the file's geometry
+    monkeypatch.delenv(occt.ENV_PYTHON)
+    occt.BACKEND._checked = None
+    running = Running({"m": root}, workers=1, formats=("iges",))
+    try:
+        assert running.server.pool.helpers_per_worker == 0
+        refused = running.get("document", root="m", path="bracket.igs")
+        assert refused.status == 422 and refused.json()["error"]["detail"]["rule"] == "needs_extension"
+    finally:
+        running.close()
+
+
 def test_the_helper_s_conversation_holds_without_open_cascade():
     lines = [
         b"not json\n",
@@ -635,23 +697,52 @@ def test_iges_and_brep_open_through_the_helper_program(tmp_path, monkeypatch, fr
         assert doc.scene().objects[0].measures()["volume_m3"] == pytest.approx(_step_volume(), rel=1e-9)
 
 
-def test_only_the_viewer_s_model_pool_lets_its_workers_start_a_helper():
+def test_the_rest_service_reads_iges_geometry_through_the_helper_program(tmp_path, monkeypatch, fresh):
+    python = ocp_python()
+    if python is None:
+        pytest.skip("no interpreter where OCP imports (SOLIDSEAS_OCCT_PYTHON, or this one)")
+    from serve_support import Running
+
+    shapes = _make_shapes(python, tmp_path / "shapes")
+    monkeypatch.setenv(occt.ENV_PYTHON, python)
+    running = Running({"m": shapes}, workers=1, formats="iges,occt_brep")
+    try:
+        assert running.server.pool.helpers_per_worker == 1
+        doc = running.get("document", root="m", path="box_faces.igs")
+        assert doc.status == 200, doc.body[:300]
+        data = doc.json()["data"]
+        assert data["format"] == "iges" and data["counts"]["faces"] == 6 and data["counts"]["bodies"] == 1
+        picture = running.get("preview", root="m", path="cylinder.brep")
+        assert picture.status == 200 and picture.body.startswith(b"\x89PNG")
+    finally:
+        running.close()
+
+
+def test_only_pools_that_read_iges_or_brep_let_their_workers_start_the_helper(standin, monkeypatch):
     from solidseas.errors import InvalidArgumentError
     from solidseas.workers import WorkerPool
+    from solidseas_app.viewer import modelpool
 
     for wrong in (-1, 5, True, 1.0):
         with pytest.raises(InvalidArgumentError, match="helpers_per_worker"):
             WorkerPool(1, helpers_per_worker=wrong)
-    pools = [
-        p.relative_to(SRC).as_posix()
+    found = {
+        p.relative_to(SRC).as_posix(): m.group(1)
         for p in SRC.rglob("*.py")
-        if re.search(r"^\s+helpers_per_worker=(?!0,)\S+,$", p.read_text(encoding="utf-8"), re.M)
-    ]
-    assert pools == ["solidseas_app/viewer/modelpool.py"]
-    # and only while the OCCT backend is there: without it the pool's workers start nothing
-    from solidseas_app.viewer import modelpool
-
-    assert "helpers_per_worker=_helpers()," in (SRC / "solidseas_app" / "viewer" / "modelpool.py").read_text()
-    from solidseas.convert import backend
-
-    assert modelpool._helpers() == (1 if backend("occt").unavailable() is None else 0)
+        for m in re.finditer(r"^\s+helpers_per_worker=(?!0,)(\S+),$", p.read_text(encoding="utf-8"), re.M)
+    }
+    # the viewer's model pool and the REST service's, each through the one decision; the
+    # catalog's pools and solidseas list read only a model file's head, never its geometry
+    assert found == {
+        "solidseas_app/viewer/modelpool.py": "_helpers()",
+        "solidseas/serve/server.py": "helpers_per_worker(self.config.formats)",
+    }
+    # while the backend is there, a pool that reads IGES or BREP lets each worker start one
+    # process, the helper; any other pool none
+    assert occt.helpers_per_worker() == modelpool._helpers() == 1
+    assert occt.helpers_per_worker(("iges",)) == occt.helpers_per_worker(("step", "occt_brep")) == 1
+    assert occt.helpers_per_worker(("solidworks", "step", "stl")) == occt.helpers_per_worker(()) == 0
+    # and without it, none at all
+    monkeypatch.delenv(occt.ENV_PYTHON)
+    occt.BACKEND._checked = None
+    assert occt.helpers_per_worker() == occt.helpers_per_worker(("iges",)) == modelpool._helpers() == 0

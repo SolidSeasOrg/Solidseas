@@ -8,6 +8,11 @@ while the project takes shape.
 
 ### Changed
 
+- **IGES and BREP through the REST service.** `solidseas serve` reads the tree,
+  counts and preview of IGES and BREP files when it is started with `--formats`
+  including them and the OCCT backend extension is on; its workers may then
+  start Open CASCADE's helper. Before, it answered needs_extension on Windows.
+
 - **Lighter 3D print preparation.** Preparing a 3D print, or an STL or 3MF
   export, joins a mesh's vertices with about 40 percent less memory, and faster
   for SOLIDWORKS display meshes.

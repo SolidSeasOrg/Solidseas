@@ -27,10 +27,12 @@ by the SHA-256 of what was converted (:data:`CACHE_BYTES`), so a process that re
 file more than once (a viewer worker reading its details, then its preview) converts it
 once.
 
-In the viewer, files of other formats are read in worker processes whose Job Object lets
-no worker start a process; the viewer's model pool lets each start one, this helper
-(``WorkerPool(helpers_per_worker=1)`` while this backend is there), which runs in its
-own Job Object inside the pool's.
+In the viewer and the REST service, files of other formats are read in worker processes
+whose Job Object lets no worker start a process; the viewer's model pool and the service's
+pool let each start one, this helper (``WorkerPool(helpers_per_worker=1)``, decided by
+:func:`helpers_per_worker` while this backend is there), which runs in its own Job Object
+inside the pool's. The catalog's pools and ``solidseas list`` read only a model file's
+head, never its geometry, so their workers still start nothing.
 """
 
 from __future__ import annotations
@@ -43,6 +45,7 @@ import shutil
 import tempfile
 import threading
 import time
+from collections.abc import Iterable
 from typing import Any
 
 from .. import policy
@@ -345,6 +348,24 @@ def forget() -> None:
     BACKEND.forget()
 
 
+def helpers_per_worker(formats: Iterable[str] | None = None) -> int:
+    """How many processes each worker of a :class:`~solidseas.workers.WorkerPool` may start
+    to read the geometry of ``formats`` (registry ids; None for every format): one, this
+    backend's helper, while the backend is available here and ``formats`` holds a format
+    only it reads (IGES, BREP); else none, so the pool's workers start no process at all.
+    A pool decides it when it starts: the viewer's model pool is started again when the
+    switch changes, the REST service's when the service is."""
+    from ..formats import registry
+
+    wanted = registry.FORMATS if formats is None else formats
+    if not any(getattr(registry.FORMATS.get(f), "backend", None) == BACKEND.name for f in wanted):
+        return 0
+    try:
+        return 1 if BACKEND.unavailable() is None else 0
+    except Exception:  # a switch or a policy that cannot be read: the workers start nothing
+        return 0
+
+
 __all__ = [
     "AVAILABILITY_SECONDS",
     "BACKEND",
@@ -355,4 +376,5 @@ __all__ = [
     "OcctBackend",
     "forget",
     "helper_script",
+    "helpers_per_worker",
 ]
