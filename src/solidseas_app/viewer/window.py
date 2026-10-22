@@ -135,6 +135,9 @@ from solidseas.resolve import IndexCache
 from solidseas.trademarks import DISCLAIMER
 
 from . import experimental, navigate, opening, printing, reading
+from .convertaction import TEXT as CONVERT_TEXT
+from .convertaction import TIP as CONVERT_TIP
+from .convertaction import ConvertController
 from .details import OPEN, PROGRAM, REVEAL, SHOW, TABS, DetailsPanel
 from .documents import (
     COLUMN_SAMPLES,
@@ -557,6 +560,7 @@ class MainWindow(QMainWindow):
         self.details.print_missing = self.add_missing_print  # off, for one whose file was not found
         self.details.preview.print_shown = self.add_shown_print  # and on the 3D view's empty space
         self.step = StepController(self)  # File > Export STEP (.stepaction)
+        self.convert = ConvertController(self)  # File > Convert, the OCCT backend's (.convertaction)
         self._build_actions()
         # Drawings (.drawingaction): New Drawing and Open Drawing after 3D Print, Drawing
         # Settings, and Make Drawing beside every right-click menu's 3D Print entry.
@@ -880,6 +884,8 @@ class MainWindow(QMainWindow):
             "Write the document's Parasolid bodies (.x_b, optionally .x_t) to a folder you choose",
         )
         self.act_step = act(STEP_TEXT, SP.SP_DialogSaveButton, self.export_step, None, STEP_TIP)
+        self.act_convert = act(CONVERT_TEXT, SP.SP_DialogSaveButton, self.convert_file, None, CONVERT_TIP)
+        self.act_convert.setVisible(self.convert_offered())  # the OCCT backend's front: there only with it
         self.act_preview = act(
             "Export Preview &Image...",
             SP.SP_FileDialogContentsView,
@@ -1064,6 +1070,7 @@ class MainWindow(QMainWindow):
         fm.addSeparator()
         fm.addAction(self.act_parasolid)
         fm.addAction(self.act_step)
+        fm.addAction(self.act_convert)
         fm.addAction(self.act_preview)
         fm.addAction(self.act_bom)
         fm.addAction(self.act_export_print)
@@ -2742,6 +2749,13 @@ class MainWindow(QMainWindow):
         step_tip = STEP_TIP if not why else sentence(why) + "."
         self.act_step.setToolTip(step_tip)
         self.act_step.setStatusTip(step_tip)
+        why = self.convert_unavailable(target)
+        self.act_convert.setEnabled(
+            doc_type in ("part", "assembly") and not self.convert.busy and target is not None and not why
+        )
+        convert_tip = CONVERT_TIP if not why else sentence(why) + "."
+        self.act_convert.setToolTip(convert_tip)
+        self.act_convert.setStatusTip(convert_tip)
         self.act_preview.setEnabled(readable and bool(preview))
         self.act_export_print.setEnabled(self._export_job is None and self.print_target() is not None)
         self.act_bom.setEnabled(readable and self.details.bom_shown() is not None)
@@ -2773,6 +2787,30 @@ class MainWindow(QMainWindow):
             shown = summary.get("doc_type") if summary is not None else reading.doc_type_of(e) if e else None
             return printing.step_unavailable(None, "drawing") if shown == "drawing" else None
         return printing.step_unavailable(self._model_format(self._entry), target.doc_type)
+
+    def convert_unavailable(self, target: PrintTarget | None = None) -> str | None:
+        """Why File > Convert is off for the document shown, said for its tooltip
+        (:func:`.convertfile.unavailable`): a drawing, or a file of a format it does not
+        convert; None when it converts or nothing that could is shown."""
+        from . import convertfile
+
+        target = target if target is not None else self.print_target()
+        if target is None:
+            e, summary = self._entry, self.details.summary
+            shown = summary.get("doc_type") if summary is not None else reading.doc_type_of(e) if e else None
+            return convertfile.unavailable(None, "drawing") if shown == "drawing" else None
+        return convertfile.unavailable(self._model_format(self._entry), target.doc_type)
+
+    @staticmethod
+    def convert_offered() -> bool:
+        """Whether File > Convert is in the File menu: while the OCCT backend can run here,
+        the front of its extension (``docs/EXTENSIONS.md`` section 9)."""
+        try:
+            from solidseas.convert import backend
+
+            return backend("occt").unavailable() is None
+        except Exception:
+            return False
 
     def copy_json(self) -> None:
         if self.details.summary_json:
@@ -2899,6 +2937,7 @@ class MainWindow(QMainWindow):
                 forget()
         if self._closing:
             return
+        self.act_convert.setVisible(self.convert_offered())  # the backend's front follows its switch
         if not self.models.running or self.models.stale():
             # a read on the old workers runs again on the new ones; with none running, a
             # pool that would not start under the old switch is tried again at once
@@ -2984,6 +3023,12 @@ class MainWindow(QMainWindow):
     def export_step(self) -> None:
         """Write what the details panel shows as STEP, to a file the user picks (.stepaction)."""
         self.step.start()
+
+    def convert_file(self) -> None:
+        """Write what the details panel shows as IGES, BREP or STEP through the OCCT backend,
+        to a file the user picks (.convertaction)."""
+        if self.convert_offered():
+            self.convert.start()
 
     def export_for_printing(self) -> None:
         """File > Export for 3D Printing...: the part or assembly shown, as 3D Print makes it,
@@ -3117,6 +3162,7 @@ class MainWindow(QMainWindow):
         self.mesh_reader.close()
         self.printer.shutdown()  # ends a 3D Print export's process
         self.step.shutdown()  # and an Export STEP's
+        self.convert.shutdown()  # and a Convert's
         if self._export_job is not None:
             self._export_job.cancel()  # ends Export for 3D Printing's process
         self.thumbnailer.stop()
@@ -3129,6 +3175,7 @@ class MainWindow(QMainWindow):
             self.check_pool,
             self.printer.pool,
             self.step.pool,
+            self.convert.pool,
             self.export_pool,
             self.thumbnailer.pool,
             *self.where_used.pools,

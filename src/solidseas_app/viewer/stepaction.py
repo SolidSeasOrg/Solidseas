@@ -37,9 +37,15 @@ ASK_LEFT_OUT = "Write the file without these components?"
 class StepController(QObject):
     """The Export STEP action's work. ``ask_path`` (the save dialog: a path or ""),
     ``confirm`` (a yes or no question), ``export`` (None: :func:`.printing.export_in_process`)
-    and ``message`` are attributes so tests can stand in for them."""
+    and ``message`` are attributes so tests can stand in for them. File > Convert's
+    controller (:mod:`.convertaction`) is this one with its own dialog, words and
+    result."""
 
     finished = Signal(object)  # what an export did
+    title = TITLE
+    working = "Writing the STEP file..."
+    failed = "The STEP export failed."
+    lossy = "Nothing was written: STEP cannot hold some of the geometry without loss."
 
     def __init__(self, window) -> None:
         super().__init__(window)
@@ -57,7 +63,7 @@ class StepController(QObject):
 
     # -- dialogs -------------------------------------------------------------------------
     def _ask_path(self, suggested: str) -> str:
-        dialog = QFileDialog(self.window, TITLE, suggested, stepexport.FILTER)
+        dialog = QFileDialog(self.window, self.title, suggested, stepexport.FILTER)
         dialog.setAcceptMode(QFileDialog.AcceptMode.AcceptSave)
         dialog.setDefaultSuffix("step")  # added before the dialog asks about replacing a file
         if not dialog.exec():
@@ -66,7 +72,7 @@ class StepController(QObject):
         return files[0] if files else ""
 
     def _confirm(self, text: str) -> bool:
-        box = QMessageBox(QMessageBox.Icon.Question, TITLE, text, parent=self.window)
+        box = QMessageBox(QMessageBox.Icon.Question, self.title, text, parent=self.window)
         box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
         box.setDefaultButton(QMessageBox.StandardButton.No)
         from PySide6.QtCore import Qt
@@ -77,7 +83,7 @@ class StepController(QObject):
     def _message(self, icon: QMessageBox.Icon, text: str) -> None:
         from .window import show_message
 
-        show_message(self.window, icon, TITLE, text)
+        show_message(self.window, icon, self.title, text)
 
     # -- the export ----------------------------------------------------------------------
     def cancel(self) -> None:
@@ -142,8 +148,8 @@ class StepController(QObject):
 
         self.busy = True
         self._job = Job(work)
-        progress = QProgressDialog("Writing the STEP file...", "Cancel", 0, 0, self.window)
-        progress.setWindowTitle(TITLE)
+        progress = QProgressDialog(self.working, "Cancel", 0, 0, self.window)
+        progress.setWindowTitle(self.title)
         progress.setMinimumDuration(400)
         progress.canceled.connect(self.cancel)
         self._progress = progress
@@ -164,7 +170,7 @@ class StepController(QObject):
         self.window._update_actions()
         warn, info = QMessageBox.Icon.Warning, QMessageBox.Icon.Information
         if result.get("cancelled"):
-            self.window.statusBar().showMessage("Export STEP cancelled: nothing was written.", 6000)
+            self.window.statusBar().showMessage(f"{self.title} cancelled: nothing was written.", 6000)
             self.finished.emit({"ok": False, "cancelled": True})
             return
         if not result.get("ok"):
@@ -180,7 +186,7 @@ class StepController(QObject):
                     )
                 else:
                     text = (
-                        "Nothing was written: STEP cannot hold some of the geometry without loss.\n\n"
+                        f"{self.lossy}\n\n"
                         + stepexport.refused_bodies(err)
                         + f"\n\n{ASK_PARTIAL} The file will say it is incomplete."
                     )
@@ -194,11 +200,16 @@ class StepController(QObject):
             if code == "output_refused":
                 text = f"Nothing was written.\n\n{refusal_text(err)}"
             else:
-                text = "The STEP export failed.\n\n" + error_message(err, path=request["path"])
+                text = f"{self.failed}\n\n" + error_message(err, path=request["path"])
             self.message(warn, text)
             self.finished.emit({"ok": False, "error": err})
             return
         data = result["data"]
+        self.message(info, "\n".join(self._written(data)))
+        self.finished.emit({"ok": True, **data})
+
+    def _written(self, data: dict[str, Any]) -> list[str]:
+        """What the window says of the file written, from the export's result."""
         lines = [
             f"Wrote {data['file']}  ({reading.size_text(data['bytes'])})",
             f"{data['solids']} solid(s), {data['sheets']} sheet(s), {data['faces']:,} faces",
@@ -217,5 +228,4 @@ class StepController(QObject):
             for w in data["warnings"]
             if w["code"] not in ("step_approximated", "bodies_left_out", "step_bodies_left_out")
         ]
-        self.message(info, "\n".join(lines))
-        self.finished.emit({"ok": True, **data})
+        return lines

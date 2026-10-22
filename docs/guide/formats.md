@@ -63,9 +63,18 @@ say how many. If Open CASCADE's own check finds faults in the shape, a warning
 says that too. A file that makes Open CASCADE stop, or that takes it more than
 ten minutes, fails on its own with a message, and the next file starts afresh.
 
-The extension also writes these formats: `solidseas convert` on the command
-line writes an IGES, BREP or STEP file, a SOLIDWORKS part or assembly or a
-Parasolid file as IGES, BREP or STEP (see
+The extension also writes these formats. In the viewer, **File > Convert**
+writes the file shown as another of them: a SOLIDWORKS part or assembly, a
+Parasolid file or a STEP file as IGES or BREP, an IGES file as STEP or BREP, and
+a BREP file as STEP or IGES. Pick the format as the file type in the save dialog,
+or type the name with its extension. A SOLIDWORKS document goes as the STEP that
+File > Export STEP writes of it, in the configuration shown, so the same bodies
+are written and the same questions asked; use Export STEP itself for a STEP file,
+which keeps an assembly's structure. The file is written outside the folder you
+opened, and an existing file is replaced only when the save dialog asked you.
+Convert is in the File menu only while the extension is on. On the command line,
+`solidseas convert` writes an IGES, BREP or STEP file, a SOLIDWORKS part or
+assembly or a Parasolid file as IGES, BREP or STEP (see
 [The command line](command-line.md#iges-and-brep)).
 
 The OCCT backend extension is marked In development: check what it reads

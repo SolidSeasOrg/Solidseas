@@ -121,11 +121,10 @@ def standin(tmp_path, monkeypatch, fresh):
     return log
 
 
-@pytest.fixture
-def standin_program(tmp_path, monkeypatch, fresh):
-    """The backend set up from a checkout whose interpreter is a program that runs the
+def install_standin_program(tmp_path: Path, monkeypatch) -> Path:
+    """Set the backend up from a checkout whose interpreter is a program that runs the
     stand-in, so the processes this one starts (a worker, the export's process) find the
-    stand-in too, through their own copy of the backend."""
+    stand-in too, through their own copy of the backend. Returns the stand-in's log."""
     if os.name == "nt":
         pytest.skip("the stand-in interpreter is a shell script")
     script = tmp_path / "standin.py"
@@ -138,6 +137,12 @@ def standin_program(tmp_path, monkeypatch, fresh):
     monkeypatch.setenv("OCCT_STANDIN_STEP", str(STEP_FIXTURE))
     monkeypatch.setenv("OCCT_STANDIN_LOG", str(log))
     return log
+
+
+@pytest.fixture
+def standin_program(tmp_path, monkeypatch, fresh):
+    """:func:`install_standin_program`, its log."""
+    return install_standin_program(tmp_path, monkeypatch)
 
 
 def _requests(log: Path) -> list[dict]:

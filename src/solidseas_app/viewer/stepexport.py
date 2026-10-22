@@ -49,6 +49,40 @@ def _claim(part: str, target: str, overwrite: bool) -> None:
         ) from None
 
 
+def step_of(
+    doc,
+    path: str,
+    folder: str,
+    nested: tuple[str, ...] = (),
+    configuration: str | None = None,
+    *,
+    allow_partial: bool = False,
+):
+    """The STEP model Export STEP writes of the open document ``doc`` (opened from
+    ``path``, ``nested`` inside it, in the opened ``folder``): its solid bodies in
+    ``configuration``, or its surface (sheet) bodies when it has no solid, an assembly's
+    component files found in the opened folder. File > Convert sends the same model."""
+    from solidseas.errors import NothingToExportError
+    from solidseas.step import step_model
+
+    stem = reading.export_stem(path, nested)
+    roots = reading.roots_for(folder) if doc.doc_type == "assembly" else None  # finds its parts
+    try:
+        return step_model(doc, configuration, name=stem, allow_partial=allow_partial, roots=roots)
+    except NothingToExportError as exc:
+        if (exc.detail or {}).get("rule") != "sheets_not_asked":
+            raise
+        # a part of surfaces only: its surfaces are what there is to send
+        return step_model(
+            doc,
+            configuration,
+            name=stem,
+            allow_partial=allow_partial,
+            body_types=("solid", "sheet"),
+            roots=roots,
+        )
+
+
 def export_step_file(
     path: str,
     folder: str,
@@ -68,8 +102,7 @@ def export_step_file(
     :func:`step_model` raises (``NotRepresentableError`` naming each body refused,
     ``UnsupportedOperationError`` for a file of another format) and
     ``OutputRefusedError``."""
-    from solidseas.errors import NothingToExportError
-    from solidseas.step import step_model, write_step
+    from solidseas.step import write_step
 
     from .printing import _opened
 
@@ -88,22 +121,7 @@ def export_step_file(
             detail={"rule": "output_extension"},
         )
     with _opened(path, within or folder, tuple(nested)) as doc:
-        stem = reading.export_stem(path, nested)
-        roots = reading.roots_for(folder) if doc.doc_type == "assembly" else None  # finds its parts
-        try:
-            model = step_model(doc, configuration, name=stem, allow_partial=allow_partial, roots=roots)
-        except NothingToExportError as exc:
-            if (exc.detail or {}).get("rule") != "sheets_not_asked":
-                raise
-            # a part of surfaces only: its surfaces are what there is to send
-            model = step_model(
-                doc,
-                configuration,
-                name=stem,
-                allow_partial=allow_partial,
-                body_types=("solid", "sheet"),
-                roots=roots,
-            )
+        model = step_of(doc, path, folder, tuple(nested), configuration, allow_partial=allow_partial)
     part = part_path(target, token or os.urandom(8).hex())
     result = write_step(model, part, file_name=os.path.basename(target))  # created new; removed on failure
     try:

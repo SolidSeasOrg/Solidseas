@@ -44,7 +44,7 @@ before it can be switched on.
 | Gridfinity | the seven `gridfinity_*` chat tools and their settings | none (built in) | Tracefinity, on this PC or a server | loopback, and ssh to the server when one is named |
 | CAD Bridge | the assistant's live mode and Automatic mode, the chat tools for SOLIDWORKS parts | `SolidSeas.SwBridge.exe` | SOLIDWORKS 2024 or later | SOLIDWORKS on this PC only |
 | Video export | Save Animation in the 3D view | an encoder helper with ffmpeg | nothing else | nothing |
-| OCCT backend | IGES and BREP files read and written through `solidseas.convert`'s `occt` backend | `solidseas-occt.exe`, a helper with its own Python and OCP | nothing else | nothing |
+| OCCT backend | IGES and BREP files read and written through `solidseas.convert`'s `occt` backend, and File > Convert | `solidseas-occt.exe`, a helper with its own Python and OCP | nothing else | nothing |
 
 Playing the explode and the collapse as an animation in the 3D view stays in the core: it
 needs nothing extra.
@@ -257,8 +257,13 @@ and Open CASCADE's notices (beads SolidSeas-3he, SolidSeas-7r8 and SolidSeas-e2z
   Status saying they need the OCCT backend, their Overview and the quick filter naming
   Tools > Extensions, and the status bar counting them. A helper that is on but would not
   start is said as that, not as an extension switched off. `solidseas convert` writes IGES, BREP and STEP through it.
-- **Not built yet:** STEP cross-checks through the helper, an IGES reader of SolidSeas' own,
-  and Convert in the viewer.
+  So does the viewer's File > Convert (`solidseas_app.viewer.convertaction` and
+  `.convertfile`), in the File menu only while the backend is available: the part,
+  assembly, Parasolid, IGES, BREP or STEP file shown, as another of those formats, a
+  SOLIDWORKS document or a Parasolid file through the STEP File > Export STEP writes of
+  it, run in the export's own process as Export STEP is, which starts the helper there.
+- **Not built yet:** STEP cross-checks through the helper and an IGES reader of SolidSeas'
+  own.
 
 **SolidCraft** (packaged). SolidCraft is a free parametric CAD program (MIT or Apache-2.0,
 github.com/bherbruck/solidcraft). Its package carries `solidcraft-cli.exe` from SolidCraft's

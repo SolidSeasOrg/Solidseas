@@ -304,9 +304,10 @@ CATALOG: dict[str, Manifest] = {
             "occt",
             "OCCT backend",
             "Opens IGES and BREP files in the viewer and the command line, and writes IGES, BREP and "
-            "STEP with solidseas convert, through Open CASCADE.",
+            "STEP with File > Convert and solidseas convert, through Open CASCADE.",
             (
                 "IGES and BREP files in the viewer and the command line",
+                "File > Convert in the viewer",
                 "IGES, BREP and STEP from solidseas convert",
             ),
             (),

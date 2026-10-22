@@ -662,6 +662,16 @@ it, on the catalog it already indexes.
   carries for that alone
   (`packaging/SolidSeasViewer.spec`), so the executable's STEP export is
   checked without window automation.
+- **Convert.** File > Convert (`viewer.convertaction`, the work in
+  `viewer.convertfile`) is the OCCT backend extension's front, in the File
+  menu only while that backend is available: it writes the part, assembly,
+  Parasolid, IGES, BREP or STEP file shown as another of those formats through
+  `solidseas.convert`, a SOLIDWORKS document or a Parasolid file through the
+  STEP model Export STEP writes of it (`stepexport.step_of`). Its controller is
+  Export STEP's with its own dialog (the file type chooses the format), words
+  and result, so it runs in the same export process (job `convert`), writes the
+  same hidden `.part` file and asks the same question about bodies; the export
+  process starts the OCCT helper itself, which the process's job object allows.
 - **Open and Show in File Explorer** (`viewer.opening`). Open, on the toolbar,
   the File menu and first on the right-click menu of a file (the list, every
   row of the details panel that stands for a file, a Where Used row in the

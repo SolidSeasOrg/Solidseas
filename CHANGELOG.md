@@ -37,6 +37,12 @@ while the project takes shape.
 
 ### Added
 
+- **File > Convert in the viewer.** With the OCCT backend extension on, File >
+  Convert writes the file shown as IGES, BREP or STEP: a SOLIDWORKS part or
+  assembly, a Parasolid or STEP file as IGES or BREP, an IGES file as STEP or
+  BREP, and a BREP file as STEP or IGES. The save dialog's file type picks the
+  format.
+
 - **Gridfinity bins laid out in words.** The chat now shows you a bin's layout
   before it is made, and you can change it in words: "turn the pliers 90
   degrees" keeps them turned while the rest are laid out around them, and "put

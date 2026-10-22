@@ -1444,6 +1444,12 @@ TOO_LARGE = {
 
 
 STEP_STOPPED = {**STOPPED, "message": "The process writing the STEP file stopped before it finished."}
+CONVERT_STOPPED = {**STOPPED, "message": "The process converting the file stopped before it finished."}
+CONVERT_TOO_LARGE = {
+    **TOO_LARGE,
+    "message": f"The conversion needed more than the {EXPORT_MEMORY >> 30} GiB of memory the viewer lets "
+    "it use. The command line's convert has no such limit.",
+}
 STEP_TOO_LARGE = {
     **TOO_LARGE,
     "message": f"The STEP export needed more than the {EXPORT_MEMORY >> 30} GiB of memory the viewer lets "
@@ -1469,6 +1475,10 @@ def _export_job(request: Any) -> dict[str, Any]:
         from .stepexport import export_step_file
 
         return export_step_file(**{k: v for k, v in request.items() if k != "job"})
+    if request.get("job") == "convert":
+        from .convertfile import convert_file
+
+        return convert_file(**{k: v for k, v in request.items() if k != "job"})
     if request.get("out_dir") is not None:
         for key in ("out_base", "next_to_model", "date", "cache", "confine"):
             request.pop(key, None)
@@ -1488,11 +1498,15 @@ def _export_serve(conn) -> None:
     except (EOFError, OSError, ValueError):
         return
     step = isinstance(request, dict) and request.get("job") == "step"
+    converting = isinstance(request, dict) and request.get("job") == "convert"
     print_step = isinstance(request, dict) and not step and request.get("fmt") == STEP
     try:
         result: dict[str, Any] = {"ok": True, "data": _export_job(request)}
     except MemoryError:  # past the job object's limit
-        too_large = STEP_TOO_LARGE if step else PRINT_STEP_TOO_LARGE if print_step else TOO_LARGE
+        if step or converting:
+            too_large = STEP_TOO_LARGE if step else CONVERT_TOO_LARGE
+        else:
+            too_large = PRINT_STEP_TOO_LARGE if print_step else TOO_LARGE
         result = {"ok": False, "error": dict(too_large)}
     except Exception as exc:
         from solidseas import model
@@ -1527,13 +1541,14 @@ def export_in_process(
     request: dict[str, Any], cancelled=lambda: False, *, memory: int = EXPORT_MEMORY
 ) -> dict[str, Any]:
     """:func:`export_for_print` of ``request`` (its keyword arguments), with ``job``
-    ``step`` File > Export STEP's export, or with ``out_dir`` :func:`export_to_folder`,
+    ``step`` File > Export STEP's export, with ``job`` ``convert`` File > Convert's
+    (:mod:`.convertfile`), or with ``out_dir`` :func:`export_to_folder`,
     in a child process, waiting in this thread without the interpreter lock: ``{"ok":
     True, "data": ...}``, ``{"ok": False, "error": ...}``, or :data:`CANCELLED` once
     ``cancelled()`` is true, the child then ended at once and the file it was writing
-    removed: a print's next to the model or in the temporary folder, an Export STEP's
-    beside the file chosen, an Export for 3D Printing's in the folder chosen. Where a
-    job object holds the child, ``memory_peak`` is the most memory it used."""
+    removed: a print's next to the model or in the temporary folder, an Export STEP's or
+    a Convert's beside the file chosen, an Export for 3D Printing's in the folder chosen.
+    Where a job object holds the child, ``memory_peak`` is the most memory it used."""
     import json
 
     from .meshproc import _start
@@ -1542,8 +1557,9 @@ def export_in_process(
         return dict(CANCELLED)
     token = os.urandom(8).hex()
     step = request.get("job") == "step"
+    converting = request.get("job") == "convert"
     journal = None
-    if step:
+    if step or converting:
         from .stepexport import part_path as step_part
 
         leftovers = [step_part(request["target"], token)]
@@ -1565,8 +1581,11 @@ def export_in_process(
                 folders.append(here)
         journal = _journal(request.get("out_base"), token, folders)
         leftovers = [part_path(folder, token) for folder in folders]
-    stopped_error = STEP_STOPPED if step else STOPPED
-    name = "SolidSeas STEP export" if step else "SolidSeas 3D print export"
+    if step or converting:
+        stopped_error = STEP_STOPPED if step else CONVERT_STOPPED
+        name = "SolidSeas STEP export" if step else "SolidSeas convert"
+    else:
+        stopped_error, name = STOPPED, "SolidSeas 3D print export"
     proc, conn, job = _start(memory, target=_export_serve, name=name)
     stopped = False
     try:
