@@ -55,6 +55,71 @@ def test_every_area_is_a_page_listed_on_the_left(window):
         d.deleteLater()
 
 
+# A child on Qt's offscreen platform with one screen of 1920 x 1080 pixels at 120 dpi: what
+# Windows gives a 1080p screen at 125 percent, 1536 x 864 to lay out in.
+_SCREEN_1080P_125 = {
+    "screens": [
+        {"name": "1080p at 125 percent", "x": 0, "y": 0, "width": 1920, "height": 1080, "logicalDpi": 120}
+    ]
+}
+_FIT_SCRIPT = """
+import json
+from PySide6.QtWidgets import QApplication, QLabel
+from solidseas_app.viewer.app import use_system_fonts
+use_system_fonts()
+app = QApplication([])
+g = app.primaryScreen().availableGeometry()
+if (g.width(), g.height()) != (1536, 864):
+    print(json.dumps({"screen": [g.width(), g.height()]}))
+    raise SystemExit(0)
+from solidseas_app.viewer import settingswindow
+from solidseas_app.viewer.settings import SettingsStore
+from solidseas_app.viewer.window import MainWindow
+w = MainWindow(SettingsStore(None))
+w.show()
+d = settingswindow.open_settings(w, None)
+app.processEvents()
+cut = {}
+for page in settingswindow.PAGES:
+    d.show_page(page)
+    app.processEvents()
+    shown = d.stack.currentWidget()
+    for label in shown.findChildren(QLabel):
+        if label.isVisibleTo(shown) and label.wordWrap() and label.text().strip():
+            if label.heightForWidth(label.width()) > label.height() + 1:
+                cut.setdefault(page, []).append(label.text()[:60])
+f = d.frameGeometry()
+print(json.dumps({"screen": [1536, 864], "frame": [f.width(), f.height()], "cut": cut}))
+"""
+
+
+def test_every_note_shows_whole_on_a_1080p_screen_at_125_percent(tmp_path):
+    """The Preferences dialog opened at its minimum on such a screen and cut its long
+    notes short. The Settings window that holds those settings now opens within the
+    screen, room left for the taskbar, and shows every note of every page whole."""
+    import os
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    config = tmp_path / "screen.json"
+    config.write_text(json.dumps(_SCREEN_1080P_125), encoding="utf-8")
+    env = {**os.environ, "QT_QPA_PLATFORM": f"offscreen:configfile={config}"}
+    env["PYTHONPATH"] = os.pathsep.join(
+        [str(Path(__file__).resolve().parent.parent / "src"), env.get("PYTHONPATH", "")]
+    )
+    proc = subprocess.run(
+        [sys.executable, "-c", _FIT_SCRIPT], env=env, capture_output=True, text=True, timeout=180
+    )
+    assert proc.returncode == 0 and "Traceback" not in proc.stderr, proc.stderr[-3000:]
+    got = json.loads(proc.stdout.strip().splitlines()[-1])
+    if got["screen"] != [1536, 864]:
+        pytest.skip(f"this Qt's offscreen platform made a screen of {got['screen']}, not the one asked for")
+    width, height = got["frame"]
+    assert width <= 1536 and height <= 864 - 48, got  # a taskbar's room left
+    assert got["cut"] == {}, got["cut"]
+
+
 def test_apply_saves_the_viewer_s_settings_and_drawing_settings(window, tmp_path):
     from solidseas_app.viewer import settingswindow as SW
 
