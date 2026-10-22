@@ -253,7 +253,9 @@ a timeout (`SOLIDSEAS_DRAWING_CORPUS_TIMEOUT`, default 300 s);
 `SOLIDSEAS_DRAWING_CORPUS_WORKERS` sets the children at a time (default 2). The
 title block is filled as a user would fill it, so check R6.title is about the
 drawing: number, title and part number from the file name, a company in the
-sweep's Drawing Settings, and drawn by, material and finish typed. It counts
+sweep's Drawing Settings, drawn by and finish typed, and the material typed only
+where the part names none, so a part's own material is drawn and checked as it is.
+It counts
 complete, reduced-dimension, errors (with the failing check ids), refused (with the
 code and its rule, limit or parameter) and failed, hard conflicts
 (`R11.collisions`), dimensions and views per drawing, seconds per stage and the
@@ -261,8 +263,10 @@ recognised-area fraction per size band. The hard conflicts are also counted by t
 pair of item kinds that collide (`dimension-note`, or `datum-no_clear_place` for an
 item laid out where nothing was clear), by the kinds of view the items are in, as a
 table of drawings by dimensions against conflicts, and as rows of numbers for the ten
-drawings with the most. It prints numbers and fixed words only, never a path or a
-part's name. `SOLIDSEAS_DRAWING_CORPUS_STRICT=1` also holds the
+drawings with the most. Of the title blocks it counts where the material came from
+(the part, the settings' list or typed), how many show a calculated weight, and the
+R6.material findings by level. It prints numbers and fixed words only, never a path
+or a part's name. `SOLIDSEAS_DRAWING_CORPUS_STRICT=1` also holds the
 stage 1 targets 20.3 confirms after the first measurement: nothing failed, and no
 hard conflict below 100 dimensions. The sweep runs on the PC, over the private
 corpus.

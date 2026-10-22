@@ -53,9 +53,9 @@ def _copy(tmp_path, name: str) -> str:
     return str(target)
 
 
-def _run_child(tmp_path, part: str) -> dict:
+def _run_child(tmp_path, part: str, settings_data: dict | None = None) -> dict:
     settings = tmp_path / "Drawing.json"
-    settings.write_text(json.dumps(child.SETTINGS), encoding="utf-8")
+    settings.write_text(json.dumps(settings_data or child.SETTINGS), encoding="utf-8")
     env = dict(os.environ)
     env["PYTHONPATH"] = str(SRC) + os.pathsep + env.get("PYTHONPATH", "")
     script = Path(child.__file__).resolve()
@@ -87,6 +87,83 @@ def test_a_drawing_made_the_sweeps_way_passes_r6_title(tmp_path):
     drawn = [s for s in data["drawing"]["signatures"] if s["row"] == "DRAWN"]
     assert drawn and drawn[0]["name"] == child.FIELDS["drawn_by"] and drawn[0]["date"]
     assert got["conflicts"] == {"conflicts": 0, "by_kind": {}, "by_view_type": {}}
+    assert got["title"] == {"weight": 0}
+    # SEE MODEL is no material of the settings' list either, which R6.material says
+    assert child.title_row(data, got["title"]) == {
+        "material_from": "typed",
+        "weight": 0,
+        "material_checks": {"warning": 1},
+    }
+
+
+@pytest.mark.parametrize("name", ["o05_boxA_props_mat.SLDPRT", "o14_property_types.SLDPRT"])
+def test_the_sweep_keeps_a_parts_own_material(tmp_path, name):
+    """A part that names its material (o05 as its own material, o14 in a Material
+    property too) keeps it: nothing is typed over it, R6.title still passes, and the
+    checks of the material run on the part's own (1060 Alloy is not in the default
+    list, so R6.material says so and no weight is shown)."""
+    got = _run_child(tmp_path, _copy(tmp_path, name))
+    envelope = got["envelope"]
+    assert envelope["ok"], envelope
+    data = envelope["data"]
+    assert data["drawing"]["title"]["material"] == {"text": "1060 Alloy", "from": "part"}
+    assert data["drawing"]["title"]["finish"] == {"text": child.FIELDS["finish"], "from": "typed"}
+    assert [c for c in data["checks"] if c["code"] == "R6.title"] == []
+    unlisted = [c for c in data["checks"] if c["code"] == "R6.material"]
+    assert [c["level"] for c in unlisted] == ["warning"] and "1060 ALLOY" in unlisted[0]["message"]
+    assert got["title"] == {"weight": 0}
+    assert child.title_row(data, got["title"]) == {
+        "material_from": "part",
+        "weight": 0,
+        "material_checks": {"warning": 1},
+    }
+
+
+def test_a_parts_own_listed_material_gives_its_weight(tmp_path):
+    """With the part's material in the settings' list, its drawing shows the list's
+    callout and the calculated weight from its density: what typing a material over
+    every part used to hide from the sweep."""
+    entry = {"names": ["1060 alloy"], "callout": "ALUMINUM 1060", "specification": "ASTM B209"}
+    listed = dict(child.SETTINGS, materials={"entries": [dict(entry, density=2705.0)]})
+    got = _run_child(tmp_path, _copy(tmp_path, "o05_boxA_props_mat.SLDPRT"), listed)
+    data = got["envelope"]["data"]
+    assert data["drawing"]["title"]["material"] == {"text": "ALUMINUM 1060", "from": "part"}
+    assert [c for c in data["checks"] if c["code"] in ("R6.title", "R6.material")] == []
+    assert got["title"] == {"weight": 1}
+
+
+def test_typed_fields_leave_out_only_a_material_the_part_names():
+    settings, _problems = from_dict(child.SETTINGS)
+    bare = SimpleNamespace(material=None, property=lambda *names: None)
+    assert child.typed_fields(bare, settings) == child.FIELDS
+    own = SimpleNamespace(material="AISI 304", property=lambda *names: None)
+    named = SimpleNamespace(material=None, property=lambda *names: "PLA" if "Material" in names else None)
+    blank = SimpleNamespace(material="  ", property=lambda *names: None)
+    rest = {k: v for k, v in child.FIELDS.items() if k != "material"}
+    for source in (own, named):
+        assert child.typed_fields(source, settings) == rest
+    assert child.typed_fields(blank, settings) == child.FIELDS
+
+
+def test_title_blocks_are_summarised_in_numbers_only():
+    rows = [
+        {"material_from": "typed", "weight": 0, "material_checks": {}},
+        {"material_from": "part", "weight": 0, "material_checks": {"warning": 1}},
+        {"material_from": "part", "weight": 1, "material_checks": {}},
+        {"material_from": "none", "weight": 0, "material_checks": {"warning": 1, "error": 1}},
+    ]
+    got = child.summarise_titles(rows)
+    assert got == {
+        "material_from": {"none": 1, "part": 2, "typed": 1},
+        "weight_shown": 1,
+        "material_checks": {"error": 1, "warning": 2},
+    }
+    for what, value in _names(got):
+        if what == "key":
+            assert NAME.match(value), value
+        else:
+            assert isinstance(value, int) and not isinstance(value, bool), value
+    assert child.summarise_titles([]) == {"material_from": {}, "weight_shown": 0, "material_checks": {}}
 
 
 def test_the_default_drawing_fails_r6_title_where_the_sweep_fills_it(tmp_path):

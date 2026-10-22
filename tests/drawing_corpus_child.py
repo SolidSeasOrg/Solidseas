@@ -3,11 +3,12 @@ own, and the counts the sweep keeps of its hard layout conflicts.
 
 Run as ``python drawing_corpus_child.py PART SETTINGS``, it draws the part exactly as
 ``solidseas drawing check PART --settings SETTINGS --json`` does, with the title block
-filled the sweep's way (:data:`FIELDS`, and the company in :data:`SETTINGS`), and prints
-one JSON object: ``envelope``, the envelope that command prints, and ``conflicts``, the
-drawing's hard conflicts (``R11.collisions``) counted by what collides with what and by
-the views they are in (:func:`breakdown`), or null when no drawing was made. Not a test
-module: the sweep runs it as a child process.
+filled the sweep's way (:data:`FIELDS`, the material only where the part names none, and
+the company in :data:`SETTINGS`), and prints one JSON object: ``envelope``, the envelope
+that command prints; ``conflicts``, the drawing's hard conflicts (``R11.collisions``)
+counted by what collides with what and by the views they are in (:func:`breakdown`), or
+null when no drawing was made; and ``title``, whether the title block shows a calculated
+weight. Not a test module: the sweep runs it as a child process.
 
 The counts hold only fixed words and numbers, never a name or a text of the part.
 """
@@ -23,8 +24,10 @@ from collections import Counter
 HARD_CONFLICT = "R11.collisions"
 # The title block the sweep's drawings carry. The number, title and part number come
 # from the file name, as they do for any part whose properties name none; drawn by,
-# material, finish and the company are typed, so check R6.title is about the drawing
-# rather than about what the corpus parts leave empty.
+# finish and the company are typed, and the material too where the part names none
+# (:func:`typed_fields`), so check R6.title is about the drawing rather than about what
+# the corpus parts leave empty, while a part's own material, the weight it gives and
+# the checks of it are measured as they are.
 FIELDS = {"drawn_by": "CORPUS SWEEP", "material": "SEE MODEL", "finish": "SEE MODEL"}
 SETTINGS = {"schema": "solidseas.drawing-settings/1", "company": {"name": "CORPUS SWEEP"}}
 
@@ -56,6 +59,63 @@ DIMENSION_BANDS = (
 )
 CONFLICT_BANDS = ((0, "0"), (4, "1-4"), (19, "5-19"), (99, "20-99"), (None, "100-up"))
 WORST = 10
+
+
+def typed_fields(source, settings) -> dict[str, str]:
+    """The fields the sweep types for a part: :data:`FIELDS`, less the material where the
+    part names one, through the settings' property names or as its own material
+    (``document.part_title_fields``, the title block's own rule), so that its drawing
+    shows the part's material."""
+    from solidseas.drawing import document
+
+    if document.part_title_fields(source, settings).get("material") is not None:
+        return {k: v for k, v in FIELDS.items() if k != "material"}
+    return dict(FIELDS)
+
+
+def shows_weight(drawing) -> bool:
+    """Whether the title block on ``drawing``'s sheet shows a calculated weight (CALC WT,
+    from the material's density in the settings' list)."""
+    from solidseas.drawing import display as D
+
+    sheet = getattr(drawing, "sheet", None)
+    for a in getattr(sheet, "annotations", ()) or ():
+        if isinstance(a, D.TitleBlock) and str(dict(a.fields).get("weight") or "").strip():
+            return True
+    return False
+
+
+MATERIAL_FROM = ("part", "list", "typed")
+
+
+def title_row(data: dict, title: dict | None) -> dict:
+    """One drawing's title measures for :func:`summarise_titles`, from the ``data`` of its
+    envelope and the child's ``title``: where its material came from (``part``, ``list``
+    or ``typed``, ``none`` when the title block has none), whether it shows a weight,
+    and its R6.material findings by level."""
+    material = (data.get("drawing") or {}).get("title", {}).get("material") or {}
+    origin = material.get("from") if material.get("text") else "none"
+    findings = Counter(c["level"] for c in data.get("checks", ()) if c["code"] == "R6.material")
+    return {
+        "material_from": origin if origin in MATERIAL_FROM or origin == "none" else "other",
+        "weight": int(bool(title and title.get("weight"))),
+        "material_checks": dict(findings),
+    }
+
+
+def summarise_titles(rows: list[dict]) -> dict:
+    """What the sweep measures of the title blocks over its drawings (:func:`title_row`):
+    drawings by where their material came from, how many show a calculated weight, and
+    the R6.material findings by level."""
+    origins: Counter = Counter(r["material_from"] for r in rows)
+    findings: Counter = Counter()
+    for r in rows:
+        findings.update(r["material_checks"])
+    return {
+        "material_from": dict(sorted(origins.items())),
+        "weight_shown": sum(r["weight"] for r in rows),
+        "material_checks": dict(sorted(findings.items())),
+    }
 
 
 def item_kind(owner: str) -> str:
@@ -197,27 +257,43 @@ def summarise(rows: list[dict]) -> dict:
 def main(argv: list[str]) -> int:
     part, settings = argv
     from solidseas import cli
+    from solidseas.drawing import source as drawing_source
 
     seen: dict = {}
-    make, checks = cli._make, cli._drawing_checks
+    make, checks, opener = cli._make, cli._drawing_checks, drawing_source.open_source
 
     def make_filled(part, options, settings, fields, **kw):
-        return make(part, options, settings, {**FIELDS, **fields}, **kw)
+        # what to type is known once the part is read (open_filled), which the command
+        # does before the pipeline reads these fields
+        filled = dict(fields)
+        seen["fill"] = (filled, settings)
+        return make(part, options, settings, filled, **kw)
+
+    def open_filled(*args, **kwargs):
+        source = opener(*args, **kwargs)
+        fill = seen.pop("fill", None)
+        if fill is not None:
+            filled, settings_ = fill
+            for key, value in typed_fields(source, settings_).items():
+                filled.setdefault(key, value)
+        return source
 
     def checks_seen(drawing, run=None):
         seen["drawing"] = drawing
         return checks(drawing, run)
 
     cli._make, cli._drawing_checks = make_filled, checks_seen
+    drawing_source.open_source = open_filled
     out = io.StringIO()
     with contextlib.redirect_stdout(out):
         code = cli.main(["drawing", "check", part, "--settings", settings, "--json"])
     envelope = json.loads(out.getvalue())
     drawing = seen.get("drawing")
-    conflicts = None
+    conflicts = title = None
     if drawing is not None and envelope.get("ok"):
         conflicts = breakdown(drawing, view_kinds(drawing))
-    sys.stdout.write(json.dumps({"envelope": envelope, "conflicts": conflicts}) + "\n")
+        title = {"weight": int(shows_weight(drawing))}
+    sys.stdout.write(json.dumps({"envelope": envelope, "conflicts": conflicts, "title": title}) + "\n")
     return code
 
 

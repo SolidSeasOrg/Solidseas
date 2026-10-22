@@ -10,8 +10,9 @@ failed outcome and the sweep goes on. ``check`` writes nothing, and the test che
 no part's size or modification time changed. Drawing Settings are the defaults with a
 company name, from a file under pytest's temporary folder, never the user's. Each
 drawing's title block is filled as a user would fill it, so check R6.title is about the
-drawing: number, title and part number from the file name, and drawn by, material and
-finish typed (a part's own material is replaced by the typed one).
+drawing: number, title and part number from the file name, drawn by and finish typed,
+and the material typed only where the part names none, so a part's own material, the
+weight it gives and the checks of it (R6.material) are measured.
 
 * ``SOLIDSEAS_DRAWING_CORPUS_SAMPLE=N``: draw ``random.Random(20261007).sample`` of N.
 * ``SOLIDSEAS_DRAWING_CORPUS_WORKERS=N``: children at a time (default 2).
@@ -29,8 +30,10 @@ recognised-area fraction per size band (up to 100, 100 to 500, 500 to 3,000 and 
 3,000 faces). The hard conflicts are also broken down (``drawing_corpus_child.summarise``):
 by the pair of item kinds that collide, or the item that found no clear place; by the
 kinds of view they are in; the drawings counted by dimensions against conflicts; and the
-ten drawings with the most conflicts as rows of numbers. It prints numbers, check ids
-and fixed words only, never a path or a part's name (18).
+ten drawings with the most conflicts as rows of numbers. Of the drawings made, it counts
+where the title block's material came from (the part, the settings' list or typed), how
+many show a calculated weight, and the R6.material findings by level. It prints numbers,
+check ids and fixed words only, never a path or a part's name (18).
 """
 
 import json
@@ -45,7 +48,7 @@ from pathlib import Path
 
 import pytest
 
-from drawing_corpus_child import SETTINGS, drawing_row, summarise
+from drawing_corpus_child import SETTINGS, drawing_row, summarise, summarise_titles, title_row
 from jsonschema_subset import validate
 
 CORPUS = os.environ.get("SOLIDSEAS_DRAWING_CORPUS")
@@ -93,10 +96,10 @@ def _start(argv: list[str], env: dict) -> subprocess.Popen:
     return proc
 
 
-def _draw(part: str, settings: str, timeout: float) -> tuple[str, dict, dict | None]:
+def _draw(part: str, settings: str, timeout: float) -> tuple[str, dict, dict | None, dict | None]:
     """One part in a child of its own: ("ok" or "error", the envelope, the hard conflicts
-    broken down or None), or ("failed", {"reason"}, None) when the child hung, crashed or
-    printed no JSON document."""
+    broken down or None, the title measures or None), or ("failed", {"reason"}, None,
+    None) when the child hung, crashed or printed no JSON document."""
     env = dict(os.environ)
     env["PYTHONPATH"] = str(SRC) + os.pathsep + env.get("PYTHONPATH", "")
     argv = [sys.executable, str(CHILD), part, settings]
@@ -106,14 +109,15 @@ def _draw(part: str, settings: str, timeout: float) -> tuple[str, dict, dict | N
     except subprocess.TimeoutExpired:
         proc.kill()
         proc.communicate()
-        return "failed", {"reason": "timeout"}, None
+        return "failed", {"reason": "timeout"}, None, None
     try:
         got = json.loads(out.decode("utf-8"))
         doc = got["envelope"]
         conflicts = got["conflicts"]
+        title = got["title"]
     except (UnicodeDecodeError, ValueError, KeyError, TypeError):
-        return "failed", {"reason": f"no result (exit {proc.returncode})"}, None
-    return ("ok" if doc.get("ok") else "error"), doc, conflicts
+        return "failed", {"reason": f"no result (exit {proc.returncode})"}, None, None
+    return ("ok" if doc.get("ok") else "error"), doc, conflicts, title
 
 
 def _band(faces: int) -> str:
@@ -174,7 +178,8 @@ def test_drawing_corpus(tmp_path, capsys):
     bands: dict[str, list[float]] = {}
     conflicts = conflicted = conflicted_small = 0
     rows: list[dict] = []
-    for status, doc, broken_down in results:
+    titles: list[dict] = []
+    for status, doc, broken_down, title in results:
         if status == "failed":
             outcomes["failed"] += 1
             failed[doc["reason"]] += 1
@@ -208,6 +213,7 @@ def test_drawing_corpus(tmp_path, capsys):
         conflicted += bool(hard)
         conflicted_small += bool(hard) and counts["shown"] < 100
         rows.append(drawing_row(counts, hard, broken_down))
+        titles.append(title_row(data, title))
         dimensions.append(counts["shown"])
         views.append(counts["views"])
         for stage, seconds in data["seconds"].items():
@@ -229,6 +235,7 @@ def test_drawing_corpus(tmp_path, capsys):
         "seconds_per_stage": {stage: _stat(v) for stage, v in stages.items()},
         "recognised_area_by_faces": {name: _stat(bands[name]) for _top, name in BANDS if name in bands},
         **summarise(rows),
+        "title_blocks": summarise_titles(titles),
     }
     with capsys.disabled():
         print(f"\ndrawing corpus: {json.dumps(numbers)}")
