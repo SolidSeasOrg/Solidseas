@@ -906,9 +906,10 @@ Side effects to know about:
   - A document a person opened in the instance in the seconds before it could
     be hidden, or that a double-click handed it, keeps the instance running
     and shown until it is closed (`foreign_documents`, above). Only a timeout,
-    a crash or the end of the conversation without `shutdown` ends the
-    instance with it open; then it is not saved and goes with the instance,
-    `documents_open` counts it, and the bridge says so on standard error.
+    a crash, `Bridge.close()` or the end of the conversation without
+    `shutdown` ends the instance with it open; then it is not saved and goes
+    with the instance, `documents_open` counts it, and the bridge says so on
+    standard error.
     Opened for writing, as SOLIDWORKS opens a document by default, it also
     leaves its `~$` lock file next to that person's file. The bridge never
     closes it, because it closes only the documents it opened or created.
