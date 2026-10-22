@@ -58,9 +58,11 @@ Isolate, Show all and Reset appearance, and right-clicking empty space 3D Print
 This Assembly, then Show all and Reset appearance once something is hidden or
 changed (a part's view offers 3D Print This Part anywhere); in the view, Tab hides
 the part under the pointer and Shift+Tab shows everything hidden, as in SOLIDWORKS.
-The pane keeps those choices for the document while it is shown (:mod:`.appearance`,
-by component tree id and file key, so they hold through another configuration for whatever is
-there, and Back puts them back with :meth:`PreviewPane.view_state`), works out
+The pane keeps those choices for each document (:mod:`.appearance`, by component tree id
+and file key, so they hold through another configuration for whatever is there, and Back
+puts them back with :meth:`PreviewPane.view_state`), in a :mod:`.lookstore` that brings
+them back when the document is shown again, from one run of the viewer to the next with
+the file the window gives it, and works out
 each instance's look and has the view draw it; the legend greys a file all
 hidden, and ``looksChanged`` lets the Components tab mark its rows. A file is
 every instance of it, and a sub-assembly's file every part of every instance of
@@ -73,7 +75,7 @@ menu in the view also has a submenu for each sub-assembly it is in, and for each
 a check item that explodes it or keeps it together whatever the Explode bar's
 level says (a sub-assembly's own row has it as "Explode this sub-assembly"),
 greyed inside one chosen to stay together (:func:`.explode.group_of`); those
-choices are each document's while the viewer runs, the bar counts the groups
+choices are each document's and kept with its looks, the bar counts the groups
 they make and names those that hold in the scene drawn, and Reset appearance
 drops them with the rest.
 
@@ -123,6 +125,7 @@ from PySide6.QtWidgets import (
 from .appearance import BOXES, FILE, ID, TRANSPARENCY_STEPS, Look, Looks
 from .explode import FULL_SECONDS as EXPLODE_SECONDS
 from .explode import LEVELS, PARTS, TOP, explodes, group_of, held_by, subassemblies
+from .lookstore import LookStore, document_id
 from .menus import relay_status_tips
 from .mesh3d import byte_budget
 from .modelview import is_internal
@@ -723,15 +726,15 @@ class PreviewPane(QWidget):
         # empty space starts with (:meth:`space_menu`): it adds it to a menu and says whether
         # it did; None: no such entry.
         self.print_shown: Callable[[QMenu], bool] | None = None
-        # What the user chose to see: hidden and transparent components (:mod:`.appearance`),
-        # for this document while it is shown, and the sub-assemblies chosen to explode or
-        # stay together, by id, which each document keeps while the viewer runs
-        # (``_choices_by_document``, under :attr:`document_key`). ``instance_looks`` is each
-        # instance's look as the view draws it.
+        # What the user chose to see: hidden and transparent components (:mod:`.appearance`)
+        # and the sub-assemblies chosen to explode or stay together, by id, which each
+        # document keeps in ``view_store`` (:mod:`.lookstore`, under the id of its
+        # :attr:`document_key`): in memory, or from one run to the next with the store the
+        # window gives it. ``instance_looks`` is each instance's look as the view draws it.
         self.looks = Looks()
         self.explode_choices: dict[str, bool] = {}
         self.document_key: Any = None
-        self._choices_by_document: dict[Any, dict[str, bool]] = {}
+        self.view_store = LookStore(None)
         self.instance_looks: list[Look] = []
         # The sub-assemblies' files, as the Components tab read them: each one's file key by
         # its component tree id, and each file's name by its key (:meth:`set_components`).
@@ -914,14 +917,14 @@ class PreviewPane(QWidget):
         return key[0] if isinstance(key, tuple) and key and isinstance(key[0], str) else None
 
     def reset(self, doc_type: str | None, key: Any = None) -> None:
-        """A new document (or none): forget the image, the mesh, the configurations and
-        what was hidden or made transparent. ``key`` names the document, ``(path, path
-        below the opened folder)``, whose choices of sub-assemblies to explode come back
-        while the viewer runs."""
+        """A new document (or none): forget the image, the mesh and the configurations.
+        ``key`` names the document, ``(path, path below the opened folder)``, whose looks
+        and choices of sub-assemblies to explode come back from :attr:`view_store`."""
         self.doc_type = doc_type
         self.document_key = key
-        self.looks = Looks()
-        self.explode_choices = dict(self._choices_by_document.get(key, {})) if key is not None else {}
+        kept = self.view_store.get(document_id(key))
+        self.looks = Looks.from_state(kept["looks"] if kept else None)
+        self.explode_choices = dict(kept["explode"]) if kept else {}
         self.instance_looks = []
         self.component_files, self.component_names = {}, {}
         self.mesh_state = "idle"
@@ -1987,10 +1990,16 @@ class PreviewPane(QWidget):
             return (BOXES, "")
         return (ID, value)
 
+    def _remember(self) -> None:
+        """Keep the document's looks and explode switches as they are now (:attr:`view_store`)."""
+        self.view_store.put(document_id(self.document_key), self.view_state())
+
     def _apply_looks(self, *, highlight: bool = True) -> None:
         """Work out each instance's look from :attr:`looks` and have the view draw it, the
         legend grey the files all hidden, the pick note and the Explode bar say what
-        follows, and the Components tab show it (``looksChanged``)."""
+        follows, and the Components tab show it (``looksChanged``). The looks are kept
+        for the document (:meth:`_remember`)."""
+        self._remember()
         ids = self.instance_ids
         looks = [self.looks.look(iid, self._file_keys(g), box=self.is_box(g)) for g, iid in enumerate(ids)]
         self.instance_looks = looks
@@ -2092,11 +2101,7 @@ class PreviewPane(QWidget):
 
     def _set_choices(self, choices: dict[str, bool]) -> None:
         self.explode_choices = dict(choices)
-        if self.document_key is not None:
-            if choices:
-                self._choices_by_document[self.document_key] = dict(choices)
-            else:
-                self._choices_by_document.pop(self.document_key, None)
+        self._remember()
         view = self.view
         if view is not None and hasattr(view, "set_explode_choices") and self.instance_ids:
             view.set_explode_choices(self.explode_choices)

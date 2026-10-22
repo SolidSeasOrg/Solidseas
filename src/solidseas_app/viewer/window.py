@@ -155,6 +155,7 @@ from .documents import (
     is_document,
     is_lock_file,
 )
+from .lookstore import LookStore
 from .menus import relay_status_tips
 from .meshproc import MeshReader
 from .modelpool import ModelPool
@@ -192,6 +193,7 @@ _DOC_WORDS = {
     "drawing": ("drawing", "drawings"),
 }
 _HISTORY = 100  # places Back remembers
+LOOKS_WRITE_MS = 1000  # the looks file is written this long after the last change, and at close
 BACK_KEYS = "Alt+Left"
 OPEN_TITLE = "Go to file"
 
@@ -475,7 +477,9 @@ class MainWindow(QMainWindow):
     detailsFinished = Signal(int)  # the generation whose sections have all arrived
     meshFinished = Signal(int)  # the generation whose 3D mesh read has ended, however it ended
 
-    def __init__(self, store: SettingsStore | None = None, ai: Any = None) -> None:
+    def __init__(
+        self, store: SettingsStore | None = None, ai: Any = None, *, looks_path: str | None = None
+    ) -> None:
         super().__init__()
         from .gcguard import install as collect_on_this_thread
 
@@ -485,6 +489,9 @@ class MainWindow(QMainWindow):
         self.resize(self._default_size())
         self.store = store if store is not None else SettingsStore(None)
         self.settings = self.store.load()  # read once, here
+        # Each document's looks in the 3D view (.lookstore): in the file ``looks_path`` names,
+        # from one run to the next (the launcher's, beside Viewer.ini), else in memory only.
+        self.look_store = LookStore(looks_path)
         # The AI settings, keys and usage (assistant.aisettings.AIConfig), made when first needed.
         self._ai = ai
         self.assistant: Any = None  # the modeling assistant's window, while it is open
@@ -584,6 +591,11 @@ class MainWindow(QMainWindow):
         self._fit_timer.setInterval(60)
         self._fit_timer.timeout.connect(self._fit_columns)
         self.split.splitterMoved.connect(lambda *_: self._fit_timer.start())
+        self._looks_timer = QTimer(self)  # the looks file is written once the changes settle
+        self._looks_timer.setSingleShot(True)
+        self._looks_timer.setInterval(LOOKS_WRITE_MS)
+        self._looks_timer.timeout.connect(self.look_store.flush)
+        self.look_store.on_change = self._looks_timer.start
         self._update_actions()
         self._back_window = None  # the native window whose Back button and key go back
         # The list narrows when its scroll bar appears, often after the columns were fitted
@@ -725,6 +737,7 @@ class MainWindow(QMainWindow):
         )
         self.details.preview.meshRequested.connect(self._mesh_requested)
         self.details.preview.warmUp.connect(self._warm_mesh_reader)
+        self.details.preview.view_store = self.look_store
 
         self.split = QSplitter(Qt.Orientation.Horizontal)
         self.split.addWidget(self.tree)
@@ -3218,6 +3231,8 @@ class MainWindow(QMainWindow):
             left = max(0, int((deadline - time.monotonic()) * 1000))
             done = pool.waitForDone(left) and done
         self.thumbnailer.close_cache()
+        self._looks_timer.stop()
+        self.look_store.flush()  # the looks changed since the last write
         return done
 
     def closeEvent(self, event) -> None:

@@ -12,7 +12,7 @@ SOLIDWORKS (``open_model``, ``open_any``; provisional). ``docs/API.md``
 documents them.
 """
 
-__version__ = "0.2.452"
+__version__ = "0.2.453"
 
 from .errors import (  # noqa: E402  (__version__ comes first: submodules may import it)
     AddressUnavailableError,

@@ -49,6 +49,13 @@ while the project takes shape.
 
 ### Added
 
+- **Looks kept between runs.** What you hide or make transparent in an
+  assembly's 3D view, and which sub-assemblies explode, are kept for each
+  document: show another document and come back, or close the viewer and open it
+  again, and the assembly looks as you left it until Reset appearance. They are
+  kept in ViewerLooks.json beside Viewer.ini, for the 200 documents changed
+  last, under a digest of each path.
+
 - **Keep the viewer's reads inside the opened folder.** Settings > General has
   "Look for referenced files only in the opened folder", off by default. On, the
   viewer looks for the files an assembly or a drawing names only in the folder

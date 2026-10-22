@@ -52,8 +52,10 @@ Options:
   screenshots, report and settings file.
 
 Settings come from ``SolidSeas\\Viewer.ini`` in the roaming application-data
-folder (:mod:`.settings`). A self-test never touches that file: it runs with a
-settings file of its own next to its report.
+folder (:mod:`.settings`), and each document's looks in the 3D view from
+``ViewerLooks.json`` beside it (:mod:`.lookstore`). A self-test never touches
+either: it runs with a settings file of its own next to its report, and keeps
+the looks it makes in memory.
 
 The packaged viewer has no console, so a usage error is shown in a message box,
 and an unexpected exception in the window is shown instead of ending the program.
@@ -601,8 +603,10 @@ def main(argv: list[str] | None = None) -> int:
     except UsageError as exc:
         return _fail(f"{exc}\n\n{build_parser().format_usage()}", EXIT_USAGE)
 
+    from .lookstore import path_beside
     from .settings import Settings, SettingsStore, default_path
 
+    looks_path = None  # the self-test's looks stay in memory: a run never starts from another's
     if args.self_test:
         # The outputs pass the write guards before anything is opened or shown.
         from solidseas.errors import OutputRefusedError
@@ -629,6 +633,7 @@ def main(argv: list[str] | None = None) -> int:
             store.save(own)
     else:
         store = SettingsStore(default_path())
+        looks_path = path_beside(default_path())  # each document's looks in 3D, kept between runs
 
     use_system_fonts()
     from PySide6.QtWidgets import QApplication, QMessageBox
@@ -639,7 +644,7 @@ def main(argv: list[str] | None = None) -> int:
     app.setApplicationName("SolidSeas Viewer")
     app.setApplicationVersion(__version__)
     app.setWindowIcon(window_icon())
-    window = MainWindow(store)
+    window = MainWindow(store, looks_path=looks_path)
     selftest = None
 
     def excepthook(kind, value, tb) -> None:  # shown, never fatal

@@ -518,8 +518,10 @@ an offscreen framebuffer of the few pixels round the pointer, so a pick finds
 what is drawn in front, exploded or not, for one small draw; of a box, that
 pass draws the far side, so a box in front of a component is picked and a
 component inside one is picked through it. What the user hid or made
-transparent (`viewer.appearance`, kept by component tree id and file key) is a
-per-instance attribute: the opaque instances are drawn first, then the
+transparent (`viewer.appearance`, kept by component tree id and file key, and
+with the explode switches kept for each document by `viewer.lookstore`, from
+one run to the next in `ViewerLooks.json` beside `Viewer.ini`, under a digest
+of the document's path) is a per-instance attribute: the opaque instances are drawn first, then the
 transparent ones and the boxes, blended without writing depth, each one's far
 side placed at the far end of its bounding box and its near side at the near
 end, farthest first, so one inside another lies between that one's two sides

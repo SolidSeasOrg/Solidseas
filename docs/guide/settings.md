@@ -208,9 +208,11 @@ switched off moves as one piece with everything inside it, so the switches of
 those inside it are greyed, their tooltips naming it, until it explodes.
 
 The bar counts the groups that move as your choices make them and names the
-choices that hold in the configuration shown. The choices hold for that document
-while the viewer runs, through configuration switches and Back, until Reset
-appearance.
+choices that hold in the configuration shown. The choices are kept for that
+document with its looks (see
+[Transparency, Hide and Isolate](#transparency-hide-and-isolate)), through
+configuration switches and Back, and from one run of the viewer to the next,
+until Reset appearance.
 
 ## Picking components
 
@@ -280,8 +282,13 @@ is shown; with everything hidden, the note in the corner says so.
 
 The Components tab greys the rows of hidden instances with an eye struck through
 and marks transparent ones with a half filled square, and the legend greys a file
-all hidden. The choices last while the document is shown, through explodes,
-picks, configuration switches (for the components still there) and Back.
+all hidden. The choices hold through explodes, picks, configuration switches (for
+the components still there) and Back, and they are kept for each document: show
+another document and come back, or close the viewer and open it again, and the
+document looks as you left it, until Reset appearance. The viewer keeps them in
+`ViewerLooks.json` beside `Viewer.ini`, never beside your files, for the 200
+documents whose looks you changed last, each under a digest of its file's path
+rather than the path itself.
 
 ## Mouse and keyboard controls
 
