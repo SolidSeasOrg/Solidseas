@@ -440,6 +440,11 @@ def convert(
     ended once they have closed the document, however long that takes. A
     timeout, or a failure after which SOLIDWORKS is not trusted, still ends it
     at once.
+
+    Once each SOLIDWORKS it started has ended, the registry values that
+    SOLIDWORKS changed under ``User Interface`` and in ``General\\Last Splash
+    Id`` are put back, when no other SOLIDWORKS ran meanwhile (:mod:`.hkcu`),
+    and ``log`` says how many, or why none were.
     """
     t = timeouts or Timeouts()
     wanted = []
