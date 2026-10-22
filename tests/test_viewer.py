@@ -887,10 +887,53 @@ def test_drawings_name_their_models_and_have_no_configurations(viewer, tmp_path)
     panel._overview(summary)
     assert {item.text(0): item.text(1) for item in _items(panel.overview)}["Active"] == "none stored"
     assert details._value_text({"type": "date", "value": "2024-03-15T16:00:00Z"}) == "2024-03-15"
-    assert details.is_computed({"expression": '"SW-Mass@o14_property_types.SLDPRT"'})
-    assert not details.is_computed({"expression": "3/15/2024"}) and not details.is_computed(
-        {"expression": "3.25"}
+
+
+def _o14_with_more_links() -> bytes:
+    """o14 with its text property linked to another property (``$PRP:``, which names no
+    ``@``) and a new text property whose typed value is a quoted e-mail address."""
+    end = b"</propertySection></Properties>"
+    extra = (
+        '<property name="" pid="16777219" IsEquation="False" TypeID="30">'  # TextProp's, pid 3
+        "<vt:lpstr>$PRP:&quot;SW-Mass&quot;</vt:lpstr></property>"
+        '<property name="Contact" pid="20" IsEquation="False" TypeID="30">'
+        "<vt:lpstr>&quot;sales@example.com&quot;</vt:lpstr></property>"
     )
+    o14 = fixture_path("o14_property_types.SLDPRT")
+    xml = fixture_streams(o14)["docProps/custom.xml"]
+    return rebuild(o14, {"docProps/custom.xml": xml.replace(end, extra.encode() + end)})
+
+
+@needs_qt
+def test_the_computed_column_says_what_the_library_found_linked(viewer, tmp_path):
+    """Computed is the library's ``linked``: a ``$PRP:`` link to another property is
+    computed though it names no ``@``, and a typed value that only looks like a link is
+    not, nor are a date and a number kept as typed."""
+    from solidseas_app.viewer import details
+
+    folder = tmp_path / "docs"
+    folder.mkdir()
+    (folder / "props.SLDPRT").write_bytes(_o14_with_more_links())
+    viewer.open(folder)
+    viewer.select("props.SLDPRT")
+    rows = {item.text(0): item for item in _items(viewer.window.details.properties) if item.parent()}
+    computed = {name: item.text(4) for name, item in rows.items()}
+    assert computed == {
+        "TextProp": "yes",
+        "NumberProp": "",
+        "DoubleProp": "",
+        "YesNoProp": "",
+        "DateProp": "",
+        "Mass": "yes",
+        "Material": "yes",
+        "Contact": "",
+        "CfgProp": "",  # the configuration's own
+    }
+    assert rows["TextProp"].text(3) == '$PRP:"SW-Mass"'
+    assert rows["Contact"].text(3) == '"sales@example.com"'
+    assert details.is_computed({"expression": "3/15/2024", "linked": True})
+    assert not details.is_computed({"expression": '"SW-Mass@o14_property_types.SLDPRT"', "linked": False})
+    assert not details.is_computed({"expression": '"SW-Mass@o14_property_types.SLDPRT"'})
 
 
 @needs_qt

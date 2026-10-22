@@ -62,7 +62,7 @@ shows the selected document on a set of tabs:
 |---|---|
 | Overview | the document's preview image, when it has one, and its summary; for another format, its schema, units, writer, counts and size |
 | Preview | the stored thumbnail, which pans and zooms, and the 3D view when it is on |
-| Properties | the custom properties |
+| Properties | the custom properties, each with its value, type and expression; Computed marks a value SOLIDWORKS worked out at the last save from a link to a model value or another property, or from an equation, which can be out of date |
 | Components | an assembly's instances with their positions, and its Files table; a drawing's views and models |
 | BOM | an assembly's bill of materials (see [Bills of materials](where-used-and-bom.md#bills-of-materials)) |
 | References | where each referenced file was found |

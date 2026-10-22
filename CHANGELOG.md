@@ -1832,6 +1832,10 @@ while the project takes shape.
 
 ### Fixed
 
+- **The Computed column.** The Properties tab's Computed column marks a property
+  linked to another property (`$PRP:`), and no longer marks a typed value that
+  only looks like a link.
+
 - **Reader fixes.** The zip compression ratio is taken against the bytes
   actually read; a second scene of a 3MF no longer trips the zip total limit;
   3MF colour groups and AMF volumes and materials are bounded; OBJ material

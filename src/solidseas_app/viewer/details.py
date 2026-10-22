@@ -80,7 +80,6 @@ transparent marked with a half filled square (:meth:`DetailsPanel._show_looks`).
 """
 
 import html
-import re
 from collections.abc import Callable
 from typing import Any
 
@@ -210,7 +209,6 @@ _CATEGORIES = {
     "windows": "Windows folders",
     "drive_root": "Drive roots",
 }
-_LINK_EXPRESSION = re.compile(r'"[^"]*@[^"]*"')  # "SW-Mass@part.SLDPRT", "D1@Sketch1"
 
 
 def _tone(widget: QWidget, name: str | None) -> QColor | None:
@@ -252,11 +250,12 @@ def _value_text(p: dict[str, Any]) -> str:
 
 
 def is_computed(p: dict[str, Any]) -> bool:
-    """The expression links to a model value or holds an equation (``"SW-Mass@..."``),
-    so the value is SOLIDWORKS' result from the last save. The library's ``linked``
-    decides the same from how the file stores the expression, and also covers
-    ``$PRP:`` links, which hold no ``@``."""
-    return bool(_LINK_EXPRESSION.search(p.get("expression") or ""))
+    """The value is SOLIDWORKS' result, from the last save, of the expression: a link to
+    a model value (``"SW-Mass@..."``), to another property (``$PRP:"SW-Mass"``) or an
+    equation. The library's ``linked`` decides it from how the file stores the
+    expression (``docs/FORMAT.md`` 11.1), so an expression that only looks like a
+    link, such as a quoted e-mail address typed as the value, is not one."""
+    return p.get("linked") is True
 
 
 def _tree(columns: tuple[str, ...], *, stretch: int | None = None) -> QTreeWidget:
@@ -631,8 +630,9 @@ class DetailsPanel(QWidget):
         self.properties.headerItem().setToolTip(
             4,
             tip(
-                "Yes when the expression links to a model value or holds an equation. Value is then "
-                "the result SOLIDWORKS stored at the last save, which can be out of date."
+                "Yes when the value is worked out from the expression: a link to a model value or to "
+                "another property, or an equation. Value is then the result SOLIDWORKS stored at the "
+                "last save, which can be out of date."
             ),
         )
         self._build_components()
