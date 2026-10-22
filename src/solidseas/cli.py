@@ -78,6 +78,7 @@ from . import __version__, model
 from . import bom as bom_mod
 from .errors import (
     DrawingInvalidError,
+    FormatNotSupportedError,
     InvalidArgumentError,
     ModelNotFoundError,
     NoPreviewError,
@@ -824,14 +825,63 @@ def _step_options(args: argparse.Namespace) -> None:
         ("--allow-partial", args.allow_partial),
         ("--exact-only", args.exact_only),
         ("--include-hidden", args.include_hidden),
+        ("--check", args.check),
     ):
         if given:
             raise InvalidArgumentError(f"{flag} is for --format step", detail={"parameter": flag})
 
 
+def _step_check(sm: Any, path: str) -> dict[str, Any]:
+    """``export --check``: what Open CASCADE made of the STEP file at ``path`` that ``sm``
+    was written as, with ``findings`` (what is wrong, in words) and ``sound``. A part's
+    solids, surface bodies and faces must be those written; an assembly's model counts
+    each part once, not each instance, so only the rest is checked there."""
+    from .convert.occt import BACKEND, step_findings
+
+    with open(path, "rb") as fh:
+        check = BACKEND.check_bytes(fh.read())
+    c = sm.counts
+    part = not c.get("instances")
+    findings = step_findings(
+        check,
+        solids=c.get("solids") if part else None,
+        sheets=c.get("sheets") if part else None,
+        faces=c.get("faces") if part else None,
+    )
+    return {"sound": not findings, "findings": findings, **check}
+
+
+def _check_lines(check: dict[str, Any]) -> list[str]:
+    """``export --check``'s lines for a person."""
+    by = f"Open CASCADE {check['occt']}" if check.get("occt") else "Open CASCADE"
+    if check["sound"]:
+        what = (
+            f"{check.get('solids') or 0} solid(s), {check.get('sheets') or 0} sheet(s), "
+            f"{check.get('faces') or 0:,} faces"
+        )
+        lines = [f"checked with {by}: it reads the file as written, {what}, closed and valid"]
+    else:
+        lines = [f"checked with {by}: the file does not read as written"]
+        lines += [f"check: {f}" for f in check["findings"]]
+    measures = []
+    if check.get("volume_mm3") is not None:
+        measures.append(f"volume {check['volume_mm3']:,.6g} cubic mm")
+    if check.get("area_mm2") is not None:
+        measures.append(f"area {check['area_mm2']:,.6g} square mm")
+    if measures:
+        lines.append(f"{by} measures {', '.join(measures)}")
+    return lines
+
+
 def _export_step(args: argparse.Namespace, doc: Document, stem: str, out: str) -> int:
     from .step import step_model, write_step
 
+    if args.check:  # said before anything is written, as convert says it
+        from .convert.occt import BACKEND
+
+        reason = BACKEND.unavailable()
+        if reason is not None:
+            raise FormatNotSupportedError(reason, detail={"rule": "needs_extension", "value": "step"})
     sm = step_model(
         doc,
         args.configuration,
@@ -843,6 +893,9 @@ def _export_step(args: argparse.Namespace, doc: Document, stem: str, out: str) -
     )
     result = write_step(sm, out, overwrite=args.force)
     code = EXIT_PARTIAL if sm.partial or sm.counts.get("skipped") else EXIT_OK
+    check = _step_check(sm, result.path) if args.check else None
+    if check is not None and not check["sound"]:
+        code = EXIT_FAILED  # the file is kept: the check says what is wrong in it
     if not args.json:
         c = sm.counts
         if sm.exact:
@@ -856,7 +909,9 @@ def _export_step(args: argparse.Namespace, doc: Document, stem: str, out: str) -
         )
         for w in sm.warnings:
             _say(f"warning: {w}")
-    return _emit(args, "export_result", model.build_export_result(result), code)
+        for line in _check_lines(check) if check is not None else ():
+            _say(line)
+    return _emit(args, "export_result", model.build_export_result(result, check=check), code)
 
 
 def cmd_export(args: argparse.Namespace, doc: Document) -> int:
@@ -3485,6 +3540,12 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="STEP: write the bodies SOLIDWORKS hides too (its own STEP leaves them out, and so does this "
         "by default)",
+    )
+    sp.add_argument(
+        "--check",
+        action="store_true",
+        help="STEP: read the file back with Open CASCADE (the OCCT backend extension) and say whether it "
+        "holds what was written, closed and valid (exit 1 when it does not)",
     )
     add_write_flags(sp)
     sp = add(

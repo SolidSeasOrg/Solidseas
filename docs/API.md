@@ -4040,6 +4040,18 @@ unless `overwrite`), and a source no backend converts (a mesh) raises
 `UnsupportedOperationError` (rule `model_file`). `ConvertResult` holds `path`,
 `format`, `bytes`, `backend`, `source_format` and `report`.
 
+`solidseas.convert.occt.BACKEND.check_bytes(data)` (provisional) has Open
+CASCADE read a STEP file back in the same helper, as another CAD program would
+read it, and writes nothing: a dict of the counts `roots`, `roots_transferred`,
+`shapes`, `solids`, `sheets`, `free_faces`, `faces`, `open_solid_shells`,
+`free_edges` and `nonmanifold_edges`, with `valid`, `volume_mm3`, `area_mm2`,
+`box_mm` and `occt` (the version that read it), each null when the helper did
+not give it. `step_findings(check, *, solids=None, sheets=None, faces=None)`
+says in words what is wrong in it, comparing the counts given with what was
+written; an empty list means sound. `export --format step --check` (7.1) is the
+command line's way to it, and `helpers_per_worker(formats)` (3.13) the number
+of helpers a worker pool reading `formats` may start.
+
 ### 3.21 Rendered previews: `solidseas.render` (provisional)
 
 A model file that stores no preview image gets one drawn from its geometry, in
@@ -5469,11 +5481,21 @@ What `solidseas export --json` wrote (3.17). Lengths are in millimetres.
  "objects": [{"name": "bracket", "file": "3", "configuration": "Default", "source": "bodies",
               "vertices": 8, "triangles": 12, "instances": 4, "closed": true, "chord_mm": 0.0094,
               "volume_mm3": 6000.0, "area_mm2": 2200.0, "warnings": []}],
- "skipped": [], "warnings": [], "seconds": 0.051, "step": null, "source_format": "solidworks"}
+ "skipped": [], "warnings": [], "seconds": 0.051, "step": null, "source_format": "solidworks",
+ "check": null}
 ```
 
 - `source_format` is the registry id of the file exported (3.20.3):
   `solidworks`, `stl`, `3mf`, `step`... (an open set).
+- `check` is null unless `export --format step --check` asked (7.1). Then it is
+  what Open CASCADE made of the file read back: `sound` (every root read into
+  what was written, closed and valid), `findings` (what is wrong, in words),
+  `occt` (the Open CASCADE version), `roots`, `roots_transferred`, `shapes`,
+  `solids`, `sheets` (shells in no solid), `free_faces` (faces in no shell),
+  `faces`, `open_solid_shells`, `free_edges` and `nonmanifold_edges` (a solid's
+  edges used by one face, or by more than two), `valid`, `volume_mm3` (the
+  solids'; null without one), `area_mm2` (the solids', else the sheets') and
+  `box_mm` (two corners); a value the helper did not give is null.
 - `chord_mm` at the top is the tolerance asked for (null: each part's
   automatic print chord), and each object's the one it was made at (null for
   a display mesh). `merged` is true for STL and for `--merge`.
@@ -5808,7 +5830,7 @@ it.
 | `preview FILE -o OUT` | `--prefer png` (default) or `dib`, `--nested STREAM`, `--render`, `--stored`, `--max-mb N`, `--force`, `--allow-source-dir` | `file_written` |
 | `parasolid FILE -o DIR` | `--text`, `--raw` and `--local-bodies fallback` (default), `always` or `never` (a part), `--configuration NAME`, `--allow-partial`, `--other-configurations` and `--include-hidden` (an assembly), `--max-mb N`, `--force`, `--allow-source-dir` | `parasolid_result` |
 | `convert FILE --format iges\|brep\|step` | `-o FILE` (or a folder that exists; default: the document's name in the current folder), `--max-mb N`, `--force`, `--allow-source-dir`; needs the OCCT backend extension (3.20.10) | `file_written` (provisional) |
-| `export FILE --format 3mf\|stl\|step` | `-o FILE` (or a folder that exists; default: the document's name in the current folder), `--configuration NAME`, `--chord MM` (0.0001 to 10) and `--merge` (3MF and STL), `--sheets`, `--allow-partial`, `--exact-only` and `--include-hidden` (STEP), `--max-mb N`, `--force`, `--allow-source-dir` | `export_result` (provisional) |
+| `export FILE --format 3mf\|stl\|step` | `-o FILE` (or a folder that exists; default: the document's name in the current folder), `--configuration NAME`, `--chord MM` (0.0001 to 10) and `--merge` (3MF and STL), `--sheets`, `--allow-partial`, `--exact-only`, `--include-hidden` and `--check` (STEP), `--max-mb N`, `--force`, `--allow-source-dir` | `export_result` (provisional) |
 | `sldprt DESIGN` | `-o FILE` (or a folder that exists; default: the design's name with `.SLDPRT` in the current folder), `--allow-partial`, `--allow-source-dir`; never replaces a file, so no `--force` | `sldprt_written` (provisional) |
 | `list FOLDER` | `--formats solidworks\|all\|IDS` (default `solidworks`), `--recursive`, `--include properties,configurations`, `--preview none`, `meta` (default) or `inline`, `--max-depth N`, `--limit N`, `--max-examined N`, `--timeout SECONDS`, `--file-timeout SECONDS` (default 30), `--memory-mb N` (default 2048), `--in-process` | `listing` |
 | `batch FOLDER -o DIR` | `--no-recurse`, `--no-preview`, `--no-parasolid`, `--text`, `--configuration NAME`, `--allow-partial`, `--other-configurations` and `--include-hidden` (assemblies), `--max-mb N`, `--jobs N` (1 to 64, default 1), `--file-timeout SECONDS` (default 300), `--memory-mb N` (default 2048), `--in-process`, `--max-examined N`, `--force`, `--allow-source-dir` | `batch_summary` |
@@ -6011,6 +6033,19 @@ is left out, listed in `skipped`, and the export exits 4. A Parasolid transmit f
 (`.x_t`, `.x_b`) is written the same way (3.19), `source_format` `parasolid`;
 another 3D file exits 1 with `not_implemented` (`detail.rule` `model_file`).
 The write guards are those above.
+
+`export --format step --check` (provisional) then has Open CASCADE read the file
+back, through the OCCT backend extension (3.20.10), as another CAD program would
+read it: its basic reader, every root, OCCT's validity check, and the volume,
+area and box of the solids, measured as `docs/OCCT.md` section 5 says. The file
+is sound when every root was read, a part's solids, sheets and faces are those
+written (an assembly's counts are per part, so only the rest is checked there),
+no face lies outside a shell, every shell of a solid is closed, every edge of a
+solid joins two faces and the shape is valid. The result is `export_result`'s
+`check` (5.14); a file that is not sound is kept and the command exits 1, each
+`finding` printed after `check:`. Without the extension `--check` exits 1 with
+`format_not_supported` (rule `needs_extension`) before anything is written, and
+with `3mf` or `stl` it exits 2.
 
 `sldprt` writes a SOLIDWORKS part from a design, without SOLIDWORKS
 (provisional). DESIGN is a SolidCraft file (`.solidcraft`) or a SolidSeas IR

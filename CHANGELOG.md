@@ -37,6 +37,13 @@ while the project takes shape.
 
 ### Added
 
+- **A second opinion on a STEP export.** `solidseas export FILE --format step
+  --check` has Open CASCADE read the new STEP file back. It says whether the
+  file holds what was written, closed and valid, and gives Open CASCADE's volume
+  and area to compare with SOLIDWORKS' Mass Properties. It exits 1 when the file
+  does not read as written; the file is kept. It needs the OCCT backend
+  extension.
+
 - **File > Convert in the viewer.** With the OCCT backend extension on, File >
   Convert writes the file shown as IGES, BREP or STEP: a SOLIDWORKS part or
   assembly, a Parasolid or STEP file as IGES or BREP, an IGES file as STEP or

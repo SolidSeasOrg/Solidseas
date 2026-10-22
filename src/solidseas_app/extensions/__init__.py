@@ -303,12 +303,14 @@ CATALOG: dict[str, Manifest] = {
         _packaged(
             "occt",
             "OCCT backend",
-            "Opens IGES and BREP files in the viewer and the command line, and writes IGES, BREP and "
-            "STEP with File > Convert and solidseas convert, through Open CASCADE.",
+            "Opens IGES and BREP files in the viewer and the command line, writes IGES, BREP and "
+            "STEP with File > Convert and solidseas convert, and checks the STEP files SolidSeas "
+            "writes, through Open CASCADE.",
             (
                 "IGES and BREP files in the viewer and the command line",
                 "File > Convert in the viewer",
                 "IGES, BREP and STEP from solidseas convert",
+                "a check of STEP files with solidseas export --check",
             ),
             (),
             "none",

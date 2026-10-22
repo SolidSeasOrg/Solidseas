@@ -217,9 +217,13 @@ and Open CASCADE's notices (beads SolidSeas-3he, SolidSeas-7r8 and SolidSeas-e2z
   loose faces as they are, runs `BRepCheck_Analyzer`, and writes `model.step`,
   `model.igs` (BRep mode, a header that names no one) or `model.brep`, never over a file.
   Its reply reports what it read; an error carries a fixed message or a class name,
-  never Open CASCADE's text. Its standard output points at the null device before OCP
-  loads, it shows no error box and writes no dump, and elsewhere than Windows it caps its
-  own memory (`--memory-mb`) and ends with its parent.
+  never Open CASCADE's text. It also takes `check` requests: a staged STEP file read back
+  with the basic reader, writing nothing, its reply the roots read and transferred, the
+  solids, sheets, loose faces and faces, the solids' open shells and edges not used twice,
+  the validity check, and the volume, area and box in millimetres (Gauss-Kronrod volume
+  and adaptive area, `docs/OCCT.md` section 5). Its standard output points at the null
+  device before OCP loads, it shows no error box and writes no dump, and elsewhere than
+  Windows it caps its own memory (`--memory-mb`) and ends with its parent.
 - **The backend** (`solidseas.convert.occt`) finds the helper: `SOLIDSEAS_OCCT_HELPER_PYTHON`
   in a source checkout (an interpreter where OCP imports, running the checkout's helper
   module with `-I`), else the package, through `start_helper`, only while the extension is
@@ -262,8 +266,12 @@ and Open CASCADE's notices (beads SolidSeas-3he, SolidSeas-7r8 and SolidSeas-e2z
   assembly, Parasolid, IGES, BREP or STEP file shown, as another of those formats, a
   SOLIDWORKS document or a Parasolid file through the STEP File > Export STEP writes of
   it, run in the export's own process as Export STEP is, which starts the helper there.
-- **Not built yet:** STEP cross-checks through the helper and an IGES reader of SolidSeas'
-  own.
+  `solidseas export --format step --check` cross-checks the STEP file it wrote through the
+  helper's `check` (`OcctBackend.check_bytes`, `step_findings`): sound when every root was
+  read into the solids, sheets and faces written, closed and valid, exit 1 otherwise, with
+  Open CASCADE's volume, area and box to compare with SOLIDWORKS' own.
+- **Not built yet:** the check in the viewer's Export STEP, and an IGES reader of
+  SolidSeas' own.
 
 **SolidCraft** (packaged). SolidCraft is a free parametric CAD program (MIT or Apache-2.0,
 github.com/bherbruck/solidcraft). Its package carries `solidcraft-cli.exe` from SolidCraft's

@@ -37,7 +37,7 @@ from solidseas.formats import occt as reader
 from solidseas.formats import open_model, registry
 from solidseas_app import extensions as X
 from solidseas_app.extensions import occt_helper
-from support import fixture_path
+from support import FIXTURES, fixture_path
 
 ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / "src"
@@ -47,12 +47,15 @@ STEP_FIXTURE = fixture_path("o02_boxA.step")
 # A stand-in for the helper: the protocol, and a STEP file of the fixtures as every result.
 # What the staged file holds says what it does instead: CRASH ends it, SLOW never answers,
 # REFUSE answers with an error, ELSEWHERE writes outside the folder it was given, OPEN and
-# INVALID change the report.
+# INVALID change the report, and FEWER a check's face count. OCCT_STANDIN_OPS names the
+# operations it offers (an older helper had no check).
 STANDIN = r"""
 import json, os, shutil, sys, time
 step = os.environ["OCCT_STANDIN_STEP"]
 names = {"step": "model.step", "iges": "model.igs", "occt_brep": "model.brep"}
-print(json.dumps({"event": "ready", "protocol": 1, "helper": "occt", "operations": ["convert"]}), flush=True)
+ops = os.environ.get("OCCT_STANDIN_OPS", "convert,check").split(",")
+ready = {"event": "ready", "protocol": 1, "helper": "occt", "operations": ops, "versions": {"occt": "7.9.3"}}
+print(json.dumps(ready), flush=True)
 for line in sys.stdin:
     msg = json.loads(line)
     rid = msg["id"]
@@ -62,7 +65,7 @@ for line in sys.stdin:
     args = msg["args"]
     data = open(args["path"], "rb").read()
     with open(os.environ["OCCT_STANDIN_LOG"], "a") as log:
-        log.write(json.dumps({"args": args, "argv": sys.argv[1:]}) + "\n")
+        log.write(json.dumps({"op": msg["op"], "args": args, "argv": sys.argv[1:]}) + "\n")
     if b"CRASH" in data:
         os._exit(3)
     if b"SLOW" in data:
@@ -70,6 +73,16 @@ for line in sys.stdin:
     if b"REFUSE" in data:
         error = {"code": "no_geometry", "message": "the file holds curves or points only"}
         print(json.dumps({"id": rid, "ok": False, "error": error}), flush=True)
+        continue
+    if msg["op"] == "check":
+        report = {
+            "from": "step", "roots": 1, "roots_transferred": 1, "shapes": 1, "solids": 1, "sheets": 0,
+            "free_faces": 0, "faces": 5 if b"FEWER" in data else 6, "free_edges": 0,
+            "open_solid_shells": 1 if b"OPEN" in data else 0, "nonmanifold_edges": 0,
+            "valid": b"INVALID" not in data, "volume_mm3": 6000.0, "area_mm2": 2200.0,
+            "box_mm": [0, 0, 0, 10, 20, 30], "extra": "dropped",
+        }
+        print(json.dumps({"id": rid, "ok": True, "result": {"report": report}}), flush=True)
         continue
     target = os.path.join(args["out_dir"], names[args["to"]])
     if b"ELSEWHERE" in data:
@@ -377,6 +390,89 @@ def test_a_file_that_takes_too_long_ends_the_helper(standin, fresh, monkeypatch)
     assert fresh.convert_bytes(b"quick", "iges", "step").data == STEP_FIXTURE.read_bytes()
 
 
+def test_a_step_file_is_checked_through_the_helper(standin, fresh, monkeypatch):
+    report = fresh.check_bytes(b"a STEP file")
+    assert report["occt"] == "7.9.3" and report["faces"] == 6 and report["valid"] is True
+    assert report["volume_mm3"] == 6000.0 and report["box_mm"] == [0.0, 0.0, 0.0, 10.0, 20.0, 30.0]
+    assert "extra" not in report and "from" not in report  # a reply is data: only what it should hold
+    assert occt.step_findings(report, solids=1, sheets=0, faces=6) == []
+    (sent,) = _requests(standin)
+    assert sent["op"] == "check" and sorted(sent["args"]) == ["from", "path"]
+    assert sent["args"]["from"] == "step" and not os.path.exists(sent["args"]["path"])  # staging removed
+    bad = fresh.check_bytes(b"OPEN INVALID FEWER")
+    assert occt.step_findings(bad, solids=1, sheets=0, faces=6) == [
+        "Open CASCADE read 5 face(s) where 6 were written",
+        "1 shell(s) of a solid are not closed",
+        "Open CASCADE's own check finds faults in the shape",
+    ]
+    assert len(occt.step_findings(bad)) == 2  # no counts given: none compared
+    assert occt.step_findings({"roots": 0}) == ["Open CASCADE found nothing in the file to read"]
+    assert occt.step_findings({"roots": 3, "roots_transferred": 2}) == [
+        "Open CASCADE read 2 of the file's 3 roots"
+    ]
+    junk = occt._check_report(
+        {"faces": -1, "solids": True, "valid": "yes", "volume_mm3": float("nan"), "box_mm": [1, 2]}, "7"
+    )
+    assert junk["faces"] is junk["solids"] is junk["valid"] is junk["volume_mm3"] is junk["box_mm"] is None
+    assert junk["occt"] is None
+    with pytest.raises(FormatNotSupportedError, match="checks STEP files"):
+        fresh.check_bytes(b"x", "iges")
+    # a helper of an older package, with no check, says to add this release's
+    monkeypatch.setenv("OCCT_STANDIN_OPS", "convert")
+    fresh.forget()
+    with pytest.raises(FormatNotSupportedError) as exc:
+        fresh.check_bytes(b"a STEP file")
+    assert str(exc.value) == occt.NO_CHECK and exc.value.detail["rule"] == "needs_extension"
+
+
+def test_export_check_reads_the_step_file_back(tmp_path, standin, capsys, monkeypatch):
+    from jsonschema_subset import validate
+
+    out = tmp_path / "out"
+    out.mkdir()
+    part = str(fixture_path("o02_boxA.SLDPRT"))
+    assert cli.main(["export", part, "--format", "step", "--check", "-o", str(out)]) == 0
+    said = capsys.readouterr().out
+    assert (
+        "checked with Open CASCADE 7.9.3: it reads the file as written, 1 solid(s), 0 sheet(s), 6 faces, "
+        "closed and valid" in said
+    )
+    assert "Open CASCADE 7.9.3 measures volume 6,000 cubic mm, area 2,200 square mm" in said
+    (sent,) = _requests(standin)
+    assert sent["op"] == "check" and sent["args"]["from"] == "step"
+    code = cli.main(["export", part, "--format", "step", "--check", "-o", str(out), "--force", "--json"])
+    env = json.loads(capsys.readouterr().out)
+    assert code == 0 and env["data"]["check"]["sound"] is True and env["data"]["check"]["findings"] == []
+    assert validate(env, model.envelope_schema("export_result"), strict=True) == []
+    # a reading that disagrees with what was written: exit 1, the file kept, each finding said
+    real = occt.BACKEND.check_bytes
+    monkeypatch.setattr(occt.BACKEND, "check_bytes", lambda data, fmt="step": {**real(data), "faces": 5})
+    code = cli.main(["export", part, "--format", "step", "--check", "-o", str(out), "--force"])
+    said = capsys.readouterr().out
+    assert code == 1 and "the file does not read as written" in said
+    assert (
+        "check: Open CASCADE read 5 face(s) where 6 were written" in said
+        and (out / "o02_boxA.step").is_file()
+    )
+    # without --check nothing is read back, and the field is null
+    code = cli.main(["export", part, "--format", "step", "-o", str(out), "--force", "--json"])
+    env = json.loads(capsys.readouterr().out)
+    assert code == 0 and env["data"]["check"] is None
+    assert validate(env, model.envelope_schema("export_result"), strict=True) == []
+    # 3MF and STL have none
+    assert cli.main(["export", part, "--format", "3mf", "--check", "-o", str(out)]) == 2
+    assert "--check is for --format step" in capsys.readouterr().err
+    # and without the backend it is said before anything is written
+    monkeypatch.delenv(occt.ENV_PYTHON)
+    occt.BACKEND._checked = None
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    code = cli.main(["export", part, "--format", "step", "--check", "-o", str(empty), "--json"])
+    env = json.loads(capsys.readouterr().out)
+    assert code == 1 and env["error"]["detail"] == {"rule": "needs_extension", "value": "step"}
+    assert list(empty.iterdir()) == []
+
+
 def test_convert_writes_a_new_file_through_the_backend(tmp_path, standin, capsys):
     out = tmp_path / "out"
     out.mkdir()
@@ -456,15 +552,23 @@ def test_the_helper_s_conversation_holds_without_open_cascade():
         b'{"id": 2, "op": "convert", "args": {"path": "//server/share/x.igs", "from": "iges", '
         b'"to": "step", "out_dir": "."}}\n',
         b'{"id": 3, "op": "convert", "args": {"path": "x", "from": "stl", "to": "step", "out_dir": "."}}\n',
+        b'{"id": 7, "op": "check", "args": {"path": "\\\\\\\\server\\\\share\\\\x.step", "from": "step"}}\n',
+        b'{"id": 8, "op": "check", "args": {"path": "x.igs", "from": "iges"}}\n',
+        b'{"id": 9, "op": "check", "args": {"path": "no such file.step", "from": "step"}}\n',
         b'{"id": 4, "op": "shutdown"}\n',
         b'{"id": 5, "op": "nope"}\n',
     ]
     said: list[dict] = []
     assert occt_helper.serve(iter(lines).__next__, said.append) == 0
-    assert [m["id"] for m in said] == [None, None, 1, 2, 3, 4]
+    assert [m["id"] for m in said] == [None, None, 1, 2, 3, 7, 8, 9, 4]
     assert said[0]["error"]["code"] == "invalid_request" and said[2]["error"]["code"] == "unknown_op"
     assert said[3]["error"] == {"code": "refused", "message": "path is a network path"}
     assert said[4]["error"]["message"].startswith("from is one of")
+    # a check reads a STEP file the core staged, never a network path, and nothing else
+    assert said[5]["error"] == {"code": "refused", "message": "path is a network path"}
+    assert said[6]["error"] == {"code": "refused", "message": "from is one of step"}
+    assert said[7]["error"] == {"code": "refused", "message": "path is not a plain file"}
+    assert "check" in occt_helper.OPERATIONS and occt_helper.CHECKS == ("step",)
     # a line too long is answered once, its rest read and dropped
     long = [
         b"x" * (occt_helper.MAX_REQUEST_BYTES + 1),
@@ -700,6 +804,41 @@ def test_iges_and_brep_open_through_the_helper_program(tmp_path, monkeypatch, fr
     assert cli.main(["convert", str(out / "o02_boxA.igs"), "--format", "brep", "-o", str(again)]) == 0
     with open_model(again / "o02_boxA.brep") as doc:
         assert doc.scene().objects[0].measures()["volume_m3"] == pytest.approx(_step_volume(), rel=1e-9)
+
+
+def test_open_cascade_checks_the_step_files_solidseas_writes(tmp_path, monkeypatch, fresh, capsys):
+    python = ocp_python()
+    if python is None:
+        pytest.skip("no interpreter where OCP imports (SOLIDSEAS_OCCT_PYTHON, or this one)")
+    monkeypatch.setenv(occt.ENV_PYTHON, python)
+    truth = json.loads((FIXTURES / "ground_truth.json").read_text(encoding="utf-8"))
+    for name, solids, faces in (("o11_curved.SLDPRT", 1, 14), ("o12_multibody.SLDPRT", 2, 12)):
+        out = tmp_path / name
+        out.mkdir()
+        argv = ["export", str(fixture_path(name)), "--format", "step", "--check", "-o", str(out), "--json"]
+        code = cli.main(argv)
+        check = json.loads(capsys.readouterr().out)["data"]["check"]
+        assert code == 0 and check["sound"] is True and check["findings"] == [], (name, check)
+        assert (check["solids"], check["faces"], check["occt"]) == (solids, faces, "7.9.3")
+        # the measures are SOLIDWORKS' own, as the oracle measures them
+        sw = truth[name]["api"]["configurations"]["Default"]
+        assert check["volume_mm3"] * 1e-9 == pytest.approx(sw["volume_m3"], rel=1e-9)
+        assert check["area_mm2"] * 1e-6 == pytest.approx(sw["surface_area_m2"], rel=1e-9)
+    # a box whose shell lost a face: Open CASCADE still reads it, but not as written
+    out = tmp_path / "box"
+    out.mkdir()
+    assert cli.main(["export", str(fixture_path("o02_boxA.SLDPRT")), "--format", "step", "-o", str(out)]) == 0
+    capsys.readouterr()
+    text = (out / "o02_boxA.step").read_text(encoding="ascii")
+    shell = re.search(r"CLOSED_SHELL\('[^']*',\((#\d+(?:,#\d+)*)\)\)", text)
+    damaged = text.replace(shell.group(1), shell.group(1).rsplit(",", 1)[0])
+    check = fresh.check_bytes(damaged.encode("ascii"))
+    # Open CASCADE makes a surface body of a solid whose shell is open, and the check says so
+    assert occt.step_findings(check, solids=1, sheets=0, faces=6) == [
+        "Open CASCADE read 0 solid(s) where 1 were written",
+        "Open CASCADE read 1 sheet(s) where 0 were written",
+        "Open CASCADE read 5 face(s) where 6 were written",
+    ]
 
 
 def test_the_rest_service_reads_iges_geometry_through_the_helper_program(tmp_path, monkeypatch, fresh):

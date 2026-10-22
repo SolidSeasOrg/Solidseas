@@ -286,3 +286,16 @@ it.
 written the same way, through the same mapping of its bodies. For a 3D file of
 any other format Export STEP is off, its tooltip saying why, and the command line
 answers `not_implemented`.
+
+To see how another CAD program will take the file, add `--check` with the OCCT
+backend extension on ([Every 3D format](formats.md#iges-and-brep-files)):
+Open CASCADE, an independent geometry kernel, then reads the file back and the
+command says whether it holds what was written, every solid closed and valid,
+or what it found wrong, and gives Open CASCADE's volume and area to compare with
+SOLIDWORKS' Mass Properties:
+
+```bash
+solidseas export bracket.SLDPRT --format step --check -o D:\Out
+```
+
+A file that does not read as written is kept, and the command exits 1.

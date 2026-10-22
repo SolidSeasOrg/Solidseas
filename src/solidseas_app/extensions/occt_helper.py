@@ -21,6 +21,14 @@ requests by id:
   never over a file. The reply says what was read: solids, shells closed by sewing,
   shells left open, loose faces, whether the result is valid, and for IGES the unit and
   the sending system the file names.
+* ``check`` with ``path`` (a STEP file the core staged) and ``from`` (``step``): the
+  file read back as another CAD program would read it, to check a STEP file SolidSeas
+  wrote. It reads with the basic reader and reports, without writing anything, how many
+  roots there were and how many transferred; the solids, the surface bodies (shells in no
+  solid), the faces in no shell and all the faces; the solids' shells that are not
+  closed, their edges used by one face only or by more than two; whether OCCT's validity
+  check passes; and the volume and area of the solids (of the surfaces when there is no
+  solid) and the box, in millimetres, integrated as ``docs/OCCT.md`` section 5 says.
 * ``version`` and ``shutdown``.
 
 The rules of ``docs/OCCT.md`` section 3 hold here: file descriptor 1 points at the null
@@ -41,11 +49,15 @@ import sys
 
 PROTOCOL = 1
 HELPER = "occt"
-OPERATIONS = ("convert", "version", "shutdown")
+OPERATIONS = ("convert", "check", "version", "shutdown")
 READS = ("iges", "occt_brep", "step")
 WRITES = ("step", "iges", "occt_brep")
+CHECKS = ("step",)
 OUTPUT_NAMES = {"step": "model.step", "iges": "model.igs", "occt_brep": "model.brep"}
 SEW_TOLERANCE_MM = 0.01  # docs/OCCT.md tier 1
+# A check's integration (docs/OCCT.md section 5: Gauss-Kronrod volume, adaptive area): the
+# relative error allowed, looser than the oracle's 1e-9, which took minutes on some parts.
+CHECK_EPS = 1e-6
 MAX_REQUEST_BYTES = 4 << 20  # one request line, UTF-8
 MAX_NAME = 120
 # IGES unit flags (global parameter 14) and the unit each names.
@@ -220,7 +232,7 @@ def _read_step(path: str, report: dict):
     if reader.ReadFile(path) != IFSelect_ReturnStatus.IFSelect_RetDone:
         raise Refused("read_failed", "Open CASCADE could not read the STEP file")
     report["roots"] = reader.NbRootsForTransfer()
-    reader.TransferRoots()
+    report["roots_transferred"] = reader.TransferRoots()
     report["shapes"] = reader.NbShapes()
     if reader.NbShapes() == 0:
         raise Refused("no_geometry", "the STEP file holds no shape Open CASCADE could read")
@@ -370,6 +382,97 @@ def convert(args: dict) -> dict:
     return {"path": target, "bytes": os.path.getsize(target), "format": fmt_out, "report": report}
 
 
+# --------------------------------------------------------------------------- checking
+def _edge_uses(solid) -> tuple[int, int]:
+    """The edges of ``solid`` used by one face only (a seam's two uses count as two), and
+    by more than two."""
+    from OCP.BRep import BRep_Tool
+    from OCP.TopAbs import TopAbs_EDGE, TopAbs_FACE
+    from OCP.TopExp import TopExp
+    from OCP.TopoDS import TopoDS
+    from OCP.TopTools import TopTools_IndexedDataMapOfShapeListOfShape
+
+    uses = TopTools_IndexedDataMapOfShapeListOfShape()
+    TopExp.MapShapesAndAncestors_s(solid, TopAbs_EDGE, TopAbs_FACE, uses)
+    free = nonmanifold = 0
+    for i in range(1, uses.Extent() + 1):
+        edge = TopoDS.Edge_s(uses.FindKey(i))
+        n = uses.FindFromIndex(i).Size()
+        if BRep_Tool.Degenerated_s(edge):
+            continue
+        if n == 1 and not BRep_Tool.IsClosed_s(edge, TopoDS.Face_s(uses.FindFromIndex(i).First())):
+            free += 1
+        elif n > 2:
+            nonmanifold += 1
+    return free, nonmanifold
+
+
+def _soundness(shape, report: dict) -> None:
+    """What a closed, valid shape needs, counted: surface bodies and loose faces, solids'
+    shells that are not closed, and their edges used other than twice."""
+    from OCP.BRep import BRep_Tool
+    from OCP.TopAbs import TopAbs_FACE, TopAbs_SHELL, TopAbs_SOLID
+
+    report["sheets"] = len(_items(shape, TopAbs_SHELL, TopAbs_SOLID))
+    report["free_faces"] = len(_items(shape, TopAbs_FACE, TopAbs_SHELL))
+    open_shells = free = nonmanifold = 0
+    for solid in _items(shape, TopAbs_SOLID):
+        open_shells += sum(1 for sh in _items(solid, TopAbs_SHELL) if not BRep_Tool.IsClosed_s(sh))
+        f, n = _edge_uses(solid)
+        free += f
+        nonmanifold += n
+    report["open_solid_shells"] = open_shells
+    report["free_edges"] = free
+    report["nonmanifold_edges"] = nonmanifold
+
+
+def _measures(shape, report: dict) -> None:
+    """The solids' volume and area (the surfaces' area when there is no solid) and the box,
+    in millimetres, the units Open CASCADE reads a STEP file in."""
+    from OCP.Bnd import Bnd_Box
+    from OCP.BRepBndLib import BRepBndLib
+    from OCP.BRepGProp import BRepGProp
+    from OCP.GProp import GProp_GProps
+    from OCP.TopAbs import TopAbs_SOLID
+
+    solids = _items(shape, TopAbs_SOLID)
+    measured = _compound(solids) if solids else shape
+    if solids:
+        props = GProp_GProps()
+        # Gauss-Kronrod with span splitting; the default integrator was off by up to 8.6 %
+        BRepGProp.VolumePropertiesGK_s(measured, props, CHECK_EPS, False, True, False, False)
+        report["volume_mm3"] = props.Mass()
+    else:
+        report["volume_mm3"] = None
+    props = GProp_GProps()
+    BRepGProp.SurfaceProperties_s(measured, props, CHECK_EPS)  # the adaptive area
+    report["area_mm2"] = props.Mass()
+    box = Bnd_Box()
+    BRepBndLib.AddOptimal_s(shape, box, False, False)
+    if box.IsVoid():
+        report["box_mm"] = None
+    else:
+        lo, hi = box.CornerMin(), box.CornerMax()
+        report["box_mm"] = [lo.X(), lo.Y(), lo.Z(), hi.X(), hi.Y(), hi.Z()]
+
+
+def check(args: dict) -> dict:
+    """Carry out a ``check`` request (module notes) and return its result."""
+    if not isinstance(args, dict):
+        raise Refused("refused", "the request has no arguments")
+    src = _local_file(args.get("path"), "path")
+    if args.get("from") not in CHECKS:
+        raise Refused("refused", f"from is one of {', '.join(CHECKS)}")
+    if os.path.islink(src) or not os.path.isfile(src):
+        raise Refused("refused", "path is not a plain file")
+    report: dict = {"from": "step"}
+    shape = _read_step(src, report)
+    _census(shape, report)
+    _soundness(shape, report)
+    _measures(shape, report)
+    return {"report": report}
+
+
 # --------------------------------------------------------------------------- the conversation
 def _memory_mb(argv: list[str]) -> int | None:
     if "--memory-mb" in argv:
@@ -409,6 +512,8 @@ def serve(read_line, say) -> int:
         try:
             if op == "convert":
                 result = convert(message.get("args") or {})
+            elif op == "check":
+                result = check(message.get("args") or {})
             elif op == "version":
                 result = {"versions": versions()}
             else:
@@ -462,6 +567,8 @@ if __name__ == "__main__":  # pragma: no cover
 
 
 __all__ = [
+    "CHECKS",
+    "CHECK_EPS",
     "HELPER",
     "OPERATIONS",
     "OUTPUT_NAMES",
@@ -471,6 +578,7 @@ __all__ = [
     "WRITES",
     "Refused",
     "brep_kind",
+    "check",
     "convert",
     "harden",
     "main",

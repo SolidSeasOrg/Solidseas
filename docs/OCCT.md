@@ -126,6 +126,19 @@ convert (`solidseas convert part.step --format iges`); SolidSeas' own STEP reade
 stays the one that opens STEP files. The first Windows build of the package, and
 the security review of row 15 (section 9), are still to come.
 
+The helper also brings tier 0's fixture checks to anyone with the extension:
+`solidseas export --format step --check` has it read the STEP file just written
+with the basic reader and says the file is sound when every root transferred, a
+part's solids, sheets and faces are those written, every shell of a solid is
+closed, every edge of a solid joins two faces and `BRepCheck_Analyzer` finds it
+valid, the criteria the oracle holds SolidSeas' STEP of every fixture to. It
+also gives the Gauss-Kronrod volume and the adaptive area, at a relative error
+of 1e-6 rather than the oracle's 1e-9 so that a check never takes minutes; on
+the fixtures o02, o07, o10, o11 and o12 they agree with SOLIDWORKS' own within
+1e-15. A solid whose shell lost a face is read by OCCT as a surface body, and
+the check says so. The viewer's Export STEP does not offer the check yet; its
+File > Convert writes IGES, BREP and STEP through the helper.
+
 ### Tier 2, later and separate
 
 - The CadQuery workspace (SolidSeas-03q) is a separate, heavier extra: the full

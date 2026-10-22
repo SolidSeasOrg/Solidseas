@@ -27,6 +27,13 @@ by the SHA-256 of what was converted (:data:`CACHE_BYTES`), so a process that re
 file more than once (a viewer worker reading its details, then its preview) converts it
 once.
 
+A STEP file can be checked too (:meth:`OcctBackend.check_bytes`): Open CASCADE reads it
+back in the helper as another CAD program would, and :func:`step_findings` says in words
+what it found wrong (roots it did not transfer, solids or faces other than those written,
+shells not closed, edges not used twice, a shape its own check refuses), and gives its
+volume, area and box to compare with SOLIDWORKS' Mass Properties. ``solidseas export
+--format step --check`` checks the file it wrote.
+
 In the viewer and the REST service, files of other formats are read in worker processes
 whose Job Object lets no worker start a process; the viewer's model pool and the service's
 pool let each start one, this helper (``WorkerPool(helpers_per_worker=1)``, decided by
@@ -76,6 +83,10 @@ SWITCHED_OFF = f"{WHAT}, which is switched off. Switch it on in Tools > Extensio
 NOT_ALLOWED = f"{WHAT}, which your administrator has not allowed on this PC."
 NO_APP = (
     f"{WHAT} of SolidSeas Desktop. From a source checkout, set {ENV_PYTHON} to a Python where OCP imports."
+)
+NO_CHECK = (
+    "The OCCT backend's helper cannot check STEP files: add the OCCT package of this SolidSeas "
+    "release in Tools > Extensions."
 )
 
 
@@ -244,8 +255,6 @@ class OcctBackend(Backend):
             self._cache_bytes -= len(old.data)
 
     def _convert(self, data: bytes, format_id: str, target: str, name: str | None) -> Converted:
-        from ..helpers import HelperExitedError, HelperRequestError, HelperTimeoutError
-
         stage = tempfile.mkdtemp(prefix="solidseas-occt-")
         try:
             src_dir, out_dir = os.path.join(stage, "in"), os.path.join(stage, "out")
@@ -254,30 +263,70 @@ class OcctBackend(Backend):
             src = os.path.join(src_dir, SOURCE_NAMES[format_id])
             with open(src, "xb") as fh:
                 fh.write(data)
-            helper = self._running()
             args = {"path": src, "from": format_id, "to": target, "out_dir": out_dir}
             if name:
                 args["name"] = name
-            try:
-                result = helper.request("convert", args)
-            except HelperTimeoutError:
-                raise WorkerTimeoutError(
-                    "Open CASCADE did not finish the file in time; the OCCT helper was ended"
-                ) from None
-            except HelperExitedError:
-                raise SldFormatError(
-                    "Open CASCADE stopped while it read the file, which may be damaged"
-                ) from None
-            except HelperRequestError as exc:
-                if exc.code == "out_of_memory":
-                    raise SldLimitError(
-                        "Open CASCADE ran out of memory on the file", detail={"limit": "memory"}
-                    ) from None
-                text = str(exc).removeprefix("convert: ")
-                raise SldFormatError(f"Open CASCADE could not convert the file: {text}") from None
+            result = self._ask(self._running(), "convert", args, "convert")
             return Converted(target, self._result(result, out_dir, target), _report(result.get("report")))
         finally:
             shutil.rmtree(stage, ignore_errors=True)
+
+    @staticmethod
+    def _ask(helper, op: str, args: dict, doing: str) -> dict:
+        """The helper's answer to ``op``, its failures said as SolidSeas' errors."""
+        from ..helpers import HelperExitedError, HelperRequestError, HelperTimeoutError
+
+        try:
+            return helper.request(op, args)
+        except HelperTimeoutError:
+            raise WorkerTimeoutError(
+                "Open CASCADE did not finish the file in time; the OCCT helper was ended"
+            ) from None
+        except HelperExitedError:
+            raise SldFormatError(
+                "Open CASCADE stopped while it read the file, which may be damaged"
+            ) from None
+        except HelperRequestError as exc:
+            if exc.code == "out_of_memory":
+                raise SldLimitError(
+                    "Open CASCADE ran out of memory on the file", detail={"limit": "memory"}
+                ) from None
+            text = str(exc).removeprefix(f"{op}: ")
+            raise SldFormatError(f"Open CASCADE could not {doing} the file: {text}") from None
+
+    # ----------------------------------------------------------------------- checking
+    def check_bytes(self, data: bytes, format_id: str = "step") -> dict[str, Any]:
+        """What Open CASCADE makes of the STEP file ``data``, read back in the helper with
+        its basic reader as another CAD program would read it (the helper's ``check``):
+        :data:`CHECK_COUNTS`, ``valid`` (OCCT's validity check), ``volume_mm3`` and
+        ``area_mm2`` (the solids', or the surfaces' area when there is no solid),
+        ``box_mm`` and ``occt``, the Open CASCADE version that read it. Nothing is written.
+        :func:`step_findings` says what is wrong in it. Raises as :meth:`convert_bytes`
+        does, and ``FormatNotSupportedError`` for a helper that has no ``check``."""
+        if format_id != "step":
+            raise FormatNotSupportedError(
+                f"the OCCT backend checks STEP files, not {format_id}",
+                detail={"rule": "no_reader", "value": format_id},
+            )
+        reason = self.unavailable()
+        if reason is not None:
+            raise FormatNotSupportedError(reason, detail={"rule": "needs_extension", "value": format_id})
+        with self._lock:
+            stage = tempfile.mkdtemp(prefix="solidseas-occt-")
+            try:
+                src = os.path.join(stage, SOURCE_NAMES["step"])
+                with open(src, "xb") as fh:
+                    fh.write(data)
+                helper = self._running()
+                ready = getattr(helper, "ready", None) or {}
+                if "check" not in (ready.get("operations") or ()):
+                    raise FormatNotSupportedError(
+                        NO_CHECK, detail={"rule": "needs_extension", "value": "step"}
+                    )
+                result = self._ask(helper, "check", {"path": src, "from": "step"}, "check")
+                return _check_report(result.get("report"), ready.get("versions"))
+            finally:
+                shutil.rmtree(stage, ignore_errors=True)
 
     @staticmethod
     def _result(result: dict, out_dir: str, target: str) -> bytes:
@@ -340,6 +389,88 @@ def _report(raw: Any) -> dict[str, Any]:
     return out
 
 
+# What a check counts (OcctBackend.check_bytes): the file's roots and those transferred, the
+# shapes made; solids, surface bodies (shells in no solid), faces in no shell, all faces; and
+# the solids' shells that are not closed and their edges used by one face or by more than two.
+CHECK_COUNTS = (
+    "roots",
+    "roots_transferred",
+    "shapes",
+    "solids",
+    "sheets",
+    "free_faces",
+    "faces",
+    "open_solid_shells",
+    "free_edges",
+    "nonmanifold_edges",
+)
+
+
+def _number(value: Any) -> float | None:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    value = float(value)
+    return value if abs(value) < 1e30 and value == value else None  # finite, and not absurd
+
+
+def _check_report(raw: Any, versions: Any) -> dict[str, Any]:
+    """The helper's check, kept only as the numbers it should hold (a reply is data)."""
+    raw = raw if isinstance(raw, dict) else {}
+    out: dict[str, Any] = {}
+    for key in CHECK_COUNTS:
+        value = raw.get(key)
+        ok = isinstance(value, int) and not isinstance(value, bool) and 0 <= value < 1 << 40
+        out[key] = value if ok else None
+    valid = raw.get("valid")
+    out["valid"] = valid if isinstance(valid, bool) else None
+    out["volume_mm3"] = _number(raw.get("volume_mm3"))
+    out["area_mm2"] = _number(raw.get("area_mm2"))
+    box = raw.get("box_mm")
+    corners = [_number(v) for v in box] if isinstance(box, list) and len(box) == 6 else None
+    out["box_mm"] = corners if corners is not None and None not in corners else None
+    out["occt"] = _short((versions if isinstance(versions, dict) else {}).get("occt"), 32)
+    return out
+
+
+def step_findings(
+    check: dict[str, Any],
+    *,
+    solids: int | None = None,
+    sheets: int | None = None,
+    faces: int | None = None,
+) -> list[str]:
+    """What is wrong in a STEP file as Open CASCADE read it back (``check``, from
+    :meth:`OcctBackend.check_bytes`), one sentence each; none when it read every root into
+    closed, valid shapes. ``solids``, ``sheets`` and ``faces``, when given, are what was
+    written into the file (a part's counts: an assembly's count each part once, not each
+    instance), and a reading that differs from them is said too."""
+    said: list[str] = []
+    roots, moved = check.get("roots"), check.get("roots_transferred")
+    if not roots:
+        said.append("Open CASCADE found nothing in the file to read")
+    elif moved != roots:
+        said.append(f"Open CASCADE read {moved or 0} of the file's {roots} roots")
+    for key, written, what in (
+        ("solids", solids, "solid(s)"),
+        ("sheets", sheets, "sheet(s)"),
+        ("faces", faces, "face(s)"),
+    ):
+        got = check.get(key)
+        if written is not None and got is not None and got != written:
+            said.append(f"Open CASCADE read {got} {what} where {written} were written")
+    for key, what in (
+        ("free_faces", "face(s) belong to no shell"),
+        ("open_solid_shells", "shell(s) of a solid are not closed"),
+        ("free_edges", "edge(s) of a solid are used by one face only"),
+        ("nonmanifold_edges", "edge(s) of a solid are used by more than two faces"),
+    ):
+        if check.get(key):
+            said.append(f"{check[key]} {what}")
+    if check.get("valid") is False:
+        said.append("Open CASCADE's own check finds faults in the shape")
+    return said
+
+
 BACKEND = OcctBackend()
 
 
@@ -369,12 +500,15 @@ def helpers_per_worker(formats: Iterable[str] | None = None) -> int:
 __all__ = [
     "AVAILABILITY_SECONDS",
     "BACKEND",
+    "CHECK_COUNTS",
     "ENV_PYTHON",
     "EXTENSION",
     "NOT_ADDED",
+    "NO_CHECK",
     "SWITCHED_OFF",
     "OcctBackend",
     "forget",
     "helper_script",
     "helpers_per_worker",
+    "step_findings",
 ]

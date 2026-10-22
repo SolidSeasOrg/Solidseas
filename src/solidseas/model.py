@@ -1704,10 +1704,11 @@ def _step_data(m: Any) -> dict[str, Any]:
     }
 
 
-def build_export_result(result: Any) -> dict[str, Any]:
+def build_export_result(result: Any, check: dict[str, Any] | None = None) -> dict[str, Any]:
     """``export_result`` data (provisional): a file ``solidseas.export`` or
-    ``solidseas.step`` wrote, from its ``ExportResult`` or ``StepResult``. Lengths in
-    millimetres."""
+    ``solidseas.step`` wrote, from its ``ExportResult`` or ``StepResult``, and ``check``,
+    what Open CASCADE made of a STEP file when ``export --check`` asked (None
+    otherwise). Lengths in millimetres."""
     from .export import MIME_TYPES
 
     m = result.model
@@ -1734,6 +1735,7 @@ def build_export_result(result: Any) -> dict[str, Any]:
                 "seconds": round(m.seconds, 3),
                 "step": _step_data(m),
                 "source_format": getattr(m, "source_format", "solidworks"),
+                "check": check,
             }
         )
     uses = Counter(it.object for it in m.items)
@@ -1778,6 +1780,7 @@ def build_export_result(result: Any) -> dict[str, Any]:
             "seconds": round(m.seconds, 3),
             "step": None,
             "source_format": getattr(m, "source_format", "solidworks"),
+            "check": check,
         }
     )
 
@@ -3159,6 +3162,32 @@ _EXPORT_SCHEMA = _obj(
             "type": "string",
             "description": "the format id of the file exported: solidworks, stl, 3mf, step... (an open set)",
         },
+        "check": _obj(
+            {
+                "sound": {
+                    "type": "boolean",
+                    "description": "Open CASCADE read every root into what was written, closed and valid",
+                },
+                "findings": _arr(_STR),
+                "occt": _STR_N,
+                "roots": _INT_N,
+                "roots_transferred": _INT_N,
+                "shapes": _INT_N,
+                "solids": _INT_N,
+                "sheets": _INT_N,
+                "free_faces": _INT_N,
+                "faces": _INT_N,
+                "open_solid_shells": _INT_N,
+                "free_edges": _INT_N,
+                "nonmanifold_edges": _INT_N,
+                "valid": _BOOL_N,
+                "volume_mm3": _NUM_N,
+                "area_mm2": _NUM_N,
+                "box_mm": _arr(_NUM, nullable=True),
+            },
+            nullable=True,
+            description="what Open CASCADE made of a STEP file read back (export --check); null otherwise",
+        ),
     }
 )
 _SLDPRT_WRITTEN_SCHEMA = _obj(
