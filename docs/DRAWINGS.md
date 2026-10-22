@@ -1929,7 +1929,9 @@ own".
 
 A `QWizard` of six pages, with the sheet preview from page 2, generated in a
 child process (`viewer/drawingproc.py`, following `viewer/meshproc.py`: a Job
-Object memory limit, below-normal priority, a time limit, cancellation):
+Object memory limit, below-normal priority, a time limit, cancellation). A
+drawing of several sheets (11.7) is previewed a sheet at a time, with Previous
+Sheet and Next Sheet under the preview:
 
 1. **Part:** file, configuration, bodies. Units: "stated in the part", or "not
    stated; looks like inch (41 of 47 sizes are whole thousandths)" with inch

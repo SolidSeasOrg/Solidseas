@@ -45,7 +45,11 @@ child's request; the next starts a new child). The UI thread never waits on the
 child: it only starts jobs and shows their answers. A progress bar under the sheet
 says each stage of the drawing as the child starts it (:data:`STAGE_WORDS`). The
 preview takes the room the pages (:data:`PAGE_WIDTH`) do not need, and View
-Larger... shows the same sheet in a window of its own.
+Larger... shows the same sheet in a window of its own. A drawing of several sheets
+(an assembly's parts list going on to more, ``docs/DRAWINGS.md`` 11.7) is shown a
+sheet at a time: a :class:`SheetPager` under the preview and another in View Larger's
+window (Previous Sheet, Next Sheet, Ctrl+Page Up and Ctrl+Page Down) page through it
+and say which sheet is shown, and a new preview keeps that sheet while it has one.
 
 **What is written, and when.** Nothing before Finish. Finish checks the folder again,
 takes the preview's drawing when it was made from the options as they are (else
@@ -86,6 +90,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from PySide6.QtCore import Qt, QThreadPool, QTimer, Signal
+from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QApplication,
@@ -119,6 +124,7 @@ from PySide6.QtWidgets import (
     QWizardPage,
 )
 
+from solidseas.drawing import display as D
 from solidseas.drawing import document, locate, standards
 from solidseas.drawing import settings as drawing_settings
 from solidseas.drawing.types import DIRECTIONS, DrawingOptions, settings_type
@@ -568,6 +574,38 @@ def _line(max_length: int = TITLE_CHARS) -> QLineEdit:
     edit = QLineEdit()
     edit.setMaxLength(max_length)
     return edit
+
+
+class SheetPager(QWidget):
+    """Previous Sheet, the words "Sheet 2 of 3" and Next Sheet, under a preview of a
+    drawing of several sheets; hidden for a drawing of one. ``go(step)`` is called with
+    -1 or 1 when a button is pressed."""
+
+    def __init__(self, go: Callable[[int], Any]) -> None:
+        super().__init__()
+        self.previous_button = QPushButton("Previous Sheet")
+        self.previous_button.setToolTip("The sheet before this one (Ctrl+Page Up)")
+        self.next_button = QPushButton("Next Sheet")
+        self.next_button.setToolTip("The sheet after this one (Ctrl+Page Down)")
+        self.label = QLabel("")
+        row = QHBoxLayout(self)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.addWidget(self.previous_button)
+        row.addStretch(1)
+        row.addWidget(self.label)
+        row.addStretch(1)
+        row.addWidget(self.next_button)
+        self.previous_button.clicked.connect(lambda _checked=False: go(-1))
+        self.next_button.clicked.connect(lambda _checked=False: go(1))
+        self.setVisible(False)
+
+    def show_page(self, page: int, count: int) -> None:
+        """Say that sheet ``page`` (from 0) of ``count`` is shown."""
+        many = count > 1
+        self.label.setText(f"Sheet {page + 1} of {count}" if many else "")
+        self.previous_button.setEnabled(many and page > 0)
+        self.next_button.setEnabled(many and page < count - 1)
+        self.setVisible(many)
 
 
 class _Page(QWizardPage):
@@ -1277,6 +1315,14 @@ class DrawingWizard(QWizard):
         self.larger_button.setEnabled(False)
         self.larger_button.clicked.connect(self.view_larger)
         self.larger: QDialog | None = None  # the preview's own window, once opened
+        # a drawing of several sheets (a long parts list goes on to more) is shown a sheet
+        # at a time, paged through under the preview and in View Larger's window alike
+        self.preview_page = 0
+        self.pager = SheetPager(self._step_sheet)
+        self.pagers: list[SheetPager] = [self.pager]
+        for keys, step in (("Ctrl+PgUp", -1), ("Ctrl+PgDown", 1)):
+            shortcut = QShortcut(QKeySequence(keys), self)
+            shortcut.activated.connect(lambda s=step: self._step_sheet(s))
         panel = QWidget()
         side = QVBoxLayout(panel)
         side.setContentsMargins(0, 0, 0, 0)
@@ -1288,6 +1334,7 @@ class DrawingWizard(QWizard):
         head.addWidget(self.larger_button)
         side.addLayout(head)
         side.addWidget(self.view, 1)
+        side.addWidget(self.pager)
         side.addWidget(self.preview_progress)
         side.addWidget(self.preview_status)
         self.preview_panel = panel  # shown from page 1: the preview starts once the part is read
@@ -1933,20 +1980,29 @@ class DrawingWizard(QWizard):
 
     def view_larger(self) -> QDialog:
         """The preview in a window of its own, which can be made as large as the screen: a
-        second view of the same sheet, so it shows each new preview as it comes."""
+        second view of the same sheet, so it shows each new preview as it comes, with its
+        own Previous Sheet and Next Sheet for a drawing of several sheets."""
         if self.larger is None:
             win = QDialog(self)
             win.setWindowTitle(f"Preview of {os.path.basename(self.part)}")
             win.setWindowFlag(Qt.WindowType.WindowMaximizeButtonHint, True)
             view = SheetView(self.scene)
+            pager = SheetPager(self._step_sheet)
+            pager.show_page(self.preview_page, len(self.preview_sheets))
+            self.pagers.append(pager)
+            for keys, step in (("Ctrl+PgUp", -1), ("Ctrl+PgDown", 1)):
+                shortcut = QShortcut(QKeySequence(keys), win)
+                shortcut.activated.connect(lambda s=step: self._step_sheet(s))
             box = QVBoxLayout(win)
             box.setContentsMargins(0, 0, 0, 0)
-            box.addWidget(view)
+            box.addWidget(view, 1)
+            box.addWidget(pager)
             screen = self.screen() or QApplication.primaryScreen()
             if screen is not None:
                 free = screen.availableGeometry()
                 win.resize(int(free.width() * SCREEN_SHARE), int(free.height() * SCREEN_SHARE))
             win.view = view  # type: ignore[attr-defined]
+            win.pager = pager  # type: ignore[attr-defined]
             self.larger = win
         self.larger.show()
         self.larger.raise_()
@@ -1981,13 +2037,36 @@ class DrawingWizard(QWizard):
         if self.currentId() == MANUFACTURING:
             self._follow_suggestion()  # the part turned out to be turned while the page shows
 
+    @property
+    def preview_sheets(self) -> tuple:
+        """The sheets of the drawing the preview shows, from the first: more than one when
+        its parts list goes on to more sheets (``docs/DRAWINGS.md`` 11.7)."""
+        drawing = getattr(self.answer, "drawing", None)
+        return D.sheets_of(getattr(drawing, "sheet", None))
+
+    def show_preview_sheet(self, number: int) -> None:
+        """Show sheet ``number`` (from 0) of the preview, kept within its sheets; the
+        pagers say which is shown."""
+        sheets = self.preview_sheets
+        self.preview_page = max(0, min(int(number), len(sheets) - 1)) if sheets else 0
+        if sheets:
+            self.scene.set_sheet(sheets[self.preview_page])
+        for pager in self.pagers:
+            pager.show_page(self.preview_page, len(sheets))
+
+    def _step_sheet(self, step: int) -> None:
+        if len(self.preview_sheets) > 1:
+            self.show_preview_sheet(self.preview_page + step)
+
     def _show_answer(self, answer: Any) -> None:
         sheet = answer.drawing.sheet
         if sheet is None:
             self.preview_status.setText("The drawing was made, but its sheet cannot be shown here.")
+            for pager in self.pagers:
+                pager.show_page(0, 0)
         else:
             first = not self.scene.owners()
-            self.scene.set_sheet(sheet)
+            self.show_preview_sheet(self.preview_page)  # the sheet shown before, while there is one
             if first:
                 self.view.fit()
             self.larger_button.setEnabled(True)

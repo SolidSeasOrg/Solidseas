@@ -145,6 +145,14 @@ keeps one width, so the wizard makes that label expand ahead of the pages
 Larger... opens the same sheet in a window of its own, as large as the screen, which
 shows each new preview as it comes.
 
+A drawing of several sheets (an assembly whose parts list goes on to more,
+`docs/DRAWINGS.md` 11.7) is previewed a sheet at a time. Under the preview, and in
+View Larger's window, Previous Sheet and Next Sheet (Ctrl+Page Up and Ctrl+Page Down)
+page through the sheets between them, the words "Sheet 2 of 3" saying which is
+shown; both windows show the same sheet. A new preview keeps the sheet shown while
+the drawing still has it, else shows its last. For a drawing of one sheet the
+buttons are hidden.
+
 While a preview is made a progress bar under the sheet says each stage as it starts,
 "Reading the part", "Meshing the part", "Recognising its features", "Drawing the
 views", "Placing the dimensions", "Checking the drawing", then "Applying your
@@ -233,7 +241,8 @@ the tests read the options, fields and edits each page sends:
 - the preview: a newer request cancelling the one in progress while the window keeps
   answering, the pause before a preview, a preview that fails, the progress bar's
   stages (an older request's not shown), the preview taking the room past the pages
-  and giving it back, View Larger showing the same sheet;
+  and giving it back, View Larger showing the same sheet, the sheets of a long
+  parts list paged through in both windows;
 - the real `DrawingWorker` drawing a copy of o02 end to end into the test's folder.
 
 ## Not in this release, and what needs the PC

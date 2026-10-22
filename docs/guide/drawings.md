@@ -120,7 +120,9 @@ The wizard asks for:
 - the dimensions and holes;
 - the files to write.
 
-The sheet is previewed beside the pages. **Finish** writes the drawing file and
+The sheet is previewed beside the pages. When the drawing has more than one
+sheet, **Previous Sheet** and **Next Sheet** under the preview (or Ctrl+Page Up
+and Ctrl+Page Down) show the others. **Finish** writes the drawing file and
 the PDF and DXF you tick, next to the part or to the folder Drawing Settings
 name. A file SolidSeas did not write is never replaced: a taken name gets
 " (2)".

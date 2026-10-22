@@ -1199,6 +1199,47 @@ def test_view_larger_shows_the_preview_in_its_own_window(app, open_wizard, made)
     win.close()
 
 
+def test_a_preview_of_several_sheets_is_paged_through(app, open_wizard, made):
+    from test_drawing_assembly import long_list
+
+    d = long_list().drawing  # an assembly whose parts list goes on to two more sheets
+    data = document.dumps(d)
+    loaded, problems = document.loads(data)
+    assert problems == []
+    drawn = replace(loaded, checks=CHECKS, coverage=d.coverage)
+    worker = StandIn(Answer(data, drawn, {"id": d.id}, CHECKS, d.coverage, seconds={"total": 0.1}))
+    w = open_wizard(worker)
+    pager = w.pager
+    sheets = w.preview_sheets
+    assert len(sheets) == 3 and w.preview_page == 0 and w.scene.sheet is sheets[0]
+    assert pager.isVisibleTo(w) and pager.label.text() == "Sheet 1 of 3"
+    assert pager.next_button.isEnabled() and not pager.previous_button.isEnabled()
+    assert "balloon-1" in w.scene.owners()
+    pager.next_button.click()
+    assert w.preview_page == 1 and w.scene.sheet is sheets[1] and pager.label.text() == "Sheet 2 of 3"
+    owners = set(w.scene.owners())
+    assert {"parts", "title", "border"} <= owners and "balloon-1" not in owners
+    w.show_preview_sheet(7)  # kept within the sheets
+    assert w.preview_page == 2 and w.scene.sheet is sheets[2]
+    assert not pager.next_button.isEnabled() and pager.previous_button.isEnabled()
+    # View Larger shows the same sheet, with Previous Sheet and Next Sheet of its own
+    win = w.view_larger()
+    assert win.view.scene() is w.scene and win.pager.label.text() == "Sheet 3 of 3"
+    win.pager.previous_button.click()
+    assert w.preview_page == 1 and pager.label.text() == "Sheet 2 of 3" and w.scene.sheet is sheets[1]
+    w._step_sheet(-1)  # as Ctrl+Page Up does
+    assert w.preview_page == 0 and win.pager.label.text() == "Sheet 1 of 3"
+    w._step_sheet(1)
+    win.close()
+    # a newer preview keeps the sheet shown while it has one: here it has one sheet only
+    worker.answer = answer_of(made)
+    w.title_page.edits["title"].setText("BRACKET, NEWER")
+    settle(app, w)
+    assert len(w.preview_sheets) == 1 and w.preview_page == 0
+    assert w.scene.sheet is w.answer.drawing.sheet
+    assert not pager.isVisibleTo(w) and not win.pager.isVisibleTo(win)
+
+
 def test_a_preview_that_fails_says_why(app, open_wizard, made):
     class Failing(StandIn):
         def make(self, part, options, fields, settings, progress=None):

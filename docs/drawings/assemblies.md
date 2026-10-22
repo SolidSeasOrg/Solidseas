@@ -268,7 +268,9 @@ is null, since an assembly has no features to cover.
   its instances in place of bodies, how many items its parts list has and which
   instances are left out); page 2 has no material or finish; pages 3 and 5, how
   a part is made and its dimensions, are skipped; page 4 starts from the
-  assembly's views.
+  assembly's views. A drawing whose parts list goes on to more sheets is
+  previewed a sheet at a time, Previous Sheet and Next Sheet under the preview
+  paging through them.
 - **The editor** shows the sheet; Add Dimension, Remove Dimension, Reset Position
   and Tolerance Block are off, their tooltips saying why. Picking the parts list
   selects nothing to edit. A balloon is dragged to a new place, its leader
@@ -291,6 +293,5 @@ is null, since an assembly has no features to cover.
 - A balloon's own edits beyond moving it (a second leader, stacking by hand).
 - Exploded views, sections of assemblies.
 - Views on a second sheet: only the parts list goes on to more sheets.
-- The wizard's preview shows the first sheet alone.
 - A reference dimension to the tip of a curved face (the overall size is then a
   note).

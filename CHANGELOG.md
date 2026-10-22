@@ -77,6 +77,10 @@ while the project takes shape.
 
 ### Added
 
+- **Every sheet in the New Drawing preview.** The New Drawing preview pages
+  through every sheet of a drawing with Previous Sheet and Next Sheet (Ctrl+Page
+  Up and Ctrl+Page Down), in the preview and in View Larger's window.
+
 - **A verifying catalog scan.** `solidseas index --verify` (and
   `Catalog.scan(verify=True)`) hashes files that look unchanged again and reads
   again any whose contents changed, which catches a file rewritten with its
