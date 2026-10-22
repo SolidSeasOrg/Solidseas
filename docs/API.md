@@ -4151,6 +4151,13 @@ class ConversionRow:
   left running, `log` names the documents, and the run asks again every 30 s
   and ends it once they are closed, however long that takes. A timeout, or a
   failure after which SOLIDWORKS is not trusted, still ends it at once.
+- SolidSeas' SOLIDWORKS changes values in your registry that your own
+  SOLIDWORKS reads: its toolbars and CommandManager tabs under `User
+  Interface`, and `General\Last Splash Id`. Once it has ended, `convert` puts
+  back each of those it changed, if no other SOLIDWORKS ran meanwhile and the
+  value still holds what it left, and `log` says how many, or why none were.
+  The recent documents list, which every document it opens joins, is not put
+  back.
 - The command line is `python -m solidseas.swapi convert INPUT... -o DIR
   [--format step,stl] [--recurse] [--force] [--allow-source-folder]
   [--open-timeout S] [--export-timeout S] [--off-hours [HH:MM-HH:MM]] [--json]`;

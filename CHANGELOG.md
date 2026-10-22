@@ -1738,6 +1738,13 @@ while the project takes shape.
 
 ### Fixed
 
+- **Your SOLIDWORKS layout after a batch conversion.** After a batch conversion,
+  SolidSeas puts back the toolbar and CommandManager tab settings (and the last
+  splash screen shown) that its own SOLIDWORKS changed in your registry, as long
+  as no other SOLIDWORKS ran meanwhile; run alone, for example overnight, it
+  used to leave your CommandManager tabs rearranged. The recent documents list
+  is not put back yet.
+
 - **The assistant's page in the user guide.** It no longer says attaching to
   SOLIDWORKS is still to come: the assistant attaches through the CAD Bridge
   extension.

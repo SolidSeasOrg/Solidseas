@@ -34,6 +34,7 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass, fields
 from pathlib import Path
 
+from . import hkcu
 from .bridge import (
     DEFAULT_SOLIDWORKS_EXE,
     MAX_TIMEOUT_S,
@@ -142,6 +143,9 @@ _sleep = time.sleep
 _WAIT_STEP_S = 60.0  # the clock is read again at least this often, so a clock change is noticed
 # How often SolidSeas asks again to end its SOLIDWORKS while that shows documents SolidSeas did not open.
 _FOREIGN_POLL_S = 30.0
+# What puts back the registry values each SOLIDWORKS of SolidSeas' changed (hkcu), or None where
+# none is started; tests replace it.
+_registry_restore: Callable[[], hkcu.RegistryRestore | None] = hkcu.RegistryRestore.for_this_system
 
 
 def _wait_for(window: OffHours, say: Callable[[str], None]) -> None:
@@ -278,7 +282,12 @@ def _within(path: Path, folder: Path) -> bool:
 
 
 class _Session:
-    """One bridge and the SOLIDWORKS it started."""
+    """One bridge and the SOLIDWORKS it started.
+
+    The registry values that SOLIDWORKS changes are read just before it starts and put back
+    once it has ended, however it ended, when no other SOLIDWORKS ran meanwhile
+    (:mod:`.hkcu`); the log says what was put back, or why nothing was.
+    """
 
     def __init__(
         self,
@@ -288,6 +297,7 @@ class _Session:
         say: Callable[[str], None] = lambda _msg: None,
     ) -> None:
         self.say = say
+        self.info: dict = {}
         self.bridge = factory()
         if self.bridge.on_event is None:
             # The journal file message box the bridge hid, and any dialog it left, go to the log.
@@ -297,13 +307,43 @@ class _Session:
                     say(line)
 
             self.bridge.on_event = on_event
+        self.restore = self._begin_restore()
         try:
             self.info = self.bridge.request(
                 "start_solidworks", {"exe": str(solidworks_exe)}, timeout=timeouts.start
             )
         except BaseException:
-            self.bridge.kill("SOLIDWORKS did not start")
+            try:
+                self.bridge.kill("SOLIDWORKS did not start")
+            finally:
+                self._put_back()
             raise
+
+    def _begin_restore(self) -> hkcu.RegistryRestore | None:
+        """Read the registry values SOLIDWORKS may change, and watch for any other SOLIDWORKS."""
+        try:
+            restore = _registry_restore()
+            if restore is not None:
+                restore.begin()
+            return restore
+        except Exception as e:  # the conversion goes on; nothing is put back afterwards
+            self.say(f"could not read the registry values SolidSeas' SOLIDWORKS may change ({e}); "
+                     "they will not be put back after it")
+            return None
+
+    def _put_back(self) -> None:
+        """Put back what SOLIDWORKS changed in the registry, once, now that it has ended."""
+        restore, self.restore = self.restore, None
+        if restore is None:
+            return
+        try:
+            outcome = restore.finish(self.info.get("pid"))
+        except Exception as e:
+            self.say(f"could not put back the registry values SolidSeas' SOLIDWORKS changed ({e})")
+            return
+        line = outcome.message()
+        if line is not None:
+            self.say(line)
 
     def end(self, timeouts: Timeouts) -> dict | None:
         """End SOLIDWORKS through its job (``exit_solidworks``), then the bridge, and log how it ended.
@@ -319,14 +359,17 @@ class _Session:
         """
         ended = None
         try:
-            if self.bridge.alive:
-                ended = self._exit(timeouts)
-        except BridgeError as e:
-            self.say(f"exit_solidworks failed ({e}); closing the bridge ends SOLIDWORKS through its job")
+            try:
+                if self.bridge.alive:
+                    ended = self._exit(timeouts)
+            except BridgeError as e:
+                self.say(f"exit_solidworks failed ({e}); closing the bridge ends SOLIDWORKS through its job")
+            finally:
+                self.bridge.close(timeout=timeouts.exit)
+            if isinstance(ended, dict):
+                self.say(_ended_message(ended))
         finally:
-            self.bridge.close(timeout=timeouts.exit)
-        if isinstance(ended, dict):
-            self.say(_ended_message(ended))
+            self._put_back()
         return ended
 
     def _exit(self, timeouts: Timeouts) -> dict:
@@ -349,7 +392,10 @@ class _Session:
             return ended
 
     def kill(self, reason: str) -> None:
-        self.bridge.kill(reason)
+        try:
+            self.bridge.kill(reason)
+        finally:
+            self._put_back()
 
 
 def convert(

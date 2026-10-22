@@ -37,9 +37,12 @@ Opt-in, on Windows:
   SOLIDWORKS adds every document it opens to the account's recent documents.
   It takes two runs, because the journal box comes only while another
   SOLIDWORKS runs and the off-hours case is SolidSeas' instance alone: first,
-  with your SOLIDWORKS closed normally, ``-k no_recovery_behind`` by itself,
-  so its first start follows a clean exit; then the whole file with your
-  SOLIDWORKS open. Each of the two journal tests skips in the other run.
+  with your SOLIDWORKS closed normally, ``-k "no_recovery_behind or
+  registry_changes_put_back"`` by itself, so its first start follows a clean
+  exit (the second test there checks that batch conversion puts back the
+  registry values its SOLIDWORKS changed, and prints what changed outside
+  them); then the whole file with your SOLIDWORKS open. Each test that needs
+  one of the two cases skips in the other run.
 """
 
 import datetime as dt
@@ -1166,6 +1169,74 @@ def test_convert_waits_while_solidseas_solidworks_shows_a_document_it_did_not_op
         {"documents": names}
     )
     assert batch._foreign_message(None).startswith("SolidSeas' SOLIDWORKS has documents open that")
+
+
+def test_convert_puts_back_the_registry_values_its_solidworks_changed(tmp_path, monkeypatch):
+    # SolidSeas-1k3 and SolidSeas-l4mk: what SOLIDWORKS writes under User Interface and in
+    # General\Last Splash Id while it runs is put back once it has ended, however it ended, when
+    # no other SOLIDWORKS ran meanwhile; the log says so. The stand-in bridge writes no registry,
+    # so the test makes the writes SOLIDWORKS makes as it starts.
+    from registry_fake import FakeRegistry
+    from solidseas.swapi import hkcu
+
+    tab = r"Software\SolidWorks\SOLIDWORKS 2024\User Interface\CommandManager\AssyContext\Tab15"
+    general = r"Software\SolidWorks\SOLIDWORKS 2024\General"
+    reg = FakeRegistry({(tab, "Button1"): (hkcu.REG_SZ, "Mate"),
+                        (general, "Last Splash Id"): (hkcu.REG_SZ, "old")})
+    original = reg.snapshot()
+    running: set[int] = set()  # the SLDWORKS.exe processes the watch sees
+    monkeypatch.setattr(batch, "_registry_restore", lambda: hkcu.RegistryRestore(reg, lambda: set(running)))
+
+    def make(behaviour=None):
+        def factory():
+            b = fake(behaviour)
+            send = b.request
+
+            def request(op, args=None, **kwargs):
+                if op == "start_solidworks":
+                    reg.set_value(tab, "Button1", (hkcu.REG_SZ, "Explode"))
+                    reg.set_value(general, "Last Splash Id", (hkcu.REG_SZ, "new"))
+                result = send(op, args, **kwargs)
+                if op == "start_solidworks":
+                    running.add(result["pid"])
+                return result
+
+            b.request = request
+            return b
+
+        return factory
+
+    put_back = ("put back 2 of the 2 registry values SolidSeas' SOLIDWORKS changed under "
+                r"HKEY_CURRENT_USER\Software\SolidWorks")
+
+    def run(name, behaviour=None, others=(), **kwargs):
+        running.clear()  # an instance of an earlier run has gone
+        running.update(others)
+        log = []
+        (tmp_path / name).mkdir()
+        rows = batch.convert([_inputs(tmp_path / name, PARTS[:1])], tmp_path / name / "out", ["stl"],
+                             log=log.append, bridge_factory=make(behaviour), **kwargs)
+        return rows, log
+
+    rows, log = run("ended")
+    assert [r.status for r in rows] == ["ok"] and reg.snapshot() == original
+    ended = next(i for i, m in enumerate(log) if m.startswith("SolidSeas' SOLIDWORKS ended:"))
+    assert log.index(put_back) > ended, "put back once SOLIDWORKS has ended"
+    # Ended by a timeout, through the client's job: put back all the same.
+    rows, log = run("timeout", {"save_delay": {"o02_boxA.stl": 120}}, timeouts=batch.Timeouts(export=1.0))
+    assert [r.code for r in rows] == ["timeout"] and reg.snapshot() == original and put_back in log
+    # Another SOLIDWORKS ran meanwhile (yours): what changed is left as it is.
+    rows, log = run("another", others=(999,))
+    assert [r.status for r in rows] == ["ok"] and reg.value(tab, "Button1") == (hkcu.REG_SZ, "Explode")
+    left = "another SOLIDWORKS ran meanwhile (PID 999), so they are left as they are"
+    assert any(m.endswith(left) for m in log)
+    # A start that failed: its SOLIDWORKS cannot be told from another, so nothing is put back.
+    reg.set_value(tab, "Button1", (hkcu.REG_SZ, "Mate"))
+    reg.set_value(general, "Last Splash Id", (hkcu.REG_SZ, "old"))
+    rows, log = run("failed", {"start_fail": True}, others=(4242,))  # 4242: the instance that did not start
+    assert [r.code for r in rows] == ["start_failed"]
+    assert reg.value(tab, "Button1") == (hkcu.REG_SZ, "Explode")
+    assert any("SolidSeas' SOLIDWORKS did not start, so it cannot be told" in m for m in log)
 
 
 def test_off_hours_window():
@@ -2405,6 +2476,41 @@ def test_ending_through_the_job_leaves_the_layout_lock_files_and_next_start_alon
     # A start after one ended through its job shows no dialog the first start did not.
     assert dialogs[1] <= dialogs[0], dialogs[1] - dialogs[0]
     assert others <= _solidworks_pids()
+
+
+@with_solidworks
+def test_solidseas_solidworks_alone_has_its_registry_changes_put_back(real_exe, tmp_path):
+    # SolidSeas-1k3 and SolidSeas-l4mk, the off-hours case: alone, SolidSeas' instance rewrote the
+    # CommandManager tabs under User Interface (148 values on 2026-10-14). Batch conversion puts
+    # back what it changed in hkcu.SCOPE once it has ended. What changed outside the scope (the
+    # recent documents list among it) is printed by key, to measure where it is.
+    from solidseas.swapi import hkcu
+
+    if _solidworks_pids():
+        pytest.skip("needs no other SOLIDWORKS running: close yours, normally, for this run")
+    before = _registry_values()
+    log = []
+    rows = batch.convert(
+        [_inputs(tmp_path, ("o02_boxA.SLDPRT",))], tmp_path / "out", ["stl"], log=log.append,
+        bridge_factory=lambda: Bridge(real_exe),
+    )
+    after = _registry_values()
+    print("\nbatch log:\n  " + "\n  ".join(log))
+    assert [r.status for r in rows] == ["ok"], rows
+    changed = sorted(k for k in before.keys() | after.keys() if before.get(k) != after.get(k))
+
+    def in_scope(value: str) -> bool:
+        return any(f"\\{key}\\" in value if name is None else value.endswith(f"\\{key}\\{name}")
+                   for key, name in hkcu.SCOPE)
+
+    counts: dict[str, int] = {}
+    for value in changed:
+        counts[value.rsplit("\\", 1)[0]] = counts.get(value.rsplit("\\", 1)[0], 0) + 1
+    print(f"registry: {len(changed)} values under HKCU\\Software\\SolidWorks differ after the run, by key:")
+    for key, n in sorted(counts.items()):
+        print(f"  {n:5} {key}")
+    assert not [v for v in changed if in_scope(v)], "a value in the scope was not put back"
+    assert not _solidworks_pids(), "a SOLIDWORKS is left running"
 
 
 def _solidworks_files() -> dict[str, dict[str, tuple[int, int]]]:

@@ -515,7 +515,9 @@ timeout, nothing of the person's goes with it.
   which is refused when that would make SOLIDWORKS ask for one. SOLIDWORKS itself writes the add-ins'
   toolbar values to that registry when it starts. `ExitApp`, SOLIDWORKS' own
   shutdown, would also write the instance's layout there, which is why the
-  bridge no longer calls it: see the side effects below.
+  bridge no longer calls it: see the side effects below. Batch conversion
+  writes there only to put back values its own SOLIDWORKS changed, to what
+  they were before it started (side effects, below).
 - It opens documents read-only, always, and silently, so it never leaves a
   `~$` lock file behind, not even when a timeout ends the instance. Read-only
   is not write-free for an assembly: opening one makes SOLIDWORKS write
@@ -715,7 +717,10 @@ a restart. The log says how long it waits, and how each SOLIDWORKS ended
 job). When SolidSeas' SOLIDWORKS is to be ended while it shows a document
 SolidSeas did not open, it is shown on the screen instead and left running, the
 log names the documents, and the run asks again every 30 s and ends it once they
-are closed; an off-hours job then runs past its window until they are.
+are closed; an off-hours job then runs past its window until they are. After
+each SOLIDWORKS of the run has ended, the registry values it changed under
+`User Interface` and in `General\Last Splash Id` are put back when no other
+SOLIDWORKS ran meanwhile (side effects, below), and the log says so.
 
 The output folder may not be, or lie in, a folder that holds an input document
 unless `--allow-source-folder` is given; an existing output is kept (a `skip`
@@ -759,6 +764,7 @@ SOLIDWORKS' own export options if you need it.
 | A SOLIDWORKS of the user's started while SolidSeas' instance runs alone: the journal box in the user's session, and no auto-recover there | not measured; an off-hours job ends its instance when the window closes, so it does not run into the day |
 | Batch conversion keeping to the off-hours window: started only inside it, ended through its job once it closes, the rest of the work done in the next window, the batch log saying how each instance ended | verified with the stand-in bridge |
 | Not ending an instance that shows a document the bridge did not open: `exit_solidworks` and `shutdown` refusing with `foreign_documents` after closing the bridge's own documents, the instance shown, and batch conversion saying so and asking again until it ends | batch conversion verified with the stand-in bridge; the bridge's side not yet built or run (SolidSeas-1k3) |
+| Batch conversion putting back the registry values its SOLIDWORKS changed under `User Interface` and in `General\Last Splash Id`, after an ordinary end and after a timeout, and nothing when another SOLIDWORKS ran, when the processes could not be listed or when the start failed | verified with a stand-in registry and stand-in process lists; the winreg backend and the process listing have tests that run on Windows only; not yet run against a real SOLIDWORKS: `-k registry_changes_put_back`, alone (SolidSeas-1k3, SolidSeas-l4mk) |
 | `ExitApp`, before the bridge stopped using it: it ended the instance (exit code 45) within about 2 s, and wrote the layout described below. The bridge no longer calls it | measured; no longer how the instance ends |
 | Assemblies: opening one loads its components through SOLIDWORKS' reference search, which may look in folders the account's options name | not run; the end-to-end run used parts only |
 | Opening an assembly with the flags `open_document` uses (read-only, silent, resolved) changing its folder's modification time with the same entries before and after, a brief write; part opens and STEP imports leaving their folders alone | measured by the harness on the copy of o08, twice; the opt-in `mass_properties` test prints the folder's time again |
@@ -831,12 +837,29 @@ Side effects to know about:
   values added, 115 removed (those toolbar values among them) and 75 changed,
   in the CommandManager part and assembly context tabs and a few toolbar
   positions, which a SOLIDWORKS started afterwards would read. The bridge
-  therefore no longer calls it: an instance ended through its job writes
-  nothing there, so only what the start wrote remains, the same toolbar values
-  every start writes. The user's own SOLIDWORKS writes its layout when it
-  exits, as it always has.
+  therefore no longer calls it: an instance ended through its job writes no
+  layout at its end. While another SOLIDWORKS runs, only what the start wrote
+  remains, the same toolbar values every start writes. Alone, though, the
+  instance rewrote every CommandManager context tab under `User Interface`
+  while it ran (148 values, 2026-10-14, SolidSeas-l4mk). The user's own
+  SOLIDWORKS writes its layout when it exits, as it always has.
+- Batch conversion puts back what its SOLIDWORKS changed under `User Interface`
+  and in `General\Last Splash Id` (`solidseas.swapi.hkcu`, the user's choice in
+  SolidSeas-1k3). It reads those values, under each `SOLIDWORKS <year>` key,
+  just before the instance starts, and again once the instance has ended,
+  however it ended, and writes back each one that changed, under these rules:
+  only when no other SOLIDWORKS ran at any moment of the instance's life,
+  because a SOLIDWORKS the user runs writes the same values (the processes
+  named `SLDWORKS.exe` are looked at every 2 s, and when they cannot be listed
+  nothing is written); only a value that still holds what the instance left,
+  read again just before it is written, and of a type that writes back
+  unchanged; only under `Software\SolidWorks`; and never under a key that was
+  not there before the instance started, such as a new version's first start
+  makes. The log says how many values were put back, or why none were. Not yet
+  run against a real SOLIDWORKS.
 - SOLIDWORKS adds every document it opens to the account's recent documents
-  list, which the user's own session shares.
+  list, which the user's own session shares. Batch conversion does not put that
+  list back yet: where SOLIDWORKS keeps it has not been measured.
 - Parasolid and STEP files written by SOLIDWORKS carry the Windows user name
   and a machine identifier in their headers (`USER=` and `MC_ID=` in a Parasolid
   file). SolidSeas' own Parasolid extraction writes `unknown` in those fields.
