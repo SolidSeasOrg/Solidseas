@@ -13,6 +13,10 @@ converts documents on it. The bridge also measures documents
 itself. Live mode attaches to the user's own session for the modeling
 assistant, and never ends it (below).
 
+[SOLIDWORKS API traps](../../../docs/SOLIDWORKS_API_TRAPS.md) lists, one row
+each, what SOLIDWORKS was measured doing through its API that the code here has
+to allow for, with the run that showed it. Read it before changing the bridge.
+
 ## The bridge: `SolidSeas.SwBridge.exe`
 
 The main thread is a single-threaded apartment (`[STAThread]`) that owns every

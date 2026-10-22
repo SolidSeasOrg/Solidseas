@@ -148,6 +148,17 @@ def test_sources_and_build_script_present():
         assert needle in readme
 
 
+def test_the_traps_page_says_where_each_trap_was_measured():
+    page = (ROOT / "docs" / "SOLIDWORKS_API_TRAPS.md").read_text(encoding="utf-8")
+    rows = [line for line in page.splitlines() if line.startswith("| ") and not line.startswith("| Symptom ")]
+    assert len(rows) > 30, f"only {len(rows)} rows were read"
+    for row in rows:
+        cells = [c.strip() for c in row.strip().strip("|").split(" | ")]
+        assert len(cells) == 3 and all(cells), row  # symptom, what to do, where it was measured
+    readme = (SWAPI / "README.md").read_text(encoding="utf-8")
+    assert "(../../../docs/SOLIDWORKS_API_TRAPS.md)" in readme
+
+
 def test_bridge_offers_only_its_named_operations():
     source = _source()
     ops = set(re.findall(r'handlers\["(\w+)"\]', source))
