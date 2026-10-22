@@ -390,6 +390,15 @@ def test_reader_damage_becomes_a_format_error():
         guarded(lambda: (_ for _ in ()).throw(InvalidArgumentError("x")))
 
 
+def test_running_out_of_memory_is_a_limit_error():
+    def greedy():
+        raise MemoryError
+
+    with pytest.raises(SldLimitError) as exc:  # what a worker's memory cap answers too
+        guarded(greedy)
+    assert exc.value.code == "limit_exceeded" and exc.value.detail == {"limit": "memory"}
+
+
 def test_tree_bounds():
     class Deep(ModelDocument):
         format = "stl"
@@ -475,6 +484,91 @@ def test_a_zip_feature_python_declines_is_refused_not_raised():
         src.SafeZip(src.Source(bytes(data)), Limits())
     assert "zip" in str(exc.value)
     assert not isinstance(exc.value, NotImplementedError)
+
+
+def _zip64_end(pkg: bytes, copies: int, *, stated: int | None = None) -> bytes:
+    """``pkg`` with its central directory written ``copies`` times and a ZIP64 end record
+    and locator that state that directory (``stated`` members, default every entry),
+    while the end record itself still states the original directory, with no
+    sentinels. Python's ``zipfile`` reads the ZIP64 record whatever the end record says."""
+    (_sig, _d, _cd, _nd, members, cd_size, cd_off, _c) = struct.unpack_from("<IHHHHIIH", pkg, len(pkg) - 22)
+    directory = pkg[cd_off : cd_off + cd_size] * copies
+    body = pkg[:cd_off] + directory
+    total = members * copies if stated is None else stated
+    record = struct.pack("<4sQ2H2L4Q", b"PK\x06\x06", 44, 45, 45, 0, 0, total, total, len(directory), cd_off)
+    locator = struct.pack("<4sLQL", b"PK\x06\x07", 0, len(body), 1)
+    end = struct.pack("<4s4H2LH", b"PK\x05\x06", 0, 0, members, members, cd_size, cd_off, 0)
+    return body + record + locator + end
+
+
+class _Built(zipfile.ZipInfo):
+    """A ZipInfo that counts how many ``zipfile`` builds while it reads a directory."""
+
+    made = 0
+
+    def __init__(self, *args, **kwargs):
+        type(self).made += 1
+        super().__init__(*args, **kwargs)
+
+
+def test_a_zip64_end_record_is_read_as_python_reads_it(monkeypatch):
+    pkg = _zip_bytes({"3D/3dmodel.model": b"<model/>", "a": b"a", "b": b"b"})
+    assert src.zip_directory_size(src.Source(pkg))[0] == 3
+    # one copy: a well-formed ZIP64 end, read as before
+    one = _zip64_end(pkg, 1)
+    assert src.zip_directory_size(src.Source(one)) == src.zip_directory_size(src.Source(pkg))
+    assert src.SafeZip(src.Source(one), Limits()).read("3D/3dmodel.model") == b"<model/>"
+    # five copies behind an end record that names one: the count and the size come from the
+    # ZIP64 record, which zipfile reads even though the end record holds no sentinel, and the
+    # package is refused before zipfile reads its directory
+    five = _zip64_end(pkg, 5)
+    members, size = src.zip_directory_size(src.Source(five))
+    assert members == 15 and size == 5 * src.zip_directory_size(src.Source(pkg))[1]
+
+    def never(*_a, **_k):
+        raise AssertionError("zipfile read the directory")
+
+    monkeypatch.setattr(src.zipfile, "ZipFile", never)
+    with pytest.raises(SldLimitError) as exc:
+        src.SafeZip(src.Source(five), Limits(zip_members=10))
+    assert exc.value.detail["limit"] == "zip_members"
+    with pytest.raises(SldLimitError) as exc:
+        src.SafeZip(src.Source(five), Limits(zip_directory_bytes=size - 1))
+    assert exc.value.detail["limit"] == "zip_directory_bytes"
+
+
+def test_the_directory_zipfile_reads_is_bounded_and_counted_before_it_is_built(monkeypatch):
+    pkg = _zip_bytes({"3D/3dmodel.model": b"<model/>", "a": b"a", "b": b"b"})
+    monkeypatch.setattr(zipfile, "ZipInfo", _Built)
+    # the ZIP64 record states one member over a directory of 15 entries: the entries are
+    # counted from the bytes zipfile reads, before it builds one of them
+    _Built.made = 0
+    with pytest.raises(SldLimitError) as exc:
+        src.SafeZip(src.Source(_zip64_end(pkg, 5, stated=1)), Limits(zip_members=10))
+    assert exc.value.detail["limit"] == "zip_members" and _Built.made == 0
+    # a directory longer than its bound is refused at zipfile's read, whatever the end
+    # records were taken to say
+    big = _zip_bytes({f"m{i}": b"x" for i in range(3000)})  # a directory of about 150 KB
+    monkeypatch.setattr(src, "zip_directory_size", lambda _source: (1, 1))
+    _Built.made = 0
+    with pytest.raises(SldLimitError) as exc:
+        src.SafeZip(src.Source(big), Limits(zip_directory_bytes=100_000))
+    assert exc.value.detail["limit"] == "zip_directory_bytes" and _Built.made == 0
+    # within the bounds, the same package opens, and its members read
+    _Built.made = 0
+    z = src.SafeZip(src.Source(big), Limits())
+    assert _Built.made == 3000 and z.read("m2999") == b"x"
+    assert src.central_entries(b"", 5) == 0 and src.central_entries(b"PK\x01\x02" + bytes(42), 5) == 1
+    # some Python releases read the end record with read() and no size: that is the rest of
+    # the file, held to the same bound
+    f = src._OpeningZip(src.Source(bytes(70_000)), Limits(zip_directory_bytes=1))
+    f.seek(-22, 2)
+    assert f.read() == bytes(22)
+    f.seek(0)
+    with pytest.raises(SldLimitError):
+        f.read()
+    f.opening = False
+    assert len(f.read()) == 70_000
 
 
 @pytest.mark.parametrize(
@@ -571,6 +665,18 @@ def test_siblings_are_read_inside_the_folder_and_counted(tmp_path):
         src.read_sibling(doc, "big.bin", src.SiblingBudget(Limits(sibling_bytes=10)))
     with pytest.raises(SldFormatError):
         src.read_sibling(None, "big.bin", src.SiblingBudget(Limits()))
+
+
+def test_siblings_are_bounded_in_total_with_every_read_counted(tmp_path):
+    (tmp_path / "b.bin").write_bytes(b"x" * 400)
+    doc = str(tmp_path / "m.gltf")
+    budget = src.SiblingBudget(Limits(sibling_total_bytes=1000))
+    assert src.read_sibling(doc, "b.bin", budget) == b"x" * 400
+    assert src.read_sibling(doc, "b.bin", budget) == b"x" * 400  # one file named twice counts twice
+    with pytest.raises(SldLimitError) as exc:
+        src.read_sibling(doc, "b.bin", budget)
+    assert exc.value.detail == {"limit": "sibling_total_bytes", "value": 1200} and budget.bytes == 800
+    assert Limits().sibling_total_bytes == 2 << 30
 
 
 def _folder_link(target, link) -> None:

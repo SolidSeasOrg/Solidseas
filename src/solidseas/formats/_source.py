@@ -10,10 +10,12 @@ one place:
   only, ``max_file_bytes`` from ``fstat`` before any byte is read).
 * :class:`Clock` is the time and cancellation check every reader loop ticks.
 * :class:`SafeZip` reads a zip package (3MF, zipped AMF): the member count and
-  the central directory's size are checked from the end record before Python's
-  ``zipfile`` reads the directory, encrypted members are refused, and a
-  member is inflated chunk by chunk against its own bound, the document's
-  total and a compression ratio, so a zip bomb stops after a few chunks.
+  the central directory's size are checked from the end records before Python's
+  ``zipfile`` reads the directory, the directory ``zipfile`` then reads is
+  refused past its bound and has its entries counted before ``zipfile`` builds
+  them, encrypted members are refused, and a member is inflated chunk by chunk
+  against its own bound, the document's total and a compression ratio, so a zip
+  bomb stops after a few chunks.
   :func:`opc_resolve` turns a package relationship's target into a member name,
   refusing one that climbs out of the package.
 * :func:`xml_events` parses XML with ``expat`` alone: a DOCTYPE, an entity
@@ -346,14 +348,21 @@ def clip_text(text: str, limits: Limits, warnings: list | None = None, what: str
 _EOCD = b"PK\x05\x06"
 _EOCD64_LOCATOR = b"PK\x06\x07"
 _EOCD64 = b"PK\x06\x06"
+_CENTRAL = b"PK\x01\x02"
+_END_SEARCH = 22 + 0xFFFF  # the most Python's zipfile reads at once while it looks for the end record
 _ALLOWED_METHODS = (zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED)
 
 
 def zip_directory_size(source: Source) -> tuple[int, int]:
     """``(members, central directory bytes)`` from a zip's end records, without reading
-    the directory. Raises :class:`SldFormatError` when there is no end record."""
-    tail_len = min(source.size, 22 + 0xFFFF)
-    tail = source.read_upto(source.size - tail_len, tail_len)
+    the directory. When a ZIP64 locator stands right before the end record, Python's
+    ``zipfile`` takes both from the ZIP64 record whatever the end record holds, so they
+    are taken from there here too: from the record where the locator points and from
+    the one right before the locator (Python releases look in either), the larger of
+    each. Raises :class:`SldFormatError` when there is no end record."""
+    tail_len = min(source.size, _END_SEARCH)
+    start = source.size - tail_len
+    tail = source.read_upto(start, tail_len)
     i = tail.rfind(_EOCD)
     while i >= 0 and len(tail) - i < 22:
         i = tail.rfind(_EOCD, 0, i)
@@ -362,14 +371,58 @@ def zip_directory_size(source: Source) -> tuple[int, int]:
     (_sig, _disk, _cd_disk, _n_disk, members, cd_size, _cd_off, _clen) = struct.unpack_from(
         "<IHHHHIIH", tail, i
     )
-    if members == 0xFFFF or cd_size == 0xFFFFFFFF:
-        j = i - 20
-        if j >= 0 and tail[j : j + 4] == _EOCD64_LOCATOR:
-            (off64,) = struct.unpack_from("<Q", tail, j + 8)
-            rec = source.read_upto(off64, 56)
-            if len(rec) == 56 and rec[:4] == _EOCD64:
-                members, cd_size = struct.unpack_from("<QQ", rec, 32)
+    locator = start + i - 20
+    if locator < 0 or source.read_at(locator, 4) != _EOCD64_LOCATOR:
+        return members, cd_size
+    (where,) = struct.unpack_from("<Q", source.read_at(locator + 8, 8))
+    found = []
+    for at in sorted({where, locator - 56}):
+        if 0 <= at <= locator - 56:
+            rec = source.read_at(at, 56)
+            if rec[:4] == _EOCD64:
+                found.append(struct.unpack_from("<QQQ", rec, 24))  # this disk's members, all, bytes
+    if found:
+        members = max(max(here, every) for here, every, _n in found)
+        cd_size = max(n for _here, _every, n in found)
     return members, cd_size
+
+
+def central_entries(data: bytes, most: int) -> int:
+    """How many central directory entries follow one another from the start of ``data``,
+    walked as Python's ``zipfile`` walks a directory it has read, counted up to ``most``."""
+    n = pos = 0
+    end = len(data)
+    while n < most and pos + 46 <= end and data[pos : pos + 4] == _CENTRAL:
+        name, extra, comment = struct.unpack_from("<3H", data, pos + 28)
+        pos += 46 + name + extra + comment
+        n += 1
+    return n
+
+
+class _OpeningZip(_SourceFile):
+    """The file Python's ``zipfile`` reads a package through. While :class:`SafeZip`
+    opens the package (``opening``), a read longer than the central directory may be
+    is refused (``zip_directory_bytes``), and a read that holds a central directory has
+    its entries counted (``zip_members``) before ``zipfile`` builds one object an entry:
+    neither depends on how ``zipfile`` found the directory. Afterwards it reads as any
+    file does."""
+
+    def __init__(self, source: Source, limits: Limits) -> None:
+        super().__init__(source)
+        self.limits = limits
+        self.opening = True
+
+    def read(self, size: int = -1) -> bytes:
+        if not self.opening:
+            return super().read(size)
+        lim = self.limits
+        want = self._s.size - self._pos if size is None or size < 0 else size  # some releases read to the end
+        if want > max(lim.zip_directory_bytes, _END_SEARCH):
+            raise lim.exceeded("zip_directory_bytes", "the package's central directory is too large")
+        data = super().read(size)
+        if data[:4] == _CENTRAL and central_entries(data, lim.zip_members + 1) > lim.zip_members:
+            raise lim.exceeded("zip_members", f"the package has more than {lim.zip_members:,} members")
+        return data
 
 
 def first_member_name(head: bytes) -> str | None:
@@ -393,14 +446,16 @@ class SafeZip:
             raise limits.exceeded("zip_members", f"the package has {members:,} members", members)
         if cd_size > limits.zip_directory_bytes:
             raise limits.exceeded("zip_directory_bytes", f"the package's directory is {cd_size:,} bytes")
+        fobj = _OpeningZip(source, limits)
         try:
-            self._zf = zipfile.ZipFile(source.file())
+            self._zf = zipfile.ZipFile(fobj)
         except (zipfile.BadZipFile, zipfile.LargeZipFile, ValueError, struct.error, EOFError) as exc:
             raise SldFormatError(f"the zip package is damaged: {exc}") from None
         except NotImplementedError as exc:  # a directory entry naming a zip version Python lacks
             raise SldFormatError(
                 f"the zip package is damaged or needs a zip feature SolidSeas does not read: {exc}"[:200]
             ) from None
+        fobj.opening = False
         infos = self._zf.infolist()
         if len(infos) > limits.zip_members:
             raise limits.exceeded("zip_members", f"the package has {len(infos):,} members", len(infos))
@@ -738,14 +793,17 @@ def sibling_path(folder: str, uri: str) -> str:
 
 class SiblingBudget:
     """How many files beside one document have been read, against ``limits.siblings``,
-    and the rules the document was opened under (``refuse_hard_links``,
-    ``max_file_bytes``), which every file it names is opened under too."""
+    and how many bytes, against ``limits.sibling_total_bytes`` (every read counts, so
+    two buffers that name one file count it twice), and the rules the document was
+    opened under (``refuse_hard_links``, ``max_file_bytes``), which every file it names
+    is opened under too."""
 
     def __init__(
         self, limits: Limits, *, refuse_hard_links: bool = False, max_file_bytes: int | None = None
     ) -> None:
         self.limits = limits
         self.count = 0
+        self.bytes = 0
         self.refuse_hard_links = bool(refuse_hard_links)
         self.max_file_bytes = max_file_bytes
 
@@ -760,7 +818,8 @@ def read_sibling(doc_path: str | None, uri: str, budget: SiblingBudget) -> bytes
     ``within`` the document's folder (no link, junction or placeholder), at most
     ``sibling_bytes`` (and the budget's ``max_file_bytes``) long, refused when it has
     several names and the budget's ``refuse_hard_links`` says so, and counted against
-    ``siblings``. A document opened from bytes has no folder: :class:`SldFormatError`."""
+    ``siblings`` and ``sibling_total_bytes`` before it is read. A document opened from
+    bytes has no folder: :class:`SldFormatError`."""
     if doc_path is None:
         raise SldFormatError("the document was opened from bytes, so the files it names cannot be read")
     lim = budget.limits
@@ -784,6 +843,13 @@ def read_sibling(doc_path: str | None, uri: str, budget: SiblingBudget) -> bytes
             )
         if size > lim.sibling_bytes:
             raise lim.exceeded("sibling_bytes", f"a file the document names is {size:,} bytes", size)
+        if budget.bytes + size > lim.sibling_total_bytes:
+            raise lim.exceeded(
+                "sibling_total_bytes",
+                f"the files the document names add up to more than {lim.sibling_total_bytes:,} bytes",
+                budget.bytes + size,
+            )
+        budget.bytes += size
         return pread(fh, 0, size) if size else b""
 
 
@@ -1061,6 +1127,7 @@ __all__ = [
     "XmlNode",
     "bmp_size",
     "bmp_to_png",
+    "central_entries",
     "check_max_file_bytes",
     "clip_text",
     "encode_png",

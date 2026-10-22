@@ -72,7 +72,12 @@ and the Open Packaging Conventions (ECMA-376 Part 2).
 
 - **Package** (verified: specifications, the fixture
   `tests/fixtures/o02_boxA.3mf` SOLIDWORKS wrote, synthetic tests). A zip read
-  by `SafeZip`. `_rels/.rels` names the root model part by the relationship type
+  by `SafeZip`: its member count and directory size come from the end records,
+  a ZIP64 record included wherever Python's `zipfile` would take one from, and
+  the directory `zipfile` then reads is refused past `zip_directory_bytes` and
+  has its entries counted against `zip_members` before `zipfile` builds them, so
+  a directory larger than its end record says costs no more than its own bytes.
+  `_rels/.rels` names the root model part by the relationship type
   `http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel`; no
   relationship, no model (`damaged_file`): the part is never assumed. A target
   that climbs out of the package, names another scheme or uses a backslash is
@@ -289,7 +294,10 @@ Sources: the glTF 2.0 specification (Khronos) and the extension specifications
   device is refused with `path_refused`, one with a second name, when the
   document was opened with `refuse_hard_links`, with `link_refused`, and one
   over its `max_file_bytes` with `file_too_large`; a missing file is
-  `damaged_file`). Buffers are read only by `scene()`, each once; images never.
+  `damaged_file`). Every file a document reads counts against
+  `sibling_total_bytes` (2 GiB), each read on its own, so a thousand buffers
+  that name one large file stop there. Buffers are read only by `scene()`, each
+  once; images never.
   `references()` lists the buffer files (`kind` `buffer`), with where each was
   found relative to the document's folder, or `refused` when a link, junction
   or placeholder lies on the way.
@@ -307,9 +315,12 @@ Sources: the glTF 2.0 specification (Khronos) and the extension specifications
   block has nothing to draw (every corner at the origin, or every index 0): it
   is left out at the head (`primitives_skipped`), so its claimed count costs
   nothing. Zero normals are not read. A zero-filled accessor with a sparse block
-  may hold at most `zip_ratio` (200) times the bytes of that block, past 1 MiB,
-  the bound a zip member's inflation keeps (`limit_exceeded`, limit
-  `zip_ratio`), so its memory follows the file's size.
+  may hold at most `zip_ratio` (200) times the bytes that block is read from,
+  past 1 MiB, the bound a zip member's inflation keeps (`limit_exceeded`, limit
+  `zip_ratio`), so its memory follows the file's size: the block's indices and
+  values are read from their views and checked (every index inside the
+  accessor) before a zero is made, so a count the views do not hold costs
+  nothing. A strided view is copied a byte column at a time.
 - **Primitives** (verified: specification, synthetic tests). Triangles (mode 4),
   strips (5: every other triangle turned) and fans (6) become one scene object a
   primitive, in mesh order, normals kept, coloured by the material's

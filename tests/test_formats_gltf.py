@@ -7,6 +7,7 @@ import base64
 import json
 import os
 import struct
+import tracemalloc
 
 import pytest
 
@@ -250,6 +251,82 @@ def test_accessors_without_a_buffer_view_cost_what_the_file_holds():
         with pytest.raises(SldLimitError) as exc:
             doc.scene()
     assert exc.value.detail["limit"] == "vertices"
+
+
+def test_a_sparse_block_is_read_and_checked_before_any_zero_is_made():
+    # four million sparse values claimed over views that hold one: the claim is refused from
+    # the views, before the accessor's 240 MB of zeros are made (a 552-byte file made the
+    # read peak at 495 MB when the zeros came first)
+    idx = struct.pack("<I", 2)
+    val = struct.pack("<3f", 0, 2, 0)
+    views = [
+        {"buffer": 0, "byteOffset": 0, "byteLength": 4},
+        {"buffer": 0, "byteOffset": 4, "byteLength": 12},
+    ]
+    sparse = {
+        "count": 4_000_000,
+        "indices": {"bufferView": 0, "componentType": 5125},
+        "values": {"bufferView": 1},
+    }
+    acc = {"componentType": 5126, "count": 20_000_000, "type": "VEC3", "sparse": sparse}
+    data = _asset([{"attributes": {"POSITION": 0}}], idx + val, accessors=[acc], views=views)
+    tracemalloc.start()
+    try:
+        with open_model(data, name="s.gltf") as doc:
+            with pytest.raises(SldFormatError, match="sparse data runs past"):
+                doc.scene()
+        peak = tracemalloc.get_traced_memory()[1]
+    finally:
+        tracemalloc.stop()
+    assert peak < 32 << 20
+    # an index past the accessor's end is refused from the block as well
+    sparse = {"count": 1, "indices": {"bufferView": 0, "componentType": 5125}, "values": {"bufferView": 1}}
+    acc = {"componentType": 5126, "count": 2, "type": "VEC3", "sparse": sparse}
+    data = _asset([{"attributes": {"POSITION": 0}}], idx + val, accessors=[acc], views=views)
+    with open_model(data, name="s.gltf") as doc:
+        with pytest.raises(SldFormatError, match="past the accessor's end"):
+            doc.scene()
+
+
+@pytest.mark.parametrize("stride", [16, 20, 36])
+def test_a_strided_view_reads_as_a_packed_one(stride):
+    pts = [((i % 97) * 0.01, (i % 89) * 0.02 + i * 1e-4, -(i % 83) * 0.03) for i in range(3000)]
+
+    def positions(step: int) -> list[float]:
+        blob = b"".join(struct.pack("<3f", *p) + bytes(step - 12) for p in pts)
+        view = {"buffer": 0, "byteOffset": 0, "byteLength": len(blob)}
+        if step != 12:
+            view["byteStride"] = step
+        data = _asset([{"attributes": {"POSITION": 0}}], blob, accessors=[_position(len(pts))], views=[view])
+        with open_model(data, name="p.gltf") as doc:
+            (obj,) = doc.scene().objects
+            return list(obj.positions)
+
+    assert positions(stride) == positions(12)
+
+
+def test_buffers_beside_the_file_are_bounded_in_total(tmp_path):
+    # ten buffers name one 1 MiB file: every read counts against sibling_total_bytes
+    blob = TRIANGLE + bytes((1 << 20) - len(TRIANGLE))
+    (tmp_path / "big.bin").write_bytes(blob)
+    n = 10
+    doc = {
+        "asset": {"version": "2.0"},
+        "scenes": [{"nodes": list(range(n))}],
+        "nodes": [{"mesh": i} for i in range(n)],
+        "meshes": [{"primitives": [{"attributes": {"POSITION": i}}]} for i in range(n)],
+        "accessors": [_position(3, view=i) for i in range(n)],
+        "bufferViews": [{"buffer": i, "byteOffset": 0, "byteLength": 36} for i in range(n)],
+        "buffers": [{"byteLength": len(blob), "uri": "big.bin"} for _ in range(n)],
+    }
+    path = tmp_path / "many.gltf"
+    path.write_text(json.dumps(doc))
+    with open_model(path, limits=Limits(sibling_total_bytes=3 << 20)) as m:
+        with pytest.raises(SldLimitError) as exc:
+            m.scene()
+    assert exc.value.detail["limit"] == "sibling_total_bytes"
+    with open_model(path) as m:  # within the default total every buffer is read
+        assert m.scene().counts["objects"] == n
 
 
 def test_compression_and_required_extensions():

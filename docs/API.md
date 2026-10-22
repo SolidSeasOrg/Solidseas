@@ -3410,9 +3410,11 @@ converted to PNG; any other image type is not passed on.
 keeps, with these defaults; `Limits().replace(name=value)` makes a variant.
 Reaching a bound raises `SldLimitError` (`limit_exceeded`) with
 `detail.limit` the field's name, unless the table says the result is cut
-short. Every reader loop ticks a clock at least every 4,096 steps, so the time
-bounds and `scene(cancelled=...)` are honoured; in a worker, the worker's
-deadline is the hard stop.
+short. A read that runs out of memory raises `SldLimitError` with
+`detail.limit` `memory`, the answer a worker's memory cap gives (3.13). Every
+reader loop ticks a clock at least every 4,096 steps, so the time bounds and
+`scene(cancelled=...)` are honoured; in a worker, the worker's deadline is the
+hard stop.
 
 | Field | Default | Bounds |
 |---|---|---|
@@ -3427,8 +3429,8 @@ deadline is the hard stop.
 | `text_bytes` | 64 KiB | one name, property or metadata value (then cut, `text_truncated`) |
 | `properties`, `references` | 10,000 each | properties and external references of one document |
 | `colors_per_object` | 256 | colour splits of one object (then merged, `colors_ignored`) |
-| `siblings`, `sibling_bytes` | 1,000, 512 MiB | files beside the document that it names and that are read, and each one's size |
-| `zip_members`, `zip_directory_bytes` | 10,000, 64 MiB | a zip's members and central directory, from its end records before the directory is read |
+| `siblings`, `sibling_bytes`, `sibling_total_bytes` | 1,000, 512 MiB, 2 GiB | files beside the document that it names and that are read, each one's size, and their total, every read counted (a file named twice counts twice) |
+| `zip_members`, `zip_directory_bytes` | 10,000, 64 MiB | a zip's members and central directory, from its end records (a ZIP64 record included whenever one stands before them, as Python's `zipfile` reads it) before the directory is read, and again from the directory `zipfile` reads, before it builds an entry |
 | `zip_member_bytes`, `zip_total_bytes`, `zip_ratio` | 1 GiB, 2 GiB, 200 | one member inflated, every member one document inflates, and inflated to stored size once a member passes 1 MiB, each counted as it inflates |
 | `xml_depth`, `xml_attribute_bytes`, `xml_text_bytes` | 64, 64 KiB, 64 KiB | element nesting (`damaged_file`), one attribute value, one element's text |
 | `json_bytes`, `json_depth` | 64 MiB, 64 | one JSON document and its nesting (`damaged_file`) |

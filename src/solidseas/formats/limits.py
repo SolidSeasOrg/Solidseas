@@ -48,6 +48,7 @@ class Limits:
     colors_per_object: int = 256  # colour splits of one object (then merged)
     siblings: int = 1_000  # files beside the document that one document reads
     sibling_bytes: int = 512 * MIB  # each such file
+    sibling_total_bytes: int = 2 * GIB  # all such files one document reads, each read counted
     zip_members: int = 10_000  # members of a zip
     zip_directory_bytes: int = 64 * MIB  # a zip's central directory
     zip_member_bytes: int = GIB  # one member, inflated, counted as it inflates

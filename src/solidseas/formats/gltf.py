@@ -22,8 +22,10 @@ SolidSeas reads:
   substituted: a primitive whose positions or indices are such an accessor
   without a sparse block has nothing to draw and is left out
   (``primitives_skipped``), and a zero-filled accessor may hold at most
-  ``limits.zip_ratio`` times the bytes of its sparse block (past 1 MiB), the bound
-  a zip member's inflation keeps, so its size follows the file's;
+  ``limits.zip_ratio`` times the bytes its sparse block was read from (past
+  1 MiB), the bound a zip member's inflation keeps, so its size follows the
+  file's: the block is read and checked before any zero is made. A strided view
+  is copied a byte column at a time, never an object an element;
 * triangles (mode 4), triangle strips (5) and fans (6); points and lines are
   left out (``primitives_skipped``);
 * one scene object a primitive (its material's ``baseColorFactor`` as its
@@ -498,6 +500,7 @@ class GltfDocument(ModelDocument):
         if budget is not None and count > budget[0]:
             raise self.limits.exceeded(budget[1], f"{what} holds more elements than the model may still take")
         sparse = acc.get("sparse")
+        block = self._sparse(sparse, code, size, ncomp, count, what) if isinstance(sparse, dict) else None
         if "bufferView" in acc:
             view = self._get("bufferViews", acc["bufferView"])
             data = self._buffer(view.get("buffer"))
@@ -511,36 +514,41 @@ class GltfDocument(ModelDocument):
             if count and a_off + stride * (count - 1) + elem > v_len:
                 raise SldFormatError(f"{what}: the accessor runs past the end of its buffer view")
             start = v_off + a_off
-            if stride == elem:
+            if stride == elem or not count:
                 raw = data[start : start + count * elem]
-            else:
-                raw = b"".join(data[o : o + elem] for o in range(start, start + count * stride, stride))
+            else:  # one column of bytes at a time, never an object an element
+                raw = bytearray(count * elem)
+                span = stride * (count - 1) + 1
+                for k in range(elem):
+                    raw[k::elem] = data[start + k : start + k + span : stride]
             values = array(code)
             values.frombytes(raw)
             if sys.byteorder == "big" and size > 1:
                 values.byteswap()
         else:
-            # zeros, which only the sparse block sets: their size is bounded by that block's
+            # zeros, which only the sparse block sets: at most zip_ratio times the bytes that
+            # block was read from (past 1 MiB), checked before the zeros are made
             lim = self.limits
-            n, isize = 0, 4
-            if isinstance(sparse, dict):
-                n = _int(sparse.get("count"), f"{what}'s sparse count", 1)
-                itype = sparse.get("indices")
-                if isinstance(itype, dict):
-                    isize = {5121: 1, 5123: 2}.get(itype.get("componentType"), 4)
-            if count * elem > max(_ZERO_FLOOR, lim.zip_ratio * n * (isize + elem)):
+            held = 0 if block is None else len(block[0]) * block[0].itemsize + len(block[1]) * size
+            if count * elem > max(_ZERO_FLOOR, lim.zip_ratio * held):
                 raise lim.exceeded(
                     "zip_ratio", f"{what} has no buffer view and is far larger than its sparse values"
                 )
-            values = array(code, bytes(count * elem))
-        if isinstance(sparse, dict):
-            self._sparse(values, sparse, code, size, ncomp, count, what)
+            values = array(code, bytes(elem)) * count
+        if block is not None:
+            positions, rep = block
+            for k, p in enumerate(positions):
+                values[p * ncomp : (p + 1) * ncomp] = rep[k * ncomp : (k + 1) * ncomp]
         if scale is not None and acc.get("normalized"):
             fl = array("f", (max(v / scale, -1.0) for v in values))
             return fl, ncomp
         return values, ncomp
 
-    def _sparse(self, values: array, sparse: dict, code: str, size: int, ncomp: int, count: int, what: str):
+    def _sparse(
+        self, sparse: dict, code: str, size: int, ncomp: int, count: int, what: str
+    ) -> tuple[array, array]:
+        """A sparse block's element indices and values, read from their views and checked
+        (every index inside the accessor) before anything the accessor holds is made."""
         n = _int(sparse.get("count"), f"{what}'s sparse count", 1)
         if n > count:
             raise SldFormatError(f"{what}: more sparse values than elements")
@@ -560,10 +568,9 @@ class GltfDocument(ModelDocument):
             positions.byteswap()
             if size > 1:
                 rep.byteswap()
-        for k, p in enumerate(positions):
-            if p >= count:
-                raise SldFormatError(f"{what}: a sparse index is past the accessor's end")
-            values[p * ncomp : (p + 1) * ncomp] = rep[k * ncomp : (k + 1) * ncomp]
+        if n and max(positions) >= count:
+            raise SldFormatError(f"{what}: a sparse index is past the accessor's end")
+        return positions, rep
 
     def _view_bytes(self, ref: dict, n: int, what: str) -> bytes:
         view = self._get("bufferViews", ref.get("bufferView"))

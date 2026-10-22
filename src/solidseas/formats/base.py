@@ -34,7 +34,8 @@ and converts to metres. A hook raises only ``SldFormatError``,
 ``SldLimitError``, ``FormatNotSupportedError`` or the I/O errors
 ``open_document`` documents; anything else a crafted file provokes
 (``ValueError``, ``IndexError``, ``struct.error``...) is turned into
-``SldFormatError`` at the boundary.
+``SldFormatError`` at the boundary, and a ``MemoryError`` into ``SldLimitError``
+with ``detail["limit"]`` ``memory``, the answer a worker's memory cap gives.
 """
 
 import math
@@ -51,6 +52,7 @@ from ..errors import (
     InvalidArgumentError,
     ReaderWarning,
     SldFormatError,
+    SldLimitError,
     SolidSeasError,
     UnknownFormatError,
 )
@@ -91,11 +93,14 @@ _DAMAGE = (
 
 def guarded(fn: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
     """``fn(*args, **kwargs)`` with what a crafted file provokes turned into
-    :class:`SldFormatError` (see the module notes)."""
+    :class:`SldFormatError`, and running out of memory into :class:`SldLimitError`
+    (see the module notes)."""
     try:
         return fn(*args, **kwargs)
-    except (SolidSeasError, OSError, MemoryError):
+    except (SolidSeasError, OSError):
         raise
+    except MemoryError:
+        raise SldLimitError("reading the file ran out of memory", detail={"limit": "memory"}) from None
     except _DAMAGE as exc:
         raise SldFormatError(f"the file could not be read ({type(exc).__name__}: {exc})"[:300]) from exc
 

@@ -1802,6 +1802,13 @@ while the project takes shape.
 
 ### Fixed
 
+- **Crafted files that ask for too much memory.** A crafted 3MF or zipped AMF
+  can no longer make SolidSeas build a central directory larger than its end
+  record admits, a glTF accessor's sparse block is checked before any zeros are
+  made, strided accessors are copied without an object per element, and the
+  files a document names are bounded in total. Running out of memory while
+  reading a model file reports limit_exceeded on every surface.
+
 - **A frame under a vertical dimension.** A feature control frame under a
   vertical dimension's text no longer lands across the next dimension.
 
