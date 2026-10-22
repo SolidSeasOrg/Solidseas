@@ -915,19 +915,20 @@ def _title_block(tb: D.TitleBlock, ctx: Context) -> list[Ent]:
 
 
 def _projection(ps: D.ProjectionSymbol, ctx: Context) -> list[Ent]:
-    """The projection symbol round ``at`` (its middle): a frustum and its end view,
-    the circles on the right for third angle and on the left for first."""
+    """The projection symbol round ``at`` (its middle): a frustum, and its end view on
+    its right. As the painted symbol (``glyphs.Pen.projection_symbol``), the frustum's
+    narrow end faces the circles for third angle and its wide end for first."""
     _finite(ps.size)
     sk = Sketch(ctx, "TITLE")
     s = float(ps.size)
     cx, cy = float(ps.at[0]), float(ps.at[1])
     third = ps.angle != "first"
-    side = 1.0 if third else -1.0
-    circles = (cx + side * 0.75 * s, cy)
+    circles = (cx + 0.75 * s, cy)
     sk.circle(circles, s / 2.0)
     sk.circle(circles, s / 4.0)
-    near, far = cx - side * 0.25 * s, cx - side * 1.25 * s  # the small end faces the circles
-    sk.poly([(far, cy - s / 2.0), (near, cy - s / 4.0), (near, cy + s / 4.0), (far, cy + s / 2.0)], True)
+    near, far = cx - 0.25 * s, cx - 1.25 * s
+    a, b = (s / 4.0, s / 2.0) if third else (s / 2.0, s / 4.0)  # half heights near and far
+    sk.poly([(far, cy - b), (near, cy - a), (near, cy + a), (far, cy + b)], True)
     return sk.ents
 
 

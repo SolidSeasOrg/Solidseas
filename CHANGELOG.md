@@ -1916,6 +1916,10 @@ while the project takes shape.
 
 ### Fixed
 
+- **The projection symbol on ASME drawings.** ASME drawings showed the
+  first-angle projection symbol in the title block. They now show the
+  third-angle symbol.
+
 - **Room for a datum feature symbol.** When a datum feature symbol has no room
   on the automatically chosen sheet, the drawing moves to the next sheet size if
   that clears it.

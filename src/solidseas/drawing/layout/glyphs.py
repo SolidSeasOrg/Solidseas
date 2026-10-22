@@ -275,13 +275,28 @@ class Pen:
         return top
 
     def projection_symbol(
-        self, x: float, y: float, h: float, *, layer: str = "title", owner: str = "projection"
+        self,
+        x: float,
+        y: float,
+        h: float,
+        *,
+        angle: str = "third",
+        layer: str = "title",
+        owner: str = "projection",
     ) -> Box:
-        """The third-angle projection symbol with its lower left at (``x``, ``y``),
-        ``h`` tall: a truncated cone seen from the side, then from its small end."""
+        """The projection symbol of ``angle`` (``third`` or ``first``) with its lower left
+        at (``x``, ``y``), ``h`` tall: a truncated cone seen from the side, and on its
+        right the same cone seen from its small end (two whole circles). A third-angle
+        view stands on the side it is seen from, so the cone's narrow end faces the
+        circles; a first-angle view stands on the far side, so its wide end does
+        (ASME Y14.3 and ISO 5456-2 as publicly summarised; the proportions verify)."""
         kw = {"width": THIN, "layer": layer, "owner": owner}
         w = h * 1.1
-        self.poly([(x, y + h * 0.25), (x, y + h * 0.75), (x + w, y + h), (x + w, y)], closed=True, **kw)
+        if angle == "first":
+            cone = [(x, y + h * 0.25), (x, y + h * 0.75), (x + w, y + h), (x + w, y)]
+        else:
+            cone = [(x, y), (x, y + h), (x + w, y + h * 0.75), (x + w, y + h * 0.25)]
+        self.poly(cone, closed=True, **kw)
         c = (x + w + h * 0.35 + h / 2, y + h / 2)
         self.circle(c, h / 2, **kw)
         self.circle(c, h / 4, **kw)
