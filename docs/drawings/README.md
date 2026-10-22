@@ -38,7 +38,7 @@ loops, one clock per stage, typed results, and only the public modules of
 | `standards.py` | sheets, margins, zones, scales, lines, text heights, the tolerance blocks, ISO 2768-1, process figures, thread tables, revision and view letters, GD&T characteristics |
 | `numbers.py` | values and tolerances as a sheet shows them (10.8), the rounding guard, bands, unit guessing |
 | `fonts.py` | Helvetica and Helvetica-Bold widths in WinAnsi, `measure`, the cap-height rule |
-| `source.py` | `DrawingSource` from a SOLIDWORKS part (6.2): identity, bodies, units and their origin, properties, hashes and digests |
+| `source.py` | `DrawingSource` from a SOLIDWORKS part, or a STEP, Parasolid or Alibre Design part (6.2): identity, bodies, units and their origin, properties, hashes and digests |
 | `assembly.py` | `DrawingSource` from a SOLIDWORKS assembly: its part instances placed, each part's bodies once, the parts list ([assemblies.md](assemblies.md)) |
 | `facegraph.py` | `BrepModel` (6.3) from the tessellator's detail (`detail=True`) |
 | `keys.py` | geometric signatures and feature descriptors (6.4.1) |

@@ -39,7 +39,10 @@ MESH = "o02_boxA.STL"
 O16 = "o16_asm_features.SLDASM"
 INNER = "o15_sub_asm-1/o07_boxB_h31-1"  # a part of o16's sub-assembly
 VIRTUAL_INSTANCE = "Part12^o16_asm_features-1"  # a virtual part, stored inside o16
-PARTS_ONLY = "Drawings are made of SOLIDWORKS parts and assemblies in this release."
+PARTS_ONLY = (
+    "Drawings are made of SOLIDWORKS parts and assemblies, and of STEP, Parasolid and Alibre Design parts, "
+    "in this release."
+)
 
 
 @pytest.fixture
@@ -263,7 +266,7 @@ def _target(source_path: str, name: str, **kw):
 
 
 # --------------------------------------------------------------------------- what can be drawn
-def test_only_a_solidworks_part_or_assembly_of_its_own_file_can_be_drawn():
+def test_a_solidworks_part_or_assembly_of_its_own_file_can_be_drawn():
     from solidseas_app.viewer.drawingaction import refusal
 
     assert refusal(_target("/f/bracket.SLDPRT", "bracket.SLDPRT", doc_type="part")) is None
@@ -274,10 +277,10 @@ def test_only_a_solidworks_part_or_assembly_of_its_own_file_can_be_drawn():
     )
     assert words == "stored inside its assembly" and "Save it as an assembly of its own" in why
     words, why = refusal(_target("/f/box.stl", "box.stl", doc_type="part", content_format="stl"))
-    assert words == "not a SOLIDWORKS part" and "(STL)" in why and why.endswith(PARTS_ONLY)
+    assert words == "not a format drawings are made from" and "(STL)" in why and why.endswith(PARTS_ONLY)
     # What the file holds decides, whatever its name says: a STEP saved as .SLDPRT.
-    words, _why = refusal(_target("/f/odd.SLDPRT", "odd.SLDPRT", doc_type="part", content_format="step"))
-    assert words == "not a SOLIDWORKS part"
+    words, why = refusal(_target("/f/odd.SLDPRT", "odd.SLDPRT", doc_type="part", content_format="step"))
+    assert words == "named as another format" and "extension of a STEP file" in why
     words, why = refusal(
         _target("/f/top.SLDASM", "Part12^top", doc_type="part", nested=("VirtualComp/Part12-sldprt",))
     )
@@ -285,6 +288,21 @@ def test_only_a_solidworks_part_or_assembly_of_its_own_file_can_be_drawn():
     words, _why = refusal(_target("/f/sub.SLDASM", "Part3^sub", doc_type="part", virtual=("Part3^sub",)))
     assert words == "stored inside its assembly"
     assert refusal(_target("/f/x.SLDDRW", "x.SLDDRW", doc_type="drawing"))[0] == "a SOLIDWORKS drawing"
+
+
+def test_a_step_parasolid_or_alibre_part_can_be_drawn_and_their_assemblies_not():
+    from solidseas_app.viewer.drawingaction import ASSEMBLIES_ONLY, refusal
+
+    for path, fmt in (("/f/shaft.step", "step"), ("/f/shaft.x_t", "parasolid"), ("/f/pin.AD_PRT", "alibre")):
+        assert refusal(_target(path, os.path.basename(path), doc_type="part", content_format=fmt)) is None
+    # among them the name decides nothing: a STEP file named .x_t is read as STEP
+    assert refusal(_target("/f/odd.x_t", "odd.x_t", doc_type="part", content_format="step")) is None
+    words, why = refusal(_target("/f/top.step", "top.step", doc_type="assembly", content_format="step"))
+    assert (
+        words == "an assembly of another format" and why == f"top.step is a STEP assembly. {ASSEMBLIES_ONLY}"
+    )
+    # a Parasolid file's head says assembly for a multi-body part too: the drawing process decides
+    assert refusal(_target("/f/two.x_b", "two.x_b", doc_type="assembly", content_format="parasolid")) is None
 
 
 def test_make_drawing_reads_as_its_3d_print_entry():
@@ -367,15 +385,13 @@ def test_new_drawing_is_on_for_a_part_and_off_with_the_reason_for_the_rest(viewe
     c = v.controller
     action = c.new_action
     v.open(models, PART)
-    assert (
-        action.isEnabled() and "Make a drawing of the SOLIDWORKS part or assembly shown" in action.statusTip()
-    )
+    assert action.isEnabled() and "Make a drawing of the part or assembly shown" in action.statusTip()
     v.open(models, ASSEMBLY)
     assert action.isEnabled() and "an assembly's parts list and balloons" in action.statusTip()
     v.open(models, DRAWING)
     assert not action.isEnabled() and action.statusTip().endswith(f"SOLIDWORKS drawing. {PARTS_ONLY}")
     v.open(models, MESH)
-    assert not action.isEnabled() and "(STL), not a SOLIDWORKS part" in action.statusTip()
+    assert not action.isEnabled() and f"(STL). {PARTS_ONLY}" in action.statusTip()
     # Ctrl+D (the action) does nothing while it is off, and says why when called anyway.
     action.trigger()
     assert v.wizards == []
@@ -437,7 +453,7 @@ def test_the_list_offers_make_drawing_beside_3d_print_once_the_menu_opens(viewer
     menu = v.list_menu(MESH)
     c.fill(menu)
     entry = _entry(menu, "Make Drawing of")
-    assert entry.text().endswith("(not a SOLIDWORKS part)") and not entry.isEnabled()
+    assert entry.text().endswith("(not a format drawings are made from)") and not entry.isEnabled()
     menu = v.list_menu(DRAWING)
     assert c.fill(menu) == [] and not any(t.startswith("Make Drawing") for t in _texts(menu))
 

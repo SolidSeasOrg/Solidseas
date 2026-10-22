@@ -189,6 +189,26 @@ OVERRIDE_WARNING = (
 )
 PICKED_COLOUR = QColor("#2e7d32")
 _MODEL_OK = ("unchanged", "geometry", "looking")
+# The parts a drawing is made from, for Find the Model: SOLIDWORKS parts, and STEP,
+# Parasolid and Alibre Design parts (solidseas.drawing.source.MODEL_FORMATS), each
+# extension in both cases for file dialogs that match them exactly
+_PART_EXTENSIONS = (
+    ".sldprt",
+    ".step",
+    ".stp",
+    ".p21",
+    ".x_t",
+    ".x_b",
+    ".xmt_txt",
+    ".xmt_bin",
+    ".ad_prt",
+    ".ad_smp",
+)
+MODEL_FILTERS = (
+    "Parts ("
+    + " ".join(f"*{e} *{e.upper()}" for e in _PART_EXTENSIONS)
+    + ");;SOLIDWORKS parts (*.sldprt *.SLDPRT)"
+)
 _IN_FLIGHT: set = set()  # the steps running, held until they report back
 _KINDS = {"pdf": "PDF", "dxf": "DXF"}
 
@@ -669,9 +689,7 @@ class DrawingEditor(QMainWindow):
 
     def ask_model_path(self, start: str) -> str | None:
         """The model's file (Find...), or None."""
-        path, _filter = QFileDialog.getOpenFileName(
-            self, "Find the Model", start, "SOLIDWORKS parts (*.sldprt *.SLDPRT)"
-        )
+        path, _filter = QFileDialog.getOpenFileName(self, "Find the Model", start, MODEL_FILTERS)
         return path or None
 
     def ask_question(self, text: str) -> bool:

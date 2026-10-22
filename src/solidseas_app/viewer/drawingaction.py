@@ -21,11 +21,13 @@ place:
   print is looked at only for a menu that is shown, and code that builds a menu and
   reads it without showing it (the print tests, the self-test's checks of its
   entries) sees the menu as the print controller made it.
-* A part or an assembly of its own file is drawn; an assembly's drawing has its views,
-  parts list and item balloons (``docs/drawings/assemblies.md``). A SOLIDWORKS drawing,
-  a part or sub-assembly stored inside an assembly and a 3D file of another format
-  have the entry off (:func:`refusal`), with the reason in a few words after it and in
-  full in its tooltip: "Drawings are made of SOLIDWORKS parts and assemblies in this
+* A part or an assembly of its own file is drawn, and a STEP, Parasolid or Alibre
+  Design part; an assembly's drawing has its views, parts list and item balloons
+  (``docs/drawings/assemblies.md``). A SOLIDWORKS drawing, a part or sub-assembly
+  stored inside an assembly, an assembly of another format and a 3D file of a format
+  drawings are not made from have the entry off (:func:`refusal`), with the reason in
+  a few words after it and in full in its tooltip: "Drawings are made of SOLIDWORKS
+  parts and assemblies, and of STEP, Parasolid and Alibre Design parts, in this
   release." That look is taken with the window's one question (which of several
   files a reference means) answered as cancelled, so opening a menu never asks
   anything; the entry asks when it is chosen.
@@ -88,13 +90,17 @@ from .wording import tip
 Builder = Callable[[QMenu, "QAction | None"], QAction]
 
 TITLE = "Drawing"
-PARTS_ONLY = "Drawings are made of SOLIDWORKS parts and assemblies in this release."
+PARTS_ONLY = (
+    "Drawings are made of SOLIDWORKS parts and assemblies, and of STEP, Parasolid and Alibre Design parts, "
+    "in this release."
+)
+ASSEMBLIES_ONLY = "Drawings of assemblies are made from SOLIDWORKS assemblies in this release."
 NEW_TEXT = experimental.tagged("New &Drawing...")
 NEW_SHORTCUT = "Ctrl+D"
 NEW_ICON_TEXT = "Drawing"
 NEW_TIP = (
-    "Make a drawing of the SOLIDWORKS part or assembly shown: its views, dimensions (an assembly's parts "
-    "list and balloons) and title block, saved as a SolidSeas drawing with its PDF and DXF"
+    "Make a drawing of the part or assembly shown: its views, dimensions (an assembly's parts list and "
+    "balloons) and title block, saved as a SolidSeas drawing with its PDF and DXF"
 )
 OPEN_TEXT = experimental.tagged("Open Dra&wing...")
 OPEN_TIP = "Open a SolidSeas drawing (.ssdrw) in the drawing editor"
@@ -119,20 +125,37 @@ STARTS = ("express", "guided", "expert")  # how a drawing can start (drawingmode
 
 def refusal(target: PrintTarget) -> tuple[str, str] | None:
     """Why no drawing can be made of ``target``, as a few words for a menu entry and the
-    reason in full; None for a SOLIDWORKS part or assembly of its own file. A drawing,
-    a part or sub-assembly stored inside an assembly (with no file of its own) and a 3D
-    file of another format are refused: the drawing library reads SOLIDWORKS parts and
-    assemblies in this release."""
+    reason in full; None for a SOLIDWORKS part or assembly of its own file, and for a
+    part of a STEP, Parasolid or Alibre Design file named as one
+    (:data:`solidseas.drawing.source.MODEL_FORMATS`). A drawing, a part or sub-assembly
+    stored inside an assembly (with no file of its own), an assembly of another format
+    and a 3D file of any other format are refused. A Parasolid file whose head says
+    assembly is let through: SOLIDWORKS writes a multi-body part's .x_b as one, and the
+    drawing process, which reads the whole transmit, tells the two apart."""
+    from solidseas.drawing.source import MODEL_FORMATS
+    from solidseas.formats import registry
+
     name = target.name
     if target.doc_type == "drawing":
         return "a SOLIDWORKS drawing", f"{name} is a SOLIDWORKS drawing. {PARTS_ONLY}"
     fmt = target.model_format
     if fmt is not None:
         label = format_label(fmt)
-        return (
-            "not a SOLIDWORKS part",
-            f"{name} is a 3D file of another format ({label}), not a SOLIDWORKS part. {PARTS_ONLY}",
-        )
+        if fmt not in MODEL_FORMATS:
+            return (
+                "not a format drawings are made from",
+                f"{name} is a 3D file of another format ({label}). {PARTS_ONLY}",
+            )
+        named = registry.by_extension(target.source.path)
+        if named is None or named.id not in MODEL_FORMATS:
+            return (
+                "named as another format",
+                f"{name} holds a {label} file under the name of another format. Give it the extension of "
+                f"a {label} file to draw it.",
+            )
+        if target.doc_type == "assembly" and fmt != "parasolid":
+            return "an assembly of another format", f"{name} is a {label} assembly. {ASSEMBLIES_ONLY}"
+        return None
     if target.source.nested or target.virtual:
         what = "an assembly" if target.doc_type == "assembly" else "a part"
         return (
@@ -458,9 +481,10 @@ class DrawingController(QObject):
         return bool(getattr(getattr(self.window, "settings", None), "drawings", True))
 
     def update_actions(self) -> None:
-        """New Drawing on for a SOLIDWORKS part shown; off otherwise, its tooltip saying
-        why for an assembly, a SOLIDWORKS drawing or a 3D file of another format. With
-        drawings switched off, New Drawing and Open Drawing are not shown."""
+        """New Drawing on for a part or assembly shown that can be drawn (:func:`refusal`);
+        off otherwise, its tooltip saying why for a SOLIDWORKS drawing, an assembly of
+        another format or a 3D file of a format drawings are not made from. With drawings
+        switched off, New Drawing and Open Drawing are not shown."""
         shown = self.enabled
         self.new_action.setVisible(shown)
         self.open_action.setVisible(shown)
@@ -892,6 +916,7 @@ class DrawingController(QObject):
 
 
 __all__ = [
+    "ASSEMBLIES_ONLY",
     "DRAWING_SHOWN",
     "NEW_SHORTCUT",
     "NEW_TEXT",

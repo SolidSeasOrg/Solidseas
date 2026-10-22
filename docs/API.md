@@ -4565,9 +4565,15 @@ default), `email` and `limits`.
 
 **The source** (`solidseas.drawing.source.open_source(path_or_document, *,
 configuration=None, bodies=None, units=None, title_names=(), limits)`): reads a
-SOLIDWORKS part or assembly read-only. A drawing raises
-`UnsupportedOperationError` with rule `drawing`; another format rule
-`format_later`. An assembly (`solidseas.drawing.assembly.open_assembly`,
+SOLIDWORKS part or assembly read-only, or a part in a STEP, Parasolid or Alibre
+Design file (`MODEL_FORMATS`; a path, or a `ModelDocument` already open), whose
+bodies its reader hands over as Parasolid transmits. Such a part has no
+configuration (naming one raises `ConfigurationNotFoundError`) and its source's
+`format` is the reader's id; a Parasolid file states no unit, so the unit is
+guessed. The `.x_b` SOLIDWORKS writes for a multi-body part is read as that part.
+A drawing raises `UnsupportedOperationError` with rule `drawing`; an assembly of
+those formats, a file of triangles and any other format rule `format_later`. An
+assembly (`solidseas.drawing.assembly.open_assembly`,
 `docs/drawings/assemblies.md`) is read with its part instances placed, each
 part's bodies once, and its top-level bill of materials: its source has
 `format` `sldasm` and `assembly`, the instances, their placed bodies and the

@@ -37,6 +37,13 @@ while the project takes shape.
 
 ### Added
 
+- **Drawings of STEP, Parasolid and Alibre parts.** You can now make drawings of
+  parts saved as STEP, Parasolid (.x_t, .x_b) or Alibre Design files, from the
+  viewer's Make Drawing and New Drawing or with `solidseas drawing new`. Such a
+  part has no configurations. A Parasolid file never says which unit its part
+  was designed in, so SolidSeas guesses it and asks you to confirm. Assemblies
+  and mesh files in those formats can't be drawn yet.
+
 - **SOLIDWORKS parts from CadQuery models.** `solidseas sldprt` now writes a
   SOLIDWORKS part from a CadQuery model. Record the model in your CadQuery
   session with `solidseas.nativewrite.cqrecorder` and save the recording as a

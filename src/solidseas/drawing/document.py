@@ -1892,10 +1892,18 @@ def current_revision(drawing: types.Drawing) -> str | None:
 
 
 def _model_stem(drawing: types.Drawing) -> str:
+    """The model's file name without the extension of a format drawings are made from."""
+    from ..formats import registry
+    from .source import MODEL_FORMATS
+
     name = str((drawing.model or {}).get("name") or "")
     base = re.split(r"[\\/]", name)[-1]
     stem, ext = os.path.splitext(base)
-    return stem if stem and ext.lower() in (".sldprt", ".sldasm", ".slddrw") else base
+    spec = registry.by_extension(ext)
+    drawn = ext.lower() in (".sldprt", ".sldasm", ".slddrw") or (
+        spec is not None and spec.id in MODEL_FORMATS
+    )
+    return stem if stem and drawn else base
 
 
 def _number_text(drawing: types.Drawing) -> str:

@@ -4069,7 +4069,11 @@ def build_parser() -> argparse.ArgumentParser:
         )
 
     ap = action("new", "make a PRELIMINARY drawing of a part: always the .ssdrw, the PDF and DXF on request")
-    ap.add_argument("path", metavar="PART", help="a .sldprt file (opened read-only)")
+    ap.add_argument(
+        "path",
+        metavar="PART",
+        help="a SOLIDWORKS part or assembly, or a STEP, Parasolid or Alibre Design part (opened read-only)",
+    )
     ap.add_argument("--configuration", metavar="C", default=None, help="the configuration to draw")
     ap.add_argument("--process", choices=("machined", "printed"), default="machined")
     ap.add_argument("--scheme", choices=("datum", "plusminus"), default=None, help="(default: the process's)")
@@ -4140,7 +4144,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     ap.add_argument("--dry-run", action="store_true", help="report what would change and write nothing")
     ap = action("check", "the checklist and thread candidates of a drawing, or of a part's drawing")
-    ap.add_argument("path", metavar="DRAWING_OR_PART", help="a .ssdrw or a .sldprt file (never changed)")
+    ap.add_argument(
+        "path",
+        metavar="DRAWING_OR_PART",
+        help="a .ssdrw file, or a part as drawing new takes (never changed)",
+    )
     ap.add_argument("--strict", action="store_true", help="warnings fail too (exit 4)")
     ap.add_argument(
         "--model",

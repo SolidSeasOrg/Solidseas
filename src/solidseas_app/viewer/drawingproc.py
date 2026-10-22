@@ -1035,19 +1035,24 @@ def _do_probe(request: dict) -> tuple[dict, list]:
     out: dict[str, Any] = {"name": model.clean_text(os.path.basename(part)), "refused": None}
     try:
         if os.path.splitext(part)[1].lower() not in (*SOLIDWORKS_PARTS, *SOLIDWORKS_ASSEMBLIES):
-            open_source(part, limits=limits)  # refuses by the extension, opening nothing
-        doc = open_document(part)
-        try:
-            names = [c.name for c in doc.configurations if isinstance(c.name, str)]
-            if configuration is not None and configuration not in names:
-                raise ConfigurationNotFoundError(
-                    "the part has no configuration by that name", detail={"parameter": "configuration"}
-                )
-            out["configurations"] = names
-            out["active_configuration"] = doc.active_configuration
-            src = open_source(doc, configuration=configuration, limits=limits)
-        finally:
-            doc.close()
+            # a part of another format (STEP, Parasolid, Alibre), which has no
+            # configurations; any other file is refused by its extension, opening nothing
+            src = open_source(part, configuration=configuration, limits=limits)
+            out["configurations"] = []
+            out["active_configuration"] = None
+        else:
+            doc = open_document(part)
+            try:
+                names = [c.name for c in doc.configurations if isinstance(c.name, str)]
+                if configuration is not None and configuration not in names:
+                    raise ConfigurationNotFoundError(
+                        "the part has no configuration by that name", detail={"parameter": "configuration"}
+                    )
+                out["configurations"] = names
+                out["active_configuration"] = doc.active_configuration
+                src = open_source(doc, configuration=configuration, limits=limits)
+            finally:
+                doc.close()
     except UnsupportedOperationError as exc:  # a drawing, another format, an assembly with nothing to draw
         detail = exc.detail or {}
         out.update(refused=str(exc), refused_code=exc.code, refused_rule=detail.get("rule"))

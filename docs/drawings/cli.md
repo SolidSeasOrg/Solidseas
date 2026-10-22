@@ -37,7 +37,13 @@ writes `1234-001.ssdrw`, `1234-001 A PRELIMINARY.pdf` and
 `1234-001 A PRELIMINARY.dxf` in `D:\Drawings`. An assembly (`frame.SLDASM`) is drawn
 the same way, with its views, parts list and item balloons and no dimensions
 ([assemblies.md](assemblies.md)); its summary line counts the parts list's items
-and the balloons. The options are those of the table in 14:
+and the balloons. A part saved as STEP (`bracket.step`), Parasolid (`bracket.x_t`,
+`bracket.x_b`) or Alibre Design (`bracket.AD_PRT`) is drawn as its SOLIDWORKS part
+would be; it has no configurations, so `--configuration` is refused with
+`configuration_not_found`, and a Parasolid file states no unit, so it needs
+`--units`. An assembly of those formats, a mesh file and any other format are
+refused with `not_implemented` (`detail.rule` `format_later`). The options are
+those of the table in 14:
 
 | Option | Meaning |
 |---|---|
@@ -181,7 +187,8 @@ action fills what it has and leaves the rest null or empty: `files` for `new`,
 `export` and `update`; `merge` for `update`; `coverage` for a live run of a part;
 `settings` for `settings`; `model_check` for `check --model`. The drawing summary
 carries no path; `files` carry absolute paths, as `file_written` does. Its
-`model.format` is `sldprt` or `sldasm`, and an assembly's `counts.items` and
+`model.format` is `sldprt` or `sldasm`, or for a part of another format the
+reader's format id (`step`, `parasolid`, `alibre`), and an assembly's `counts.items` and
 `counts.balloons` count its parts list's lines and balloons. `counts.sheets` is
 the drawing's sheets: 1, more for an assembly whose parts list goes on past the
 first, and 0 for a drawing with no laid-out sheet. `check --model` of

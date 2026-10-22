@@ -420,8 +420,15 @@ limits)` returns a frozen `DrawingSource`:
 
 Stage 1 accepts SOLIDWORKS parts, and assemblies ahead of stage 4
 (`docs/drawings/assemblies.md`: views, the parts list and item balloons).
-Drawings are refused with `not_implemented` (rule `drawing`); other formats with
-rule `format_later`.
+Stage 2's `dwg-sources` is built: parts in STEP, Parasolid (`.x_t`, `.x_b`) and
+Alibre Design files are read by their readers, which hand each body over as a
+Parasolid transmit in metres, so every later stage is the same. Such a source has
+`format` `step`, `parasolid` or `alibre` and no configuration; a Parasolid file
+states no unit, so its unit is guessed and confirmed. The `.x_b` SOLIDWORKS writes
+for a multi-body part (one assembly gathering its bodies where they are) is that
+part. Drawings are refused with `not_implemented` (rule `drawing`); an assembly
+of those formats, a file of triangles and every other format with rule
+`format_later`.
 
 ### 6.3 `BrepModel`
 

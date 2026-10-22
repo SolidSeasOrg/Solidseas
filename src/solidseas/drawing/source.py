@@ -1,19 +1,30 @@
 """What a drawing is made from: ``DrawingSource`` (``docs/DRAWINGS.md`` 6.2).
 
-:func:`open_source` reads a SOLIDWORKS part, read-only, and returns its name (the
-file name only), format, configuration, bodies (name, type, face count, which are
-drawn), units and where they came from, material, effective properties
-(bounded), KeyWords hints, and three hashes: the file's SHA-256, the geometry
-digest (every face's signature at 1e-7 m, so a save that changed no geometry
-keeps it) and the digest of the properties the title block reads.
+:func:`open_source` reads a part, read-only, and returns its name (the file name
+only), format, configuration, bodies (name, type, face count, which are drawn),
+units and where they came from, material, effective properties (bounded),
+KeyWords hints, and three hashes: the file's SHA-256, the geometry digest (every
+face's signature at 1e-7 m, so a save that changed no geometry keeps it) and the
+digest of the properties the title block reads.
 
-It takes SOLIDWORKS parts and assemblies: an assembly is read by
+It takes SOLIDWORKS parts and assemblies, and parts in STEP, Parasolid (``.x_t``,
+``.x_b``) and Alibre Design files (:data:`MODEL_FORMATS`). An assembly is read by
 :func:`.assembly.open_assembly`, whose source has format ``sldasm`` and its
-instances, placed bodies and parts list in ``assembly``. A SOLIDWORKS drawing is
-refused with ``not_implemented`` (rule ``drawing``), another format with rule
-``format_later``. When a part states no unit, the unit is guessed from its sizes
-(whole thousandths of an inch against whole hundredths of a millimetre), with the
-evidence, and the wizard asks the user to confirm it every time (Q3).
+instances, placed bodies and parts list in ``assembly``. A part of another format
+is read by its reader in :mod:`solidseas.formats`, which hands each body over as a
+Parasolid transmit in metres, as a SOLIDWORKS part's are, so every stage after
+this one draws it the same way; such a file has no configuration, and its source
+has the reader's format id (``step``, ``parasolid``, ``alibre``). The .x_b
+SOLIDWORKS writes for a multi-body part holds one assembly that only gathers its
+bodies where they are, and is drawn as that part; an assembly of those formats,
+and a file that holds triangles rather than B-rep bodies, are refused with rule
+``format_later``. A SOLIDWORKS drawing is refused with ``not_implemented`` (rule
+``drawing``), any other format with rule ``format_later``, by its extension,
+opening nothing. When a part states no unit (a Parasolid file never does: its
+transmit is in metres whatever unit the part was designed in), the unit is guessed
+from its sizes (whole thousandths of an inch against whole hundredths of a
+millimetre), with the evidence, and the wizard asks the user to confirm it every
+time (Q3).
 """
 
 from __future__ import annotations
@@ -25,7 +36,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
-from ..errors import InvalidArgumentError, UnsupportedOperationError
+from ..errors import ConfigurationNotFoundError, InvalidArgumentError, UnsupportedOperationError
 from ..tessellate.surfaces import Geometry
 from ..tessellate.topology import CURVE_TYPES, EDGE, SURFACE_TYPES, FaceFailed, Topology
 from . import keys, numbers
@@ -34,8 +45,20 @@ from .limits import DEFAULT_LIMITS, DrawingLimits
 SOLIDWORKS_PARTS = (".sldprt",)
 SOLIDWORKS_ASSEMBLIES = (".sldasm",)
 SOLIDWORKS_OTHER = {".slddrw": "drawing"}
+# The formats besides SOLIDWORKS whose parts are drawn (docs/DRAWINGS.md 3.5, dwg-sources),
+# by their registry ids: their readers give each body as a Parasolid transmit in metres
+MODEL_FORMATS = ("step", "parasolid", "alibre")
 MAX_PROPERTIES = 1000
-LENGTH_UNITS = {"mm": "mm", "cm": "mm", "m": "mm", "um": "mm", "in": "in", "ft": "in", "mil": "in"}
+LENGTH_UNITS = {
+    "mm": "mm",
+    "cm": "mm",
+    "m": "mm",
+    "um": "mm",
+    "micron": "mm",
+    "in": "in",
+    "ft": "in",
+    "mil": "in",
+}
 
 
 @dataclass(frozen=True)
@@ -205,6 +228,63 @@ def _sizes(topo: Topology, geom: Geometry, edges) -> list[float]:
     return out
 
 
+def _body_records(all_bodies, bodies: tuple[str, ...] | None):
+    """``(records, signatures, sizes)`` of a part's bodies: each body's record (its face
+    count, whether it is drawn and whether SOLIDWORKS hides it), every face's signature
+    for the geometry digest, and the sizes a unit is guessed from. ``bodies`` names the
+    bodies to draw (None: every solid body that is not hidden); a name the part does
+    not have is refused."""
+    from ..tessellate import shown_bodies
+
+    shown, _hidden = shown_bodies(all_bodies)
+    shown_ids = {id(b) for b in shown}
+    if bodies is not None:
+        names = {b.name for b in all_bodies}
+        missing = [n for n in bodies if n not in names]
+        if missing:
+            raise InvalidArgumentError(
+                f"the part has no body named {missing[0]!r}", detail={"parameter": "bodies"}
+            )
+    records = []
+    signatures: list[str] = []
+    sizes: list[float] = []
+    for b in all_bodies:
+        topo = Topology(b.transmit)
+        geom = Geometry(topo, 1e-4)
+        count = 0
+        for tb in topo.bodies():
+            for face, snode, edges in _walk(topo, tb):
+                count += 1
+                signatures.append(_face_signature(topo, geom, face, snode, edges, keys.DIGEST_TOLERANCE))
+                sizes.extend(_sizes(topo, geom, edges))
+        hidden = id(b) not in shown_ids
+        selected = (b.name in bodies) if bodies is not None else (b.body_type == "solid" and not hidden)
+        records.append(SourceBody(b.name, b.body_type or "unknown", count, selected, hidden))
+    return records, signatures, sizes
+
+
+def _unit_info(units: str | None, stated: str | None, sizes: list[float]) -> SourceUnits:
+    """The drawing's unit: the user's, else the one the part states, else a guess."""
+    if units is not None:
+        return SourceUnits(units, "user", None, stated)
+    if stated is not None:
+        return SourceUnits(stated, "file", None, stated)
+    guess = numbers.guess_units(sizes)
+    return SourceUnits(guess.unit, "guessed", guess, None)
+
+
+def _bounded(items, limits: DrawingLimits, warnings: list[str]) -> tuple[tuple[str, str], ...]:
+    """Property (name, value) pairs, control characters taken out and cut to the
+    limits, the first :data:`MAX_PROPERTIES` of them."""
+    items = list(items)
+    props = [
+        (_clean(k, limits.title_chars), _clean(v, limits.string_chars)) for k, v in items[:MAX_PROPERTIES]
+    ]
+    if len(items) > MAX_PROPERTIES:
+        warnings.append(f"only the first {MAX_PROPERTIES} properties are read")
+    return tuple(props)
+
+
 def open_source(
     path_or_document,
     *,
@@ -214,13 +294,16 @@ def open_source(
     title_names: tuple[str, ...] = (),
     limits: DrawingLimits = DEFAULT_LIMITS,
 ) -> DrawingSource:
-    """Read a SOLIDWORKS part or assembly for a drawing (6.2). ``bodies`` names the
-    bodies to draw (None: every solid body SOLIDWORKS shows; an assembly's instances
-    by id); ``units`` (``in`` or ``mm``) is the user's choice and overrides what the
-    part states; ``title_names`` are the property names the title block reads, which
-    the properties digest covers."""
+    """Read a part or a SOLIDWORKS assembly for a drawing (6.2): a path, an open
+    SOLIDWORKS ``Document`` or an open model document of :data:`MODEL_FORMATS`.
+    ``bodies`` names the bodies to draw (None: every solid body SOLIDWORKS shows; an
+    assembly's instances by id); ``units`` (``in`` or ``mm``) is the user's choice and
+    overrides what the part states; ``title_names`` are the property names the title
+    block reads, which the properties digest covers."""
+    from ..formats import registry
+    from ..formats.base import ModelDocument, open_model
     from ..formats.solidworks import open_document
-    from ..tessellate import bodies_of, shown_bodies
+    from ..tessellate import bodies_of
     from .assembly import open_assembly
 
     if units not in (None, "in", "mm"):
@@ -236,16 +319,22 @@ def open_source(
             )
         if ext in SOLIDWORKS_ASSEMBLIES:
             return open_assembly(path, limits=limits, **kw)
-        if ext not in SOLIDWORKS_PARTS:
-            raise _refuse(
-                "format_later", "drawings from this format come in a later release", ext[1:] or "unknown"
-            )
-        doc = open_document(path)
+        if ext in SOLIDWORKS_PARTS:
+            doc = open_document(path)
+        else:
+            spec = registry.by_extension(ext)
+            if spec is None or spec.id not in MODEL_FORMATS:
+                raise _refuse(
+                    "format_later", "drawings from this format come in a later release", ext[1:] or "unknown"
+                )
+            doc = open_model(path)
         own = True
     else:
         doc = path_or_document
         path = getattr(doc, "path", None)
     try:
+        if isinstance(doc, ModelDocument):
+            return _model_source(doc, path, limits=limits, **kw)
         doc_type = doc.doc_type
         if doc_type == "assembly":
             return open_assembly(doc, limits=limits, **kw)
@@ -258,45 +347,12 @@ def open_source(
         warnings = [str(w) for w in doc.warnings]
         cfg_name, all_bodies, body_warnings, _n = bodies_of(doc, configuration)
         warnings += [str(w) for w in body_warnings]
-        shown, _hidden = shown_bodies(all_bodies)
-        shown_ids = {id(b) for b in shown}
-        if bodies is not None:
-            names = {b.name for b in all_bodies}
-            missing = [n for n in bodies if n not in names]
-            if missing:
-                raise InvalidArgumentError(
-                    f"the part has no body named {missing[0]!r}", detail={"parameter": "bodies"}
-                )
-        records = []
-        signatures: list[str] = []
-        sizes: list[float] = []
-        for b in all_bodies:
-            topo = Topology(b.transmit)
-            geom = Geometry(topo, 1e-4)
-            count = 0
-            for tb in topo.bodies():
-                for face, snode, edges in _walk(topo, tb):
-                    count += 1
-                    signatures.append(_face_signature(topo, geom, face, snode, edges, keys.DIGEST_TOLERANCE))
-                    sizes.extend(_sizes(topo, geom, edges))
-            hidden = id(b) not in shown_ids
-            selected = (b.name in bodies) if bodies is not None else (b.body_type == "solid" and not hidden)
-            records.append(SourceBody(b.name, b.body_type or "unknown", count, selected, hidden))
+        records, signatures, sizes = _body_records(all_bodies, bodies)
         stated_raw = (doc.units or {}).get("length") if isinstance(doc.units, dict) else None
         stated = LENGTH_UNITS.get(stated_raw) if isinstance(stated_raw, str) else None
-        if units is not None:
-            unit_info = SourceUnits(units, "user", None, stated)
-        elif stated is not None:
-            unit_info = SourceUnits(stated, "file", None, stated)
-        else:
-            guess = numbers.guess_units(sizes)
-            unit_info = SourceUnits(guess.unit, "guessed", guess, None)
+        unit_info = _unit_info(units, stated, sizes)
         props_raw = doc.property_values(cfg_name) if cfg_name is not None else doc.property_values()
-        props = []
-        for k, v in list(props_raw.items())[:MAX_PROPERTIES]:
-            props.append((_clean(k, limits.title_chars), _clean(v, limits.string_chars)))
-        if len(props_raw) > MAX_PROPERTIES:
-            warnings.append(f"only the first {MAX_PROPERTIES} properties are read")
+        props = _bounded(props_raw.items(), limits, warnings)
         material = _clean(doc.material, limits.title_chars) or None
         hints = _hints(doc.fields.keywords)
         sha = _sha256(path) if path else None
@@ -309,7 +365,7 @@ def open_source(
             bodies=tuple(records),
             units=unit_info,
             material=material,
-            properties=tuple(props),
+            properties=props,
             hints=hints,
             sha256=sha,
             geometry_digest=keys.digest(signatures),
@@ -322,4 +378,97 @@ def open_source(
             doc.close()
 
 
-__all__ = ["DrawingSource", "SourceBody", "SourceUnits", "open_source"]
+def _bodies_of_a_part(doc) -> bool:
+    """Whether a model document whose head says assembly holds one part's bodies: the
+    .x_b SOLIDWORKS writes for a multi-body part, whose one assembly only gathers its
+    bodies where they are (:func:`solidseas.formats.xt.bodies_in_place`)."""
+    if doc.format != "parasolid":
+        return False
+    from ..formats._source import Clock
+    from ..formats.xt import bodies_in_place
+
+    return bodies_in_place(doc.transmit(Clock(doc.limits.seconds)))
+
+
+def _model_source(
+    doc,
+    path: str | None,
+    *,
+    configuration: str | None,
+    bodies: tuple[str, ...] | None,
+    units: str | None,
+    title_names: tuple[str, ...],
+    limits: DrawingLimits,
+) -> DrawingSource:
+    """The source of a part read by one of the readers of :data:`MODEL_FORMATS`: its
+    bodies as Parasolid transmits, named as the file names them (``Body<n>`` where it
+    names none), with no configuration. Its unit is the one the file states; a unit a
+    reader assumed or one its format fixes (a Parasolid transmit is in metres) is no
+    statement of the part's, so the unit is guessed then."""
+    from ..formats.solidworks.parasolid import ParasolidBody
+
+    fmt = doc.format
+    if fmt not in MODEL_FORMATS:
+        raise _refuse("format_later", "drawings from this format come in a later release", fmt or "unknown")
+    if configuration is not None:
+        raise ConfigurationNotFoundError(
+            f"the file has no configuration named {configuration!r}", detail={"parameter": "configuration"}
+        )
+    refs = doc.bodies(max_seconds=limits.seconds_source) or []
+    if doc.doc_type == "assembly" and not _bodies_of_a_part(doc):
+        raise _refuse(
+            "format_later",
+            "drawings of assemblies are made from SOLIDWORKS assemblies in this release",
+            fmt,
+        )
+    if not refs and doc.kind == "mesh":
+        raise _refuse(
+            "format_later",
+            "the file holds triangles, not exact B-rep bodies; drawings of meshes come in a later release",
+            fmt,
+        )
+    warnings = [str(w) for w in doc.warnings]
+    if not refs:
+        warnings.append("the file holds no bodies")
+    all_bodies = []
+    taken: set[str] = set()
+    for k, ref in enumerate(refs, 1):
+        name = _clean(ref.name, limits.title_chars).strip() if ref.name else ""
+        name = name or f"Body{k}"
+        if name in taken:
+            n = 2
+            while f"{name} ({n})" in taken:
+                n += 1
+            name = f"{name} ({n})"
+        taken.add(name)
+        all_bodies.append(
+            ParasolidBody(name, 0, None, "file", None, ref.body_type or "unknown", ref.transmit)
+        )
+    records, signatures, sizes = _body_records(all_bodies, bodies)
+    stated_raw = (doc.units or {}).get("length") if (doc.units or {}).get("source") == "file" else None
+    stated = LENGTH_UNITS.get(stated_raw) if isinstance(stated_raw, str) else None
+    unit_info = _unit_info(units, stated, sizes)
+    props = _bounded(
+        ((p.name, p.text if p.text is not None else "") for p in doc.properties), limits, warnings
+    )
+    sha = _sha256(path) if path else None
+    name = os.path.basename(path) if path else (getattr(doc, "name", "") or "part")
+    return DrawingSource(
+        name=name,
+        format=fmt,
+        kind="brep",
+        configuration=None,
+        bodies=tuple(records),
+        units=unit_info,
+        material=None,
+        properties=props,
+        hints=_hints(getattr(doc.fields, "keywords", None)),
+        sha256=sha,
+        geometry_digest=keys.digest(signatures),
+        properties_digest=keys.properties_digest(dict(props), title_names),
+        warnings=tuple(warnings),
+        _bodies=tuple(all_bodies),
+    )
+
+
+__all__ = ["MODEL_FORMATS", "DrawingSource", "SourceBody", "SourceUnits", "open_source"]

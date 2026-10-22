@@ -31,13 +31,20 @@ and in full in its tooltip and status tip:
 
 | Shown or chosen | Entry reads | Reason |
 |---|---|---|
-| a SOLIDWORKS drawing | (New Drawing off) | "The document shown is a SOLIDWORKS drawing. Drawings are made of SOLIDWORKS parts and assemblies in this release." |
-| a 3D file of another format (by what it holds, not its name) | `(not a SOLIDWORKS part)` | "NAME is a 3D file of another format (STL), not a SOLIDWORKS part. Drawings are made..." |
+| a SOLIDWORKS drawing | (New Drawing off) | "The document shown is a SOLIDWORKS drawing. Drawings are made of SOLIDWORKS parts and assemblies, and of STEP, Parasolid and Alibre Design parts, in this release." |
+| a 3D file of a format drawings are not made from (by what it holds, not its name) | `(not a format drawings are made from)` | "NAME is a 3D file of another format (STL). Drawings are made..." |
+| a STEP, Parasolid or Alibre file under a SOLIDWORKS or other name | `(named as another format)` | "NAME holds a STEP file under the name of another format. Give it the extension of a STEP file to draw it." |
+| a STEP or Alibre assembly | `(an assembly of another format)` | "NAME is a STEP assembly. Drawings of assemblies are made from SOLIDWORKS assemblies in this release." |
 | a part or sub-assembly stored inside an assembly (virtual) | `(stored inside its assembly)` | it has no file of its own; save it as a part (an assembly) of its own in SOLIDWORKS to draw it |
 | a component whose file was not found | `(not found)`, as its 3D Print entry | the 3D Print entry's reason, said of a drawing |
 
-`drawingaction.refusal(target)` is that rule. A part's or an assembly's own
-SOLIDWORKS file is the only thing the drawing process reads in this release.
+`drawingaction.refusal(target)` is that rule. The drawing process reads a part's or
+an assembly's own SOLIDWORKS file, and a part's STEP, Parasolid or Alibre Design file
+(`solidseas.drawing.source.MODEL_FORMATS`), which has no configurations: its probe
+lists none, and the wizard offers none. A Parasolid file whose head says assembly
+has its entry on, since SOLIDWORKS writes a multi-body part's `.x_b` that way; the
+drawing process reads the whole transmit and refuses a real assembly with its
+reason. The editor's Find the Model offers all of those part files.
 
 On first use (no unit for parts that state none, no company name or no people),
 New Drawing opens Drawing Settings on the first page that waits for an answer, once

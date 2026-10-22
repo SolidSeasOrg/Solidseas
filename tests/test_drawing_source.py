@@ -88,12 +88,11 @@ def test_an_open_document_is_read_and_left_open():
     "name, rule",
     [
         ("o18_drw_boxA.SLDDRW", "drawing"),
-        ("o02_boxA.step", "format_later"),
-        ("o02_boxA.x_t", "format_later"),
         ("o02_boxA.STL", "format_later"),
     ],
 )
-def test_drawings_take_solidworks_parts_and_assemblies_only(name, rule):
+def test_drawings_take_parts_and_assemblies_only(name, rule):
+    # STEP, Parasolid and Alibre parts are drawn too: tests/test_drawing_sources.py
     with pytest.raises(UnsupportedOperationError) as info:
         S.open_source(fixture(name))
     assert info.value.code == "not_implemented" and info.value.detail["rule"] == rule

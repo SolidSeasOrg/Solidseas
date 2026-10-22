@@ -1,6 +1,7 @@
 # Drawings
 
-The viewer makes a drawing of a SOLIDWORKS part: its views, datum-referenced
+The viewer makes a drawing of a part (a SOLIDWORKS part, or a STEP, Parasolid or
+Alibre Design one): its views, datum-referenced
 dimensions, hole callouts, notes and title block, as a SolidSeas drawing file
 (`.ssdrw`) with a PDF and a DXF. Drawings are experimental, and everything
 about them is provisional until the first release that makes them. Check every
@@ -26,9 +27,15 @@ dimensions ([assemblies.md](../drawings/assemblies.md)). A parts list too long
 for the first sheet goes on to more sheets of the same size, each with the title
 block and the list's headings, and every title block says which sheet it is
 (SHEET 2 OF 3). The PDF then has a page for each sheet, and the DXF has the
-sheets side by side. SOLIDWORKS drawings,
-files of other formats and parts stored inside an assembly cannot be drawn yet;
-the entry is off and says why.
+sheets side by side.
+
+Parts saved as STEP (`.step`, `.stp`), Parasolid (`.x_t`, `.x_b`) or Alibre Design
+(`.AD_PRT`) files are drawn as SOLIDWORKS parts are. Such a file has no
+configurations. A Parasolid file never says which unit its part was designed in,
+so SolidSeas guesses it from the part's sizes and asks you to confirm it, as it
+does for a SOLIDWORKS part that states no unit. SOLIDWORKS drawings, assemblies
+saved in those formats, mesh files (STL, 3MF and the like) and parts stored inside
+an assembly cannot be drawn yet; the entry is off and says why.
 
 ## Express, Guided and Expert
 
