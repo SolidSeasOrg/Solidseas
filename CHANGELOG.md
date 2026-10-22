@@ -16,6 +16,16 @@ while the project takes shape.
 
 ### Added
 
+- **A machine policy an administrator can set.** Run as administrator,
+  `SolidSeasViewer.exe --set-policy NAME=VALUE ...` writes the policy that
+  restricts SolidSeas on a PC (`HKLM\SOFTWARE\Policies\SolidSeas`): it can turn
+  Automatic mode off, keep the AI to an Ollama server on the PC or to approved
+  hosts, stop pictures of a part being sent, and switch extensions off or limit
+  them to a list. Every value is checked before any is written, who set it and
+  when is recorded, and the policy is read back and shown as SolidSeas reads it.
+  `--remove NAME` and `--remove-all` take values away. The program has no
+  console of its own, so pipe its output (`| more`) to see it.
+
 - **SOLIDWORKS parts from a design, without SOLIDWORKS.** `solidseas sldprt
   DESIGN -o FOLDER` writes a new `.SLDPRT` from a SolidCraft design or a
   SolidSeas design file (`.json`). Today it writes corner rectangles on the

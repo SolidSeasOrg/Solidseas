@@ -126,3 +126,42 @@ With no AI provider set up, the drafting controls are hidden, the window says so
 with a button to AI Settings, and typed code still runs. A provider your
 administrator does not allow stays visible, greyed, saying "Set by your
 administrator".
+
+## For administrators: restricting SolidSeas on a PC
+
+An administrator can restrict SolidSeas for everyone who uses a PC with the
+machine policy: values under `HKLM\SOFTWARE\Policies\SolidSeas`, which
+SolidSeas reads again each time it checks them, so a change needs no restart.
+[ASSISTANT.md](../ASSISTANT.md) ("Machine policy") has the details.
+
+| Value | What it does |
+|---|---|
+| `DisableAutomaticMode` | 1 makes Automatic mode unavailable |
+| `LocalProviderOnly` | 1 lets the assistant use only an Ollama server on this PC, or on a host listed in `AllowedProviderHosts` |
+| `AllowedProviderHosts` | host names or addresses that also count as local, for an approved Ollama server |
+| `DisableImages` | 1 stops pictures of a part going to any model |
+| `DisableExtensions` | 1 switches every extension off |
+| `AllowedExtensions` | the only extensions that may be switched on |
+
+Group Policy or Intune deploys them to many PCs. On one PC, run SolidSeas as
+administrator with `--set-policy` and the values to set, from a prompt started
+with **Run as administrator**:
+
+```
+SolidSeasViewer.exe --set-policy DisableAutomaticMode=1 LocalProviderOnly=1 AllowedProviderHosts=ollama.example.internal | more
+```
+
+- Values you do not name stay as they are. `--remove NAME` removes one, and
+  `--remove-all` removes the whole key, so SolidSeas is no longer restricted.
+- Every value is checked before any is written: a DWORD is 0 or 1, a list is
+  separated by commas. A mistake writes nothing.
+- Each change also records who made it and when, as `SetBy` and `SetAt`.
+- SolidSeas then reads the policy back and shows it as it reads it. The
+  program has no console of its own, so `| more` shows what it says.
+- The exit code is 0 when the policy reads as asked, 1 when it could not be
+  written or does not read as asked, 2 for a mistake in the command, and 3
+  when SolidSeas was not run as administrator. After 2 or 3 nothing is
+  written.
+
+Group Policy writes its own values again at its next refresh, so remove or
+change a value Group Policy sets in Group Policy itself.

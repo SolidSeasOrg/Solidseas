@@ -760,6 +760,10 @@ it, on the catalog it already indexes.
   `HKLM\SOFTWARE\Policies\SolidSeas`. The policy is read fail-closed, following
   the `` pattern: a missing policy means no
   restriction, and a policy that cannot be read means the restriction is on.
+  Group Policy or Intune deploys it; on one PC, `SolidSeasViewer.exe
+  --set-policy`, run as administrator as a step of its own
+  (`solidseas_app/setpolicy.py`), writes it, the only code in SolidSeas that
+  does.
 - **CadQuery workspace.** Write or generate CadQuery models and send them to
   STEP or Parasolid, or into SOLIDWORKS as a native part through the
   `solidworks` backend. Generated code runs through the same worker process as

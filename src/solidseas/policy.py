@@ -28,6 +28,9 @@ registry type, or a DWORD other than 0 or 1, turns that restriction on; an
 ``AllowedProviderHosts`` of the wrong type counts as empty. The reader never
 checks whether the key exists before opening it.
 
+Nothing in SolidSeas writes the key but ``SolidSeasViewer.exe --set-policy``
+(:mod:`solidseas_app.setpolicy`), which an administrator runs elevated.
+
 :func:`current` reads the registry on every call, so a policy that Group
 Policy pushes while the app is open applies to the next model call and the
 next Automatic run. Enforcement lives in two places and nowhere else: the
@@ -69,6 +72,7 @@ REG_DWORD = 4
 REG_MULTI_SZ = 7
 
 MAX_ALLOWED_HOSTS = 32
+MAX_ALLOWED_EXTENSIONS = 64
 _HOST_LABEL = re.compile(r"[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\Z")
 
 
@@ -233,7 +237,16 @@ def _extension_ids(registry: Registry, key: Any, problems: list[str]) -> tuple[s
             ids.append(text)
         elif text and text not in ids:
             problems.append(f"{ALLOWED_EXTENSIONS} holds {text[:40]!r}, which is not an extension id")
-    return tuple(ids[:64])
+    return tuple(ids[:MAX_ALLOWED_EXTENSIONS])
+
+
+def normalize_extension_id(text: Any) -> str | None:
+    """An extension id in the form the policy compares (lower case, no spaces round it), or
+    None when ``text`` is not one."""
+    if not isinstance(text, str):
+        return None
+    candidate = text.strip().lower()
+    return candidate if _EXTENSION_ID.fullmatch(candidate) else None
 
 
 def extension_allowed(pol: Policy, extension_id: str) -> bool:
@@ -335,6 +348,8 @@ __all__ = [
     "KEY_DISPLAY",
     "KEY_PATH",
     "LOCAL_ONLY",
+    "MAX_ALLOWED_EXTENSIONS",
+    "MAX_ALLOWED_HOSTS",
     "NO_POLICY",
     "Policy",
     "RENAMED_EXTENSIONS",
@@ -342,6 +357,7 @@ __all__ = [
     "WindowsRegistry",
     "current",
     "extension_allowed",
+    "normalize_extension_id",
     "normalize_host",
     "read_policy",
     "restricted",

@@ -1054,12 +1054,40 @@ another machine, each request, the part's summary included, crosses the
 network unencrypted, where anyone on the way can read it: keep Ollama on this
 machine, or put it behind a server that speaks HTTPS and give that address.
 
+Writing it, in `solidseas_app/setpolicy.py`, the only code in SolidSeas that
+writes the key: `SolidSeasViewer.exe --set-policy NAME=VALUE ... [--remove NAME] ...`
+or `SolidSeasViewer.exe --set-policy --remove-all`, run as administrator (from
+source, `python -m solidseas_app --set-policy`).
+
+- It is an elevated step of its own, started from a prompt run as administrator
+  or with the `runas` verb. That path imports no Qt, opens no document and reads
+  no settings file, so nothing that parses a part runs elevated, and the GUI
+  never does.
+- It asks `IsUserAnAdmin` whether the process is elevated; a check that cannot
+  say counts as no. Off Windows there is nothing to write. Either way it
+  refuses with exit code 3 and writes nothing.
+- Every argument is checked before anything is written: only the policy's six
+  values (the four above, and `DisableExtensions` and `AllowedExtensions` from
+  `docs/EXTENSIONS.md`), each named once; a DWORD as 0 or 1; hosts and
+  extension ids as the reader takes them, normalized as it compares them, and
+  no more than it uses (32 hosts, 64 ids); a list is never empty (`--remove`
+  removes it). A mistake anywhere writes nothing (exit code 2). Values not
+  named stay as they are.
+- The key is opened in the 64-bit view, as the reader opens it. DWORDs set to 1
+  are written first, and those set to 0 or removed last, so a write that stops
+  part way has not turned a restriction off before turning the others on. Each
+  change also writes `SetBy` (the account, `DOMAIN\name`) and `SetAt` (UTC).
+- The policy is then read back with `read_policy`. Every value named must read
+  as asked, with no problem in any value (`Policy.error`), and `--remove-all`
+  must leave no policy at all; otherwise the exit code is 1, and the output
+  names what was written and how the policy reads now. Exit code 0 means it
+  reads as asked. The packaged executable has no console of its own, so its
+  output shows only when piped (`| more`).
+
 The settings page is to offer "Lock for all users" (not built yet), which
-starts `solidseas-app --set-policy` with the `runas` verb, so UAC asks for that
-one step; the GUI itself never runs elevated. The entry point checks
-`IsUserAnAdmin`, writes the values plus `SetBy` and `SetAt`, and exits. The
-dialog shows the key path, since Group Policy or Intune is the usual way to
-deploy it.
+starts `SolidSeasViewer.exe --set-policy` with the `runas` verb, so UAC asks for
+that one step, and then reads the policy again to show it. The dialog shows the
+key path, since Group Policy or Intune is the usual way to deploy it.
 
 What the policy is not: it removes SolidSeas's own ability to send model data
 off the machine and to run Automatic mode. It is not a sandbox. Code a person
@@ -1195,6 +1223,14 @@ writes the user's `AI.json`.
 - Every policy branch: key absent, key access denied, value absent, wrong type,
   out-of-range value, a read that raises, and `AllowedProviderHosts` of the
   wrong type; and both chokepoints honour each result.
+- Every branch of `--set-policy`, against a key held in memory: each kind of
+  mistake in the arguments writes nothing and asks nothing; a process Windows
+  does not call elevated, or an elevation check that fails, writes nothing; off
+  Windows nothing is written; the restrictions go first; a key that cannot be
+  opened, a write that stops part way, a value that does not read back, a
+  problem in a value left alone and a reader that fails each end with exit
+  code 1; and nothing in `src` but the writer names a registry call that
+  writes.
 - A reply containing `<a href=...>` and `<img src=...>` is shown as literal
   text in every widget that can show model text.
 - The settings page never shows a stored key; storing and removing a key go

@@ -14,6 +14,10 @@ the viewer: ``SolidSeasViewer.exe --assistant``.
 ``--mcp`` makes it an MCP server for Claude Desktop, Claude Code or another client that
 starts it, on standard input and output (:mod:`solidseas_app.assistant.mcp_server`):
 ``SolidSeasViewer.exe --mcp``, with ``--send-names`` to let the chat read typed names.
+
+``--set-policy`` writes the machine policy, run as administrator, and exits
+(:mod:`solidseas_app.setpolicy`). It imports no Qt, so nothing that reads a part file
+runs elevated.
 """
 
 import multiprocessing
@@ -22,16 +26,21 @@ import sys
 ASSISTANT_FLAG = "--assistant"
 CHILD_FLAG = "--assistant-child"
 MCP_FLAG = "--mcp"
+SET_POLICY_FLAG = "--set-policy"
 
 
 def main(argv: list[str]) -> int:
-    """Run what ``argv`` asks for: the assistant's script runner, the assistant's window
-    or the viewer."""
+    """Run what ``argv`` asks for: the assistant's script runner, the machine policy's
+    writer, the MCP server, the assistant's window or the viewer."""
     if argv[1:2] == [CHILD_FLAG]:
         from solidseas_app.assistant.child import main as child_main
 
         child_main()  # ends the process
         return 0
+    if argv[1:2] == [SET_POLICY_FLAG]:
+        from solidseas_app.setpolicy import main as set_policy_main
+
+        return set_policy_main(argv[2:])
     if argv[1:2] == [MCP_FLAG]:
         from solidseas_app.assistant.mcp_server import main as mcp_main
 

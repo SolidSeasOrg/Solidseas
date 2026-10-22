@@ -222,6 +222,9 @@ The full design is in `docs/ASSISTANT.md`.
 - Machine policy that can disable Automatic mode or restrict providers to
   local only, read fail-closed and enforced in two chokepoints, with an
   elevated `--set-policy` entry point for administrators.
+  Built: the reader, both chokepoints and `--set-policy`
+  (`solidseas_app/setpolicy.py`); the AI settings page's "Lock for all users"
+  button, which would start it, is not.
 - `docs/SECURITY_REVIEW.md`, written to the ``
   skill: a findings table with severity and status; the complete set of
   outbound connections, each marked verified or by inspection with the command

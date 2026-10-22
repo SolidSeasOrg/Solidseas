@@ -4398,6 +4398,9 @@ Off Windows there is no policy. It is enforced in two places only:
 `get_provider` refuses any provider but an Ollama whose host is `localhost`, a
 loopback address or exactly one of `AllowedProviderHosts` under
 `LocalProviderOnly`, and `start_run` refuses under `DisableAutomaticMode`.
+The library only reads the key; the desktop app's
+`SolidSeasViewer.exe --set-policy`, run as administrator, is what writes it
+(`docs/ASSISTANT.md`, "Machine policy").
 
 **Starting an Automatic run.** `start_run(target, plan)` is the only entry. It
 makes the checks of `docs/ASSISTANT.md` in order (the policy, the one-writer

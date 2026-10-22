@@ -331,3 +331,17 @@ import. The second finds only the definition in
 checks the machine policy itself before every call and health check, from its
 own kind and address, so one built some other way still could not reach a
 cloud provider under `LocalProviderOnly`.
+
+The app reads the policy key and never writes it, except through
+`SolidSeasViewer.exe --set-policy` (`src/solidseas_app/setpolicy.py`), which an
+administrator runs elevated as a step of its own, with no Qt and no document
+opened (`docs/ASSISTANT.md`, "Machine policy"). A third search shows it, and
+`tests/test_set_policy.py` repeats it on every test run through Python's syntax
+tree:
+
+```text
+git grep -nE "\b(CreateKey|CreateKeyEx|DeleteKey|DeleteKeyEx|DeleteValue|SetValue|SetValueEx|SaveKey|LoadKey|RegCreateKeyExW|RegSetValueExW|RegSetKeyValueW|RegDeleteKeyExW|RegDeleteValueW|RegDeleteTreeW)\b" -- src
+```
+
+Expected: only `src/solidseas_app/setpolicy.py`, whose `WindowsPolicyKey`
+opens the key in the same 64-bit view the reader uses.

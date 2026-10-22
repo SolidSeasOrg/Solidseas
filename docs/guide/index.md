@@ -28,7 +28,8 @@ https://solidseas.app.
   the 3D view, exploding, picking and transparency, mouse and keyboard
   controls, the view cube and rotation.
 - [The modeling assistant](assistant.md): drafting SOLIDWORKS changes with an AI
-  model, and running them.
+  model, running them, and the machine policy with which an administrator
+  restricts SolidSeas on a PC.
 
 ## Using SolidSeas from another system
 
