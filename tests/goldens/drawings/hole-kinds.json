@@ -149,11 +149,11 @@
       "notes": {"n": 15, "sum": 3574.03, "digest": "153672f9ad330ffa"},
       "page": {"n": 10, "sum": 2971.8, "digest": "d63a6c943d5219ef"},
       "stamp": {"n": 6, "sum": 670.99, "digest": "3ab08da28807547c"},
-      "title": {"n": 537, "sum": 167678.29, "digest": "1ebb9b77326edf44"},
+      "title": {"n": 537, "sum": 167678.29, "digest": "bf5dfe24a3c31709"},
       "visible": {"n": 885, "sum": 238402.12, "digest": "a3c88dc22cb80e80"}
     },
     "pdf": {
-      "content": "42766ab723379f2e",
+      "content": "b6c67f9e05153004",
       "operators": {"BDC": 7, "BT": 158, "EMC": 7, "ET": 158, "G": 1, "J": 2, "S": 309, "Tf": 158, "Tj": 158, "Tm": 158, "c": 172, "d": 12, "f": 21, "g": 1, "h": 94, "j": 1, "l": 452, "m": 330, "w": 6},
       "groups": [
         "Visible",
@@ -325,7 +325,7 @@
       ]
     },
     "dxf": {
-      "tags": "e2651c181f441e73",
+      "tags": "79211bfa0ef4f375",
       "count": 11384,
       "entities": {"CIRCLE VISIBLE": 13, "DIMENSION DIM": 21, "ELLIPSE VISIBLE": 16, "INSERT DIM": 12, "LINE BORDER": 12, "LINE CENTER": 26, "LINE TITLE": 1, "LINE VISIBLE": 42, "LWPOLYLINE BORDER": 1, "LWPOLYLINE DIM": 1, "LWPOLYLINE TITLE": 37, "MTEXT DIM": 5, "SPLINE TITLE": 2, "TEXT BORDER": 16, "TEXT DIM": 1, "TEXT NOTES": 5, "TEXT STAMP": 1, "TEXT TITLE": 47},
       "blocks": {"LINE 0": 102, "LWPOLYLINE 0": 39, "POINT DEFPOINTS": 55, "SOLID 0": 21, "SPLINE 0": 17, "TEXT 0": 79}
