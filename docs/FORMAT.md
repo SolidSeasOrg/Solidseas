@@ -2104,7 +2104,7 @@ Anyone who receives a file can read them.
 
 | Where | What | Evidence (whole corpus) |
 |---|---|---|
-| `_MO_VERSION_<n>/Biography` | one record per save session: version, build date code, three u32, Windows version (platform, major, minor, build), a service-pack CString, a locale id, then UTF-16 paths: the Windows system and Windows folders, a working folder (the Desktop, or a project folder in use), the user's temp folder (twice), the template path, and in later records the document's own path at save | present in 3,501 of 3,501; a temp-folder path in 3,500, a Desktop path in 2,603, another path under a user profile (for example a project folder) in 2,986, a network (UNC) path in 532, a template path in 3,397. The record layout is a HYPOTHESIS (read on the fixtures and 6 corpus files) |
+| `_MO_VERSION_<n>/Biography` | one record per save session: version, build date code, three u32, Windows version (platform, major, minor, build), a service-pack CString, a locale id, then UTF-16 paths: the Windows system and Windows folders, a working folder (the Desktop, or a project folder in use), the user's temp folder (twice), the template path, and in later records the document's own path at save | present in 3,501 of 3,501; a temp-folder path in 3,500, a Desktop path in 2,603, another path under a user profile (for example a project folder) in 2,986, a network (UNC) path in 532, a template path in 3,397. The record layout is a HYPOTHESIS (read on the fixtures and 6 corpus files); SolidSeas parses no record of it: the path report reads the stream's CStrings, which hold every path it has on the fixtures, so the layout decides nothing it reports |
 | `Biography`, inherited | records copied from the template's own history, with the template authors' temp folders and build-machine drive paths | 2,520 of 3,501 Biography streams name two or more Windows user profiles. On the fixtures made from the two shipped templates (o08, o15 and o16 from the MBD assembly template, o18 and o19 from `ansi.drwdot`), the template contributes records from Dassault's own accounts (3 and 12 profile folders) and build drives, and every such path occurs verbatim in the template file. VERIFIED counts; that the extra profiles come from templates rather than from colleagues who re-saved the file is a HYPOTHESIS except on the fixtures |
 | `docProps/ISolidWorksInformation.xml` (legacy: `ISolidWorksInformation`) | `SW-Folder Name` and `SW-File Name` at save | the folder property in 3,153 files; a user-profile path in this stream in 1,911 modern files |
 | `Header2`, `swXmlContents/COMPINSTANCETREE`, `SwDocContentMgr/SwDocContentMgrInfo`, `Contents/Config-<n>-ModelHeader`, `Contents/DisplayLists` | absolute paths of referenced documents | user-profile paths in `Header2` of 2,291 files and `Config-<n>-ModelHeader` of 2,046 (see the note below the table); all five carry the component path on fixture o08 |
@@ -2128,7 +2128,10 @@ would mean rewriting the file, which SolidSeas does not do;
 `Config-<n>-ModelHeader` and `DisplayLists` hold paths as MFC Unicode CStrings
 (`FF FE FF`, a length, then UTF-16LE; section 4.3). Of the UTF-16 paths a scan
 of every stream up to 16 MiB finds on the whole corpus, all but 16 of about
-691,000 sit in a CString. The bytes after a CString are whatever field comes
+691,000 sit in a CString; on the fixtures all of them do (1,156 of 1,156, and
+31 more paths are UTF-8 text). VERIFIED (19 fixtures). Where the 16 corpus paths
+outside a CString lie is UNKNOWN: a corpus run that prints their streams and
+offsets would settle it. The bytes after a CString are whatever field comes
 next: for 38,036 of the 690,896 CStrings that end in a path (5.5%) the next
 UTF-16 unit reads as a letter, CJK or Hangul in 37,429 of them, so a reader
 must stop at the stored length rather than at the first character a path cannot
@@ -2164,6 +2167,15 @@ Non-ASCII paths are common: 1,028 stored reference paths (entries in `Header2`
 and the component trees, nested documents included) contain non-ASCII
 characters, and an ASCII-only scan reads none of them whole; it cut 474 paths at their first
 non-ASCII character and ran 75 past the end of their CString. VERIFIED.
+
+**A drawing's model, view and sheet.** In a drawing, the
+`SW-Config-Model-View-Sheet-List` property of `ISolidWorksInformation` holds the
+drawn model's absolute path followed by `@<view>@<sheet>`: `@Drawing View1@Sheet1`
+on both fixture drawings. VERIFIED (2 fixtures). `Document.path_report()` gives
+the string as stored, tail included, with the role `save_location`, though the
+path is the model's and not the drawing's own folder; reporting the model's path
+without its tail is an open decision. Drawings with several views, sheets or
+models (section 16) would show how the list separates its entries.
 
 **Nested documents.** A virtual or imported component's nested document (section
 2.10) carries its own `Biography`, `Header2`, `ISolidWorksInformation` and
