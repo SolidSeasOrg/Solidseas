@@ -586,6 +586,42 @@ def test_the_rules_of_15_6_refuse_a_fillet_the_fixtures_do_not_show(change, reas
         D.features_of(doc)
 
 
+# ------------------------------------------------------------------ flags and memo (15.4.2)
+_ALWAYS_HIGH = {"Front Plane", "Top Plane", "Right Plane", "Origin"}
+
+
+def test_bit_31_of_a_node_is_set_on_design_records_only_in_an_inactive_configuration():
+    """15.4.2: in every part fixture, bit 31 of the flags is set on the planes and the origin in
+    every stream, and on a design record only in o13's Config-1 (Tall, not active at save)."""
+    high = {}
+    for path in sorted(S.FIXTURES.glob("*.SLDPRT")):
+        fx = S.fixture(path.name)
+        for member in (m for m in fx.members if m.endswith("-ResolvedFeatures")):
+            for n in F_.named_nodes(fx[member]):
+                if n.name == "D1":
+                    continue
+                flags = struct.unpack_from("<I", fx[member], n.end + 4)[0]
+                if n.name in _ALWAYS_HIGH:
+                    assert flags & 0x80000000, (path.name, member, n.name)
+                elif flags & 0x80000000:
+                    high.setdefault((path.name[:3], member), []).append(n.name)
+    assert high == {("o13", "Contents/Config-1-ResolvedFeatures"): ["Sketch1", "Boss-Extrude1"]}
+
+
+def test_the_double_o02_and_o07_differ_in_is_the_extrusion_memo():
+    """15.4.2: the double at offset 8716 of the feature stream, 0 in o02 and 0.016 in o07, is the
+    MEMO of Boss-Extrude1's tail, the slot cache_memo the cases read there."""
+    for part, value in (("o02", 0.0), ("o07", 0.016)):
+        feats = S.fixture(part)[CUT.FEATURES]
+        assert struct.unpack_from("<d", feats, 8716)[0] == value
+        extrusion = F.full_slots(part)["features"][1]
+        assert extrusion["name"] == "Boss-Extrude1" and extrusion["cache_memo"] == value
+    result = L.assemble(LISTINGS / "config-0-resolvedfeatures.srl", F.full_slots("o07"),
+                        L.assemble(LISTINGS / "config-0.srl", F.full_slots("o07")).archive)
+    memo = [r for r in result.runs if r.offset == 8716]
+    assert memo and memo[0].source == "config-0-macros.srl" and memo[0].size == 8
+
+
 # ------------------------------------------------------------------ shaded image quality (15.4.7)
 def relmgr(config: bytes) -> bytes:
     """The run of ``Contents/Config-0`` from ``moRelMgr_c`` to ``moEnvFolder_c`` (15.4.7)."""

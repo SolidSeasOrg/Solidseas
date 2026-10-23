@@ -223,7 +223,10 @@ witness points and the values beside them (equal to the depth, either sign);
 the reference planes' display sizes (`moDefaultRefPlnData_c`, sized to the
 model); the box centre record (`moBBoxCenterData_c`: centre and diagonal);
 two flag bytes (0x40 against 0xC0, 7 bytes after the sketch's and the
-extrusion's names; the origin's is 0xC0 in both) and an index byte. VERIFIED.
+extrusion's names; the origin's is 0xC0 in both) and an index byte. VERIFIED. The
+flag byte is the top of the node's flags: bit 31 is set on the design's records only
+in the stream of the configuration that was not active at save, and on the planes and
+the origin everywhere (spec 15.4.2).
 
 Outside the feature stream, o02 (30 mm) and o07 (31 mm, the next document of
 the same session) differ in the stored box (six doubles: centre and far
@@ -633,8 +636,12 @@ disassembled, decompiled, debugged or hooked.
    against the rest of a part (4.8). Without a partition there are no face
    ids to match, and b3 and b4 show it accepts records whose bookkeeping
    came from another document.
-4. The meaning of the 0x40 and 0xC0 flag bytes and of the unexplained double
-   in `moExtrusion_c`.
+4. The meaning of bit 31 of a node's flags (the 0x40 and 0xC0 bytes), set on
+   o13's design records only in the stream of its inactive configuration; not needed
+   while the generator writes one configuration (spec 15.4.2). The double in
+   `moExtrusion_c` that differs between o02 and o07 is the record's `MEMO`, free
+   (spec 15.4.2, 15.5.9). Fixtures that would settle the bit: o13 saved again with
+   `Tall` active, and a part saved with a plane shown and one with its sketch shown.
 5. Whether a seed part may ship (section 10).
 6. How much opaque data the generator may carry. About 30 KB of `Config-0`
    and of the first 18 features is the same in every part (4.9). Listing it
