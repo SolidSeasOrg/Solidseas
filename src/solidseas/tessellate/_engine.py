@@ -93,6 +93,8 @@ class Options:
     blend_reserve: float = 0.0
     # Keep what drawings need beside the mesh (the module notes; ``TessDetail``).
     detail: bool = False
+    # Sample an edge finer where a face beside it curves away across it (edges.CROSS).
+    across: bool = True
 
 
 # What damaged geometry the checks did not foresee raises in the geometry code: it costs

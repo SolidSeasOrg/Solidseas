@@ -166,6 +166,46 @@ class Surface:
     def seeds(self, p, clock=None):
         return []
 
+    def bend_across(self, p, t, hint, tol: float, clock=None):
+        """``(curvature, (u, v))``: how fast the surface turns away, at its point nearest
+        ``p``, in the direction square to ``t`` (the unit tangent of a curve on it there):
+        the absolute normal curvature across the curve, from first derivatives by
+        differences. The (u, v) is a hint for the next point along the curve. None at a
+        pole, where the derivatives say nothing, or where no point of the surface is
+        within ``tol`` of ``p``."""
+        u, v, d = self.closest(p, hint, tol, 1e-9, clock, near=tol)
+        if u is None or not d <= tol:
+            return None
+        hu, hv = 1e-6 * (1.0 + abs(u)), 1e-6 * (1.0 + abs(v))
+        # Differences inside the parameter range, so that a curve on the surface's own edge
+        # (a fillet's rim) is not measured over a step clamped to nothing on one side.
+        cu, cv = _inside(u, self.urange, hu), _inside(v, self.vrange, hv)
+        _p, su, sv = self.d1(cu, cv)
+        n = unit(cross(su, sv))
+        b = unit(cross(n, t)) if n is not None else None
+        if b is None:
+            return None
+        _a, su1, sv1 = self.d1(cu + hu, cv)
+        _a, su0, sv0 = self.d1(cu - hu, cv)
+        _a, su3, sv3 = self.d1(cu, cv + hv)
+        _a, su2, sv2 = self.d1(cu, cv - hv)
+        e, f, g = dot(su, su), dot(su, sv), dot(sv, sv)
+        det = e * g - f * f
+        if not det > 1e-24 * (e * g):
+            return None
+        x, y = dot(b, su), dot(b, sv)
+        a, c = (g * x - f * y) / det, (e * y - f * x) / det  # b in the basis (Su, Sv)
+        ll = dot(sub(su1, su0), n) / (2.0 * hu)
+        mm = dot(sub(su3, su2), n) / (2.0 * hv)
+        nn = dot(sub(sv3, sv2), n) / (2.0 * hv)
+        den = e * a * a + 2.0 * f * a * c + g * c * c
+        if not den > 0.0:
+            return None
+        k = abs((ll * a * a + 2.0 * mm * a * c + nn * c * c) / den)
+        if not math.isfinite(k):
+            return None
+        return k, (u, v)
+
     def speeds(self, box):
         """Rough lengths of a unit step in u and in v over the (u, v) box
         ``(u0, u1, v0, v1)``, for scaling the domain so that its triangles are well
@@ -230,6 +270,14 @@ class Surface:
                 else:
                     need_v.append(b)
         return _quartile(need_u, flat_u), _quartile(need_v, flat_v)
+
+
+def _inside(x: float, rng, h: float) -> float:
+    """``x`` kept at least ``h`` inside the range ``rng`` (None: no range), where the
+    range is wider than twice that."""
+    if rng is None or not rng[1] - rng[0] > 2.0 * h:
+        return x
+    return min(max(x, rng[0] + h), rng[1] - h)
 
 
 def _quartile(steps: list[float], flat: int):

@@ -1860,6 +1860,10 @@ while the project takes shape.
 
 ### Fixed
 
+- **Smooth shading along small fillets.** Small fillets along long curved edges
+  are shaded smoothly: the triangles along their edges no longer tilt up to 60
+  degrees away from the surface.
+
 - **Time limits and memory while drawing from bodies.** Parts and assemblies
   drawn from their bodies keep to their time limit while the bodies are read,
   not only while they are tessellated, and in an assembly a part that runs out

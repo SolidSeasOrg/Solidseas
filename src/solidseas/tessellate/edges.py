@@ -9,14 +9,28 @@ sampled along its first fin's curve, a trimmed SP-curve in the fin's own face,
 whose (u, v) the samples keep for that face (``docs/FORMAT.md`` 10.8); a fin's
 curve in a rolling blend, whose (u, v) is not known, only when no other fin has one.
 With the options' ``detail`` on (drawings), the samples keep their curve
-parameters too.
+parameters too. Where a face beside an edge curves away across it faster than the
+edge's samples allow (a small fillet along a long arc), the edge is sampled finer
+(:data:`CROSS`), so that the triangles on its chords keep within the angle too.
 """
 
 import math
 
-from ._vec import TWO_PI, dist, step_angle
+from ._vec import TWO_PI, dist, step_angle, unit
 from .curves import BCurve, Conic, Curve, Line, Polyline, SPCurve, Trimmed
-from .topology import BLEND_BOUND, BLENDED_EDGE, CURVE_TYPES, SP_CURVE, TRIMMED_CURVE, FaceFailed, Topology
+from .topology import (
+    BLEND_BOUND,
+    BLENDED_EDGE,
+    CURVE_TYPES,
+    FACE,
+    LOOP,
+    PLANE,
+    SP_CURVE,
+    SURFACE_TYPES,
+    TRIMMED_CURVE,
+    FaceFailed,
+    Topology,
+)
 
 MAX_DEPTH = 16  # halvings of one segment
 # Samples of a curve closer than MERGE of the chord tolerance, or than POINT (metres, the
@@ -24,6 +38,30 @@ MAX_DEPTH = 16  # halvings of one segment
 # are one, and a segment that short is not halved for its turn alone.
 MERGE = 0.01
 POINT = 1e-6
+# An edge is sampled for the faces beside it as well as for its own course. A chord of
+# the edge lies off its curve by its sagitta s, and the points inside a face keep that far
+# from the chord over tan(angle) (_engine.Engine._keep_off), so that no triangle on it
+# stands up off the surface. Where a face curves away across the edge with radius r (a
+# small fillet along a long arc), a point that far in has already turned by
+# s / (r tan(angle)), and the triangles on the chord turn with it: o11's fillet, of 1 mm
+# along arcs of 5 and 6 mm, turned up to 59 degrees at the default chord. A triangle on
+# the chord can keep within the angle there only when s is under angle^2 r / 2, and then
+# only with its third point at one distance in; at half that, CROSS angle^2 r, it can lie
+# anywhere from about 0.3 to 1.7 times angle r in, room enough for the refinement. An
+# edge whose sagitta is over CROSS angle^2 r, r the smallest radius across it of the faces
+# beside it at CROSS_PROBES points along it, is sampled again with that as its chord
+# tolerance, but not below CROSS_FLOOR of the chord tolerance, so that an edge gets at
+# most about three times its samples (the square root of the inverse) for a fillet far
+# smaller than the chord. Measured with an angle of 15 degrees: the triangles on such
+# chords kept within 13.8 degrees on o11 and on synthetic fillets of 0.2 to 1 mm along
+# arcs of 1.35 to 50 mm, where they had turned 22 to 74 degrees; at an eighth they kept
+# within 14.3 degrees with up to 16% more points, and at a half o11's still turned 20.
+CROSS = 0.25
+CROSS_FLOOR = 0.1
+CROSS_PROBES = 3
+# What a neighbour's damaged geometry raises while an edge is sampled: its face says why
+# when it is done, and the edge is sampled for its own course alone.
+_UNFORESEEN = (ZeroDivisionError, OverflowError, ValueError, IndexError, KeyError, TypeError, AttributeError)
 
 
 class Samples:
@@ -47,6 +85,11 @@ class EdgeSampler:
         self.vertex_ids: dict[int, int] = {}
         self.cache: dict[int, Samples | FaceFailed] = {}
         self.count = 0
+        # Sample edges for the faces beside them too (CROSS): the tessellator's options
+        # say so; the STEP writer's, which want the curve as it is, do not.
+        self.across = bool(getattr(opts, "across", False))
+        self.finer = 0  # edges sampled again for a face that curves away across them
+        self._hints: dict[int, tuple[float, float]] = {}  # a surface's last (u, v) measured
 
     def vertex_id(self, vertex) -> int:
         k = self.vertex_ids.get(vertex.index)
@@ -95,12 +138,21 @@ class EdgeSampler:
         ps = topo.point_of(sv) if sv is not None else None
         pe = topo.point_of(ev) if ev is not None else None
         tol = max(topo.tolerance(edge), 0.0)
-        if reverse:  # a fin's curve runs along the fin: from the edge's end to its start
-            pts, params = self._curve(curve, pe, ps)
-            pts.reverse()
-            params.reverse()
-        else:
-            pts, params = self._curve(curve, ps, pe)
+
+        def run(chord=None):
+            if reverse:  # a fin's curve runs along the fin: from the edge's end to its start
+                got, at = self._curve(curve, pe, ps, chord)
+                got.reverse()
+                at.reverse()
+                return got, at
+            return self._curve(curve, ps, pe, chord)
+
+        pts, params = run()
+        if self.across:
+            finer = self._across(edge, curve, pts, params, tol)
+            if finer is not None:
+                pts, params = run(finer)
+                self.finer += 1
         if len(pts) > self.opts.max_edge_points:
             raise FaceFailed("edge_too_long", f"{len(pts)} points on one edge")
         uv = None
@@ -116,12 +168,77 @@ class EdgeSampler:
             ids = [self.vertex_id(sv)] + [add(p, tol) for p in pts[1:-1]] + [self.vertex_id(ev)]
         return Samples(ids, uv, surface, t=params if getattr(self.opts, "detail", False) else None)
 
-    # ------------------------------------------------------------------ curves
-    def _curve(self, curve: Curve, pa, pb):
-        """Points and parameters along ``curve`` from ``pa`` to ``pb`` in the edge's
-        direction (both None for a ring edge). The first and last points are later
-        replaced by the vertices."""
+    # ------------------------------------------------------------------ the faces beside
+    def _across(self, edge, curve: Curve, pts, params, tol: float):
+        """A finer chord tolerance for an edge whose sagitta is more than the faces beside
+        it allow for their curvature across it (:data:`CROSS`), or None. A line lies on
+        its chords, and an intersection's chart points are all there is of it: both are
+        left as they are."""
+        if _is_line(curve) or _is_chart(curve) or len(pts) < 2:
+            return None
         chord, angle = self.opts.chord, self.opts.angle
+        floor = CROSS_FLOOR * chord
+        sag = 0.0
+        for i in range(len(pts) - 1):
+            self.clock.tick()
+            q = curve.point(0.5 * (params[i] + params[i + 1]))
+            a, b = pts[i], pts[i + 1]
+            sag = max(sag, dist(q, ((a[0] + b[0]) * 0.5, (a[1] + b[1]) * 0.5, (a[2] + b[2]) * 0.5)))
+        if not sag > floor:
+            return None
+        bend = self._bend(edge, curve, params, max(chord, 2.0 * tol))
+        if not bend > 0.0:
+            return None
+        limit = max(CROSS * angle * angle / bend, floor)
+        return limit if limit < sag else None
+
+    def _bend(self, edge, curve: Curve, params, tol: float) -> float:
+        """The largest curvature across the edge of the faces beside it, at
+        :data:`CROSS_PROBES` points along it: a rolling blend's from its sphere's radius,
+        a plane's nought, any other surface's measured where the edge lies on it
+        (:meth:`.surfaces.Surface.bend_across`). A face whose geometry cannot be measured
+        adds nothing: it says why when it is done."""
+        topo = self.topo
+        n = len(params) - 1
+        probes = []
+        for k in range(CROSS_PROBES):
+            i = min(n - 1, int((k + 0.5) * n / CROSS_PROBES))
+            q, dq = curve.d1(0.5 * (params[i] + params[i + 1]))
+            t = unit(dq)
+            if t is not None:
+                probes.append((q, t))
+        worst = 0.0
+        for fin in topo.edge_fins(edge):
+            try:
+                loop = topo.ref(fin, "loop", (LOOP,))
+                face = topo.ref(loop, "face", (FACE,)) if loop is not None else None
+                snode = topo.ref(face, "surface", SURFACE_TYPES) if face is not None else None
+                if snode is None or snode.type == PLANE:
+                    continue
+                if snode.type == BLENDED_EDGE:
+                    worst = max(worst, _blend_bend(topo, snode))
+                    continue
+                S = self.geom.surface(snode)
+                hint = self._hints.get(snode.index)
+                for q, t in probes:
+                    self.clock.tick()
+                    got = S.bend_across(q, t, hint, tol, self.clock)
+                    if got is not None:
+                        k, hint = got
+                        worst = max(worst, k)
+                if hint is not None:
+                    self._hints[snode.index] = hint
+            except (FaceFailed, *_UNFORESEEN):
+                continue
+        return worst
+
+    # ------------------------------------------------------------------ curves
+    def _curve(self, curve: Curve, pa, pb, chord: float | None = None):
+        """Points and parameters along ``curve`` from ``pa`` to ``pb`` in the edge's
+        direction (both None for a ring edge), within ``chord`` of it (None: the chord
+        tolerance). The first and last points are later replaced by the vertices."""
+        chord = self.opts.chord if chord is None else chord
+        angle = self.opts.angle
         if isinstance(curve, Trimmed):
             basis = curve.basis
             t0, t1 = (curve.t1, curve.t2) if curve.sense > 0 else (curve.t2, curve.t1)
@@ -140,7 +257,7 @@ class EdgeSampler:
                 return _arc(basis, t0, t1, chord, angle, self.opts.max_edge_points)
             if isinstance(basis, Trimmed):
                 raise FaceFailed("unsupported_curve", "a trimmed curve of a trimmed curve")
-            return self._adaptive(basis, t0, t1)
+            return self._adaptive(basis, t0, t1, chord)
         if isinstance(curve, Line):
             return [pa, pb], [curve.param(pa), curve.param(pb)]
         if isinstance(curve, Conic):
@@ -161,7 +278,7 @@ class EdgeSampler:
             if pa is None:
                 if curve.period is None:
                     raise FaceFailed("bad_geometry", "a ring edge on an open curve")
-                return self._adaptive(curve, lo if d > 0 else hi, hi if d > 0 else lo)
+                return self._adaptive(curve, lo if d > 0 else hi, hi if d > 0 else lo, chord)
             ta = curve.param(pa, self.clock)
             tb = curve.param(pb, self.clock)
             if curve.period is not None:
@@ -169,13 +286,13 @@ class EdgeSampler:
                     tb += curve.period
                 elif d < 0 and (tb >= ta or pa == pb):
                     tb -= curve.period
-            return self._adaptive(curve, ta, tb)
+            return self._adaptive(curve, ta, tb, chord)
         raise FaceFailed("unsupported_curve", curve.name)
 
-    def _adaptive(self, curve: Curve, t0: float, t1: float):
+    def _adaptive(self, curve: Curve, t0: float, t1: float, chord: float | None = None):
         """Points and parameters from ``t0`` to ``t1``: at least two a knot span, then
-        halving any segment whose midpoint lies farther than the chord tolerance from it
-        or turns more than the angle, to a depth of :data:`MAX_DEPTH`.
+        halving any segment whose midpoint lies farther than ``chord`` (None: the chord
+        tolerance) from it or turns more than the angle, to a depth of :data:`MAX_DEPTH`.
 
         A point a halving puts within :data:`MERGE` of the chord tolerance, or within
         :data:`POINT` (but no more than half the tolerance), of the sample kept before it,
@@ -190,11 +307,13 @@ class EdgeSampler:
         chord tolerance asks for, and the polyline keeps within the tolerance and that
         distance of the curve. A sampler whose options say ``corners=False`` (the STEP
         writer's, whose checks want the curve as it is) keeps every sample and halves to
-        the depth bound as it always did."""
-        chord, angle = self.opts.chord, self.opts.angle
+        the depth bound as it always did. The distance points are left out within is the
+        chord tolerance's, whatever ``chord``."""
+        angle = self.opts.angle
         near = 0.0
         if getattr(self.opts, "corners", True):
-            near = min(max(MERGE * chord, POINT), 0.5 * chord)
+            near = min(max(MERGE * self.opts.chord, POINT), 0.5 * self.opts.chord)
+        chord = self.opts.chord if chord is None else chord
         limit = self.opts.max_edge_points
         spans = curve.spans(t0, t1) if hasattr(curve, "spans") else 4
         n0 = max(4, min(2 * spans, limit))
@@ -289,6 +408,23 @@ def _arc(c: Conic, t0: float, t1: float, chord: float, angle: float, limit: int)
 
 def _is_line(curve: Curve) -> bool:
     return isinstance(curve, Line) or (isinstance(curve, Trimmed) and isinstance(curve.basis, Line))
+
+
+def _is_chart(curve: Curve) -> bool:
+    return isinstance(curve, Polyline) or (isinstance(curve, Trimmed) and isinstance(curve.basis, Polyline))
+
+
+def _blend_bend(topo: Topology, node) -> float:
+    """A rolling blend's curvature across its spine: one over its sphere's radius, the
+    larger of its ``range`` (``.blend``), or nought when that cannot be read."""
+    rng = topo.get(node, "range", None)
+    if not isinstance(rng, list) or not rng:
+        return 0.0
+    try:
+        r = max(abs(float(x)) for x in rng)
+    except (TypeError, ValueError):
+        return 0.0
+    return 1.0 / r if r > 0.0 and math.isfinite(r) else 0.0
 
 
 def _sp_curve(curve: Curve) -> SPCurve | None:

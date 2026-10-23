@@ -1748,9 +1748,12 @@ the chord tolerance of the surface. A boundary edge's samples are chords that
 lie off the surface by their sagitta, and the next face shares them, so they
 are never split: points inside a face keep from each chord by its sagitta over
 tan(angle), and the triangles on it do not stand up off the surface or face
-back. Where a boundary is sampled coarsely for the surface's curvature across
-it (a small fillet along a long arc), the triangles on it can turn by more
-than the angle. A triangle of three points in a line is kept: it has no area,
+back. An edge is sampled for the faces beside it too: where one curves away
+across it with radius r (a small fillet along a long arc), its chords keep
+within a quarter of the angle squared times r of the curve (a rolling blend's
+r its sphere's radius), but not below a tenth of the chord tolerance, so the
+triangles on them keep within the angle (on o11's fillet they had turned up to
+59 degrees; an edge gets at most about three times its samples for this). A triangle of three points in a line is kept: it has no area,
 but its edges are the next triangles' and the next face's. Vertex normals at a
 pole are the mean of the triangles round it. `docs/FORMAT.md` 10.8 has the
 conventions of the format this rests on.

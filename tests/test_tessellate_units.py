@@ -598,7 +598,8 @@ def test_vertex_normals_at_the_poles_of_a_b_spline_are_their_triangles_mean():
 def test_triangles_beside_a_curved_boundary_keep_to_the_surface():
     """A small fillet's boundary circle is a chord polygon lying off the surface by its
     sagitta; points inside keep far enough from each chord that no triangle on it stands
-    up off the surface or faces back."""
+    up off the surface or faces back. With the circles sampled for the fillet's curvature
+    across them, its area is within 0.5 percent (1.5 percent over, before)."""
     R, r = 0.00135, 0.0002
     t = tessellate_transmit(xt_bodies.torus_band(R, r, -math.pi / 2, 0.0), chord_m=3.1e-5)
     pos, tris = t.welded()
@@ -615,7 +616,137 @@ def test_triangles_beside_a_curved_boundary_keep_to_the_surface():
         worst = max(worst, math.degrees(math.acos(max(-1.0, min(1.0, cos)))))
     assert worst < 30.0
     exact = 2 * math.pi * r * (R * math.pi / 2 + r)
-    assert t.measures()["area"] == pytest.approx(exact, rel=0.02)
+    assert t.measures()["area"] == pytest.approx(exact, rel=5e-3)
+
+
+def _turns(t, face: int | None = None) -> tuple[float, float]:
+    """``(on a boundary chord, anywhere)``: the largest angle, in degrees, between a
+    triangle's normal and the vertex normals (the surface's own) at its corners, over the
+    faces of ``t`` (or the one whose FACE ``node_id`` is ``face``). A boundary chord is an
+    edge of a face's triangles that no other triangle of the face uses."""
+    m = t.mesh
+    P, N, T = m.positions, m.normals, m.triangles
+    on_chord = anywhere = 0.0
+    for f, (_body, fid) in zip(m.faces, t.face_ids, strict=True):
+        if face is not None and fid != face:
+            continue
+        first, last = f.first_triangle, f.first_triangle + f.n_triangles
+        tris = [tuple(T[3 * k : 3 * k + 3]) for k in range(first, last)]
+        used = {(t3[j], t3[(j + 1) % 3]) for t3 in tris for j in range(3)}
+        for t3 in tris:
+            a, b, c = (tuple(P[3 * i : 3 * i + 3]) for i in t3)
+            n = _cross(_sub(b, a), _sub(c, a))
+            ln = math.hypot(*n)
+            if ln == 0.0:
+                continue
+            w = 0.0
+            for i in t3:
+                vn = tuple(N[3 * i : 3 * i + 3])
+                cos = sum(x * y for x, y in zip(n, vn, strict=True)) / (ln * math.hypot(*vn))
+                w = max(w, math.degrees(math.acos(max(-1.0, min(1.0, cos)))))
+            anywhere = max(anywhere, w)
+            if any((t3[(j + 1) % 3], t3[j]) not in used for j in range(3)):
+                on_chord = max(on_chord, w)
+    return on_chord, anywhere
+
+
+SMALL_FILLETS = {
+    # (body, chord): a torus band of 0.5 mm along a 50 mm arc, of 1 mm along 20 mm, and a
+    # cylinder of 50 mm whose top edge is rounded by 1 mm, as a rolling blend and as a torus
+    "band 50/0.5": (lambda: xt_bodies.torus_band(0.05, 0.0005, -math.pi / 2, 0.0), 1e-4),
+    "band 20/1": (lambda: xt_bodies.torus_band(0.02, 0.001, -math.pi / 2, 0.0), 5e-5),
+    "blend 50/1": (lambda: xt_bodies.rounded_cylinder(0.05, 0.02, 0.001), None),
+    "torus 50/1": (lambda: xt_bodies.rounded_cylinder(0.05, 0.02, 0.001, torus=True), None),
+}
+
+
+@pytest.mark.parametrize("name", sorted(SMALL_FILLETS))
+def test_an_edge_beside_a_small_fillet_is_sampled_for_the_fillet_too(name):
+    """Along a long arc, an edge's chords lie off it by up to the chord tolerance, and the
+    points inside a small fillet beside it keep that far over tan(angle) from them: the
+    fillet has turned well past the angle there, and the triangles on those chords turned
+    22 to 73 degrees. Sampled for the fillet's curvature across it (a rolling blend's from
+    its radius), none turns past the angle; solids stay closed."""
+    make, chord = SMALL_FILLETS[name]
+    t = tessellate_transmit(make(), **({} if chord is None else {"chord_m": chord}))
+    on_chord, _anywhere = _turns(t)
+    assert on_chord < t.angle_deg
+    assert t.reasons == {} and t.closed in (True, None)
+
+
+def test_o11s_fillet_keeps_within_the_angle():
+    """o11's fillet, a torus of radii 6 and 1 mm between arcs of 6 and 5 mm: at the
+    default chord its triangles on those arcs turned up to 59 degrees from the surface.
+    With the arcs sampled for its curvature across them, no triangle of the part turns
+    past the angle, with fewer triangles than before (1,790)."""
+    from solidseas import open_document
+    from solidseas.tessellate import tessellate_document
+    from support import fixture_path
+
+    with open_document(fixture_path("o11_curved.SLDPRT")) as doc:
+        t = tessellate_document(doc)
+    on_chord, anywhere = _turns(t)
+    assert on_chord < t.angle_deg and anywhere < t.angle_deg + 0.5
+    assert t.closed is True and t.counts["triangles"] < 1790
+
+
+def test_a_fillet_far_smaller_than_the_chord_costs_its_edges_three_times_their_samples_at_most(monkeypatch):
+    """The finer sampling stops at a tenth of the chord tolerance (CROSS_FLOOR): beside a
+    fillet of 0.05 mm at a chord of 0.1 mm a rim of 50 mm gets about the square root of
+    ten times the samples it had, no more."""
+    from solidseas.tessellate import edges
+
+    def rims(t):
+        return sorted(len(e.points) for e in t.detail.edges.values())
+
+    body = xt_bodies.torus_band(0.05, 0.00005, -math.pi / 2, 0.0)
+    finer = rims(tessellate_transmit(body, chord_m=1e-4, detail=True))
+    monkeypatch.setattr(edges, "CROSS_FLOOR", 2.0)  # over the chord: the edges sampled for themselves
+    plain = rims(tessellate_transmit(body, chord_m=1e-4, detail=True))
+    assert len(finer) == len(plain) == 2
+    for a, b in zip(finer, plain, strict=True):
+        assert 2.5 * b <= a <= math.sqrt(10.0) * b + 2
+
+
+@pytest.mark.parametrize(
+    ("surface", "t", "expected"),
+    [
+        # across a circle round a cylinder it is straight; across a line along it, round
+        (surfaces.Cylinder((0, 0, 0), (0, 0, 1), 0.02, (1, 0, 0)), (0.0, 1.0, 0.0), 0.0),
+        (surfaces.Cylinder((0, 0, 0), (0, 0, 1), 0.02, (1, 0, 0)), (0.0, 0.0, 1.0), 50.0),
+        (surfaces.Sphere((0, 0, 0), 0.01, (0, 0, 1), (1, 0, 0)), (0.0, 1.0, 0.0), 100.0),
+        # a torus across a circle round its axis: its tube's own curvature
+        (surfaces.Torus((0, 0, 0), (0, 0, 1), 0.05, 0.01, (1, 0, 0)), (0.0, 1.0, 0.0), 100.0),
+        (surfaces.Plane((0, 0, 0), (0, 0, 1), (1, 0, 0)), (0.0, 1.0, 0.0), 0.0),
+    ],
+    ids=["cylinder along", "cylinder across", "sphere", "torus", "plane"],
+)
+def test_a_surface_measures_its_curvature_across_a_curve(surface, t, expected):
+    p = surface.point(0.0, 0.0)  # on the x axis, where t is a tangent of each
+    k, _uv = surface.bend_across(p, t, None, 1e-6)
+    assert k == pytest.approx(expected, abs=1e-3)
+
+
+def test_a_b_spline_surface_measures_its_curvature_across_a_curve_on_its_edge():
+    """Measured at a curve on the surface's own edge (the end circles of a B-spline
+    cylinder), the differences stay inside its parameter range: across the circle the
+    cylinder is straight, and across a line along it as round as its radius."""
+    xt = xt_bodies.nurbs_cylinder(0.005, 0.02)
+    from solidseas.tessellate.surfaces import Geometry
+    from solidseas.tessellate.topology import Topology
+
+    side = next(n for n in xt.nodes if n.type == xt_bodies.B_SURFACE)
+    S = Geometry(Topology(xt), 1e-5).surface(side)
+    for v in (0.0, 0.5, 1.0):
+        p = S.point(0.3, v)
+        tangent = _unit(S.d1(0.3, v)[1])
+        assert S.bend_across(p, tangent, None, 1e-6)[0] == pytest.approx(0.0, abs=1e-3)
+        assert S.bend_across(p, (0.0, 0.0, 1.0), None, 1e-6)[0] == pytest.approx(200.0, rel=1e-3)
+
+
+def _unit(a):
+    n = math.hypot(*a)
+    return (a[0] / n, a[1] / n, a[2] / n)
 
 
 @pytest.mark.parametrize("error", [AttributeError, RecursionError])
