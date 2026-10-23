@@ -441,6 +441,9 @@ def test_three_bodies_merge_spheres():
 
 
 # ------------------------------------------------------------------ refusals and left_out (15.6.2, 15.6.7)
+FOUR = "a fillet right after the box is written only on all four of its edges along its depth"
+
+
 def _refusal(features) -> list[str]:
     with pytest.raises(gen.NativeWriteUnsupported) as e:
         gen.plan(ir.Document("d", features), identity=IDENT)
@@ -506,7 +509,8 @@ def test_refused_extrusions_and_other_features():
     fillet = ir.Fillet("f", "Round", [ir.EdgeRef((0.0, 0.0, 0.0))], 0.001)
     odd = ir.Unsupported("u", "Loft1", "loft", "lofts are not in the IR")
     items = _refusal(box(1, 0, 0, 0.01, 0.01, 0.01) + [fillet, odd])
-    assert items == ["Round: fillets are not written yet", "Loft1: lofts are not in the IR"]
+    # A point at the box's corner on the sketch plane is a vertex, not a point of an edge (15.6.2).
+    assert items == [f"Round: {FOUR}", "Loft1: lofts are not in the IR"]
 
 
 def test_allow_partial_leaves_out_refused_items_and_their_dependents():
@@ -518,13 +522,13 @@ def test_allow_partial_leaves_out_refused_items_and_their_dependents():
         gen.plan(ir.Document("d", features), identity=IDENT)
     assert e.value.items == [
         "Tilted: rectangle is not aligned with the sketch axes",
-        "Round: fillets are not written yet",
+        f"Round: {FOUR}",
     ]
     p = gen.plan(ir.Document("d", features), identity=IDENT, allow_partial=True)
     assert p.left_out == [
         "Tilted: rectangle is not aligned with the sketch axes",
         "Pushed: left out because its sketch is not written",
-        "Round: fillets are not written yet",
+        f"Round: {FOUR}",
     ]
     # The written pair is the first of the part: Sketch1 and Boss-Extrude1, off the origin. The
     # gap after a sketch follows its place, not the origin (15.5.4): the first sketch leaves 6.
@@ -613,9 +617,10 @@ def sample():
 def test_the_sample_is_refused_for_its_fillet_unless_partial(sample):
     with pytest.raises(gen.NativeWriteUnsupported) as e:
         gen.write_part(sample, identity=IDENT)
-    assert e.value.items == ["Fillet1: fillets are not written yet"]
+    # The sample's fillet is not one of o11's (15.6.2): the fillet table refuses it.
+    assert e.value.items == [f"Fillet1: {FOUR}"]
     p = gen.plan(sample, identity=IDENT, allow_partial=True)
-    assert p.left_out[-1] == "Fillet1: fillets are not written yet"
+    assert p.left_out[-1] == f"Fillet1: {FOUR}"
     assert p.slots["meta.file_stem"] == "rect-extrude-40x30x10"
 
 
@@ -1170,11 +1175,12 @@ def test_the_box_with_a_hole_of_15_6_8():
         "cache_memo": 0.0,
         "regen": 102,
     }
-    ring = [(False, 4), (True, 1), (False, 3), (True, 0), (False, 1)]
+    ring = [(1, 4), (2, 1), (1, 3), (2, 0), (1, 1)]  # (kind, face) of the box's faces (15.6.2)
     assert cut == {
         "name": "Cut-Extrude1",
         "sketch": False,
         "cut": True,
+        "fillet": False,
         "log_modified": False,
         "id": 40,
         "sketch_name": "Sketch2",
@@ -1189,7 +1195,7 @@ def test_the_box_with_a_hole_of_15_6_8():
         "target_label": "body1",
         "target_uid": 32,
         "target_created": unix,
-        "ring": [{"end": e, "uid": 32, "created": unix, "face": n} for e, n in ring],
+        "ring": [{"kind": k, "uid": 32, "created": unix, "face": n} for k, n in ring],
         "created": unix,
         "time": filetime,
         "cache_memo": 0.0,
@@ -1270,10 +1276,12 @@ def test_builds_with_the_same_remainder_put_the_later_first():
         {"id": 101, "feature": 32, "changed": [34], "live": False, "from": [], "time": 1},
         {"id": 102, "feature": 49, "changed": [], "live": True, "from": [101], "time": 2},
     ]
-    live, links, builds = body_slots(bodies)
+    features = [{"id": 32, "time": 1}, {"id": 34, "time": 5}, {"id": 49, "time": 2}]
+    live, links, builds = body_slots(bodies, features)
     assert live == [bodies[1]] and links == [{"new": 102, "old": 101}]
     # 32 and 49 both leave 15; 34 leaves 0. The later of 32 and 49 in the list comes first.
-    assert builds == [{"feature": 34, "time": 1}, {"feature": 49, "time": 2}, {"feature": 32, "time": 1}]
+    # A feature that changed a body carries its own time, not the body's (15.6.5).
+    assert builds == [{"feature": 34, "time": 5}, {"feature": 49, "time": 2}, {"feature": 32, "time": 1}]
 
 
 def test_refused_circle_sketches():
@@ -1322,7 +1330,10 @@ def test_refused_cuts():
     both = "MyCut2: only a cut through all in both directions is written"
     assert _refusal(one + hole(2, 0.01, 0.01, 0.002, direction="forward")) == [both]
     assert _refusal(one + hole(2, 0.01, 0.01, 0.002, end="blind", depth=0.01)) == [both]
-    last = "a cut is written only as the last feature of a part with one box"
+    last = (
+        "a cut is written only as the last feature of a part with one box, "
+        "or followed only by a fillet on the hole's edge"
+    )
     assert _refusal(hole(1, 0.01, 0.01, 0.002)) == [f"MyCut1: {last}"]
     two = one + box(3, 0.03, 0, 0.04, 0.01, 0.01)
     assert _refusal(two + hole(2, 0.01, 0.01, 0.002)) == [f"MyCut2: {last}"]
@@ -1460,3 +1471,384 @@ def test_the_hole_shape_of_spec_constants():
     fs = gen.assemble(a)["Contents/Config-0-ResolvedFeatures"]
     end = fs[fs.index(b"moEndSpec_c") :]
     assert any(end[:40] in c for c in gen.SPEC_CONSTANTS)
+
+
+# ------------------------------------------------------------------ fillets (15.6.2, 15.5.14)
+O11_CORNERS = ((0.0, 0.0), (0.04, 0.0), (0.04, 0.03), (0.0, 0.03))
+POSITION = (
+    "a fillet is written only right after the box's extrusion, or right after the hole's cut, "
+    "in a part with one box"
+)
+RIM_EDGE = "a fillet after the hole is written only on the hole's edge on the box's far face"
+RIM_CLEAR = (
+    "the fillet on the hole's edge must stay on the box's far face, clear of its rounded corners, "
+    "with a radius less than the box's depth"
+)
+
+
+def round_edges(fid="f1", name="Round", r=0.003, points=None, **kw):
+    """A fillet on the four edges along the depth of o11's 40 x 30 x 10 mm box, by points halfway up."""
+    points = points if points is not None else [(x, y, 0.005) for x, y in O11_CORNERS]
+    return ir.Fillet(fid, name, [ir.EdgeRef(p) for p in points], r, **kw)
+
+
+def round_rim(fid="f2", name="Rim", r=0.001, point=(0.025, 0.015, 0.01), **kw):
+    """A fillet on the edge of o11's hole on the box's far face, by a point on its +x side."""
+    return ir.Fillet(fid, name, [ir.EdgeRef(point)], r, **kw)
+
+
+def o11_box():
+    return box(1, 0.0, 0.0, 0.04, 0.03, 0.01)
+
+
+def example_o11():
+    """Section 15.6.8's third example: o11 as a design."""
+    return ir.Document("o11", o11_box() + [round_edges()] + hole(2, 0.02, 0.015, 0.005) + [round_rim()])
+
+
+def _plan_ok(features) -> list[str]:
+    return gen.plan(ir.Document("d", features), identity=IDENT).left_out
+
+
+def test_o11_as_a_design_of_15_6_8():
+    p = gen.plan(example_o11(), identity=IDENT)
+    s = p.slots
+    unix, filetime = s["doc.unix"], s["doc.filetime"]
+
+    def face(kind, uid, n):
+        return {"kind": kind, "uid": uid, "created": unix, "face": n}
+
+    feats = s["features"]
+    assert [(f["name"], f["id"]) for f in feats] == [
+        ("Sketch1", 26),
+        ("Boss-Extrude1", 32),
+        ("Fillet1", 34),
+        ("Sketch2", 35),
+        ("Cut-Extrude1", 42),
+        ("Fillet2", 44),
+    ]
+    assert feats[1]["fillet"] is False and feats[4]["fillet"] is False
+    ends = [face(2, 32, 1), face(2, 32, 0)]
+    e = [
+        {"label": f"Fillet1.e{k + 1}", "counter": 0, "faces": [face(1, 32, a), face(1, 32, b), *ends]}
+        for k, (a, b) in enumerate(((4, 3), (3, 2), (2, 1), (1, 4)))
+    ]
+
+    def along(k, a, b):
+        return {
+            "counter": 0,
+            "ring": [face(4, 34, k), face(2, 32, 1), face(1, 32, b), face(2, 32, 0), face(1, 32, a)],
+            "edge": e[k - 1]["faces"],
+        }
+
+    assert feats[2] == {
+        "name": "Fillet1",
+        "sketch": False,
+        "cut": False,
+        "fillet": True,
+        "hole": False,
+        "log_modified": False,
+        "id": 34,
+        "radius": 0.003,
+        "radius_text": "3",
+        "anchor": [0.003, 0.003, 0.01],
+        "body_id": 101,
+        "body_label": "body1",
+        "body_regen": 1151,
+        "edges": e,
+        "faces": [along(1, 4, 3), along(4, 1, 4), along(2, 3, 2), along(3, 2, 1)],
+        "closing": [e[2], e[3], e[0], e[1]],
+        "dim_edge": "Fillet1.e4",
+        "created": unix,
+        "time": filetime,
+        "cache_memo": 0.0,
+        "counter_marks": 22,
+    }
+    rounded_ring = [face(1, 32, 4), face(2, 32, 1), face(4, 34, 1), face(2, 32, 0), face(4, 34, 4)]
+    assert feats[4]["ring"] == rounded_ring
+    rim = [face(3, 42, 1), face(2, 32, 1), face(2, 32, 1), face(2, 32, 1)]
+    e2 = {"label": "Fillet2.e1", "counter": 0, "faces": rim}
+    kind0 = {"kind": 0, "uid": 0, "created": 0, "face": 0}
+    rim_face = {"counter": 0, "ring": [face(4, 44, 1), face(2, 32, 1), kind0, face(3, 42, 1)], "edge": rim}
+    assert feats[5] == {
+        "name": "Fillet2",
+        "sketch": False,
+        "cut": False,
+        "fillet": True,
+        "hole": True,
+        "log_modified": False,
+        "id": 44,
+        "radius": 0.001,
+        "radius_text": "1",
+        "anchor": [0.02 - 0.005 - 0.001, 0.015, 0.01 - 0.001],
+        "body_id": 102,
+        "body_label": "body2",
+        "body_regen": 1153,
+        "edges": [e2],
+        "faces": [rim_face],
+        "closing": [e2],
+        "dim_edge": "Fillet2.e1",
+        "created": unix,
+        "time": filetime,
+        "cache_memo": 0.0,
+        "counter_marks": 29,
+    }
+    fields = ("id", "name", "label", "feature", "last", "changed", "live", "from", "into", "regen")
+    assert [tuple(b[k] for k in fields) for b in s["bodies"]] == [
+        (101, "Fillet1", "body1", 32, 34, [34], False, [], [102], 1151),
+        (102, "Fillet2", "body2", 42, 44, [44], True, [101], [], 1153),
+    ]
+    # 15.6.5: by node id modulo 17 (34 is 0, 42 is 8, 44 is 10, 32 is 15), each its own time.
+    assert s["builds"] == [{"feature": n, "time": filetime} for n in (34, 42, 44, 32)]
+    assert s["model.back_view"] and s["hdr.next_id"] == 45
+    # 15.6.6: the fillets do not count towards the stamps; 15.6.5: the ids follow them.
+    assert (s["doc.stamp"], s["doc.stamp2"], s["fixed.id_base"]) == (140, 111, 123)
+    assert [x["id"] for x in s["meta.kw_extrusions"]] == [32, 42]
+    kw = [x["id"] for x in s["meta.kw_features"]]
+    assert kw.index(34) == kw.index(3) + 1 and kw.index(44) == kw.index(4) + 1 and len(kw) == 25
+    assert [x for x in s["meta.kw_features"] if x["fillet"]] == [
+        {"id": 34, "name": "Fillet1", "fillet": True, "radius_text": "3"},
+        {"id": 44, "name": "Fillet2", "fillet": True, "radius_text": "1"},
+    ]
+    # Rounded edges lie inside the box: the model box and the planes are the box's (15.6.3).
+    alone = gen.plan(ir.Document("o11", o11_box()), identity=IDENT).slots
+    for key in ("model.min", "model.max", "model.sphere", "hdr.centre", "planes.front", "planes.right"):
+        assert s[key] == alone[key]
+    assert not alone["model.back_view"]
+    assert p.names["f1"] == p.names["Round"] == "Fillet1" and p.names["Rim"] == "Fillet2"
+    assert p.left_out == []
+
+
+def test_a_box_with_a_fillet_and_no_hole():
+    s = gen.plan(ir.Document("d", o11_box() + [round_edges()]), identity=IDENT).slots
+    ids = [(f["name"], f["id"]) for f in s["features"]]
+    assert ids == [("Sketch1", 26), ("Boss-Extrude1", 32), ("Fillet1", 34)]
+    assert (s["doc.stamp"], s["doc.stamp2"], s["fixed.id_base"], s["hdr.next_id"]) == (120, 105, 106, 35)
+    (body,) = s["bodies"]
+    assert (body["name"], body["feature"], body["changed"], body["last"], body["live"]) == (
+        "Fillet1",
+        32,
+        [34],
+        34,
+        True,
+    )
+    assert [b["feature"] for b in s["builds"]] == [34, 32] and s["model.back_view"]
+    assert [x["id"] for x in s["meta.kw_extrusions"]] == [32]
+
+
+def test_a_fillet_on_the_hole_of_a_box_without_one():
+    features = o11_box() + hole(2, 0.02, 0.015, 0.005) + [round_rim()]
+    s = gen.plan(ir.Document("d", features), identity=IDENT).slots
+    feats = s["features"]
+    assert [(f["name"], f["id"]) for f in feats] == [
+        ("Sketch1", 26),
+        ("Boss-Extrude1", 32),
+        ("Sketch2", 33),
+        ("Cut-Extrude1", 40),
+        ("Fillet1", 42),
+    ]
+    rim = feats[4]
+    assert rim["hole"] and rim["body_id"] == 102 and rim["counter_marks"] == 29 and not s["model.back_view"]
+    assert [(x["kind"], x["face"]) for x in feats[3]["ring"]] == [(1, 4), (2, 1), (1, 3), (2, 0), (1, 1)]
+    assert rim["edges"][0]["faces"][0] == {"kind": 3, "uid": 40, "created": s["doc.unix"], "face": 1}
+    assert [b["name"] for b in s["bodies"]] == ["Boss-Extrude1", "Fillet1"]
+    assert (s["doc.stamp"], s["fixed.id_base"], s["hdr.next_id"]) == (140, 124, 43)
+
+
+def test_refused_fillets_by_place():
+    one = o11_box()
+    assert _refusal(one + [round_edges(suppressed=True)]) == ["Round: suppressed fillet"]
+    assert _refusal([round_edges()]) == [f"Round: {POSITION}"]
+    second = box(2, 0.05, 0.0, 0.06, 0.01, 0.01)
+    assert _refusal(one + second + [round_edges()]) == [f"Round: {POSITION}"]
+    # A part with two boxes has no fillet, wherever it stands.
+    assert _refusal(one + [round_edges()] + second) == [f"Round: {POSITION}"]
+    assert _refusal(one + [round_edges(), round_edges("f3", "Again")]) == [f"Again: {POSITION}"]
+    after_sketch = one + [circle_sketch("s2", "C", 0.02, 0.015, 0.005), round_edges()]
+    assert _refusal(after_sketch) == ["C: sketch not followed by its extrusion", f"Round: {POSITION}"]
+
+
+def test_refused_fillets_on_the_box():
+    one = o11_box()
+    corners = [(x, y, 0.005) for x, y in O11_CORNERS]
+    assert _refusal(one + [round_edges(points=corners[:3])]) == [f"Round: {FOUR}"]
+    assert _refusal(one + [round_edges(points=[*corners[:3], corners[0]])]) == [f"Round: {FOUR}"]
+    assert _refusal(one + [round_edges(points=[*corners, (0.02, 0.0, 0.005)])]) == [f"Round: {FOUR}"]
+    for bad in ((0.04, 0.03, 0.01), (0.04, 0.03, 0.0), (0.02, 0.03, 0.005), (0.04 + 2e-9, 0.03, 0.005)):
+        assert _refusal(one + [round_edges(points=[*corners[:3], bad])]) == [f"Round: {FOUR}"]
+    # A point within 1e-9 m names the edge, and the edges may come in any order.
+    near = [(5e-10, 0.03 - 5e-10, 0.009), *reversed(corners[:3])]
+    assert _plan_ok(one + [round_edges(points=near)]) == []
+    half = "Round: the fillet's radius must be less than half the box's shorter side"
+    assert _refusal(one + [round_edges(r=0.015)]) == [half]
+    assert _plan_ok(one + [round_edges(r=0.0149)]) == []
+
+
+def test_refused_fillets_on_the_hole():
+    one = o11_box()
+    bore = hole(2, 0.02, 0.015, 0.005)
+    for point in ((0.025, 0.015, 0.0), (0.0251, 0.015, 0.01), (0.02, 0.015, 0.01)):
+        assert _refusal(one + bore + [round_rim(point=point)]) == [f"Rim: {RIM_EDGE}"]
+    two = ir.Fillet("f2", "Rim", [ir.EdgeRef((0.025, 0.015, 0.01)), ir.EdgeRef((0.015, 0.015, 0.01))], 0.001)
+    assert _refusal(one + bore + [two]) == [f"Rim: {RIM_EDGE}"]
+    # The rounded rim must stay on the far face, and its radius below the box's depth.
+    near_side = hole(2, 0.01, 0.015, 0.005)
+    wide = round_rim(r=0.0051, point=(0.015, 0.015, 0.01))
+    assert _refusal(one + near_side + [wide]) == [f"Rim: {RIM_CLEAR}"]
+    assert _plan_ok(one + near_side + [round_rim(r=0.0049, point=(0.015, 0.015, 0.01))]) == []
+    small = hole(2, 0.02, 0.015, 0.002)
+    assert _refusal(one + small + [round_rim(r=0.01, point=(0.022, 0.015, 0.01))]) == [f"Rim: {RIM_CLEAR}"]
+    # Near a rounded corner: clear of the 3 mm squares with a 2 mm rim, not with a 2.5 mm one.
+    corner = hole(2, 0.006, 0.006, 0.002)
+    rim = round_rim(r=0.0025, point=(0.008, 0.006, 0.01))
+    assert _refusal(one + [round_edges()] + corner + [rim]) == [f"Rim: {RIM_CLEAR}"]
+    assert _plan_ok(one + corner + [rim]) == []
+    assert _plan_ok(one + [round_edges()] + corner + [round_rim(r=0.002, point=(0.008, 0.006, 0.01))]) == []
+
+
+def test_a_fillet_on_the_hole_is_the_last_feature():
+    # 15.6.2: a cut followed by more than one fillet is refused, so through plan the fillet
+    # after an accepted cut is always the last item; the rule stands behind that.
+    from solidseas.nativewrite.generate.slots import _Circle, _hole_fillet_problem, _rectangle
+
+    rect, _ = _rectangle(o11_box()[0])
+    circle = _Circle("k", "c", (0.02, 0.015), 0.005)
+    assert _hole_fillet_problem(round_rim(), rect, 0.01, circle, None, False) == (
+        "a fillet on the hole's edge is written only as the last feature"
+    )
+    assert _hole_fillet_problem(round_rim(), rect, 0.01, circle, None, True) is None
+
+
+def test_a_cut_into_a_rounded_corner_is_refused():
+    one = o11_box()
+    corner = hole(2, 0.004, 0.004, 0.0025)
+    rounded = "MyCut2: the circle runs into a rounded corner of the box"
+    assert _refusal(one + [round_edges()] + corner) == [rounded]
+    assert _plan_ok(one + corner) == []
+    # A cut followed by a fillet and anything else is not the hole's last step.
+    items = _refusal(one + hole(2, 0.02, 0.015, 0.005) + [round_rim(), round_rim("f3", "Again")])
+    assert items[0].startswith("MyCut2: a cut is written only as the last feature")
+    assert items[1:] == [f"Again: {POSITION}"]
+
+
+def test_allow_partial_leaves_out_fillets_and_what_they_round():
+    # The box's fillet left out: the hole stays, written as on a box without fillets, and a
+    # circle in what would be a rounded corner is accepted.
+    features = o11_box() + [round_edges(suppressed=True)] + hole(2, 0.004, 0.004, 0.0025)
+    features.append(round_rim(r=0.0005, point=(0.0065, 0.004, 0.01)))
+    p = gen.plan(ir.Document("d", features), identity=IDENT, allow_partial=True)
+    assert p.left_out == ["Round: suppressed fillet"]
+    s = p.slots
+    names = ["Sketch1", "Boss-Extrude1", "Sketch2", "Cut-Extrude1", "Fillet1"]
+    assert [f["name"] for f in s["features"]] == names
+    assert s["features"][3]["ring"][2]["kind"] == 1 and not s["model.back_view"]
+    # A refused cut takes the fillet on its edge with it; only the cut is refused.
+    features = o11_box() + hole(2, 0.02, 0.015, 0.005, direction="forward") + [round_rim()]
+    with pytest.raises(gen.NativeWriteUnsupported) as e:
+        gen.plan(ir.Document("d", features), identity=IDENT)
+    assert e.value.items == ["MyCut2: only a cut through all in both directions is written"]
+    p = gen.plan(ir.Document("d", features), identity=IDENT, allow_partial=True)
+    assert p.left_out == [
+        "MyCut2: only a cut through all in both directions is written",
+        "MyCircle2: left out with MyCut2, which is not written",
+        "Rim: left out because MyCut2, whose body it rounds, is not written",
+    ]
+    assert [f["name"] for f in p.slots["features"]] == ["Sketch1", "Boss-Extrude1"]
+    # So does a refused box: nothing is left to round.
+    features = box(1, 0.0, 0.0, 0.04, 0.03, 0.01, direction="reverse") + [round_edges()]
+    p = gen.plan(ir.Document("d", features), identity=IDENT, allow_partial=True)
+    assert p.left_out[-2:] == [
+        "MySketch1: left out with MyExtrude1, which is not written",
+        "Round: left out because MyExtrude1, whose body it rounds, is not written",
+    ]
+    assert p.slots["features"] == []
+
+
+def test_a_fillet_radius_expression_is_reported():
+    def left_out(expression):
+        params = [ir.Parameter("rr", 0.003, expression=expression)]
+        doc = ir.Document("d", o11_box() + [round_edges(radius_parameter="rr")], params)
+        return gen.plan(doc, identity=IDENT).left_out
+
+    assert left_out("wall / 2") == [
+        "Round: radius 3 mm is written as a number; the expression wall / 2 is not kept"
+    ]
+    assert left_out("3 mm") == []
+
+
+def test_the_fixed_features_of_keywords():
+    s = gen.plan(ir.Document("empty"), identity=IDENT).slots
+    fixed = s["meta.kw_features"]
+    assert len(fixed) == 23 and not any(x["fillet"] for x in fixed)
+    assert {x["id"] for x in fixed} == set(range(1, 26)) - {5, 20}
+    assert [x["id"] for x in fixed] == sorted((x["id"] for x in fixed), key=str)
+    text = gen.assemble(s)["swXmlContents/KeyWords"][1:].decode()
+    assert '<Feature id="11" Name="Material &lt;not specified&gt;" Type="SOLIDWORKS Materials"/>' in text
+    assert '<Feature id="19" Name="" Type="Exploded Views"/><Feature id="2" Name="Front Plane"' in text
+    assert '<Feature id="24" Name="Folder " Type="History"/>' in text
+
+
+def test_a_box_with_fillets_writes_and_reads_back():
+    doc = example_o11()
+    blob = gen.write_part(doc, identity=IDENT)
+    part = container.read_document(blob)
+    s = gen.plan(doc, identity=IDENT).slots
+    m = gen.assemble(s)
+    assert [x.name for x in part.members] == list(gen.MEMBERS)
+    for x in part.members:
+        assert x.data == m[x.name]
+    plain = gen.assemble(gen.plan(dataclasses.replace(example_hole(), name="o11"), identity=IDENT).slots)
+    # The stamps count the box and the cut, not the fillets (15.6.6).
+    assert m["ModelStamps"] == struct.pack("<III", s["doc.created"], 140, 111)
+    # KeyWords (15.1.5): each fillet a Feature with its radius, among the fixed features by id
+    # as text, and no Extrusion element.
+    text = m["swXmlContents/KeyWords"][1:].decode()
+    f1 = '<Feature id="34" Name="Fillet1" Type="Fillet"><Dimension Name="D1">R3</Dimension></Feature>'
+    f2 = '<Feature id="44" Name="Fillet2" Type="Fillet"><Dimension Name="D1">R1</Dimension></Feature>'
+    assert text.index('<Feature id="3" ') < text.index(f1) < text.index('<Feature id="4" ') < text.index(f2)
+    assert '<Extrusion id="34"' not in text and '<Extrusion id="42"' in text
+    # Config-0 (15.4.9): a second annotation view, *Back, and the last view's number 201.
+    c0 = m["Contents/Config-0"]
+    back, top = listing.cstring("*Back"), listing.cstring("*Top")
+    assert c0.count(back) == plain["Contents/Config-0"].count(back) + 1
+    assert c0.count(top) == plain["Contents/Config-0"].count(top)
+    assert struct.pack("<IIII", 201, 199, 1, 199) in c0
+    assert struct.pack("<IIII", 200, 199, 1, 199) in plain["Contents/Config-0"]
+    # The feature stream (15.5.14): 17 + 6 top-level features, each fillet's records and end.
+    fs = m["Contents/Config-0-ResolvedFeatures"]
+    assert fs[4:6] == (23).to_bytes(2, "little")
+    for name in ("Fillet_c", "moFilletSurfIdRep_c", "moEdgeRef_c", "edgeRadiusObject_c", "ThreeDRadiusDim_c"):
+        assert name.encode() in fs
+    end = struct.pack("<IH5I", 6, 0, 21040, 25, 23341, 22711, 22993) + bytes(16)
+    assert fs.count(end) == 2
+    assert struct.pack("<3d", 0.003, 0.003, 0.01) * 2 in fs
+    # SwDocContentMgrInfo (15.1.6): the one live body, named after the last fillet that built it.
+    info = m["SwDocContentMgr/SwDocContentMgrInfo"]
+    assert struct.pack("<II", 1, 102) + listing.cstring("Fillet2") in info
+    assert listing.cstring("Cut-Extrude1") not in info
+    # CMgr (15.2.7.5): four builds, each fillet's with its own time.
+    hi, lo = s["doc.filetime"] // 2**32, s["doc.filetime"] % 2**32
+    builds = struct.pack("<I", 4) + b"".join(struct.pack("<III", n, hi, lo) for n in (34, 42, 44, 32))
+    assert builds in m["Contents/CMgr"]
+    # A box with its fillet alone writes too, with the *Back view.
+    lone = gen.assemble(gen.plan(ir.Document("d", o11_box() + [round_edges()]), identity=IDENT).slots)
+    assert lone["Contents/Config-0"].count(back) == c0.count(back)
+    assert lone["Contents/Config-0-ResolvedFeatures"][4:6] == (20).to_bytes(2, "little")
+
+
+def test_the_fillet_shape_of_spec_constants():
+    shapes = [pair for pair in gen._shapes() if pair[0][0].name == "fillets"]
+    assert len(shapes) == 1
+    (doc_a, id_a), (doc_b, id_b) = shapes[0]
+    a, b = gen.plan(doc_a, identity=id_a).slots, gen.plan(doc_b, identity=id_b).slots
+    names = ["Sketch1", "Boss-Extrude1", "Fillet1", "Sketch2", "Cut-Extrude1", "Fillet2"]
+    assert [f["name"] for f in a["features"]] == [f["name"] for f in b["features"]] == names
+    for k in (2, 5):
+        ta, tb = a["features"][k]["radius_text"], b["features"][k]["radius_text"]
+        assert len(ta) == len(tb) and ta[-1] != tb[-1] and {ta, tb}.isdisjoint({"3", "1"})
+        assert a["features"][k]["radius"] != b["features"][k]["radius"]
+    assert {n: len(v) for n, v in gen.assemble(a).items()} == {n: len(v) for n, v in gen.assemble(b).items()}
+    # A fillet's end is the same in every part: inside a constant run (15.5.14).
+    fs = gen.assemble(a)["Contents/Config-0-ResolvedFeatures"]
+    end = struct.pack("<IH5I", 6, 0, 21040, 25, 23341, 22711, 22993) + bytes(16)
+    assert fs.count(end) == 2 and any(end in c for c in gen.SPEC_CONSTANTS)

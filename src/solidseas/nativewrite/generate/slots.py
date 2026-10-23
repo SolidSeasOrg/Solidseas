@@ -71,8 +71,46 @@ COUNTER_MARKS = 7  # spec 15.6.2 counter_marks
 CIRCLE_REGEN = 102  # spec 15.6.2 regen of a circle, 15.5.9
 CUT_COUNTER_MARKS = 14  # spec 15.6.2 counter_marks of a cut, 15.5.9
 CUT_NAME = "Cut-Extrude1"  # spec 15.6.2 name of a hole's cut
-# spec 15.6.2 ring, 15.5.13: (end, face) of side 4, end face 1, side 3, end face 0, side 1
-RING = ((False, 4), (True, 1), (False, 3), (True, 0), (False, 1))
+# spec 15.6.2 face entries, 15.5.13, 15.5.14: the kinds of face a face entry names
+END_LOOP, SIDE, END_FACE, HOLE_WALL, FILLET_FACE = 0, 1, 2, 3, 4
+# spec 15.6.2 ring, 15.5.13: (kind, face) of side 4, end face 1, side 3, end face 0, side 1
+RING = ((SIDE, 4), (END_FACE, 1), (SIDE, 3), (END_FACE, 0), (SIDE, 1))
+# spec 15.6.2 ring after a box with a fillet: side 4, end face 1, the fillet's face 1, end face 0,
+# the fillet's face 4
+RING_ROUNDED = ((SIDE, 4), (END_FACE, 1), (FILLET_FACE, 1), (END_FACE, 0), (FILLET_FACE, 4))
+EDGE_TOLERANCE = 1e-9  # spec 15.6.2: a point within 1e-9 m of an edge names it
+# spec 15.6.2 edges, 15.5.14: the box's four edges along its depth, each by its two sides (a, b)
+BOX_EDGES = ((4, 3), (3, 2), (2, 1), (1, 4))
+FILLET_FACE_ORDER = (1, 4, 2, 3)  # spec 15.6.2 faces: along edges 1, 4, 2, 3
+FILLET_CLOSING_ORDER = (3, 4, 1, 2)  # spec 15.6.2 closing: edges 3, 4, 1, 2
+FILLET_MARKS_BOX = 22  # spec 15.6.2 counter_marks of a fillet on the box's edges, 15.5.9
+FILLET_MARKS_HOLE = 29  # spec 15.6.2 counter_marks of a fillet on the hole's edge, 15.5.9
+# spec 15.1.5: the 23 fixed features of the part template, (id, name, type)
+KW_FIXED_FEATURES = (
+    (1, "Annotations", "Annotations"),  # spec 15.1.5
+    (2, "Front Plane", "Plane"),  # spec 15.1.5
+    (3, "Top Plane", "Plane"),  # spec 15.1.5
+    (4, "Right Plane", "Plane"),  # spec 15.1.5
+    (6, "Lights and Cameras", "Lights and Cameras"),  # spec 15.1.5
+    (7, "Design Binder", "Design Binder"),  # spec 15.1.5
+    (8, "Comments", "Comments"),  # spec 15.1.5
+    (9, "Solid Bodies", "Solid Bodies"),  # spec 15.1.5
+    (10, "Surface Bodies", "Surface Bodies"),  # spec 15.1.5
+    (11, "Material <not specified>", "SOLIDWORKS Materials"),  # spec 15.1.5
+    (12, "Ambient", "Ambient"),  # spec 15.1.5
+    (13, "Directional1", "Directional"),  # spec 15.1.5
+    (14, "Directional2", "Directional"),  # spec 15.1.5
+    (15, "Directional3", "Directional"),  # spec 15.1.5
+    (16, "Equations", "Equations"),  # spec 15.1.5
+    (17, "Notes", "Notes"),  # spec 15.1.5
+    (18, "Notes1___EndTag___", "Notes"),  # spec 15.1.5
+    (19, "", "Exploded Views"),  # spec 15.1.5
+    (21, "Markups", "Markups"),  # spec 15.1.5
+    (22, "Sensors", "Sensors"),  # spec 15.1.5
+    (23, "Favorites", "Favorites"),  # spec 15.1.5
+    (24, "Folder ", "History"),  # spec 15.1.5: with its trailing space
+    (25, "Selection Sets", "Selection Sets"),  # spec 15.1.5
+)
 BUILD_BUCKETS = 17  # spec 15.6.5 builds, 15.2.7.5: a hash table of 17 buckets
 OS_VERSION = (2, 10, 0, 0)  # spec 15.6.6 bio.os.platform, major, minor, build
 LOCALE = 1033  # spec 15.6.6 bio.locale
@@ -194,6 +232,14 @@ class _Pair:
     extrude: ir.Extrude
     rect: _Rect | None = None
     circle: _Circle | None = None
+
+
+@dataclass
+class _Round:
+    """One accepted fillet (15.6.2): on the box's four edges, or on the hole's edge (``hole``)."""
+
+    fillet: ir.Fillet
+    hole: bool
 
 
 def _number(v: float) -> str:
@@ -319,22 +365,47 @@ def _extrusion_problem(e: ir.Extrude, rect: _Rect, k: int) -> str | None:
     return None
 
 
-def _cut_problem(e: ir.Extrude, circle: _Circle, boxes: list[_Rect], last: bool) -> str | None:
+def _meets_corner(cx: float, cy: float, rho: float, corners: tuple, rf: float) -> bool:
+    """Whether the circle (cx, cy, rho) meets one of the four rf by rf corner squares (15.6.2)."""
+    x0, y0, x1, y1 = corners
+    squares = (
+        (x0, x0 + rf, y0, y0 + rf),
+        (x1 - rf, x1, y0, y0 + rf),
+        (x1 - rf, x1, y1 - rf, y1),
+        (x0, x0 + rf, y1 - rf, y1),
+    )
+    for sx0, sx1, sy0, sy1 in squares:
+        dx = max(sx0 - cx, 0.0, cx - sx1)
+        dy = max(sy0 - cy, 0.0, cy - sy1)
+        if not dx * dx + dy * dy > rho * rho:
+            return True
+    return False
+
+
+def _cut_problem(
+    e: ir.Extrude, circle: _Circle, boxes: list[_Rect], tail: bool, rf: float | None
+) -> str | None:
     """The reason the hole's cut, which follows its circle at once, is refused, or None.
 
-    ``boxes`` are the boxes accepted before it and ``last`` says whether the cut is the
-    last item of the timeline. The conditions are 15.6.2's cut table, in its order.
+    ``boxes`` are the boxes accepted before it, ``tail`` says whether the cut is the last
+    item of the timeline or is followed only by one fillet, and ``rf`` is the radius of the
+    box's accepted fillet, if it has one. The conditions are 15.6.2's cut table, in its order.
     """
     if e.operation != "cut":
         return "a circle is written only as the profile of a cut"
     if e.end != "through_all" or e.direction != "midplane":
         return "only a cut through all in both directions is written"
-    if len(boxes) != 1 or not last:
-        return "a cut is written only as the last feature of a part with one box"
+    if len(boxes) != 1 or not tail:
+        return (
+            "a cut is written only as the last feature of a part with one box, "
+            "or followed only by a fillet on the hole's edge"
+        )
     x0, y0, x1, y1 = boxes[0].corners
     (cx, cy), r = circle.centre, circle.radius
     if not (x0 < cx - r and cx + r < x1 and y0 < cy - r and cy + r < y1):
         return "the circle is not inside the box's rectangle"
+    if rf is not None and _meets_corner(cx, cy, r, boxes[0].corners, rf):
+        return "the circle runs into a rounded corner of the box"
     if e.profile is not None and (len(e.profile) != 1 or list(e.profile[0]) != [circle.curve]):
         return "profile is not the whole circle"
     if e.suppressed:
@@ -342,9 +413,61 @@ def _cut_problem(e: ir.Extrude, circle: _Circle, boxes: list[_Rect], last: bool)
     return None
 
 
+def _box_fillet_problem(f: ir.Fillet, rect: _Rect, depth: float) -> str | None:
+    """The reason a fillet right after the box is refused, or None (15.6.2's fillet table)."""
+    x0, y0, x1, y1 = rect.corners
+    corners = ((x0, y0), (x1, y0), (x1, y1), (x0, y1))
+    hit: set[int] = set()
+    for e in f.edges:
+        px, py, pz = e.point
+        on = [
+            k
+            for k, (xc, yc) in enumerate(corners)
+            if abs(px - xc) <= EDGE_TOLERANCE and abs(py - yc) <= EDGE_TOLERANCE and 0.0 < pz < depth
+        ]
+        if not on:
+            hit = set()
+            break
+        hit.add(on[0])
+    if len(f.edges) != 4 or len(hit) != 4:
+        return "a fillet right after the box is written only on all four of its edges along its depth"
+    r = f.radius
+    if not 2 * r < min(x1 - x0, y1 - y0):
+        return "the fillet's radius must be less than half the box's shorter side"
+    return None
+
+
+def _hole_fillet_problem(
+    f: ir.Fillet, rect: _Rect, depth: float, circle: _Circle, rf: float | None, last: bool
+) -> str | None:
+    """The reason a fillet right after the hole's cut is refused, or None (15.6.2's fillet table).
+
+    ``rf`` is the radius of the box's accepted fillet, if it has one.
+    """
+    if not last:
+        return "a fillet on the hole's edge is written only as the last feature"
+    (cx, cy), big_r = circle.centre, circle.radius
+    on_edge = False
+    if len(f.edges) == 1:
+        px, py, pz = f.edges[0].point
+        d = math.sqrt((px - cx) * (px - cx) + (py - cy) * (py - cy))
+        on_edge = abs(pz - depth) <= EDGE_TOLERANCE and abs(d - big_r) <= EDGE_TOLERANCE
+    if not on_edge:
+        return "a fillet after the hole is written only on the hole's edge on the box's far face"
+    r = f.radius
+    rho = big_r + r
+    x0, y0, x1, y1 = rect.corners
+    inside = x0 < cx - rho and cx + rho < x1 and y0 < cy - rho and cy + rho < y1 and r < depth
+    if not inside or (rf is not None and _meets_corner(cx, cy, rho, rect.corners, rf)):
+        return (
+            "the fillet on the hole's edge must stay on the box's far face, clear of its rounded "
+            "corners, with a radius less than the box's depth"
+        )
+    return None
+
+
 _KIND_REFUSALS = {
     ir.Revolve: "revolves are not written yet",
-    ir.Fillet: "fillets are not written yet",
     ir.Chamfer: "chamfers are not written yet",
     ir.Hole: "holes are not written yet",
     ir.Pattern: "patterns are not written yet",
@@ -416,8 +539,27 @@ def _circle_notes(s: ir.Sketch, circle: _Circle, params: dict[str, ir.Parameter]
     return notes
 
 
-def _accept(doc: ir.Document) -> tuple[list[_Pair], list[str], list[str]]:
-    """The accepted pairs, the refusals, and what is left out.
+def _box_count(items: list, users: dict[str, list]) -> int:
+    """How many boxes of the timeline are accepted: the rectangles and extrusions alone (15.6.2).
+
+    A fillet is accepted only in a part with exactly one box, which a box later in the
+    timeline also decides, so the boxes are counted before the timeline is read.
+    """
+    count = 0
+    for i, f in enumerate(items):
+        if not isinstance(f, ir.Sketch) or _is_circle_sketch(f):
+            continue
+        nxt = items[i + 1] if i + 1 < len(items) else None
+        rect, why = _rectangle(f)
+        mine = users.get(f.id, [])
+        if why is None and len(mine) == 1 and mine[0] is nxt and isinstance(nxt, ir.Extrude):
+            if _extrusion_problem(nxt, rect, count) is None:
+                count += 1
+    return count
+
+
+def _accept(doc: ir.Document) -> tuple[list[_Pair | _Round], list[str], list[str]]:
+    """The accepted pairs and fillets in timeline order, the refusals, and what is left out.
 
     ``left_out`` is in timeline order and holds the refusals too, as 15.6.7 lists them
     when ``allow_partial`` is given.
@@ -428,11 +570,15 @@ def _accept(doc: ir.Document) -> tuple[list[_Pair], list[str], list[str]]:
     for f in items:
         if isinstance(f, (ir.Extrude, ir.Revolve)):
             users.setdefault(f.sketch, []).append(f)
-    pairs: list[_Pair] = []
+    one_box = _box_count(items, users) == 1
+    pairs: list[_Pair | _Round] = []
     boxes: list[_Rect] = []
     refused: list[str] = []
     left_out: list[str] = []
     dropped: set[str] = set()
+    box_extrusion: _Pair | None = None  # the box's accepted pair, while the part has one box
+    hole_cut: _Pair | None = None  # the hole's accepted pair
+    rf: float | None = None  # the radius of the box's accepted fillet
 
     def _refuse(entry: str) -> None:
         refused.append(entry)
@@ -441,8 +587,45 @@ def _accept(doc: ir.Document) -> tuple[list[_Pair], list[str], list[str]]:
     i = 0
     while i < len(items):
         f = items[i]
+        prev = items[i - 1] if i > 0 else None
         nxt = items[i + 1] if i + 1 < len(items) else None
         i += 1
+        if isinstance(f, ir.Fillet):
+            if isinstance(prev, ir.Extrude) and prev.id in dropped:
+                left_out.append(
+                    f"{f.name}: left out because {prev.name}, whose body it rounds, is not written"
+                )
+                dropped.add(f.id)
+                continue
+            after_box = box_extrusion is not None and prev is box_extrusion.extrude
+            after_cut = hole_cut is not None and prev is hole_cut.extrude
+            if f.suppressed:
+                why = "suppressed fillet"
+            elif not one_box or not (after_box or after_cut):
+                why = (
+                    "a fillet is written only right after the box's extrusion, or right after the "
+                    "hole's cut, in a part with one box"
+                )
+            elif after_box:
+                why = _box_fillet_problem(f, box_extrusion.rect, float(box_extrusion.extrude.depth))
+            else:
+                why = _hole_fillet_problem(
+                    f, boxes[0], float(box_extrusion.extrude.depth), hole_cut.circle, rf, i == len(items)
+                )
+            if why is not None:
+                _refuse(f"{f.name}: {why}")
+                dropped.add(f.id)
+                continue
+            pairs.append(_Round(f, hole=after_cut))
+            if after_box:
+                rf = float(f.radius)
+            p = params.get(f.radius_parameter or "")
+            if p is not None and _kept_expression(p.expression):
+                left_out.append(
+                    f"{f.name}: radius {_mm(f.radius)} mm is written as a number; "
+                    f"the expression {p.expression} is not kept"
+                )
+            continue
         if isinstance(f, ir.Sketch):
             hole = _is_circle_sketch(f)
             rect, circle, why = None, None, None
@@ -458,7 +641,8 @@ def _accept(doc: ir.Document) -> tuple[list[_Pair], list[str], list[str]]:
                 dropped.add(f.id)
                 continue
             if hole:
-                problem = _cut_problem(nxt, circle, boxes, i + 1 == len(items))
+                tail = i + 1 == len(items) or (i + 2 == len(items) and isinstance(items[i + 1], ir.Fillet))
+                problem = _cut_problem(nxt, circle, boxes, tail, rf)
             else:
                 problem = _extrusion_problem(nxt, rect, len(boxes))
             i += 1
@@ -470,12 +654,14 @@ def _accept(doc: ir.Document) -> tuple[list[_Pair], list[str], list[str]]:
                 left_out.append(f"{f.name}: left out with {nxt.name}, which is not written")
                 continue
             if hole:
-                pairs.append(_Pair(f, nxt, circle=circle))
+                hole_cut = _Pair(f, nxt, circle=circle)
+                pairs.append(hole_cut)
                 # spec 15.6.7: a cut through all reads no depth, so its depth gives no entry.
                 left_out.extend(_circle_notes(f, circle, params))
                 continue
             pairs.append(_Pair(f, nxt, rect=rect))
             boxes.append(rect)
+            box_extrusion = pairs[-1] if one_box else None
             left_out.extend(_sketch_notes(f, rect, params))
             p = params.get(nxt.depth_parameter or "")
             if p is not None and _kept_expression(p.expression):
@@ -686,16 +872,31 @@ def _utc(when: datetime) -> datetime:
 
 
 # ------------------------------------------------------------------ the hole's cut (15.6.2)
-def _cut_item(uid: int, circle: dict, box: dict, boxes: int, unix: int, filetime: int) -> dict[str, Any]:
+def _face(kind: int, item: dict | None = None, face: int = 0) -> dict[str, Any]:
+    """A face entry (15.6.2): ``face`` of the feature ``item`` made, or a kind 0 entry."""
+    if item is None:
+        return {"kind": kind, "uid": 0, "created": 0, "face": 0}
+    return {"kind": kind, "uid": item["id"], "created": item["created"], "face": face}
+
+
+def _cut_item(
+    uid: int, circle: dict, box: dict, boxes: int, unix: int, filetime: int, rounded: dict | None
+) -> dict[str, Any]:
     """The features item of the hole's cut, by 15.6.2's second table.
 
     ``uid`` is its creation number, ``circle`` its sketch's item, ``box`` the box's
-    extrusion item (the body it cuts) and ``boxes`` the number of boxes before it.
+    extrusion item (the body it cuts), ``boxes`` the number of boxes before it and
+    ``rounded`` the item of the fillet on the box's edges, if it has one.
     """
+    if rounded is None:
+        ring = [_face(kind, box, face) for kind, face in RING]
+    else:
+        ring = [_face(kind, rounded if kind == FILLET_FACE else box, face) for kind, face in RING_ROUNDED]
     return {
         "name": CUT_NAME,
         "sketch": False,
         "cut": True,
+        "fillet": False,
         "log_modified": False,  # spec 15.6.2: no extrusion is logged modified
         "id": uid,
         "sketch_name": circle["name"],
@@ -711,9 +912,7 @@ def _cut_item(uid: int, circle: dict, box: dict, boxes: int, unix: int, filetime
         "target_label": box["body_label"],
         "target_uid": box["id"],
         "target_created": box["created"],
-        "ring": [
-            {"end": end, "uid": box["id"], "created": box["created"], "face": face} for end, face in RING
-        ],
+        "ring": ring,
         "created": unix,
         "time": filetime,
         "cache_memo": 0.0,
@@ -724,17 +923,101 @@ def _cut_item(uid: int, circle: dict, box: dict, boxes: int, unix: int, filetime
     }
 
 
-def body_slots(bodies: list[dict]) -> tuple[list[dict], list[dict], list[dict]]:
+def _fillet_item(
+    uid: int, name: str, r: float, box: dict, body: dict, unix: int, filetime: int, hole: tuple | None
+) -> dict[str, Any]:
+    """The features item of a fillet, by 15.6.2's fillet table.
+
+    ``uid`` is its creation number, ``name`` its name in the part, ``r`` its radius, ``box``
+    the box's extrusion item and ``body`` the body it changes. ``hole`` is ``None`` for the
+    fillet on the box's edges, else ``(cut, cx, cy, R)``: the cut's item and its circle.
+    """
+    x0, y0, _x1, _y1 = box["corners"]
+    depth = box["depth"]
+    item: dict[str, Any] = {
+        "name": name,
+        "sketch": False,
+        "cut": False,
+        "fillet": True,
+        "hole": hole is not None,
+        "log_modified": False,  # spec 15.6.2: a fillet is logged created only
+        "id": uid,
+        "radius": r,
+        "radius_text": _mm(r),
+    }
+    me = {"id": uid, "created": unix}  # the fillet as the maker of its own faces
+    if hole is None:
+        item["anchor"] = [x0 + r, y0 + r, depth]
+        edges = [
+            {
+                "label": f"{name}.e{k + 1}",
+                "counter": 0,
+                "faces": [
+                    _face(SIDE, box, a),
+                    _face(SIDE, box, b),
+                    _face(END_FACE, box, 1),
+                    _face(END_FACE, box, 0),
+                ],
+            }
+            for k, (a, b) in enumerate(BOX_EDGES)
+        ]
+        faces = []
+        for k in FILLET_FACE_ORDER:
+            a, b = BOX_EDGES[k - 1]
+            ring = [
+                _face(FILLET_FACE, me, k),
+                _face(END_FACE, box, 1),
+                _face(SIDE, box, b),
+                _face(END_FACE, box, 0),
+                _face(SIDE, box, a),
+            ]
+            faces.append({"counter": 0, "ring": ring, "edge": edges[k - 1]["faces"]})
+        closing = [edges[k - 1] for k in FILLET_CLOSING_ORDER]
+        marks = FILLET_MARKS_BOX
+    else:
+        cut, cx, cy, big_r = hole
+        item["anchor"] = [cx - big_r - r, cy, depth - r]
+        far = _face(END_FACE, box, 1)
+        edge = [_face(HOLE_WALL, cut, 1), far, dict(far), dict(far)]
+        edges = [{"label": f"{name}.e1", "counter": 0, "faces": edge}]
+        ring = [_face(FILLET_FACE, me, 1), _face(END_FACE, box, 1), _face(END_LOOP), _face(HOLE_WALL, cut, 1)]
+        faces = [{"counter": 0, "ring": ring, "edge": edge}]
+        closing = [edges[0]]
+        marks = FILLET_MARKS_HOLE
+    item.update(
+        {
+            "body_id": body["id"],
+            "body_label": body["label"],
+            "body_regen": body["regen"],
+            "edges": edges,
+            "faces": faces,
+            "closing": closing,
+            "dim_edge": edges[-1]["label"],
+            "created": unix,
+            "time": filetime,
+            "cache_memo": 0.0,
+            "counter_marks": marks,
+        }
+    )
+    return item
+
+
+def body_slots(bodies: list[dict], features: list[dict] = ()) -> tuple[list[dict], list[dict], list[dict]]:
     """``live_bodies``, ``body_links`` and ``builds`` from ``bodies`` (15.6.5).
 
-    ``builds`` holds, per body, the feature that made it and then each feature that
-    changed it, all with the body's ``time``, in the order of a hash table of 17 buckets
-    keyed by the feature's node id: by the id modulo 17, and of two with the same
-    remainder the one later in the list first (15.2.7.5).
+    ``builds`` holds, per body, the feature that made it, with the body's ``time``, and
+    then each feature that changed it, with that feature's own ``time`` from ``features``,
+    in the order of a hash table of 17 buckets keyed by the feature's node id: by the id
+    modulo 17, and of two with the same remainder the one later in the list first
+    (15.2.7.5).
     """
+    times = {f["id"]: f["time"] for f in features}
     live = [b for b in bodies if b["live"]]
     links = [{"new": b["id"], "old": old} for b in bodies for old in b["from"]]
-    built = [{"feature": f, "time": b["time"]} for b in bodies for f in (b["feature"], *b["changed"])]
+    built = []
+    for b in bodies:
+        built.append({"feature": b["feature"], "time": b["time"]})
+        built += [{"feature": c, "time": times.get(c, b["time"])} for c in b["changed"]]
     order = sorted(range(len(built)), key=lambda i: (built[i]["feature"] % BUILD_BUCKETS, -i))
     return live, links, [built[i] for i in order]
 
@@ -766,7 +1049,36 @@ def plan(doc: ir.Document, *, identity: Identity | None = None, allow_partial: b
     names: dict[str, str] = {}
     counter = FIRST_ID
     box_items: list[dict] = []  # the boxes' extrusion items, in timeline order
-    for k, pair in enumerate(pairs):
+    rounded: dict | None = None  # the item of the fillet on the box's edges
+    circle_item: dict | None = None
+    cut_item: dict | None = None
+    back_view = False
+    k = -1  # the pair's place among the pairs
+    for step in pairs:
+        if isinstance(step, _Round):
+            fname = f"Fillet{sum(1 for f in features if f.get('fillet')) + 1}"
+            fid = counter + 1  # spec 15.6.2, 15.5.4: the counter plus 1, its radius dimension the counter
+            counter += 2
+            body = bodies[-1]  # the box's body right after the box, the cut's right after the cut
+            hole = None
+            if step.hole:
+                (cx, cy), big_r = circle_item["centre"], circle_item["radius"]
+                hole = (cut_item, cx, cy, big_r)
+            item = _fillet_item(
+                fid, fname, float(step.fillet.radius), box_items[0], body, unix, filetime, hole
+            )
+            if not step.hole:
+                rounded = item
+                back_view = True
+            features.append(item)
+            body["changed"].append(fid)
+            body["last"] = fid
+            body["name"] = fname
+            names[step.fillet.id] = fname
+            names[step.fillet.name] = fname
+            continue
+        k += 1
+        pair = step
         sk, ex = pair.sketch, pair.extrude
         sname = f"Sketch{k + 1}"
         sketch = {
@@ -786,7 +1098,8 @@ def plan(doc: ir.Document, *, identity: Identity | None = None, allow_partial: b
         if pair.circle is not None:
             (cx, cy), r = pair.circle.centre, pair.circle.radius
             sketch.update({"centre": [cx, cy], "radius": r, "start": [cx + r, cy], "regen": CIRCLE_REGEN})
-            extrusion = _cut_item(counter, sketch, box_items[0], len(box_items), unix, filetime)
+            extrusion = _cut_item(counter, sketch, box_items[0], len(box_items), unix, filetime, rounded)
+            circle_item, cut_item = sketch, extrusion
             ename = extrusion["name"]
             target = bodies[0]
             target["live"] = False
@@ -803,6 +1116,7 @@ def plan(doc: ir.Document, *, identity: Identity | None = None, allow_partial: b
                 "name": ename,
                 "sketch": False,
                 "cut": False,
+                "fillet": False,
                 "log_modified": False,  # spec 15.6.2: no extrusion is logged modified
                 "id": counter,
                 "corners": [x0, y0, x1, y1],
@@ -849,8 +1163,8 @@ def plan(doc: ir.Document, *, identity: Identity | None = None, allow_partial: b
             names[f.id] = part_name
             names[f.name] = part_name
 
-    # Every extrusion counts towards the stamps, a cut included (15.6.6); only boxes give
-    # the model its box, its sphere and its planes (15.6.3).
+    # Every extrusion counts towards the stamps, a cut included and a fillet not (15.6.6); only
+    # boxes give the model its box, its sphere and its planes (15.6.3).
     n = len(bodies)
     solid = bool(box_items)
     boxes = [
@@ -868,8 +1182,8 @@ def plan(doc: ir.Document, *, identity: Identity | None = None, allow_partial: b
     centre = [(lo[a] + hi[a]) / 2 for a in range(3)]
     planes = _planes(solid, lo, hi, centre)
 
-    # The change stamps count extrusions only, a cut among them; file custom properties do not
-    # change them (15.6.6).
+    # The change stamps count extrusions only, a cut among them; fillets and file custom
+    # properties do not change them (15.6.6).
     stamp = 102 if n == 0 else 100 + 20 * n  # spec 15.6.6 doc.stamp
     stamp2 = 101 + n * (n + 3)  # spec 15.6.6 doc.stamp2
     sketches = [f for f in features if f["sketch"]]
@@ -888,6 +1202,7 @@ def plan(doc: ir.Document, *, identity: Identity | None = None, allow_partial: b
         "sketches": sketches,
         "bodies": bodies,
         "model.solid": solid,
+        "model.back_view": back_view,
         "model.min": lo,
         "model.max": hi,
         "model.centre": centre,
@@ -975,9 +1290,17 @@ def derive(s: dict[str, Any]) -> dict[str, Any]:
     s["meta.saved_text"] = f"{_long_date(local)} {_clock(local)}"
     for key in ("front", "top", "right", "doc", "config"):
         s[f"exch.hash.{key}"] = key_hash(s[f"exch.{key}"])
-    s["live_bodies"], s["body_links"], s["builds"] = body_slots(s["bodies"])
     feats = s["features"]
-    s["meta.kw_extrusions"] = sorted((f for f in feats if not f["sketch"]), key=lambda f: str(f["id"]))
+    s["live_bodies"], s["body_links"], s["builds"] = body_slots(s["bodies"], feats)
+    extrusions = (f for f in feats if not f["sketch"] and not f.get("fillet"))
+    s["meta.kw_extrusions"] = sorted(extrusions, key=lambda f: str(f["id"]))
+    kw = [{"id": i, "name": name, "type": t, "fillet": False} for i, name, t in KW_FIXED_FEATURES]
+    kw += [
+        {"id": f["id"], "name": f["name"], "fillet": True, "radius_text": f["radius_text"]}
+        for f in feats
+        if f.get("fillet")
+    ]
+    s["meta.kw_features"] = sorted(kw, key=lambda f: str(f["id"]))
     origin = {"id": 5, "name": "Origin", "origin": True}  # spec 15.6.5 meta.kw_sketches
     kw = [origin] + [{"id": f["id"], "name": f["name"], "origin": False} for f in feats if f["sketch"]]
     s["meta.kw_sketches"] = sorted(kw, key=lambda f: str(f["id"]))

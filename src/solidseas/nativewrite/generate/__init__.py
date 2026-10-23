@@ -135,6 +135,29 @@ def _hole(n: int, cx: float, cy: float, r: float) -> list:
     return [sk, cut]
 
 
+def _rounds(box: list, hole: list, rf: float, rh: float) -> list:
+    """o11's fillets on a box at the origin and its hole (15.6.2, 15.0.7).
+
+    A fillet of radius ``rf`` on the box's four edges along its depth, right after the box,
+    then the hole, then a fillet of radius ``rh`` on the hole's edge on the box's far face.
+    Each edge is named by a point on it: halfway up each corner of the rectangle, and on
+    the hole's +x side on the far face.
+    """
+    sk, ex = box
+    low, high = sk.points[0], sk.points[2]  # the rectangle's first and opposite corners (_box)
+    depth = ex.depth
+    corners = ((low.x, low.y), (high.x, low.y), (high.x, high.y), (low.x, high.y))
+    on_box = [ir.EdgeRef((x, y, depth / 2)) for x, y in corners]
+    centre, circle = hole[0].points[0], hole[0].curves[0]
+    on_hole = [ir.EdgeRef((centre.x + circle.radius, centre.y, depth))]
+    return [
+        *box,
+        ir.Fillet("r1", "Round1", on_box, rf),
+        *hole,
+        ir.Fillet("r2", "Round2", on_hole, rh),
+    ]
+
+
 def _shapes() -> list[tuple[tuple[ir.Document, Identity], ...]]:
     """The shapes SPEC_CONSTANTS is measured on, each in two variants.
 
@@ -151,6 +174,11 @@ def _shapes() -> list[tuple[tuple[ir.Document, Identity], ...]]:
     the two variants each name and each value as typed has the same length and differs
     from the first character on, the yes or no property is true in both, and the names
     sort by ``props_by_name`` in the design's order.
+
+    The fillet shape is one box with o11's fillets (15.0.7): a fillet on the box's four
+    edges along its depth, the hole, and a fillet on the hole's edge on the far face. In
+    its two variants every size and radius differs, and each fillet's radius as millimetre
+    text has the same length and another last digit, none of them o11's 3 and 1.
     """
     from datetime import UTC, datetime
 
@@ -164,6 +192,8 @@ def _shapes() -> list[tuple[tuple[ir.Document, Identity], ...]]:
     two_a, two_b = _box(2, 0.03, 0.0, 0.04, 0.02, 0.01), _box(2, 0.04, 0.005, 0.06, 0.03, 0.02)
     hole_a = _hole(2, 0.005, 0.01, 0.0025)  # spec 15.6.8: the box with a hole's circle
     hole_b = _hole(2, 0.0125, 0.03, 0.004)  # spec 15.0.7: another circle inside one_b's rectangle
+    rounds_a = _rounds(one_a, hole_a, 0.002, 0.0015)  # spec 15.0.7: radii 2 mm and 1.5 mm
+    rounds_b = _rounds(one_b, hole_b, 0.004, 0.0026)  # spec 15.0.7: radii 4 mm and 2.6 mm
     forms = ("text", "number", "number", "date", "yesno")  # spec 15.0.7: one of each form of 15.6.9
     names_a, names_b = ("Apex", "Bolt", "Core", "Dial", "Edge"), ("Knob", "Lens", "Mast", "Note", "Oval")
     values_a = ("Steel", 42, 3.25, "2015-06-15", True)  # spec 15.0.7
@@ -175,6 +205,7 @@ def _shapes() -> list[tuple[tuple[ir.Document, Identity], ...]]:
         ((ir.Document("one", one_a), first), (ir.Document("one", one_b), second)),
         ((ir.Document("two", one_a + two_a), first), (ir.Document("two", one_b + two_b), second)),
         ((ir.Document("hole", one_a + hole_a), first), (ir.Document("hole", one_b + hole_b), second)),
+        ((ir.Document("fillets", rounds_a), first), (ir.Document("fillets", rounds_b), second)),
         (
             (ir.Document("props", one_a, properties=props_a), first),
             (ir.Document("props", one_b, properties=props_b), second),
