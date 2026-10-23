@@ -158,6 +158,20 @@ def test_a_hole_through_the_box_is_written_and_says_where_parts_like_it_were_ope
     assert text.rstrip().endswith(cli.NATIVE_HOLE_NOTE) and "open in SOLIDWORKS 2024" in cli.NATIVE_HOLE_NOTE
 
 
+def test_a_part_with_a_fillet_says_such_parts_are_not_yet_opened(capsys, tmp_path, out):
+    needs_generator()
+    doc = box()
+    edges = [ir.EdgeRef((x, y, 0.005)) for x, y in ((0, 0), (0.04, 0), (0.04, 0.03), (0, 0.03))]
+    doc.features.append(ir.Fillet("f1", "Round edges", edges, 0.003))
+    path = tmp_path / "box.json"
+    path.write_text(ir.to_json(doc), encoding="utf-8")
+    code = cli.main(["sldprt", str(path), "-o", str(out), "--allow-source-dir"])
+    text, err = capsys.readouterr()
+    assert code == 0 and err == "" and _is_part(out / "box.SLDPRT")
+    assert "  Fillet1, from Round edges\n" in text
+    assert text.rstrip().endswith(cli.NATIVE_FILLET_NOTE) and "not been opened" in cli.NATIVE_FILLET_NOTE
+
+
 @pytest.mark.parametrize("given", ["PartNo", "=SS-1001", " =x", "Bad=line\nbreak"])
 def test_a_property_option_that_is_not_name_equals_value(capsys, design, out, given):
     needs_generator()

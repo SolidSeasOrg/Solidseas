@@ -104,6 +104,12 @@ Plane that lies inside the rectangle, cut through all in both directions. It
 appears as `Sketch2` and `Cut-Extrude1`, and parts like it open in SOLIDWORKS
 2024 as one body with the hole in place.
 
+Such a part can also have rounded edges: one fillet of constant radius on all
+four edges along the box's depth, right after the box, and one on the hole's
+edge on the far face, as the last feature. They appear as `Fillet1` and
+`Fillet2`. Parts with a fillet have not been opened in SOLIDWORKS yet, and the
+command says so when it writes one. Other fillets are refused with a reason.
+
 The part also gets the design's file properties, which SOLIDWORKS shows under
 File > Properties on the Custom tab: text, numbers, dates and yes or no values.
 Each `--property NAME=VALUE` adds a text property, or replaces the design's
