@@ -428,7 +428,8 @@ def test_a_million_instances_stop_at_the_instance_limit(tmp_path):
         took = time.perf_counter() - start
         small = geo.display_geometry(doc, max_instances=50)
     assert g.truncated == ("max_instances",) and g.counts["instances"] == geo.DEFAULT_MAX_INSTANCES
-    assert len(g.meshes) == 1 and g.counts["files_opened"] == 1  # one file, read once for every instance
+    # One file, its identity read once and the file read once for every instance.
+    assert len(g.meshes) == 1 and g.counts["files_opened"] == 2
     assert g.counts["placed"] > 99_000 and g.counts["triangles_drawn"] == 12 * g.counts["placed"]
     assert took < 30
     assert small.counts["instances"] == 50 and small.truncated == ("max_instances",)
@@ -575,7 +576,8 @@ def test_the_limits_stop_reads_and_say_which(tmp_path):
     t.ref("m1", "q", 1, "m3")
     folder = _folder_with(tmp_path, t, {"p.SLDPRT": "o02_boxA.SLDPRT", "q.SLDPRT": "o07_boxB_h31.SLDPRT"})
     with open_document(folder / "asm.SLDASM") as doc:
-        files = geo.display_geometry(doc, max_files=1)
+        # Resolution reads both files' identities first, then p is read and q is not.
+        files = geo.display_geometry(doc, max_files=3)
         tris = geo.display_geometry(doc, max_triangles=12)
         nothing = geo.display_geometry(doc, max_bytes=100)
         with pytest.raises(InvalidArgumentError):
@@ -590,7 +592,7 @@ def test_the_limits_stop_reads_and_say_which(tmp_path):
     for g, limit in ((files, "max_files"), (tris, "max_triangles")):
         assert [i.id for i in g.instances] == ["p-1", "p-2"]
         assert [(s.id, s.reason) for s in g.skipped] == [("q-1", limit)] and g.truncated == (limit,)
-    assert files.counts["files_opened"] == 1 and tris.counts["triangles_read"] == 12
+    assert files.counts["files_opened"] == 3 and tris.counts["triangles_read"] == 12
     assert nothing.instances == () and nothing.truncated == ("max_bytes",)
 
 

@@ -173,7 +173,8 @@ def test_o16_rows_carry_files_configurations_and_properties():
     disk = by_item["1"]
     assert disk.location.root == "document" and disk.location.path == "o02_boxA.SLDPRT"
     assert disk.resolution in ("resolved", "moved") and disk.stored_path.endswith("o02_boxA.SLDPRT")
-    assert bom.counts["unread"] == 0 and bom.counts["files_opened"] == 6
+    # Six files on disk: resolution reads each one's identity, then each is read once.
+    assert bom.counts["unread"] == 0 and bom.counts["files_opened"] == 12
 
 
 def test_part_number_from_a_property_when_asked():
@@ -358,7 +359,7 @@ def test_two_configurations_of_one_part_are_two_rows(tmp_path):
         ("1", "Default", 2, (None,)),
         ("2", "OracleAlt", 1, ("ALT-VALUE",)),  # the configuration's own property
     ]
-    assert bom.counts["files_opened"] == 1  # one file, read once for both configurations
+    assert bom.counts["files_opened"] == 2  # its identity read, then one read for both configurations
 
 
 def _o06_with_configuration_description() -> bytes:
@@ -438,7 +439,8 @@ def test_documents_stored_inside_are_read_where_they_are(tmp_path):
     imported = rows["imported"]
     assert imported.imported and imported.resolution == "embedded"
     assert imported.description == "Oracle test box"
-    assert not bom.complete and bom.counts["unread"] == 1 and bom.counts["files_opened"] == 1
+    # sub.SLDASM's identity read, then sub.SLDASM, kept open for the part stored in it.
+    assert not bom.complete and bom.counts["unread"] == 1 and bom.counts["files_opened"] == 2
     data = model.build_bom(open_document(asm), bom_type="indented")
     _schema_ok(data)
     assert data["rows"][3]["location"] == {"root": "document", "path": "sub.SLDASM"}
@@ -642,7 +644,8 @@ def test_only_subassemblies_that_store_a_needed_document_stay_open(tmp_path):
 
     with open_document(asm) as doc:
         bom = doc.bom(bom_type="indented", read_properties=True, opener=opener)
-    assert bom.counts["files_opened"] == 6 and most[0] == 1 and open_now == []
+    # Six identity reads (resolution's own, closed at once) and six reads through the opener.
+    assert bom.counts["files_opened"] == 12 and most[0] == 1 and open_now == []
     with open_document(_virtual_assembly(tmp_path)) as doc:
         open_now.clear()
         most[0] = 0
@@ -697,12 +700,16 @@ def test_file_and_time_limits_leave_rows_unread(tmp_path):
     with open_document(O16) as doc:
         none = doc.bom(max_files=0)
         late = doc.bom(max_seconds=0)
-        few = doc.bom(max_files=2)
-    for bom, limit in ((none, "max_files"), (late, "max_seconds")):
+        few = doc.bom(max_files=8)
+        identities = doc.bom(max_files=3)
+    for bom, limit in ((none, "max_files"), (late, "max_seconds"), (identities, "max_files")):
         assert [w.code for w in bom.warnings][-1:] == ["bom_limit_reached"] and limit in bom.warnings[-1]
         unread = [r.part_number for r in bom.rows if r.properties is None]
         assert len(unread) == 6 and not bom.complete  # the virtual part is read from the assembly
-    assert few.counts["files_opened"] == 2 and few.counts["read"] == 3  # two files and the virtual part
+    # The six identity reads of resolution, then two files and the virtual part.
+    assert few.counts["files_opened"] == 8 and few.counts["read"] == 3
+    # Three identities read of six, which take the whole limit: no file is read.
+    assert identities.counts["files_opened"] == 3 and identities.counts["read"] == 1
 
 
 def test_a_document_read_from_bytes_needs_roots(tmp_path):

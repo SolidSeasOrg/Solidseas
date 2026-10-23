@@ -72,6 +72,7 @@ stored transforms composed through every parent, VERIFIED against SOLIDWORKS on
 the fixture assemblies.
 """
 
+import errno
 import os
 import time
 from collections import Counter
@@ -105,6 +106,9 @@ DEFAULT_MAX_BYTES = 2 << 30
 DEFAULT_MAX_BREP_SECONDS = 60.0
 BREP_SECONDS_PER_PART = 30.0  # solidseas.tessellate's own default
 DOCUMENT_ROOT_ID = "document"  # as solidseas.resolve names the document's folder
+# File handles a call leaves free, while it holds sub-assembly documents open, for the part
+# files, the identity reads and the folder walks it still has to do.
+FD_RESERVE = 64
 
 # Why an instance is not drawn. An open set, like every enum of SolidSeas.
 REASONS = {
@@ -391,6 +395,41 @@ def _file_ident(path: str) -> tuple[str, str]:
     return ("file", os.path.normcase(os.path.abspath(path)))
 
 
+def _handles_open() -> int:
+    """The file handles this process holds now, where the system lists them (Linux's
+    ``/proc/self/fd``, macOS' ``/dev/fd``); 0 where it does not."""
+    for folder in ("/proc/self/fd", "/dev/fd"):
+        try:
+            return max(0, len(os.listdir(folder)) - 1)  # less the one the listing used
+        except OSError:
+            continue
+    return 0
+
+
+def held_allowance(max_files: int) -> int:
+    """How many sub-assembly documents one call may hold open at once: ``max_files``, and
+    on Linux and macOS no more than the process's open-file limit leaves free, less
+    :data:`FD_RESERVE`. A sub-assembly's document stays open until the call ends, so
+    without this a large assembly could use up a 1,024-handle limit and every later open
+    would fail as unreadable. Windows has no ``resource`` module and no limit that low."""
+    try:
+        import resource
+    except ImportError:
+        return max_files
+    try:
+        soft = resource.getrlimit(resource.RLIMIT_NOFILE)[0]
+    except (OSError, ValueError):
+        return max_files
+    if soft == resource.RLIM_INFINITY or soft < 0:
+        return max_files
+    return max(0, min(max_files, soft - _handles_open() - FD_RESERVE))
+
+
+def _out_of_handles(exc: BaseException) -> bool:
+    """An open refused because the process or the system holds as many files as it may."""
+    return isinstance(exc, OSError) and exc.errno in (errno.EMFILE, errno.ENFILE)
+
+
 def _named(tree, node: ComponentNode) -> tuple[str | None, str | None]:
     """How an instance is compared with another document's: its file's name and the
     configuration it uses. File keys are each document's own, so names are compared."""
@@ -519,6 +558,28 @@ class _Stored:
         if not found or len(found) != 1:
             return None
         return directory.mesh_record(found[0])
+
+    def might_hold(self, path: tuple[str, ...]) -> bool:
+        """Whether the document may store a mesh of the instance at ``path`` below it: a
+        ``FaceTessellations`` record of that path (or a directory the byte limit refused,
+        which may hold one), or for an older document a ``Contents/DisplayLists`` stream.
+        Asked before :meth:`active_chain` reads the document's whole tree, so that a
+        sub-assembly that stores nothing for the instance costs no tree read."""
+        directory = self.directory()
+        if directory is not None:
+            if self.records is None:
+                self.records = {}
+                for r in directory.records:
+                    self.records.setdefault(r.path, []).append(r)
+            return path in self.records
+        if self.dir_refused:
+            return True
+        try:
+            return MESH_STREAM in self.ref.doc.container
+        except MemoryError:
+            raise
+        except Exception:  # an unreadable container: nothing to read from it
+            return False
 
     def block(self, stream: str, block: int) -> Mesh:
         b = self.b
@@ -751,6 +812,7 @@ class _Builder:
         self.file_failures: dict[str, str] = {}  # file key -> why its own file gave no mesh
         self.users: dict[str, set[str | None]] = {}  # mesh key -> configurations its instances use
         self.opened: list[Any] = []  # documents to close at the end
+        self.max_held = held_allowance(self.max_files)  # of those, at once
         self.held: tuple[str, Any] | None = None  # a part file with no display mesh, for the brep source
         ident = _file_ident(doc.path) if doc.path else ("memory", id(doc))
         ref = _Ref(doc, None, (), ident)
@@ -1107,7 +1169,8 @@ class _Builder:
         from the one nearest the top down: when one fails to give a mesh (a section of
         its file with no face tables, a block that cannot be read), the next is tried.
         A limit met on the way is raised after the last, so that the instance reports it
-        when none gave a mesh."""
+        when none gave a mesh. A sub-assembly's own tree is read only when its document
+        may hold a mesh of the instance (:meth:`_Stored.might_hold`)."""
         limit: _Failed | None = None
         for anc, actx, i in it.ancestors:
             try:
@@ -1116,6 +1179,8 @@ class _Builder:
                 if st is None:
                     st = self.substored[ref.ident] = _Stored(self, ref, None, actx.key(anc.file) or "")
                 rel = it.path[i + 1 :]
+                if not st.might_hold(rel):
+                    continue
                 hit = st.active_chain(rel)
                 if hit is None or hit[1] != it.names[i + 1 :]:
                     continue
@@ -1222,7 +1287,8 @@ class _Builder:
         """``(host path, within)`` of a file of ``ctx``'s document that reference
         resolution found. Resolution runs once a document, and every document resolved
         in one call shares one index of the roots (the ``cache`` given, or one of its
-        own), so the roots are walked once."""
+        own), so the roots are walked once. The documents its identity reads open count
+        as files opened, and get only the room ``max_files`` leaves."""
         sh = ctx.shared
         if sh.resolution is None:
             if self.roots is None:
@@ -1232,12 +1298,21 @@ class _Builder:
                 )
             if sh.resolve_failed is not None:
                 raise sh.resolve_failed
-            from .resolve import IndexCache, resolve_references
+            from .resolve import Gateway, IndexCache, resolve_references
+            from .resolve.core import DEFAULT_MAX_SECONDS
 
             if self.resolve_options.get("cache") is None:
                 self.resolve_options["cache"] = IndexCache()
+            room = max(0, self.max_files - self.counts["files_opened"])
+            gateway = Gateway(
+                allow_outside_roots=self.resolve_options["allow_outside_roots"],
+                max_identity_reads=room,
+                deadline=time.monotonic() + DEFAULT_MAX_SECONDS,
+            )
             try:
-                sh.resolution = resolve_references(ctx.ref.doc, self.roots, **self.resolve_options)
+                sh.resolution = resolve_references(
+                    ctx.ref.doc, self.roots, gateway=gateway, **self.resolve_options
+                )
             except MemoryError:
                 raise
             except Exception as exc:  # a root that cannot be walked: the files are not searched
@@ -1245,6 +1320,12 @@ class _Builder:
                     "missing", "the files could not be looked for in the folders given", _error_code(exc)
                 )
                 raise sh.resolve_failed from None
+            finally:
+                self.counts["files_opened"] += gateway.identity_reads
+            if gateway.identity_reads >= room and any(
+                c[0] == "identity" and c[2] == "skipped" for c in gateway.calls
+            ):  # identities left unread for want of room: the results may be less sure
+                self.truncated.append("max_files")
         r = sh.resolution.results.get(file_key)
         if r is None:
             raise _Failed("missing")
@@ -1270,6 +1351,9 @@ class _Builder:
         except MemoryError:
             raise
         except Exception as exc:
+            if _out_of_handles(exc):  # a limit of this machine's, not a fault of the file
+                self.truncated.append("max_files")
+                raise _Failed("max_files", "the process holds as many files open as it may") from None
             raise _Failed("unreadable", code=_error_code(exc)) from None
 
     def _read_file(self, key: str, path: str, within: str, file_key) -> MeshSource:
@@ -1593,7 +1677,8 @@ class _Builder:
         return got
 
     def _on_disk(self, ctx: _Ctx, file_key: str) -> _Ref:
-        """A sub-assembly's file on disk, open: opened once however many contexts name it."""
+        """A sub-assembly's file on disk, open: opened once however many contexts name it,
+        and held until the call ends, at most :attr:`max_held` of them at once."""
         path, within = self._resolved(ctx, file_key)
         ident = _file_ident(path)
         got = self.docs.get(ident)
@@ -1601,6 +1686,11 @@ class _Builder:
             raise got
         if got is None:
             try:
+                if len(self.opened) >= self.max_held:
+                    self.truncated.append("max_files")
+                    raise _Failed(
+                        "max_files", "the limit on sub-assembly files held open at once was reached"
+                    )
                 doc = self._open(path, within)
             except _Failed as exc:  # unreadable, or max_files, which no later call gets past
                 self.docs[ident] = exc
@@ -1722,7 +1812,9 @@ def display_geometry(
     Limits: ``max_instances`` and ``max_depth`` bound the component tree, with the
     sub-assemblies expanded from their own files counted in (and, as an allowance
     of its own, the sub-assemblies' own trees the ``subassembly`` source reads),
-    ``max_files`` the documents opened from disk, ``max_triangles`` the triangles
+    ``max_files`` the documents opened from disk (those reference resolution opens to
+    read their identity included; of the sub-assemblies' documents, which stay open
+    until the call ends, no more than :func:`held_allowance` at once), ``max_triangles`` the triangles
     read over every mesh, ``max_bytes`` the display data decoded (every stream of it,
     directories included), and ``max_triangles_drawn`` the triangles
     of the placed instances, each counting its mesh again (what a viewer draws a

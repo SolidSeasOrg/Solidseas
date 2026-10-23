@@ -8,6 +8,13 @@ while the project takes shape.
 
 ### Changed
 
+- **Identity reads count as files opened.** In display geometry and the BOM, the
+  files reference resolution opens to read their identity now count toward
+  `max_files` and `files_opened`. Large assemblies on Linux report sub-assembly
+  files held open past the open-file limit as a limit (`max_files`), not as
+  unreadable or missing, and the sub-assembly source no longer reads the tree of
+  a sub-assembly that stores nothing for a part.
+
 - **Faster explode switches and box drawing.** Switching a sub-assembly's
   explode, the Explode level or what is hidden recomputes up to four times
   faster on large compact assemblies, and switching back to an earlier choice is

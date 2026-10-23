@@ -1552,7 +1552,10 @@ or a drawing gives None.
     empty or unreadable (a section with no face tables, a block that cannot be
     read) passes to the next, so a part three levels down comes from either
     sub-assembly above it. Its document is found and opened read-only as the
-    files are, and counts against `max_files` when it is a file. It comes last:
+    files are, and counts against `max_files` when it is a file; its own tree
+    is read only when it may hold a mesh of the instance (a `FaceTessellations`
+    record of the instance's path, or an older document's display lists), so a
+    sub-assembly that stores nothing for it costs no tree read. It comes last:
     the part's own file is read first, so the files opened under `max_files`
     go to part files before sub-assemblies, and a part file saved since shows
     the part as it is now; the price is that a part file's mesh shows the
@@ -1682,7 +1685,15 @@ or a drawing gives None.
   `max_instances` named). A sub-assembly's tree is read once for every
   instance of it in one configuration. `max_files`, `max_triangles` and
   `max_bytes` are checked before each read (a mesh that would pass
-  `max_triangles` is read, then dropped); `max_bytes` counts every stream of
+  `max_triangles` is read, then dropped). `max_files` counts every document
+  opened from disk, the ones reference resolution opens to read their
+  identity included (each resolution gets only the room left, and one it
+  stops names `max_files`). A sub-assembly's document stays open until the
+  call ends, so on Linux and macOS no more are held at once than the
+  process's open-file limit leaves free, less 64 handles kept for the rest of
+  the call; past that, and wherever the system refuses an open because the
+  process holds too many files, the instance is skipped as `max_files`, not
+  as unreadable. `max_bytes` counts every stream of
   display data read, a `FaceTessellations` directory included, and an instance
   whose stored mesh the limit kept from being read is skipped as `max_bytes`.
   Reads count each mesh once however many instances share it, so
@@ -2307,6 +2318,10 @@ quantities are lower bounds), `complete`, `counts` (`rows`, `instances`,
 `files`, `read`, `unread`, `files_opened`, `seconds`), `limits`, `resolution`
 (the `Resolution` used, or None) and `warnings` (the tree's, and
 `bom_limit_reached` naming a limit that stopped the reading of some files).
+`files_opened` and `max_files` count the documents reference resolution opens
+to read their identity as well as the files read for their properties: a
+resolution made here gets only the room `max_files` leaves (one given as
+`resolution` opens nothing).
 `complete` is true when nothing is missing or in doubt: the tree was not cut,
 every row's file was read (when `read_properties`), no folder index was cut
 short, no row carries `bom_children_missing`, `bom_children_differ` or

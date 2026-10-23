@@ -409,7 +409,8 @@ def test_a_part_with_neither_mesh_nor_bodies_is_skipped_with_the_reason(tmp_path
         g = geo.display_geometry(doc, sources=("file", "brep"), allow_outside_roots=False)
     assert g.instances == () and {s.reason for s in g.skipped} == {"no_mesh"}
     assert {s.message for s in g.skipped} == {geo.NO_MESH_NOR_BODIES}
-    assert g.counts["files_opened"] == 1  # the brep source used the document the file source opened
+    # Its identity read, then one read: the brep source used the document the file source opened.
+    assert g.counts["files_opened"] == 2
     assert all(s.box is not None for s in g.skipped)
 
 

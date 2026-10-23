@@ -75,7 +75,8 @@ cannot be walked raises as :func:`solidseas.resolve.resolve_references` raises.
 
 Limits: ``max_instances`` and ``max_depth`` bound the component tree (a tree a
 limit cut gives lower bounds, and ``truncated``), ``max_files`` the files opened
-from disk, ``max_seconds`` the time spent finding and reading them (resolution
+from disk (those reference resolution opens to read their identity included),
+``max_seconds`` the time spent finding and reading them (resolution
 included) and ``max_file_bytes`` the size of a file opened. A row a limit stopped
 is noted like any other unread row. Nothing is written.
 """
@@ -488,15 +489,23 @@ class _Reader:
                     "the assembly was read from bytes and no roots were given, so no file is searched"
                 )
                 raise _Unread(None, self.resolve_failed)
-            from .resolve import resolve_references
+            from .resolve import Gateway, resolve_references
 
             remaining = self.deadline - time.monotonic()
             if remaining <= 0:
                 self.limits_hit.append("max_seconds")
                 raise _Unread(None, "the time limit was spent before the files were looked for")
+            # The documents resolution opens to read their identity are files opened too,
+            # and get only the room max_files leaves.
+            room = max(0, self.max_files - self.files_opened)
+            gateway = Gateway(
+                allow_outside_roots=self.resolve_options["allow_outside_roots"],
+                max_identity_reads=room,
+                deadline=time.monotonic() + remaining,
+            )
             try:
                 self.resolution = resolve_references(
-                    self.doc, self.roots, max_seconds=remaining, **self.resolve_options
+                    self.doc, self.roots, max_seconds=remaining, gateway=gateway, **self.resolve_options
                 )
             except (MemoryError, InvalidArgumentError, OSError):
                 # A bad argument, or a root folder that cannot be walked (it does not exist,
@@ -505,6 +514,12 @@ class _Reader:
             except Exception as exc:  # anything else: no file is searched, and every row says so
                 self.resolve_failed = f"the files could not be looked for ({_error_code(exc)})"
                 raise _Unread(None, self.resolve_failed) from None
+            finally:
+                self.files_opened += gateway.identity_reads
+            if gateway.identity_reads >= room and any(
+                c[0] == "identity" and c[2] == "skipped" for c in gateway.calls
+            ):  # identities left unread for want of room: the results may be less sure
+                self.limits_hit.append("max_files")
         r = self.resolution.results.get(key)
         if r is None:
             raise _Unread(None, "reference resolution has no result for its file")

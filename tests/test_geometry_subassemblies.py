@@ -20,8 +20,10 @@ ever changed.
 
 import hashlib
 import json
+import os
 import shutil
 import struct
+import sys
 from pathlib import Path
 
 import pytest
@@ -117,7 +119,7 @@ def test_the_parts_of_a_sub_assembly_come_from_its_own_meshes(tmp_path):
         assert m.path is not None and Path(m.path).name == O15 and m.nested == ()
         assert m.configuration == "Default" and m.triangles == 12 and m.warnings == ()
         assert _flat(g.bounds(inst, exact=True)) == pytest.approx(gt[inst.id], abs=TOL), inst.id
-    assert g.counts["files_opened"] == 1  # o15, once for both
+    assert g.counts["files_opened"] == 2  # o15's identity read, then o15 once for both
     # Every other part SOLIDWORKS draws is skipped, with a box on SOLIDWORKS' box.
     drawn = {n for n, b in gt.items() if b is not None and n.lower().split("/")[-1] != "o15_sub_asm-1"}
     assert {s.id for s in g.skipped} == drawn - set(INNER)
@@ -191,7 +193,8 @@ def test_a_part_three_levels_down_comes_from_a_sub_assembly_that_stores_it(tmp_p
             m = g.meshes[inst.mesh]
             assert m.kind == "subassembly" and Path(m.path).name == source
             assert _flat(g.bounds(inst, exact=True)) == pytest.approx(gt[inner], abs=TOL)
-        assert g.counts["files_opened"] == 1 and g.skipped == () and _adds_up(g)
+        # The identity reads of the sub-assemblies present, then the one whose meshes are used.
+        assert g.counts["files_opened"] == len(present) + 1 and g.skipped == () and _adds_up(g)
         assert _state(folder) == before
 
 
@@ -291,8 +294,8 @@ def test_a_byte_limit_on_stored_meshes_is_the_reason_given(tmp_path):
 
 def test_the_part_files_come_before_the_sub_assemblies_meshes(tmp_path):
     """Two listed sub-assemblies that store nothing usable, each with a part file found:
-    the part files are read first, so a limit of two files opened draws both rather than
-    spending itself on the sub-assemblies."""
+    the part files are read first, so a limit of six files opened (the four identity reads
+    of resolution, then two) draws both rather than spending itself on the sub-assemblies."""
     t = TreeXml()
     t.top("m1")
     for k, part in ((1, "o02_boxA"), (2, "o07_boxB_h31")):
@@ -314,9 +317,9 @@ def test_the_part_files_come_before_the_sub_assemblies_meshes(tmp_path):
             "o07_boxB_h31.SLDPRT": "o07_boxB_h31.SLDPRT",
         },
     )
-    g = _geometry(folder / "top.SLDASM", max_files=2)
+    g = _geometry(folder / "top.SLDASM", max_files=6)
     assert [i.id for i in g.instances] == ["S1-1/o02_boxA-1", "S2-1/o07_boxB_h31-1"] and g.skipped == ()
-    assert {g.meshes[i.mesh].kind for i in g.instances} == {"file"} and g.counts["files_opened"] == 2
+    assert {g.meshes[i.mesh].kind for i in g.instances} == {"file"} and g.counts["files_opened"] == 6
 
 
 def test_the_sub_assemblies_trees_read_for_their_meshes_have_a_limit_named_when_reached(tmp_path):
@@ -376,7 +379,8 @@ def test_a_sub_assembly_used_many_times_is_read_once(tmp_path, monkeypatch):
     )
     g = _geometry(folder / "top.SLDASM")
     assert g.counts["placed"] == 100 and g.skipped == () and _adds_up(g)
-    assert trees.count(O15) == 1 and g.counts["files_opened"] == 3
+    # o15, o02 and o07: each identity read once, then each file read once.
+    assert trees.count(O15) == 1 and g.counts["files_opened"] == 6
 
     from solidseas import resolve
 
@@ -406,7 +410,8 @@ def test_a_sub_assembly_used_many_times_is_read_once(tmp_path, monkeypatch):
     )
     g = _geometry(folder / "top.SLDASM")
     assert [i.id for i in g.instances] == [f"V{k}^top-1/p-1" for k in range(3)]
-    assert len({i.mesh for i in g.instances}) == 1 and g.counts["files_opened"] == 1
+    # The part's identity read once (the shared cache keeps it for the other two), then the part.
+    assert len({i.mesh for i in g.instances}) == 1 and g.counts["files_opened"] == 2
     assert g.counts["triangles_read"] == 12 and g.counts["triangles_drawn"] == 36
     assert len(caches) == 3 and caches[0] is not None and all(c is caches[0] for c in caches)
 
@@ -639,7 +644,9 @@ def test_every_shown_leaf_is_placed_or_skipped(tmp_path):
     before = _state(folder)
     cases = [(O08, None), (O15, None), (O16, "Default"), (O16, "Lite"), ("o16_noft.SLDASM", None)]
     cases += [("unlisted.SLDASM", None), ("listed.SLDASM", None)]
-    limits = [{}, {"max_triangles": 30}, {"max_files": 1}, {"max_instances": 2}, {"max_triangles_drawn": 20}]
+    # Two files: room for the identity read and the open of the unlisted sub-assembly, so that
+    # the leaves are still its own file's, and none for its parts.
+    limits = [{}, {"max_triangles": 30}, {"max_files": 2}, {"max_instances": 2}, {"max_triangles_drawn": 20}]
     checked = 0
     for name, configuration in cases:
         with open_document(folder / name) as doc:
@@ -728,3 +735,186 @@ def test_the_sources_and_reasons_have_words():
     assert set(geo.SOURCES) <= set(wording.SOURCES)
     assert set(geo.REASONS) <= set(wording.NOT_SHOWN)
     assert "sub-assemblies" in wording.sources_text(["subassembly"])
+
+
+# --------------------------------------------------------------------------- what a call opens and reads
+def _listed_subs(names: list[str]) -> TreeXml:
+    """top -> each of ``names`` (a sub-assembly file, listed) -> o02_boxA-1 and o07_boxB_h31-1."""
+    tf = _transforms(O16)
+    t = TreeXml()
+    t.top("m1")
+    t.file("p2", "o02_boxA.SLDPRT")
+    t.file("p7", "o07_boxB_h31.SLDPRT")
+    t.model("mp2", "p2")
+    t.model("mp7", "p7")
+    for k, name in enumerate(names):
+        t.file(f"s{k}", name, "ASSEMBLY")
+        t.model(f"ms{k}", f"s{k}")
+        t.ref("m1", name.rsplit(".", 1)[0], 1, f"ms{k}", transform=tf["o15_sub_asm-1"])
+        t.ref(f"ms{k}", "o02_boxA", 1, "mp2", transform=tf[INNER[0]])
+        t.ref(f"ms{k}", "o07_boxB_h31", 1, "mp7", transform=tf[INNER[1]])
+    return t
+
+
+def _part_tree_of(*names: str) -> TreeXml:
+    """top -> one instance of each part ``names`` (without the extension)."""
+    t = TreeXml()
+    t.top("m1")
+    for k, name in enumerate(names, start=2):
+        t.file(str(k), f"{name}.SLDPRT")
+        t.model(f"m{k}", str(k))
+        t.ref("m1", name, 1, f"m{k}")
+    return t
+
+
+def test_identity_reads_are_files_opened_and_max_files_bounds_them(tmp_path):
+    """Reference resolution opens documents to read their identity. They count as files
+    opened and get only the room max_files leaves, and a call they use it up names
+    max_files: the files opened never pass the limit, whatever resolution needs."""
+    folder = _folder(
+        tmp_path,
+        "jobs",
+        {
+            "top.SLDASM": assembly_with_tree(_part_tree_of("p", "q")),
+            "p.SLDPRT": "o02_boxA.SLDPRT",
+            "q.SLDPRT": "o07_boxB_h31.SLDPRT",
+        },
+    )
+    whole = _geometry(folder / "top.SLDASM")
+    assert [i.id for i in whole.instances] == ["p-1", "q-1"]
+    assert whole.counts["files_opened"] == 4 and whole.truncated == ()  # two identities, two reads
+    for limit in (0, 1, 2, 3):
+        g = _geometry(folder / "top.SLDASM", max_files=limit)
+        assert g.counts["files_opened"] <= limit and g.truncated == ("max_files",), limit
+        assert _adds_up(g) and "max_files" in {s.reason for s in g.skipped}, limit
+    # One identity of two read: resolution says the other's search was cut short.
+    one = _geometry(folder / "top.SLDASM", max_files=1)
+    assert one.counts["files_opened"] == 1 and one.instances == ()
+    cut = [
+        k for k, r in one.resolution.results.items() if any(w.code == "search_incomplete" for w in r.warnings)
+    ]
+    assert len(cut) == 1
+
+
+def test_a_sub_assembly_that_stores_nothing_for_a_part_has_its_tree_left_unread(tmp_path, monkeypatch):
+    """top -> S1 -> o15 -> o02 and o07, all listed, no part file: S1 stores no mesh, so its
+    own tree is never read for the parts (the top's tree is read, and o15's, which stores
+    them). In a chain of eight such sub-assemblies only the top's tree is read."""
+    trees: list[str] = []
+    real = document_module.component_tree
+
+    def counted(doc, *a, **kw):
+        trees.append(Path(doc.path).name if doc.path else "")
+        return real(doc, *a, **kw)
+
+    monkeypatch.setattr(document_module, "component_tree", counted)
+    folder = _folder(
+        tmp_path,
+        "jobs",
+        {
+            "S1.SLDASM": assembly_with_tree(_chain(False), drop=O08_MESHES),
+            "top.SLDASM": assembly_with_tree(_chain(True), drop=O08_MESHES),
+            O15: O15,
+        },
+    )
+    trees.clear()  # building the trees above read o16's
+    g = _geometry(folder / "top.SLDASM")
+    assert [i.id for i in g.instances] == [f"S1-1/{i}" for i in INNER] and g.skipped == ()
+    assert {Path(g.meshes[i.mesh].path).name for i in g.instances} == {O15}
+    assert sorted(trees) == sorted(["top.SLDASM", O15])
+
+    def chain_tree(start: int, depth: int) -> TreeXml:
+        t = TreeXml()
+        t.top("m0")
+        parent = "m0"
+        for k in range(start + 1, depth + 1):
+            t.file(f"f{k}", f"C{k}.SLDASM", "ASSEMBLY")
+            t.model(f"m{k}", f"f{k}")
+            t.ref(parent, f"C{k}", 1, f"m{k}")
+            parent = f"m{k}"
+        t.file("fp", "p.SLDPRT")
+        t.model("mp", "fp")
+        t.ref(parent, "p", 1, "mp")
+        return t
+
+    chain = {f"C{k}.SLDASM": assembly_with_tree(chain_tree(k, 8), drop=O08_MESHES) for k in range(1, 9)}
+    top = assembly_with_tree(chain_tree(0, 8), drop=O08_MESHES)
+    deep = _folder(tmp_path, "deep", {"top.SLDASM": top, **chain})
+    trees.clear()
+    g = _geometry(deep / "top.SLDASM")
+    (s,) = g.skipped
+    assert s.reason == "missing" and s.id.count("/") == 8 and trees == ["top.SLDASM"]
+
+
+def test_the_sub_assemblies_held_open_at_once_are_bounded(tmp_path, monkeypatch):
+    """A sub-assembly's document stays open until the call ends. Past the allowance (on
+    Linux and macOS, what the open-file limit leaves), the next one is skipped as
+    max_files, a limit, with every instance accounted for, rather than unreadable."""
+    names = ["S1.SLDASM", "S2.SLDASM", "S3.SLDASM"]
+    top = assembly_with_tree(_listed_subs(names), drop=O08_MESHES)
+    folder = _folder(tmp_path, "jobs", {"top.SLDASM": top, **dict.fromkeys(names, O15)})
+    whole = _geometry(folder / "top.SLDASM")
+    assert len(whole.instances) == 6 and whole.skipped == ()
+    monkeypatch.setattr(geo, "held_allowance", lambda max_files: 2)
+    g = _geometry(folder / "top.SLDASM")
+    parts = [i.split("/")[-1] for i in INNER]
+    assert [i.id for i in g.instances] == [f"{n[:2]}-1/{p}" for n in names[:2] for p in parts]
+    assert [(s.id, s.reason) for s in g.skipped] == [(f"S3-1/{p}", "max_files") for p in parts]
+    assert all("held open at once" in s.message for s in g.skipped)
+    assert g.truncated == ("max_files",) and _adds_up(g)
+
+
+def test_an_open_refused_for_want_of_file_handles_is_a_limit(tmp_path, monkeypatch):
+    """An open the operating system refuses because the process holds as many files as it
+    may (EMFILE) is reported as max_files, a limit, not as an unreadable file."""
+    import errno
+
+    folder = _folder(
+        tmp_path,
+        "jobs",
+        {"top.SLDASM": assembly_with_tree(_part_tree_of("o02_boxA")), "o02_boxA.SLDPRT": "o02_boxA.SLDPRT"},
+    )
+
+    def refused(*a, **kw):
+        raise OSError(errno.EMFILE, "Too many open files")
+
+    monkeypatch.setattr(geo, "open_document", refused)
+    g = _geometry(folder / "top.SLDASM", sources=("file",))
+    assert [(s.id, s.reason) for s in g.skipped] == [("o02_boxA-1", "max_files")]
+    assert "as many files open as it may" in g.skipped[0].message and g.truncated == ("max_files",)
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="the open-file limit is set through the resource module")
+def test_a_low_open_file_limit_skips_sub_assemblies_as_a_limit(tmp_path):
+    """A process whose open-file limit leaves seven handles free, asked for ten
+    sub-assemblies: about three are held (the reserve keeps four), their parts drawn, and
+    the rest skipped as max_files; no instance is reported unreadable (held without a
+    bound, the eighth open failed and was reported unreadable)."""
+    import subprocess
+
+    names = [f"S{k}.SLDASM" for k in range(1, 11)]
+    top = assembly_with_tree(_listed_subs(names), drop=O08_MESHES)
+    folder = _folder(tmp_path, "jobs", {"top.SLDASM": top, **dict.fromkeys(names, O15)})
+    child = (
+        "import json, resource, sys\n"
+        "from solidseas import geometry as geo, open_document\n"
+        "geo.FD_RESERVE = 4\n"
+        "soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)\n"
+        "resource.setrlimit(resource.RLIMIT_NOFILE, (geo._handles_open() + geo.FD_RESERVE + 3, hard))\n"
+        "with open_document(sys.argv[1]) as doc:\n"
+        "    g = geo.display_geometry(doc, allow_outside_roots=False)\n"
+        "print(json.dumps({'placed': len(g.instances), 'reasons': sorted({s.reason for s in g.skipped}),\n"
+        "    'skipped': len(g.skipped), 'truncated': list(g.truncated)}))\n"
+    )
+    env = {**os.environ, "PYTHONPATH": str(Path(__file__).parents[1] / "src")}
+    out = subprocess.run(
+        [sys.executable, "-c", child, str(folder / "top.SLDASM")],
+        capture_output=True,
+        text=True,
+        timeout=120,
+        env=env,
+    )
+    assert out.returncode == 0, out.stderr[-2000:]
+    got = json.loads(out.stdout)
+    assert got["reasons"] == ["max_files"] and got["truncated"] == ["max_files"], got
+    assert got["placed"] >= 2 and got["placed"] % 2 == 0 and got["placed"] + got["skipped"] == 20, got
