@@ -39,7 +39,11 @@ writing depth, pulled a little toward the eye so a face lying on an opaque one
 never speckles against it. With no transparent instance that is the boxes
 alone, which need no sort among themselves: every box's far side, then every
 near side, then their edges over them (on the instanced path a call each).
-With a transparent instance it is that and every box, in halves sorted along
+With a transparent instance the boxes wholly behind every transparent instance
+along the line of sight are drawn so first, in a batch the vertex shader picks
+out by each box's batch (an instance attribute), and those wholly in front of
+them all last; the transparent instances and the other boxes are drawn
+between, in halves sorted along
 the line of sight (:meth:`Renderer.back_to_front`, sorted again only when the
 camera turns, the explode moves or the looks change): each one's far side
 placed at the far end of its box (as exploded now) and its near side at the
@@ -124,8 +128,9 @@ import math
 import os
 import time
 from array import array
+from collections import OrderedDict
 from collections.abc import Callable, Iterable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 import shiboken6
@@ -215,12 +220,16 @@ BOX_EDGE = {False: QColor("#4b535d"), True: QColor("#c9d0d8")}  # on a dark back
 _IDENTITY = (1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0)
 # The matrix takes 2 to 5. The colour is red, green, blue and the instance's state (0 shown,
 # 1 picked, 2 dimmed); the offset is x, y, z and the instance's number from 1, for picking;
-# the look is the instance's opacity (1 opaque) and 1 when it is hidden, else 0.
-A_POSITION, A_NORMAL, A_MATRIX, A_COLOR, A_OFFSET, A_LOOK = 0, 1, 2, 6, 7, 8
+# the look is the instance's opacity (1 opaque) and 1 when it is hidden, else 0; the batch,
+# the boxes' only, says where a box is drawn while something is transparent (SORTED,
+# BEHIND or IN_FRONT, :meth:`Renderer.back_to_front`).
+A_POSITION, A_NORMAL, A_MATRIX, A_COLOR, A_OFFSET, A_LOOK, A_BATCH = 0, 1, 2, 6, 7, 8, 9
+SORTED, BEHIND, IN_FRONT = 0.0, 1.0, 2.0
 SHOWN, PICKED, DIMMED = 0.0, 1.0, 2.0
 OPAQUE = 0.999  # an opacity from here up is opaque: drawn in the first pass, writing depth
 BOTH_SIDES, FAR_SIDE, NEAR_SIDE = 0.0, 1.0, 2.0  # u_side: the faces turned away from the eye, or toward it
 _EXPLODE_TICK_MS = 15
+KEPT_EXPLOSIONS = 8  # a scene's explosions kept, the last made (Scene.explosion)
 Vec3 = tuple[float, float, float]
 GL_POLYGON_OFFSET_FILL = 0x8037
 
@@ -234,10 +243,12 @@ VIN vec4 a_m3;
 VIN vec4 a_color;
 VIN vec4 a_offset;
 VIN vec2 a_look;
+VIN float a_batch;  /* a box's batch while something is transparent: 1 behind it all, 2 in front */
 uniform mat4 u_viewproj;
 uniform mat4 u_view;
 uniform float u_explode;
 uniform float u_opaque;  /* 1 in the first pass: the opaque instances only */
+uniform float u_batch;  /* 1 or 2 while a batch of boxes is drawn: only the boxes of that batch */
 VOUT vec3 v_normal;
 VOUT vec3 v_pos;
 VOUT vec3 v_color;
@@ -253,8 +264,10 @@ VOUT vec3 v_world;
 #endif
 void main() {
     v_alpha = a_look.x;
-    if (a_look.y > 0.5 || (u_opaque > 0.5 && a_look.x < 0.999)) {
-        /* hidden, or transparent in the opaque pass: outside the view, so nothing is drawn */
+    if (a_look.y > 0.5 || (u_opaque > 0.5 && a_look.x < 0.999)
+            || (u_batch > 0.5 && abs(a_batch - u_batch) > 0.5)) {
+        /* hidden, transparent in the opaque pass, or a box of another batch: outside the
+           view, so nothing is drawn */
         gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
         v_normal = vec3(0.0); v_pos = vec3(0.0); v_color = vec3(0.0); v_state = 0.0;
         v_id = vec3(0.0); v_mirror = 1.0;
@@ -508,6 +521,10 @@ class Scene:
     ids: list[list[str]] | None = None
     bounds: list[bytes] | None = None
     box_mesh: int | None = None
+    # The last few explosions made (:meth:`explosion`), by what made them.
+    _explosions: "OrderedDict[tuple, Explosion]" = field(
+        default_factory=OrderedDict, init=False, repr=False, compare=False
+    )
 
     @property
     def n_instances(self) -> int:
@@ -583,16 +600,29 @@ class Scene:
     ) -> Explosion | None:
         """The offsets of an exploded view at ``level``, with the sub-assemblies of
         ``choices`` exploding or kept together, leaving out the instances ``hidden``
-        says are hidden (numbered over the scene); None for a part."""
+        says are hidden (numbered over the scene); None for a part. The last
+        :data:`KEPT_EXPLOSIONS` are kept, so a switch, the level or what is hidden
+        changed back costs nothing (an explosion is worked out on the window's thread,
+        up to tens of milliseconds for a large assembly)."""
         if self.ids is None or self.bounds is None:
             return None
+        gone = tuple(k for k, h in enumerate(hidden) if h) if hidden is not None else ()
+        key = (level, tuple(sorted((choices or {}).items())), gone)
+        kept = self._explosions.get(key)
+        if kept is not None:
+            self._explosions.move_to_end(key)
+            return kept
         per_mesh = None
-        if hidden is not None and any(hidden):
+        if gone:
             per_mesh, k = [], 0
             for ids in self.ids:
-                per_mesh.append(list(hidden[k : k + len(ids)]))
+                per_mesh.append(list(hidden[k : k + len(ids)]))  # type: ignore[index]
                 k += len(ids)
-        return explode(self.ids, self.bounds, level, choices=choices, hidden=per_mesh)
+        made = explode(self.ids, self.bounds, level, choices=choices, hidden=per_mesh)
+        self._explosions[key] = made
+        while len(self._explosions) > KEPT_EXPLOSIONS:
+            self._explosions.popitem(last=False)
+        return made
 
     def bbox_of(self, shown: "Sequence[bool] | None") -> tuple[Vec3, Vec3]:
         """The box of the instances ``shown`` says are shown (numbered over the scene), at
@@ -678,7 +708,8 @@ class _GpuMesh:
         base: int,
         box: bool = False,
     ) -> None:
-        self.buffers = buffers  # position, normal, index, matrices, colours, offsets, looks
+        # position, normal, index, matrices, colours, offsets, looks; and the boxes' batches
+        self.buffers = buffers
         self.count = count  # indices of its triangles
         self.box = box  # the boxes drawn for instances without a mesh (:data:`BOX_MESH`)
         self.instances = len(matrices) // 64
@@ -699,6 +730,10 @@ class _GpuMesh:
         self.shown: Sequence[int] = range(self.instances)
         self.opaque: Sequence[int] = self.shown
         self.shown_opacity: float | None = 1.0
+        # The boxes' batches while something is transparent (:meth:`Renderer.back_to_front`):
+        # each one's, as its buffer holds them, and the boxes shown in each batch drawn whole.
+        self.batch = array("f", bytes(4 * self.instances)) if box else array("f")
+        self.batches: dict[float, list[int]] = {BEHIND: [], IN_FRONT: []}
 
     def set_looks(self, looks: array) -> None:
         """Each instance's opacity and hidden flag (``looks``, two floats each), and what
@@ -739,6 +774,7 @@ class Renderer:
     context current."""
 
     allow_instancing = True  # tests turn it off to draw instance by instance
+    batch_boxes = True  # tests turn it off to sort every box among the transparent instances
 
     def __init__(self) -> None:
         ctx = QOpenGLContext.currentContext()
@@ -758,7 +794,9 @@ class Renderer:
         self.program = self._program(*heads)
         # Where the uniforms the blended pass sets for each instance live: set by name, each
         # call would look the name up again.
-        self._at = {name: self.program.uniformLocation(name) for name in ("u_side", "u_edge", "u_alpha")}
+        self._at = {
+            name: self.program.uniformLocation(name) for name in ("u_side", "u_edge", "u_alpha", "u_batch")
+        }
         # The id pass's own program, which ranks a transparent instance at the far side of
         # its box (FAR_DEPTH). Its fragment shader sets the depth, which costs the drawing
         # pass its early depth test, so that pass keeps the plain one. Where it cannot be
@@ -784,11 +822,15 @@ class Renderer:
         self.transparent = 0  # the meshes' instances drawn transparent
         self.hidden = 0  # instances not drawn at all
         self.sort_seconds = 0.0  # the last sort of the blended pass, back to front
-        # What the last frame sorted: the transparent instances and every box shown, or 0
-        # when nothing was transparent and the boxes were drawn without a sort.
+        # What the last frame sorted: the transparent instances and the boxes among them along
+        # the line of sight, or 0 when nothing was transparent and the boxes were drawn
+        # without a sort; and of the boxes shown, how many the last sort drew in a batch
+        # behind every transparent instance and in front of them all.
         self.sorted_items = 0
+        self.batched_boxes = (0, 0)
         self._looks_version = 0
-        self._items: list[tuple[int, int]] = []  # what the sorted pass draws (:meth:`_collect`)
+        self._items: list[tuple[int, int]] = []  # the transparent instances shown (:meth:`_collect`)
+        self._box_items: list[tuple[int, int]] = []  # the boxes shown
         self._order: list[tuple[int, int, float]] = []
         self._order_key: tuple | None = None
         self._fbo: QOpenGLFramebufferObject | None = None  # the id pass's, kept while its size holds
@@ -812,6 +854,7 @@ class Renderer:
             ("a_color", A_COLOR),
             ("a_offset", A_OFFSET),
             ("a_look", A_LOOK),
+            ("a_batch", A_BATCH),
         ):
             program.bindAttributeLocation(name, location)
         if not program.link():
@@ -820,9 +863,10 @@ class Renderer:
 
     def _attributes(self, m: _GpuMesh, instanced: bool) -> None:
         """Point the attributes at ``m``'s buffers: the vertices per vertex and, for
-        ``instanced`` drawing, the matrix, colour, offset and look per instance; else
-        those four are constants set for each instance drawn."""
-        p, n, i, mat, col, off, look = m.buffers
+        ``instanced`` drawing, the matrix, colour, offset and look per instance, and the
+        batch of the boxes' instances; else those are constants set for each instance
+        drawn (the batch is then not read)."""
+        p, n, i, mat, col, off, look = m.buffers[:7]
         prog = self.program
         p.bind()
         prog.enableAttributeArray(A_POSITION)
@@ -843,8 +887,24 @@ class Renderer:
                 prog.enableAttributeArray(location)
                 prog.setAttributeBuffer(location, GL_FLOAT, 0, size, 4 * size)
                 extra.glVertexAttribDivisor(location, 1)
+            if len(m.buffers) > 7:  # the boxes' batches
+                m.buffers[7].bind()
+                prog.enableAttributeArray(A_BATCH)
+                prog.setAttributeBuffer(A_BATCH, GL_FLOAT, 0, 1, 4)
+                extra.glVertexAttribDivisor(A_BATCH, 1)
+            else:
+                prog.disableAttributeArray(A_BATCH)
         else:
-            for location in (A_MATRIX, A_MATRIX + 1, A_MATRIX + 2, A_MATRIX + 3, A_COLOR, A_OFFSET, A_LOOK):
+            for location in (
+                A_MATRIX,
+                A_MATRIX + 1,
+                A_MATRIX + 2,
+                A_MATRIX + 3,
+                A_COLOR,
+                A_OFFSET,
+                A_LOOK,
+                A_BATCH,
+            ):
                 prog.disableAttributeArray(location)
         i.bind()
 
@@ -866,7 +926,8 @@ class Renderer:
             n = len(matrices) // 64
             looks = array("f", (1.0, 0.0) * n)
             bounds = scene.bounds[k] if scene.bounds is not None else instance_bounds(mesh.bbox, matrices)
-            for data, kind in (
+            box = k == scene.box_mesh
+            data_of = [
                 (mesh.positions, QOpenGLBuffer.Type.VertexBuffer),
                 (mesh.normals, QOpenGLBuffer.Type.VertexBuffer),
                 (mesh.indices, QOpenGLBuffer.Type.IndexBuffer),
@@ -874,7 +935,10 @@ class Renderer:
                 (col.tobytes(), QOpenGLBuffer.Type.VertexBuffer),
                 (off.tobytes(), QOpenGLBuffer.Type.VertexBuffer),
                 (looks.tobytes(), QOpenGLBuffer.Type.VertexBuffer),
-            ):
+            ]
+            if box:  # each box's batch (SORTED to begin with): written as the sort decides
+                data_of.append((bytes(4 * n), QOpenGLBuffer.Type.VertexBuffer))
+            for data, kind in data_of:
                 buf = QOpenGLBuffer(kind)
                 buf.setUsagePattern(QOpenGLBuffer.UsagePattern.StaticDraw)
                 if not buf.create() or not buf.bind():
@@ -884,7 +948,6 @@ class Renderer:
                     raise GLError("the graphics driver refused a buffer")
                 buf.allocate(data, len(data))
                 made.append(buf)
-            box = k == scene.box_mesh
             m = _GpuMesh(
                 made,
                 BOX_FACES if box else mesh.n_triangles * 3,
@@ -966,14 +1029,16 @@ class Renderer:
         self._collect()
 
     def _collect(self) -> None:
-        """What the sorted blended pass draws, ``(mesh, instance)``, kept as the looks
-        change so a turn of the camera sorts only these: each mesh's transparent instances
-        and every box, all shown."""
-        self._items = [
-            (mi, k)
-            for mi, m in enumerate(self.meshes)
-            for k in (m.shown if m.box else [k for k in m.shown if m.looks[2 * k] < OPAQUE])
-        ]
+        """What the blended pass draws while something is transparent, ``(mesh,
+        instance)``, kept as the looks change so a turn of the camera sorts only these:
+        each mesh's transparent instances shown, and every box shown, which the sort
+        places among them or leaves to a batch (:meth:`back_to_front`)."""
+        self._items, self._box_items = [], []
+        for mi, m in enumerate(self.meshes):
+            if m.box:
+                self._box_items.extend((mi, k) for k in m.shown)
+            else:
+                self._items.extend((mi, k) for k in m.shown if m.looks[2 * k] < OPAQUE)
 
     def draw(self, camera: OrbitCamera, background: QColor, *, finish: bool = False) -> None:
         self._draw(
@@ -1059,7 +1124,16 @@ class Renderer:
         side comes before a far side (a part resting on another, the lower one's top
         first), of two far sides the larger first and of two near sides the smaller, then
         the one numbered first. Sorted again only when the camera turns, the explode
-        moves or the looks change: a pan or a zoom keeps the order."""
+        moves or the looks change: a pan or a zoom keeps the order.
+
+        A box whose whole box lies behind every transparent instance's, along the line of
+        sight, or in front of them all, needs no place among them: it is left out of the
+        sort and drawn in a batch (:data:`BEHIND`, before the sorted pass, or
+        :data:`IN_FRONT`, after it) with the others there, as the boxes are drawn when
+        nothing is transparent (:meth:`_boxes`: a call each for their far sides, near
+        sides and edges where instances are drawn together). Boxes need no order among
+        themselves, so the picture is the sort's wherever a box meets a transparent
+        instance. A box that touches their span, or reaches into it, is sorted."""
         back = (view_rows[8], view_rows[9], view_rows[10])
         key = (back, self.explode, self._looks_version)
         if key == self._order_key:
@@ -1069,22 +1143,57 @@ class Renderer:
         ax, ay, az = abs(bx), abs(by), abs(bz)
         e = self.explode
         meshes = self.meshes
-        halves: list[tuple[float, int, float, int, int, int, float]] = []
-        for mi, k in self._items:
-            m = meshes[mi]
+
+        def span(m: _GpuMesh, k: int) -> tuple[float, float]:
+            """The instance's box's centre along ``back``, as exploded now, and half its depth."""
             c, h, off = m.centres, m.halves, m.offsets
             q, o = 3 * k, 4 * k
             x, y, z = c[q] + e * off[o], c[q + 1] + e * off[o + 1], c[q + 2] + e * off[o + 2]
-            depth = bx * x + by * y + bz * z
-            r = ax * h[q] + ay * h[q + 1] + az * h[q + 2]  # half the box's depth along the line of sight
+            return bx * x + by * y + bz * z, ax * h[q] + ay * h[q + 1] + az * h[q + 2]
+
+        halves: list[tuple[float, int, float, int, int, int, float]] = []
+        far, near = math.inf, -math.inf  # where the transparent instances begin and end
+        for mi, k in self._items:
+            m = meshes[mi]
+            depth, r = span(m, k)
             g = m.base + k
             halves.append((depth - r, 1, -r, g, mi, k, FAR_SIDE))
             halves.append((depth + r, 0, r, g, mi, k, NEAR_SIDE))
+            far, near = min(far, depth - r), max(near, depth + r)
+        sorted_boxes = 0
+        batched = {BEHIND: 0, IN_FRONT: 0}
+        batches: dict[int, array] = {}
+        for mi, m in enumerate(meshes):
+            if m.box:
+                m.batches = {BEHIND: [], IN_FRONT: []}
+                batches[mi] = array("f", bytes(4 * m.instances))
+        for mi, k in self._box_items:
+            m = meshes[mi]
+            depth, r = span(m, k)
+            batch = BEHIND if depth + r < far else IN_FRONT if depth - r > near else SORTED
+            if not self.batch_boxes:
+                batch = SORTED
+            if batch != SORTED:
+                batches[mi][k] = batch
+                m.batches[batch].append(k)
+                batched[batch] += 1
+                continue
+            g = m.base + k
+            halves.append((depth - r, 1, -r, g, mi, k, FAR_SIDE))
+            halves.append((depth + r, 0, r, g, mi, k, NEAR_SIDE))
+            sorted_boxes += 1
+        for mi, b in batches.items():
+            m = meshes[mi]
+            if b != m.batch:
+                m.batch = b
+                if self.instanced and len(m.buffers) > 7:
+                    m.write(7, b)
         halves.sort()  # least along ``back`` (toward the eye) first: the farthest
         self._order = [(mi, k, side) for *_rank, mi, k, side in halves]
         self._order_key = key
         self.sort_seconds = time.perf_counter() - t
-        self.sorted_items = len(self._items)
+        self.sorted_items = len(self._items) + sorted_boxes
+        self.batched_boxes = (batched[BEHIND], batched[IN_FRONT])
         return self._order
 
     def _draw(
@@ -1126,6 +1235,7 @@ class Renderer:
         prog.setUniformValue1f("u_edge", 0.0)
         prog.setUniformValue1f("u_side", BOTH_SIDES)
         prog.setUniformValue1f("u_opaque", 0.0)
+        prog.setUniformValue1f("u_batch", 0.0)
         edge = (edges.redF(), edges.greenF(), edges.blueF())
         prog.setUniformValue(prog.uniformLocation("u_edge_color"), *edge)
         meshes = [m for m in self.meshes if not m.box]
@@ -1160,9 +1270,13 @@ class Renderer:
                 self._instances(m, GL_TRIANGLES, m.count, _NO_OFFSET, opaque=True)
             prog.setUniformValue1f("u_opaque", 0.0)
             if self.transparent:
-                self._blended(prog, self.back_to_front(view_rows))
+                order = self.back_to_front(view_rows)
+                self._boxes(prog, boxes, BEHIND)
+                self._blended(prog, order)
+                self._boxes(prog, boxes, IN_FRONT)
             else:
                 self.sorted_items = 0
+                self.batched_boxes = (0, 0)
                 if boxes:
                     self._boxes(prog, boxes)
         if not self.has_vao:
@@ -1187,14 +1301,21 @@ class Renderer:
             gl.glBlendFunc(GL_ONE, GL_ZERO)
             gl.glDisable(GL_BLEND)
 
-    def _boxes(self, prog: QOpenGLShaderProgram, boxes: list[_GpuMesh]) -> None:
-        """The boxes when no mesh's instance is transparent, which need no sort: their faces
-        blended, far side then near side (with instanced drawing a call for every box's far
-        side, then one for every near side; one by one, each box's two in turn), then their
-        edges over them, as opaque as each box's look says."""
+    def _boxes(self, prog: QOpenGLShaderProgram, boxes: list[_GpuMesh], batch: float | None = None) -> None:
+        """Boxes that need no sort: their faces blended, far side then near side (with
+        instanced drawing a call for every box's far side, then one for every near side;
+        one by one, each box's two in turn), then their edges over them, as opaque as each
+        box's look says. With no ``batch``, every box shown (nothing is transparent); with
+        one, the boxes :meth:`back_to_front` put in it, which the vertex shader picks out
+        of the instances by their batch."""
+        if batch is not None and not any(m.batches[batch] for m in boxes):
+            return
         side_at, edge_at, alpha_at = self._at["u_side"], self._at["u_edge"], self._at["u_alpha"]
+        batch_at = self._at["u_batch"]
         self._blend(True)
         prog.setUniformValue1f(alpha_at, BOX_ALPHA)
+        if batch is not None and self.instanced:
+            prog.setUniformValue1f(batch_at, batch)
         if self.instanced:
             for side in (FAR_SIDE, NEAR_SIDE):
                 prog.setUniformValue1f(side_at, side)
@@ -1207,15 +1328,27 @@ class Renderer:
                 else:
                     self._attributes(m, False)
                 faces = (GL_TRIANGLES, BOX_FACES, _NO_OFFSET)
-                self._each(m, m.shown, *faces, m.shown_opacity, sides=(prog, side_at))
+                ks = m.shown if batch is None else m.batches[batch]
+                self._each(m, ks, *faces, m.shown_opacity, sides=(prog, side_at))
                 if m.vao is not None:
                     m.vao.release()
         prog.setUniformValue1f(side_at, BOTH_SIDES)
         prog.setUniformValue1f(alpha_at, 1.0)
         prog.setUniformValue1f(edge_at, 1.0)  # still blended: a box made transparent fades its edges too
         for m in boxes:
-            self._instances(m, GL_LINES, BOX_EDGES, BOX_EDGE_OFFSET)
+            if batch is None or self.instanced:
+                self._instances(m, GL_LINES, BOX_EDGES, BOX_EDGE_OFFSET)
+                continue
+            if m.vao is not None:
+                m.vao.bind()
+            else:
+                self._attributes(m, False)
+            self._each(m, m.batches[batch], GL_LINES, BOX_EDGES, BOX_EDGE_OFFSET, m.shown_opacity)
+            if m.vao is not None:
+                m.vao.release()
         prog.setUniformValue1f(edge_at, 0.0)
+        if batch is not None and self.instanced:
+            prog.setUniformValue1f(batch_at, 0.0)
         self._blend(False)
 
     def _blended(self, prog: QOpenGLShaderProgram, order: list[tuple[int, int, float]]) -> None:
@@ -1349,7 +1482,8 @@ class Renderer:
         self.boxes = 0
         self.transparent = 0
         self.hidden = 0
-        self._items = []
+        self._items, self._box_items = [], []
+        self.batched_boxes = (0, 0)
         self._order, self._order_key = [], None
 
     def release(self) -> None:

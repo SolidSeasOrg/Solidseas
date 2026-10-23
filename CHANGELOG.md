@@ -8,6 +8,12 @@ while the project takes shape.
 
 ### Changed
 
+- **Faster explode switches and box drawing.** Switching a sub-assembly's
+  explode, the Explode level or what is hidden recomputes up to four times
+  faster on large compact assemblies, and switching back to an earlier choice is
+  instant. With a component made transparent, the grey boxes wholly in front of
+  or behind it are drawn together instead of one at a time.
+
 - **Parts are tessellated once while the viewer runs.** Parts drawn from their
   own geometry are kept while the viewer runs: showing an assembly again,
   another configuration of it, another assembly with the same parts, or one of

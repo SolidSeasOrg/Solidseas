@@ -529,7 +529,9 @@ of the document's path) is a per-instance attribute: the opaque instances are dr
 transparent ones and the boxes, blended without writing depth, each one's far
 side placed at the far end of its bounding box and its near side at the near
 end, farthest first, so one inside another lies between that one's two sides
-(with nothing transparent the boxes need no sort and are drawn instanced);
+(with nothing transparent the boxes need no sort and are drawn instanced, and
+with something transparent so are the boxes wholly behind or in front of it
+along the line of sight, before and after the sorted pass);
 a hidden one is left out of every pass and the exploded view, and a transparent
 one is picked as a box is, at the far side of its own box. The view cube over the
 view's corner is a child widget painted with QPainter (`viewer.cubewidget`, its

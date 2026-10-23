@@ -309,26 +309,68 @@ def explode(
 def _overlapping(moved: list[Box], eps: float, budget: list[int]) -> list[tuple[int, int]]:
     """The pairs of boxes that overlap by more than ``eps`` along every axis, by a sweep
     along x, at most :data:`MAX_PAIRS`; ``budget[0]`` is how many box comparisons are
-    left, and the sweep stops when it runs out."""
-    order = sorted(range(len(moved)), key=lambda g: moved[g][0][0])
+    left, and the sweep stops when it runs out.
+
+    Along one axis two boxes overlap by more than ``eps`` when ``min(h1, h2) - max(l1,
+    l2)`` is, which is the least of ``h1 - l1``, ``h1 - l2``, ``h2 - l1`` and ``h2 - l2``,
+    rounded alike: each box is thicker than ``eps`` there, and each one's high side lies
+    more than ``eps`` past the other's low side. So each box's thickness is checked
+    once, and along x the sweep gives the rest (a box still active ends past the low
+    side of the one met now, which begins no earlier than it): a pair costs four
+    comparisons, along y and z, and the pairs, their order and the comparisons counted
+    are what comparing the boxes whole gives. This runs each time a switch of the
+    exploded view changes, on the window's thread."""
+    n = len(moved)
+    order = sorted(range(n), key=lambda g: moved[g][0][0])
+    x0s = [b[0][0] for b in moved]
+    x1s = [b[1][0] for b in moved]
+    y0s = [b[0][1] for b in moved]
+    y1s = [b[1][1] for b in moved]
+    z0s = [b[0][2] for b in moved]
+    z1s = [b[1][2] for b in moved]
+    thick = [x1s[g] - x0s[g] > eps and y1s[g] - y0s[g] > eps and z1s[g] - z0s[g] > eps for g in range(n)]
     active: list[int] = []
     pairs: list[tuple[int, int]] = []
     for g in order:
-        (x0, y0, z0), (x1, y1, z1) = moved[g]
         budget[0] -= 2 * len(active)
         if budget[0] < 0 or len(pairs) >= MAX_PAIRS:
             break
-        active = [a for a in active if moved[a][1][0] - x0 > eps]
-        for a in active:
-            (ax0, ay0, az0), (ax1, ay1, az1) = moved[a]
-            if (
-                min(x1, ax1) - max(x0, ax0) > eps
-                and min(y1, ay1) - max(y0, ay0) > eps
-                and min(z1, az1) - max(z0, az0) > eps
-            ):
-                pairs.append((a, g))
+        x0 = x0s[g]
+        active = [a for a in active if x1s[a] - x0 > eps]
+        if thick[g]:  # one no thicker than eps along some axis overlaps nothing by more
+            y0, y1, z0, z1 = y0s[g], y1s[g], z0s[g], z1s[g]
+            for a in active:
+                if (
+                    y1s[a] - y0 > eps
+                    and y1 - y0s[a] > eps
+                    and z1s[a] - z0 > eps
+                    and z1 - z0s[a] > eps
+                    and thick[a]
+                ):
+                    pairs.append((a, g))
         active.append(g)
     return pairs
+
+
+def _overlap(a: Box, b: Box, eps: float) -> bool:
+    """Whether two boxes overlap by more than ``eps`` along every axis: ``min(h1, h2) -
+    max(l1, l2) > eps`` along each, as its four differences (see :func:`_overlapping`)."""
+    (ax0, ay0, az0), (ax1, ay1, az1) = a
+    (bx0, by0, bz0), (bx1, by1, bz1) = b
+    return (
+        ax1 - bx0 > eps
+        and bx1 - ax0 > eps
+        and ay1 - by0 > eps
+        and by1 - ay0 > eps
+        and az1 - bz0 > eps
+        and bz1 - az0 > eps
+        and ax1 - ax0 > eps
+        and bx1 - bx0 > eps
+        and ay1 - ay0 > eps
+        and by1 - by0 > eps
+        and az1 - az0 > eps
+        and bz1 - bz0 > eps
+    )
 
 
 def _separate(boxes: list[Box], offsets: list[Vec], diagonal: float) -> None:
@@ -366,7 +408,7 @@ def _separate(boxes: list[Box], offsets: list[Vec], diagonal: float) -> None:
             # The smaller one moves; of two the same size, the later one.
             stay, move = (i, j) if (size[i], -i) >= (size[j], -j) else (j, i)
             (alo, ahi), (mlo, mhi) = moved[stay], moved[move]
-            if not all(min(mhi[k], ahi[k]) - max(mlo[k], alo[k]) > eps for k in range(3)):
+            if not _overlap(moved[stay], moved[move], eps):
                 continue  # parted already by a move earlier in this pass
             best: tuple[float, int, int, int] | None = None
             for k in range(3):
