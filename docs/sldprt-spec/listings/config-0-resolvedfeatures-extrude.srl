@@ -294,57 +294,7 @@ class moEndSpec_c 1
 rep 2 00
 u32 1
 rep 18 00
-class moDisplayDistanceDim_c 1
-rep 16 00
-u32 65535
-i32 -253
-u32 255
-u8 0
-f32 -1
-rep 14 00
-u32 17000 0 524416
-rep 83 00
-f64 1.0
-u32 256 51200
-rep 20 00
-f64 -1.0
-u32 0 1
-rep 2 00
-f32 -1
-u32 0 1
-rep 2 00
-f32 -1
-rep 12 00
-i32 -1 -1
-u32 0 1
-rep 6 00
-f32 -1
-rep 16 00
-u32 4
-rep 96 00
-u32 2 0 0
-f64 1.0
-rep 16 00
-f64 1.0
-u32 0 0
-cstr ""
-rep 24 00
-u32 18
-rep 30 00
-f64 1.0
-rep 16 00
-f64 1e-06 1e-06
-rep 18 00
-f64 1.0
-u32 0 1
-class moFeatureDimHandle_c 1
-rep 42 00
-i32 -1 -1 -1 -1
-rep 20 00
-u32 17000
-rep 15 00
-i32 -1
-rep 6 00
+@use dimdisplay CLASS=moDisplayDistanceDim_c VIEW=200 KIND=18   # in the *Top view (15.4.9)
 class ParallelPlaneDistanceDim_c 1
 u32 1
 class moLengthParameter_c 1

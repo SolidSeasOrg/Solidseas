@@ -45,6 +45,10 @@ IDENTITY = (
 )
 FEATURE_IDENTITY = ("created", "modified", "time", "cache_memo", "regen", "cache_text",
                     "counter_marks", "counter_favorite", "counter_face1", "counter_face2", "counter_end")
+# A fillet's free counters (15.5.14), per edge of its first list and per face, in the identity
+# as lists in the order of its edges and of its faces.
+FILLET_IDENTITY = ("edge_counters", "face_counters")
+FILLET_MARKS = {False: 22, True: 29}  # 15.6.6: counter_marks of a fillet on the box's edges, the hole's
 BODY_IDENTITY = ("regen", "time")
 
 TEXTURE = "<SystemTexture>\\graphics\\materials\\color.p2m"
@@ -254,27 +258,156 @@ def depth_text(depth: float) -> str:
     return f"{round(depth * 1000, 8):.8f}".rstrip("0").rstrip(".") or "0"
 
 
-# 15.5.13 and 15.6.2: the box faces a cut's ring names, in order: (end face?, face number).
-RING = ((False, 4), (True, 1), (False, 3), (True, 0), (False, 1))
+# 15.5.13, 15.5.14 and 15.6.2: the kinds of entry of a list of faces.
+GAP, SIDE, END, CUT_FACE, FILLET_FACE = 0, 1, 2, 3, 4
+# 15.5.13 and 15.6.2: the faces a cut's ring names, in order, as (kind, face number) of the box,
+# and with a fillet on the box's edges, the fillet's faces 1 and 4 in place of sides 3 and 1.
+RING = ((SIDE, 4), (END, 1), (SIDE, 3), (END, 0), (SIDE, 1))
+RING_FILLETED = ((SIDE, 4), (END, 1), (FILLET_FACE, 1), (END, 0), (FILLET_FACE, 4))
+# 15.5.14: the four edges of a box along its depth, as the two sides that meet there, in the
+# order a fillet on them lists them; the order it writes its faces in afterwards; the order of
+# its closing list. Sides 1 and 4 meet at the rectangle's first corner (x0, y0).
+BOX_EDGES = ((4, 3), (3, 2), (2, 1), (1, 4))
+BOX_FACE_ORDER = (0, 3, 1, 2)
+BOX_CLOSING_ORDER = (2, 3, 0, 1)
+EDGE_TOLERANCE = 1e-9  # 15.6.2: metres; how far a fillet's edge point may lie from the edge
+
+
+def _entry(kind: int, uid: int = 0, face: int = 0) -> dict:
+    return {"kind": kind, "uid": uid, "face": face}
+
+
+def _box_corner(p, box: dict) -> tuple[float, float] | None:
+    """The corner (x, y) of the box whose edge along the depth point ``p`` lies on, or None."""
+    x0, y0, x1, y1 = box["corners"]
+    for cx, cy in ((x0, y0), (x1, y0), (x1, y1), (x0, y1)):
+        near = abs(p[0] - cx) <= EDGE_TOLERANCE and abs(p[1] - cy) <= EDGE_TOLERANCE
+        if near and 0.0 < p[2] < box["depth"]:
+            return (cx, cy)
+    return None
+
+
+def _on_hole_edge(p, box: dict, circle: dict) -> bool:
+    """Whether point ``p`` lies on the hole's edge on the box's far end face (z = depth)."""
+    cx, cy = circle["centre"]
+    d = math.sqrt((p[0] - cx) * (p[0] - cx) + (p[1] - cy) * (p[1] - cy))
+    return abs(p[2] - box["depth"]) <= EDGE_TOLERANCE and abs(d - circle["radius"]) <= EDGE_TOLERANCE
+
+
+def _clear_of_corners(cx: float, cy: float, rho: float, box: dict, r: float) -> bool:
+    """15.6.2: a circle of radius ``rho`` about (cx, cy) meets none of the four r x r squares at
+    the corners of the box's rectangle, the squares a fillet of radius r rounds."""
+    x0, y0, x1, y1 = box["corners"]
+    for sx0, sy0, sx1, sy1 in ((x0, y0, x0 + r, y0 + r), (x1 - r, y0, x1, y0 + r),
+                               (x1 - r, y1 - r, x1, y1), (x0, y1 - r, x0 + r, y1)):
+        dx = max(sx0 - cx, 0.0, cx - sx1)
+        dy = max(sy0 - cy, 0.0, cy - sy1)
+        if not dx * dx + dy * dy > rho * rho:
+            return False
+    return True
+
+
+def _fillet_item(f: ir.Fillet, n: int, uid: int, box: dict, circle: dict | None, cut: dict | None) -> dict:
+    """A fillet's features item (15.6.2): on the box's four edges when ``cut`` is None, else on
+    the hole's edge on the box's far end face."""
+    name = f"Fillet{n}"
+    r = float(f.radius)
+    pts = [tuple(e.point) for e in f.edges]
+    if cut is None:
+        corners = [_box_corner(p, box) for p in pts]
+        if len(pts) != 4 or None in corners or len(set(corners)) != 4:
+            raise ValueError(f"{f.name}: a fillet right after the box is written only on all four of "
+                             "its edges along its depth")
+        x0, y0, x1, y1 = box["corners"]
+        if not 2 * r < min(x1 - x0, y1 - y0):
+            raise ValueError(f"{f.name}: the fillet's radius must be less than half the box's shorter side")
+        b = box["id"]
+        edges = [{"label": f"{name}.e{k + 1}", "counter": 0,
+                  "faces": [_entry(SIDE, b, a), _entry(SIDE, b, c), _entry(END, b, 1), _entry(END, b, 0)]}
+                 for k, (a, c) in enumerate(BOX_EDGES)]
+        faces = [{"counter": 0, "edge": edges[k]["faces"],
+                  "ring": [_entry(FILLET_FACE, uid + 1, k + 1), _entry(END, b, 1),
+                           _entry(SIDE, b, BOX_EDGES[k][1]),
+                           _entry(END, b, 0), _entry(SIDE, b, BOX_EDGES[k][0])]}
+                 for k in BOX_FACE_ORDER]
+        closing = [edges[k] for k in BOX_CLOSING_ORDER]
+        anchor = [x0 + r, y0 + r, box["depth"]]
+        body = (box["body_label"], box["body_id"])
+        hole = False
+    else:
+        if len(pts) != 1 or not _on_hole_edge(pts[0], box, circle):
+            raise ValueError(f"{f.name}: a fillet after the hole is written only on the hole's edge on the "
+                             "box's far face")
+        cx, cy = circle["centre"]
+        rho = circle["radius"] + r
+        x0, y0, x1, y1 = box["corners"]
+        fits = x0 < cx - rho and cx + rho < x1 and y0 < cy - rho and cy + rho < y1 and r < box["depth"]
+        if fits and box.get("_fillet_radius") is not None:
+            fits = _clear_of_corners(cx, cy, rho, box, box["_fillet_radius"])
+        if not fits:
+            raise ValueError(f"{f.name}: the fillet on the hole's edge must stay on the box's far face, "
+                             "clear of its rounded corners, with a radius less than the box's depth")
+        wall, top = _entry(CUT_FACE, cut["id"], 1), _entry(END, box["id"], 1)
+        edges = [{"label": f"{name}.e1", "counter": 0, "faces": [wall, top, top, top]}]
+        faces = [{"counter": 0, "edge": edges[0]["faces"],
+                  "ring": [_entry(FILLET_FACE, uid + 1, 1), top, _entry(GAP), wall]}]
+        closing = list(edges)
+        anchor = [cx - circle["radius"] - r, cy, box["depth"] - r]
+        body = (cut["body_label"], cut["body_id"])
+        hole = True
+    return {
+        "name": name, "sketch": False, "cut": False, "fillet": True, "hole": hole, "log_modified": False,
+        "id": uid + 1, "radius": r, "radius_text": depth_text(r), "anchor": anchor,
+        "body_label": body[0], "body_id": body[1],
+        "edges": edges, "faces": faces, "closing": closing, "dim_edge": edges[-1]["label"],
+    }
 
 
 def features_of(doc: ir.Document) -> list[dict]:
     """The design and derived fields of the ``features`` items (15.6.2): corner rectangles
-    each extruded blind, then at most one circle cut through all in both directions."""
+    each extruded blind; or one such box, then at most a fillet on its four edges along its
+    depth, at most one circle cut through all in both directions, and after that cut at most
+    a fillet on the hole's edge on the box's far face."""
     items: list[dict] = []
     timeline = list(doc.features)
-    if len(timeline) % 2:
-        raise ValueError("sketch not followed by its extrusion")
+    n_boxes = sum(1 for k in range(1, len(timeline)) if isinstance(timeline[k], ir.Extrude)
+                  and timeline[k].operation != "cut")
     uid = 26
     boxes: list[dict] = []
-    cuts = 0
-    for k in range(len(timeline) // 2):
-        s, e = timeline[2 * k], timeline[2 * k + 1]
+    circle = cut = None
+    n_sketch = n_fillet = 0
+    i = 0
+    while i < len(timeline):
+        f = timeline[i]
+        if isinstance(f, ir.Fillet):
+            if f.suppressed:
+                raise ValueError(f"{f.name}: suppressed fillet")
+            last = items[-1] if items else None
+            after_box = last is not None and not last["sketch"] and not last["cut"] and not last["fillet"]
+            after_cut = last is not None and last["cut"]
+            if n_boxes != 1 or not (after_box or after_cut):
+                raise ValueError(f"{f.name}: a fillet is written only right after the box's extrusion, or "
+                                 "right after the hole's cut, in a part with one box")
+            if after_cut and i + 1 != len(timeline):
+                raise ValueError(f"{f.name}: a fillet on the hole's edge is written only as the last feature")
+            n_fillet += 1
+            item = _fillet_item(f, n_fillet, uid, boxes[0], circle if after_cut else None,
+                                cut if after_cut else None)
+            if not item["hole"]:
+                boxes[0]["_fillet_radius"] = item["radius"]
+                boxes[0]["_fillet"] = item
+            uid += 2  # 15.5.4: the fillet's radius dimension takes the first number, the fillet the next
+            items.append(item)
+            i += 1
+            continue
+        if i + 1 >= len(timeline):
+            raise ValueError(f"{f.name}: sketch not followed by its extrusion")
+        s, e = f, timeline[i + 1]
         if not isinstance(s, ir.Sketch) or not isinstance(e, ir.Extrude) or e.sketch != s.id:
             raise ValueError(f"{s.name}: sketch not followed by its extrusion")
         if e.suppressed:
             raise ValueError(f"{e.name}: suppressed extrusion")
-        n_sketch = k + 1
+        n_sketch += 1
         if len(s.curves) > 1 and all(c.kind == "circle" for c in s.curves):
             raise ValueError(f"{s.name}: a sketch with more than one circle is not written yet")
         if is_circle(s):
@@ -285,44 +418,54 @@ def features_of(doc: ir.Document) -> list[dict]:
                 raise ValueError(f"{e.name}: only a cut through all in both directions is written")
             if e.profile is not None and e.profile != [[s.curves[0].id]]:
                 raise ValueError(f"{e.name}: profile is not the whole circle")
-            if cuts or len(boxes) != 1 or 2 * k + 2 != len(timeline):
+            rest = timeline[i + 2:]
+            if cut is not None or len(boxes) != 1 or n_boxes != 1 or not (
+                    rest == [] or len(rest) == 1 and isinstance(rest[0], ir.Fillet)):
                 raise ValueError(
-                    f"{e.name}: a cut is written only as the last feature of a part with one box")
+                    f"{e.name}: a cut is written only as the last feature of a part with one box, or "
+                    "followed only by a fillet on the hole's edge")
             box = boxes[0]
             x0, y0, x1, y1 = box["corners"]
             if not (x0 < cx - r and cx + r < x1 and y0 < cy - r and cy + r < y1):
                 raise ValueError(f"{e.name}: the circle is not inside the box's rectangle")
+            rf = box.get("_fillet_radius")
+            if rf is not None and not _clear_of_corners(cx, cy, r, box, rf):
+                raise ValueError(f"{e.name}: the circle runs into a rounded corner of the box")
             sketch = {"name": f"Sketch{n_sketch}", "sketch": True, "circle": True, "log_modified": False,
-                      "id": uid,
-                      "centre": [cx, cy], "radius": r, "start": [cx + r, cy], "at_origin": False}
+                      "id": uid, "centre": [cx, cy], "radius": r, "start": [cx + r, cy], "at_origin": False}
             uid += 6 if n_sketch == 1 else 7
-            cuts += 1
-            ext = {
-                "name": f"Cut-Extrude{cuts}", "sketch": False, "cut": True, "log_modified": False, "id": uid,
-                "sketch_name": sketch["name"], "sketch_id": sketch["id"], "first": False, "merge": False,
+            ring = RING_FILLETED if box.get("_fillet") else RING
+            owner = {SIDE: box["id"], END: box["id"],
+                     FILLET_FACE: box["_fillet"]["id"] if box.get("_fillet") else 0}
+            cut = {
+                "name": "Cut-Extrude1", "sketch": False, "cut": True, "fillet": False, "log_modified": False,
+                "id": uid, "sketch_name": sketch["name"], "sketch_id": sketch["id"], "first": False,
+                "merge": False,
                 "centre": box["centre"], "diagonal": box["diagonal"],
                 "body_id": 101 + len(boxes), "body_label": f"body{len(boxes) + 1}",
                 "target_id": box["body_id"], "target_label": box["body_label"], "target_uid": box["id"],
-                "ring": [{"end": end, "uid": box["id"], "face": face} for end, face in RING],
+                "ring": [_entry(kind, owner[kind], face) for kind, face in ring],
             }
+            circle = sketch
             uid += 1
-            items += [sketch, ext]
+            items += [sketch, cut]
+            i += 2
             continue
         corners, at_origin = _corners(s)  # the sketch first: its extrusion depends on it
         if e.end != "blind" or e.direction != "forward":
             raise ValueError(f"{e.name}: only blind extrusions towards the sketch normal are written")
+        k = len(boxes)
         if k == 0 and e.operation == "cut" or k > 0 and e.operation != "new_body":
             raise ValueError(f"{e.name}: operation {e.operation} is not written")
         x0, y0, x1, y1 = corners
         sketch = {"name": f"Sketch{n_sketch}", "sketch": True, "circle": False, "log_modified": True,
-                  "id": uid,
-                  "corners": corners,
-                  "at_origin": at_origin}
+                  "id": uid, "corners": corners, "at_origin": at_origin}
         uid += 6 if n_sketch == 1 else 7
         depth = float(e.depth)
         ext = {
-            "name": f"Boss-Extrude{k + 1}", "sketch": False, "cut": False, "log_modified": False, "id": uid,
-            "sketch_name": sketch["name"], "sketch_id": sketch["id"], "depth": depth,
+            "name": f"Boss-Extrude{k + 1}", "sketch": False, "cut": False, "fillet": False,
+            "log_modified": False,
+            "id": uid, "sketch_name": sketch["name"], "sketch_id": sketch["id"], "depth": depth,
             "depth_text": depth_text(depth), "corners": list(corners), "first": k == 0, "merge": k == 0,
             "centre": [(x0 + x1) / 2, (y0 + y1) / 2, depth / 2],
             "diagonal": math.sqrt((x1 - x0) ** 2 + (y1 - y0) ** 2 + depth**2),
@@ -331,16 +474,25 @@ def features_of(doc: ir.Document) -> list[dict]:
         uid += 1
         boxes.append(ext)
         items += [sketch, ext]
+        i += 2
+    for b in boxes:  # working fields, not slots
+        b.pop("_fillet_radius", None)
+        b.pop("_fillet", None)
     return items
 
 
 def bodies_of(features: list[dict]) -> list[dict]:
     """The ``bodies`` items (15.6.4), identity fields aside: one per extrusion; a cut's body
-    is made from the body it cuts, which it uses up."""
+    is made from the body it cuts, which it uses up; a fillet changes a body, which then
+    takes its name."""
     bodies: list[dict] = []
     by_id: dict[int, dict] = {}
     for f in features:
         if f["sketch"]:
+            continue
+        if f.get("fillet"):
+            b = by_id[f["body_id"]]
+            b["changed"], b["last"], b["name"] = b["changed"] + [f["id"]], f["id"], f["name"]
             continue
         b = {"id": f["body_id"], "name": f["name"], "label": f["body_label"], "feature": f["id"],
              "last": f["id"], "changed": [], "live": True, "from": [], "into": []}
@@ -353,11 +505,12 @@ def bodies_of(features: list[dict]) -> list[dict]:
     return bodies
 
 
-def builds_of(bodies: list[dict]) -> list[dict]:
-    """15.2.7.5: one item per feature that made or changed a body, with that body's time,
-    ordered by the feature's creation number modulo 17, and of two with the same remainder
-    the later first."""
-    items = [(f, b["time"]) for b in bodies for f in [b["feature"], *b["changed"]]]
+def builds_of(bodies: list[dict], times: dict[int, int] | None = None) -> list[dict]:
+    """15.2.7.5: one item per feature that made or changed a body, with that feature's time
+    (``times``, by creation number; without it, the body's), ordered by the feature's creation
+    number modulo 17, and of two with the same remainder the later first."""
+    items = [(f, b["time"] if times is None else times[f])
+             for b in bodies for f in [b["feature"], *b["changed"]]]
     order = sorted(range(len(items)), key=lambda k: (items[k][0] % 17, -k))
     return [{"feature": items[k][0], "time": items[k][1]} for k in order]
 
@@ -455,6 +608,9 @@ def generator_identity(doc: ir.Document, ident: Identity) -> dict:
         item = {"created": unix, "time": ft, "cache_memo": 0.0}
         if f["sketch"]:
             item.update(modified=unix, regen=102 if f["circle"] else 103)
+        elif f["fillet"]:
+            item.update(counter_marks=FILLET_MARKS[f["hole"]], edge_counters=[0] * len(f["edges"]),
+                        face_counters=[0] * len(f["faces"]))
         elif f["cut"]:
             item.update(counter_marks=14, counter_face1=0, counter_face2=0, counter_end=0)
         else:
@@ -478,6 +634,16 @@ def _long(t: datetime) -> str:
 
 def _long_time(t: datetime) -> str:
     return f"{_long(t)} {t.hour % 12 or 12}:{t.minute:02d}:{t.second:02d} {'AM' if t.hour < 12 else 'PM'}"
+
+
+def kw_features(features: list[dict]) -> list[dict]:
+    """15.1.5 and 15.6.5: the part template's fixed features and the fillets, by id as text."""
+    from .text import FIXED_FEATURES
+
+    out = [{"id": i, "name": n, "type": t, "fillet": False} for i, n, t in FIXED_FEATURES]
+    out += [{"id": f["id"], "name": f["name"], "fillet": True, "radius_text": f["radius_text"]}
+            for f in features if not f["sketch"] and f["fillet"]]
+    return sorted(out, key=lambda g: str(g["id"]))
 
 
 def _key_hash(text: str) -> int:
@@ -510,22 +676,46 @@ def design_slots(doc: ir.Document, identity: dict) -> dict:
         _put(s, path, _get(identity, path))
     for f, extra in zip(features, identity["features"], strict=True):
         f.update({k: extra[k] for k in FEATURE_IDENTITY if k in extra})
-    exts = [f for f in features if not f["sketch"]]
+        if f["sketch"] or not f["fillet"]:
+            continue
+        for e, c in zip(f["edges"], extra["edge_counters"], strict=True):
+            e["counter"] = c
+        for g, c in zip(f["faces"], extra["face_counters"], strict=True):
+            g["counter"] = c
+    exts = [f for f in features if not f["sketch"] and not f["fillet"]]
     by_id = {f["id"]: f for f in features}
-    for f in exts:  # 15.6.2: a cut names its box's faces by the box's own creation time
+
+    def made(entries):  # 15.6.2: each face is named by the creation time of the feature that made it
+        for e in entries:
+            if e["kind"]:
+                e["created"] = by_id[e["uid"]]["created"]
+            else:
+                e["uid"] = e["created"] = e["face"] = 0
+
+    for f in features:
+        if f["sketch"]:
+            continue
         if f["cut"]:
             f["target_created"] = by_id[f["target_uid"]]["created"]
-            for e in f["ring"]:
-                e["created"] = by_id[e["uid"]]["created"]
+            made(f["ring"])
+        if f["fillet"]:
+            for e in f["edges"]:
+                made(e["faces"])
+            for g in f["faces"]:
+                made(g["ring"])
     bodies = bodies_of(features)
     for b, extra in zip(bodies, identity["bodies"], strict=True):
         b.update({k: extra[k] for k in BODY_IDENTITY})
+    regen = {b["id"]: b["regen"] for b in bodies}
+    for f in features:  # 15.5.14: a fillet's mark record holds its body's rebuild counter
+        if not f["sketch"] and f["fillet"]:
+            f["body_regen"] = regen[f["body_id"]]
     s["features"] = features
     s["sketches"] = [f for f in features if f["sketch"]]
     s["bodies"] = bodies
     s["live_bodies"] = [b for b in bodies if b["live"]]
     s["body_links"] = body_links(bodies)
-    s["builds"] = builds_of(bodies)
+    s["builds"] = builds_of(bodies, {f["id"]: f["time"] for f in features})
 
     # 15.6.3: the model box, the bounding sphere and the planes' display: the boxes alone
     boxes = [([f["corners"][0], f["corners"][1], 0.0], [f["corners"][2], f["corners"][3], f["depth"]])
@@ -536,7 +726,8 @@ def design_slots(doc: ir.Document, identity: dict) -> dict:
     centre = [(lo[k] + hi[k]) / 2 for k in range(3)]
     sphere, hcentre = spheres(boxes) if solid else ([0.0] * 4, [0.0] * 3)
     s["model"] = {"solid": solid, "min": lo, "max": hi, "centre": centre, "sphere": sphere,
-                  "origin_refs": sum(1 for f in s["sketches"] if f["at_origin"])}
+                  "origin_refs": sum(1 for f in s["sketches"] if f["at_origin"]),
+                  "back_view": any(not f["sketch"] and f["fillet"] and not f["hole"] for f in features)}
     s["planes"] = plane_slots(lo, hi, centre, solid)
     s["hdr"] = {"centre": hcentre, "next_id": features[-1]["id"] + 1 if features else 26}
     s["fixed"]["id_base"] = s["doc"]["stamp"] - 11 - len(features)
@@ -557,6 +748,7 @@ def design_slots(doc: ir.Document, identity: dict) -> dict:
     m.update(short_date=f"{local.month}/{local.day}/{local.year}", long_date=_long(local),
              created_text=_long_time(made), saved_text=_long_time(local),
              kw_extrusions=sorted(exts, key=lambda f: str(f["id"])),
+             kw_features=kw_features(features),
              kw_sketches=sorted([{"id": 5, "name": "Origin", "origin": True}]
                                 + [{"id": f["id"], "name": f["name"], "origin": False}
                                    for f in s["sketches"]], key=lambda k: str(k["id"])))

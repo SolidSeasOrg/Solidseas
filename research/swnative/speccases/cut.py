@@ -182,12 +182,19 @@ def _outside(name: str, uid: int) -> dict:
 
 def design_items(name: str) -> dict:
     """What fixture ``name`` is, as the slots of section 15.6 describe a part: its features
-    (the import of o10 and the fillets of o11 as :func:`_outside` items), its sketches, its
-    bodies (o11's fillets as features that changed them, 15.2.7.4), its model box and the
-    planes' display. Identity values are not here: each case reads those from the member it
+    (the import of o10 as an :func:`_outside` item; o11 by the rules of 15.6 from its design,
+    fillets included, :func:`.fillet.design_part`), its sketches, its bodies, its model box and
+    the planes' display. Identity values are not here: each case reads those from the member it
     proves."""
     from . import design as D
+    from . import text as T
 
+    if name == "o11":
+        from . import fillet as FL
+
+        s = FL.design_part(FL.o11_design())
+        del s["props"], s["props_by_name"]
+        return s
     cf = CUT_FIXTURES[name]
     uid = _uid(fixture(name)[FEATURES])
     lo, hi = cf.box
@@ -233,9 +240,11 @@ def design_items(name: str) -> dict:
         "bodies": bodies, "live_bodies": [b for b in bodies if b["live"]],
         "body_links": D.body_links(bodies), "builds": builds,
         "model": {"solid": True, "min": list(lo), "max": list(hi), "centre": centre, "sphere": sphere,
-                  "origin_refs": sum(1 for f in features if f["sketch"] and f["at_origin"])},
+                  "origin_refs": sum(1 for f in features if f["sketch"] and f["at_origin"]),
+                  "back_view": False},
         "planes": D.plane_slots(list(lo), list(hi), centre, True),
         "hdr": {"centre": hcentre, "next_id": max(f["id"] for f in features) + 1},
+        "meta": {"kw_features": T.kw_features([])},
     }
 
 
@@ -247,7 +256,7 @@ def member_slots(name: str) -> dict:
 
     s = design_items(name)
     ident = T.read_identity(fixture(name))
-    s["doc"], s["meta"] = ident["doc"], ident["meta"]
+    s["doc"], s["meta"] = ident["doc"], {**s.get("meta", {}), **ident["meta"]}
     kw = fixture(name)["swXmlContents/KeyWords"].decode("utf-8", "replace")
     d = s["doc"]
     d["name"] = kw.split('<Keywords id="', 1)[1].split('Name="', 1)[1].split('"', 1)[0]
@@ -264,18 +273,21 @@ FEATURE_READ = ("f.time", "f.cache*", "f.counter*", "f.regen", "f.created", "tpl
                 "f.target_created", "f.ring.*.created")
 
 
+SIDE, END, FILLET_FACE = 1, 2, 4  # 15.5.13: the kinds of a ring's entries
+
+
 def _ring(name: str) -> list[dict]:
-    """The faces a fixture's cut names its body by (15.5.13). o11's: side 4 of Boss-Extrude1,
-    its end face 1, face 1 of Fillet1, its end face 0 and face 4 of Fillet1, the fillet's
-    faces written here as sides (the tests check that only their class differs). o10's are
-    the import's faces 3, 1, 5, 2 and 0, which the o10 cases do not assemble."""
+    """The faces a fixture's cut names its body by (15.5.13), each with its kind. o11's: side
+    4 of Boss-Extrude1, its end face 1, face 1 of Fillet1, its end face 0 and face 4 of
+    Fillet1. o10's are the import's faces 3, 1, 5, 2 and 0, which the o10 cases do not
+    assemble."""
     uid = _uid(fixture(name)[FEATURES])
     if name == "o11":
         box, fil = uid["Boss-Extrude1"], uid["Fillet1"]
-        faces = ((False, box, 4), (True, box, 1), (False, fil, 1), (True, box, 0), (False, fil, 4))
+        faces = ((SIDE, box, 4), (END, box, 1), (FILLET_FACE, fil, 1), (END, box, 0), (FILLET_FACE, fil, 4))
     else:
-        faces = tuple((False, uid[IMPORT], k) for k in (3, 1, 5, 2, 0))
-    return [{"end": end, "uid": u, "face": face, "created": 0} for end, u, face in faces]
+        faces = tuple((SIDE, uid[IMPORT], k) for k in (3, 1, 5, 2, 0))
+    return [{"kind": kind, "uid": u, "face": face, "created": 0} for kind, u, face in faces]
 
 
 def _items(name: str) -> tuple[list[dict], int]:
@@ -493,7 +505,8 @@ def keyword_elements(name: str) -> tuple[str, str, str]:
 
     s = member_slots(name)
     real = [f for f in s["features"] if not f.get("outside")]
-    s["meta"].update(kw_extrusions=T.kw_extrusions(real), kw_sketches=T.kw_sketches(real))
+    s["meta"].update(kw_extrusions=T.kw_extrusions(real), kw_sketches=T.kw_sketches(real),
+                     kw_features=T.kw_features(real))
     got = L.assemble(L.LISTINGS / "keywords.srl", s).data[1:].decode("utf-8")  # after its first byte
     extrusions = got[got.index("<Extrusion ") : got.index("<Feature ")]
     sketches = got[got.index("<Sketch ") : got.index("</Keywords>")]

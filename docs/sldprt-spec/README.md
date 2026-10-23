@@ -119,6 +119,7 @@ for every slot, shared or not, and its tables name every slot a listing reads.
 | `body_links` | derived | list | each body a cut made, with the body it was made from; fields `new`, `old` (15.6.5) |
 | `builds` | derived | list | each feature that made or changed a body, with when it built it, in a hash table's order; fields `feature`, `time` (15.6.5) |
 | `model.solid` | derived | bool | the part has at least one box (15.6.3) |
+| `model.back_view` | derived | bool | the part has a fillet on the box's edges, drawn in the `*Back` annotation view (15.4.9, 15.6.3) |
 | `model.min`, `model.max`, `model.centre` | derived | 3 f64 each | the model's box in metres and its centre (15.6.3) |
 | `model.sphere` | derived | 4 f64 | the bounding sphere's centre and radius (15.6.3) |
 | `model.origin_refs` | derived | u32 | the number of sketches whose first corner is the origin (15.6.3) |
@@ -216,9 +217,12 @@ two boxes (o12). Every listing is proved on these six parts, and the two
 property listings also on the five typed properties of o14, a part that holds
 more than the generator writes (15.1.4, 15.2.4). The circle and the cut of a
 box with a hole are proved on o10 (a box imported from STEP, then a hole cut
-through all) and o11 (a box rounded by fillets, a hole, a fillet on the hole),
-record by record and, for the members their other features leave alone, member
-by member (15.5.10). A listing is claimed for
+through all) record by record and, for the members its import leaves alone, member
+by member (15.5.10). o11 (a box, a fillet on its four edges along its depth, a hole and
+a fillet on the hole's edge) is a part the generator writes: its 35 members are proved
+whole, from one slot dict and from its design by the rules of 15.6, but for the 4 bytes of
+a session counter (15.2.3.2), and each of its circle, cut and fillets record by record
+(15.5.10, 15.5.14). A listing is claimed for
 exactly the parts it was proved on. A claim marked "VERIFIED (5 parts)" in a
 section was made on o01, o02, o03, o07 and o12, before o04 was added.
 
@@ -240,7 +244,7 @@ that value is accepted (VERIFIED) or not yet (HYPOTHESIS).
 | `plan(doc, *, identity=None, allow_partial=False) -> Plan` | what `write_part` would write: `slots` (the dict of every slot, section by section), `left_out` (each item of the design not written, in words for the person exporting), `names` (the design's feature names and the names they get in the part) |
 | `assemble(slots) -> dict[str, bytes]` | every member of section 15.0.1, by name, from a complete slot dict; `write_part` is `plan`, then `assemble`, then the container (15.1.1) |
 | `Identity` | the identity values of one file: `when` (a UTC `datetime`), `key_index` (15.1.1.1), the GUIDs `anim_guid`, `exch_front`, `exch_top`, `exch_right`, `exch_doc`, `exch_config`, and `file_stem`. Section 15.6.6 defines each and the default the generator makes when `identity` is `None` (the clock and a random source) |
-| `SPEC_CONSTANTS` | every run longer than 31 bytes of output that is the same whatever the design's values and the identity: the listings' constants together with the values section 15.6.6 fixes (such as `SolidSeas`) and values derived only from how many features, bodies and properties there are and of which types. Computed by comparing assemblies of the same shape made with different values and different identities, and keeping the runs that agree, as `bytes`, for the clean-room test (`docs/CLEANROOM.md` section 4). The shapes: an empty part, one box, two boxes, one box with a hole (a circle inside the box's rectangle, cut through all in both directions, 15.6.2), and one box with five file custom properties, one of each form of 15.6.9 in this order: a text, a whole number (an `int`), a real number (a `float`), a date and yes or no. In the two variants of the last shape every name and every value as typed has the same length and differs from the first character, except the yes or no property, which is true in both; the names start with ASCII letters, and in both variants they sort by `props_by_name` in the design's order, so the members line up byte for byte |
+| `SPEC_CONSTANTS` | every run longer than 31 bytes of output that is the same whatever the design's values and the identity: the listings' constants together with the values section 15.6.6 fixes (such as `SolidSeas`) and values derived only from how many features, bodies and properties there are and of which types. Computed by comparing assemblies of the same shape made with different values and different identities, and keeping the runs that agree, as `bytes`, for the clean-room test (`docs/CLEANROOM.md` section 4). The shapes: an empty part, one box, two boxes, one box with a hole (a circle inside the box's rectangle, cut through all in both directions, 15.6.2), one box with o11's fillets (a fillet on its four edges along its depth, a hole, and a fillet on the hole's edge on the far face, 15.6.2; in its two variants every size and radius differs and each radius as millimetre text has the same length and a different last digit, none of them o11's), and one box with five file custom properties, one of each form of 15.6.9 in this order: a text, a whole number (an `int`), a real number (a `float`), a date and yes or no. In the two variants of the last shape every name and every value as typed has the same length and differs from the first character, except the yes or no property, which is true in both; the names start with ASCII letters, and in both variants they sort by `props_by_name` in the design's order, so the members line up byte for byte |
 | `NativeWriteUnsupported` | a `ValueError` with `items`, the list of what cannot be written |
 
 `assemble` takes the slot dict in the shape the sections define (one dict for
@@ -251,6 +255,7 @@ is held to the specification without its author seeing the part. The analysis
 side holds itself to the same: one slot dict per part assembles all 35 of its
 members, and the rules of 15.6 applied to the part written as an IR design, with
 only its identity and free values read from the part, give the same 35 members
-(VERIFIED, o01, o02, o03, o04, o07, o12). For a box with a hole, which no fixture
-is, the analysis side's rules give the 35 members the generator is held to, each
-record of which is proved on o10 and o11 (15.5.10).
+(VERIFIED, o01, o02, o03, o04, o07, o12, and o11 but for the change count of 15.2.3.2).
+For a box with a hole and no fillet, which no fixture is, the analysis side's rules give
+the 35 members the generator is held to, each record of which is proved on o10 and o11
+(15.5.10).

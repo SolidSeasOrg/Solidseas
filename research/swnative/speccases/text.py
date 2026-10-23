@@ -33,7 +33,31 @@ def kw_sketches(features: list[dict]) -> list[dict]:
 
 
 def kw_extrusions(features: list[dict]) -> list[dict]:
-    return sorted((f for f in features if not f["sketch"]), key=lambda f: str(f["id"]))
+    """The extrusion items, boxes and cuts, by id as text (15.1.5); fillets are features."""
+    return sorted((f for f in features if not f["sketch"] and not f.get("fillet")),
+                  key=lambda f: str(f["id"]))
+
+
+# 15.1.5: the part template's fixed features in KeyWords: id, name, type.
+FIXED_FEATURES = (
+    (1, "Annotations", "Annotations"), (2, "Front Plane", "Plane"), (3, "Top Plane", "Plane"),
+    (4, "Right Plane", "Plane"), (6, "Lights and Cameras", "Lights and Cameras"),
+    (7, "Design Binder", "Design Binder"), (8, "Comments", "Comments"), (9, "Solid Bodies", "Solid Bodies"),
+    (10, "Surface Bodies", "Surface Bodies"), (11, "Material <not specified>", "SOLIDWORKS Materials"),
+    (12, "Ambient", "Ambient"), (13, "Directional1", "Directional"), (14, "Directional2", "Directional"),
+    (15, "Directional3", "Directional"), (16, "Equations", "Equations"), (17, "Notes", "Notes"),
+    (18, "Notes1___EndTag___", "Notes"), (19, "", "Exploded Views"), (21, "Markups", "Markups"),
+    (22, "Sensors", "Sensors"), (23, "Favorites", "Favorites"), (24, "Folder ", "History"),
+    (25, "Selection Sets", "Selection Sets"),
+)
+
+
+def kw_features(features: list[dict]) -> list[dict]:
+    """15.1.5: the template's fixed features and the design's fillets, by id as text."""
+    out = [{"id": i, "name": n, "type": t, "fillet": False} for i, n, t in FIXED_FEATURES]
+    out += [{"id": f["id"], "name": f["name"], "fillet": True, "radius_text": f["radius_text"]}
+            for f in features if f.get("fillet")]
+    return sorted(out, key=lambda g: str(g["id"]))
 
 
 # ------------------------------------------------------------------ dates (15.1.4)

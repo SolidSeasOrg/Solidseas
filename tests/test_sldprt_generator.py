@@ -271,3 +271,103 @@ def test_a_written_box_with_a_hole_carries_solidworks_own_display_settings():
     assert curvature(config) == curvature(o11["Contents/Config-0"])
     box = struct.pack("<6d", 0.04, 0.03, 0.01, 0.0, 0.0, 0.0)  # model.max, then model.min
     assert box in header and box in o11["Header2"]
+
+
+# ------------------------------------------------------------------ fillets (15.5.14)
+# o11's design, and the same features on a box off the origin, each part optional but the box.
+# They fail until the generator writes fillets; each difference is described in specification
+# terms by the assertion.
+FILLETS = {
+    "o11": {},
+    "off-origin": {"corners": (0.012, 0.004, 0.052, 0.034), "hole": (0.032, 0.019, 0.005)},
+    "box-only": {"corners": (0.012, 0.004, 0.052, 0.034), "r": 0.004, "hole": None},
+    "rim-only": {"hole": (0.02, 0.015, 0.006), "r2": 0.002, "box_fillet": False},
+}
+
+
+@pytest.mark.parametrize("key", FILLETS)
+def test_plan_gives_the_slots_section_15_6_gives_for_fillets(key):
+    doc = SPEC.filleted(**FILLETS[key])
+    plan = gen.plan(doc, identity=gen.Identity(**_identity()))
+    expected = D.design_slots(doc, D.generator_identity(doc, D.Identity(**_identity())))
+    assert _diff(_comparable(plan.slots), _comparable(expected)) == []
+
+
+@pytest.mark.parametrize("key", FILLETS)
+def test_a_written_part_with_fillets_has_every_member_the_specification_gives(key):
+    doc = SPEC.filleted(**FILLETS[key])
+    ident = gen.Identity(**_identity())
+    slots = D.design_slots(doc, D.generator_identity(doc, D.Identity(**_identity())))
+    expected = {m: r.data for m, r in SPEC._assemble_all(slots).items()}
+    with open_container(gen.write_part(doc, identity=ident)) as c:
+        written = {s.name: c.read(s.name) for s in c.streams()}
+    assert sorted(written) == sorted(expected)
+    wrong = {m: _first_difference(written[m], expected[m]) for m in written if written[m] != expected[m]}
+    assert wrong == {}
+
+
+def test_assemble_gives_o11s_members_but_its_change_count():
+    """README 15.0.7 on o11: ``assemble`` with o11's slot dict gives what the listings give, which
+    is o11 byte for byte but for its change count (15.2.3.2)."""
+    from swnative.speccases import fillet as FIL
+
+    slots = FIL.o11_slots()
+    expected = {m: r.data for m, r in SPEC._assemble_all(slots).items()}
+    members = gen.assemble(slots)
+    assert len(members) == 35
+    wrong = {m: _first_difference(data, expected[m]) for m, data in members.items() if data != expected[m]}
+    assert wrong == {}
+
+
+def test_a_written_part_with_fillets_reads_back_as_its_design():
+    doc = SPEC.filleted()
+    ident = gen.Identity(**_identity())
+    data = gen.write_part(doc, identity=ident)
+    with open_container(data) as c:
+        config, stream = c.read("Contents/Config-0"), c.read("Contents/Config-0-ResolvedFeatures")
+    names = [n.name for n in F.named_nodes(stream) if n.name != "D1"]
+    assert names[-6:] == ["Sketch1", "Boss-Extrude1", "Fillet1", "Sketch2", "Cut-Extrude1", "Fillet2"]
+    assert [p.full_name for p in F.parameters(stream)] == ["D1@Boss-Extrude1", "D1@Fillet1", "D1@Fillet2"]
+    assert F.parameter(stream, "D1@Fillet1").value == 0.003
+    assert F.parameter(stream, "D1@Fillet2").value == 0.001
+    a, _b = F.object_map(config, stream)
+    assert F.header(stream) == (a.count, 23)
+    with open_document(data, name="written.SLDPRT") as d:
+        report = d.path_report()
+    assert report.paths == () and report.hosts == ()
+
+
+@pytest.mark.parametrize("change", [
+    "three edges", "an edge's end point", "too large", "first", "two on the box", "rim on the sketch plane",
+    "rim too large", "hole in a rounded corner", "two boxes", "suppressed",
+])
+def test_a_fillet_the_specification_does_not_give_is_refused(change):
+    """15.6.2: what the fixtures do not show is refused item by item, never written."""
+    from solidseas.nativewrite import ir
+
+    doc = SPEC.filleted()
+    box_fillet, rim = doc.features[2], doc.features[5]
+    if change == "three edges":
+        box_fillet.edges.pop()
+    elif change == "an edge's end point":
+        box_fillet.edges[0].point = (0.0, 0.0, 0.0)
+    elif change == "too large":
+        box_fillet.radius = 0.015
+    elif change == "first":
+        doc.features.insert(0, doc.features.pop(2))
+    elif change == "two on the box":
+        doc.features.insert(3, ir.Fillet("f9", "Again", list(box_fillet.edges), 0.001))
+    elif change == "rim on the sketch plane":
+        rim.edges[0].point = (0.025, 0.015, 0.0)
+    elif change == "rim too large":
+        rim.radius = 0.01
+    elif change == "hole in a rounded corner":
+        SPEC._move_hole(doc, 0.008, 0.008, 0.0075)
+    elif change == "two boxes":
+        doc.features += [D._rectangle("s9", "Sketch9", 0.05, 0.0, 0.06, 0.01),
+                         ir.Extrude("e9", "E9", "s9", 0.01)]
+    else:
+        box_fillet.suppressed = True
+    with pytest.raises(gen.NativeWriteUnsupported) as err:
+        gen.write_part(doc)
+    assert err.value.items

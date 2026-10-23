@@ -29,7 +29,8 @@ UNKNOWN. "Offline" below means checked by code with no SOLIDWORKS.
 | SolidCraft to IR to a native file | VERIFIED in SOLIDWORKS for one extruded rectangle (p1, p2: 40 x 30 x 10 mm, native, depth editable), through the seed (section 10) |
 | The archive's object numbering, which new records must follow | VERIFIED offline (section 4.6) |
 | Parts from the clean-room generator (section 15) | VERIFIED in SOLIDWORKS 2024 for three boxes: opens with its feature tree, rebuilds to an edited depth (section 6.2) |
-| A box with one round hole cut through all, from the generator | VERIFIED in SOLIDWORKS 2024 on open: one body, Boss-Extrude1 and Cut-Extrude1, the hole in place (section 6.2); the cut's records proved on o10 and o11 but for the ring of faces (HYPOTHESIS, spec 15.5.13) |
+| A box with one round hole cut through all, from the generator | VERIFIED in SOLIDWORKS 2024 on open: one body, Boss-Extrude1 and Cut-Extrude1, the hole in place (section 6.2); the cut's records proved on o10 and o11 but for the ring of faces on a box without fillets (HYPOTHESIS, spec 15.5.13) |
+| Fillets on a box: its four edges along its depth, and the hole's edge on its far face | Specified (spec 15.5.14, 15.6.2): both of o11's fillets proved byte for byte, and o11 as a whole from its design but for a session counter; not yet written by the generator nor checked in SOLIDWORKS |
 | Authoring new sketches, relations, dimensions and features | Not started: needs each class's field layout (4.6.1) and dimensioned fixtures |
 
 On 2026-10-19 SOLIDWORKS 2024 SP1 (revision 32.1.0) opened all 17
@@ -604,7 +605,7 @@ disassembled, decompiled, debugged or hooked.
 | Configurations | One per stream (o13); writing more than one is not started |
 | Sketch entities | Lines found; circles and arcs located (o11) but not edited |
 | Relations | Not decoded |
-| Dimensions | Driving length parameters read and set; angles, radii and diameters not yet seen in a fixture's stream layout beyond o11's fillets |
+| Dimensions | Driving length parameters read and set; a fillet's radius dimension specified from o11's two (spec 15.5.14); angles and diameters not yet seen in a fixture's stream layout |
 | Features | Extrusion depth edited; nothing created. The IR holds extrusions, revolves, fillets, chamfers, holes, linear and circular patterns and mirrors; the seed writer takes only the first |
 | Equations, expressions | Not decoded; an IR expression is written as its value and reported |
 | Assemblies | Not started; nothing here assumes parts only except the seed |
@@ -618,12 +619,16 @@ disassembled, decompiled, debugged or hooked.
    dimensions as SOLIDWORKS sketch dimensions.
 2. The field layouts of the sketch and extrusion classes (4.6.1, 4.8), with
    o02 to o12 as the offline oracle, to author new features rather than
-   carry the seed's. Second and later extrusions and one round cut through
-   all are done (spec 15.5); next come revolve, hole, fillet, chamfer and
-   patterns, each through the check. Fixtures that would widen the cut: a
-   plain box with a hole and no fillets (settles the ring and the free
+   carry the seed's. Second and later extrusions, one round cut through
+   all and o11's two fillets are done (spec 15.5); next come revolve, hole,
+   chamfer and patterns, each through the check. Fixtures that would widen the
+   cut: a plain box with a hole and no fillets (settles the ring and the free
    counters), a cut through all one way, a second cut, and a cut through two
-   bodies.
+   bodies. Fixtures that would widen the fillets: a box off the origin with
+   the same fillet (settles the dimension's anchor), the same fillet on one,
+   two and three of the edges along the depth (settles which edge the radius is
+   drawn on and the orders of 15.5.14), a fillet on the edges of an end face,
+   and two fillets of different radii.
 3. Which of the counters, session times and face ids SOLIDWORKS checks
    against the rest of a part (4.8). Without a partition there are no face
    ids to match, and b3 and b4 show it accepts records whose bookkeeping

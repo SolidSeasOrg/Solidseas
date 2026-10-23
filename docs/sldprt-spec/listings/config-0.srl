@@ -277,39 +277,17 @@ u32 13113814
 rep 3 00
 objref sketch_blocks
 u32 0 0
-# The annotation views: one ("*Top") once the part has a dimension.
+# The annotation views (15.4.9): "*Top", number 200, once the part has a dimension, and
+# "*Back", number 201, once it has a fillet on the box's edges, whose radius is drawn there.
 class suObList 1
-u16 =int($model.solid)
+u16 =int($model.solid)+int($model.back_view)
 @if $model.solid
-class moAnnotationView_c 1
-cstr "*Top"
-u32 1
-u8 0
-f32 1.875
-rep 32 00
-f64 1.0
-rep 7 00
-u32 128
-u8 0
-f32 -1.875
-rep 7 00
-u32 128
-rep 21 00
-f64 1.0
-rep 26 00
-f64 1.0
-rep 3 00
-i32 -1
-f64 -1.0
-u32 0 200
-rep 58 00
-u32 1
-i32 -65536
-u32 65535
-i32 -65536 -1
-hex FF FF
+@use annotationview NAME="*Top" NUMBER=200 R11=0x3FF0000000000000 R12=0 R13=0 R21=0 R22=0 R23=0x3FF0000000000000 R31=0x8000000000000000 R32=0xBFF0000000000000 R33=0x8000000000000000
 @endif
-u32 =199+int($model.solid) 199 1 199   # the next annotation view's number, then constants
+@if $model.back_view
+@use annotationview NAME="*Back" NUMBER=201 R11=0xBFF0000000000000 R12=0x8000000000000000 R13=0x8000000000000000 R21=0 R22=0x3FF0000000000000 R23=0 R31=0x8000000000000000 R32=0x8000000000000000 R33=0xBFF0000000000000
+@endif
+u32 =199+int($model.solid)+int($model.back_view) 199 1 199   # the last annotation view's number, then constants
 rep 30 00
 @if $model.solid
 class moPMarkRecord_c 1

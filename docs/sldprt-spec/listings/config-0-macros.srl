@@ -116,11 +116,12 @@ f64bits 0x54B249AD2594C37D 0x54B249AD2594C37D
 rep 2 00
 @end
 
-# One face of a box, item E of a cut's ring (15.5.13): an end face (a cap; face 0 on the
-# sketch plane, 1 at the far end) or a side (the face of sketch line `face`) of the
-# extrusion whose creation number is `uid`, made at `created`. L labels the entry.
+# One face of the body, item E of a cut's ring (15.5.13), by its `kind` (15.5.13): 2 an end
+# face of the box (a cap; face 0 on the sketch plane, 1 at the far end), 1 a side (the face
+# of sketch line `face`), 4 a face of a fillet (the face it makes along its edge `face`), of
+# the feature whose creation number is `uid`, made at `created`. L labels the entry.
 @define cutface E L
-@if $%E.end
+@if =$%E.kind==2
 class moEndFaceSurfIdRep_c 1 as %L
 rep 2 00
 class moFR_c 1
@@ -128,10 +129,154 @@ objref ext_obj
 u32 $%E.uid $%E.created $%E.face
 u32 0
 @else
+@if =$%E.kind==4
+class moFilletSurfIdRep_c 1 as %L
+@else
 class moFromSktEntSurfIdRep_c 1 as %L
+@endif
 rep 2 00
 class moFR_c 1
 objref ext_obj
 u32 $%E.uid $%E.created $%E.face
 @endif
+@end
+
+# One entry of a list of faces (15.5.13, 15.5.14), item E, by its `kind`: 0 the end of one
+# boundary loop of the face the list is about (u16 0 alone), 1 a side of an extrusion, 2 an
+# end face of an extrusion, 3 the face a cut's circle swept, 4 a face of a fillet.
+@section 15.5.14
+@define faceentry E
+@if =$%E.kind==0
+rep 2 00
+@else
+@if =$%E.kind==1
+class moFromSktEntSurfIdRep_c 1
+@endif
+@if =$%E.kind==2
+class moEndFaceSurfIdRep_c 1
+@endif
+@if =$%E.kind==3
+class moFromSktEnt3IntSurfIdRep_c 1
+@endif
+@if =$%E.kind==4
+class moFilletSurfIdRep_c 1
+@endif
+rep 2 00
+class moFR_c 1
+objref ext_obj
+u32 $%E.uid $%E.created $%E.face
+@if =$%E.kind==2
+u32 0
+@endif
+@if =$%E.kind==3
+i32 -1
+u32 0
+@endif
+@endif
+@end
+
+# The head of an edge reference (15.5.14), after its class: u32 1, 0, 4 (its four faces),
+# 512, COUNTER (free, or 0), two doubles 1e100 (an unset value) and u16 0. Its four faces
+# follow.
+@define edgehead COUNTER
+u32 1 0 4 512 %COUNTER
+f64bits 0x54B249AD2594C37D 0x54B249AD2594C37D
+rep 2 00
+@end
+
+# A component of the body whose id is BODY (15.5.14), as a cut names the body it cuts
+# (15.5.13): the id twice.
+@define bodycomponent BODY
+class moUnitComponent_c 1
+u16 2
+rep 5 00
+u32 %BODY %BODY
+rep 28 00
+i32 -1 -1 -1 -1
+rep 20 00
+u32 17000
+@end
+
+# A driving dimension's display object of class CLASS and its handle (15.5.8, 15.5.14): the
+# extrusion's depth (moDisplayDistanceDim_c, KIND 18) and a fillet's radius
+# (moDisplayRadialDim_c, KIND 20). VIEW is the number of the annotation view the dimension
+# is drawn in (15.4.9). The other fields are not decoded.
+@section 15.5.8
+@define dimdisplay CLASS VIEW KIND
+class %CLASS 1
+rep 16 00
+u32 65535
+i32 -253
+u32 255
+u8 0
+f32 -1
+rep 14 00
+u32 17000 0 524416
+rep 83 00
+f64 1.0
+u8 0
+u32 1 %VIEW
+rep 19 00
+f64 -1.0
+u32 0 1
+rep 2 00
+f32 -1
+u32 0 1
+rep 2 00
+f32 -1
+rep 12 00
+i32 -1 -1
+u32 0 1
+rep 6 00
+f32 -1
+rep 16 00
+u32 4
+rep 96 00
+u32 2 0 0
+f64 1.0
+rep 16 00
+f64 1.0
+u32 0 0
+cstr ""
+rep 24 00
+u32 %KIND
+rep 30 00
+f64 1.0
+rep 16 00
+f64 1e-06 1e-06
+rep 18 00
+f64 1.0
+u32 0 1
+class moFeatureDimHandle_c 1
+rep 42 00
+i32 -1 -1 -1 -1
+rep 20 00
+u32 17000
+rep 15 00
+i32 -1
+rep 6 00
+@end
+
+# An annotation view of Contents/Config-0 (15.4.9): its name, its orientation as a rotation by
+# rows (nine doubles given by their bits, so that -0.0 is exact), and its number.
+@section 15.4.9
+@define annotationview NAME NUMBER R11 R12 R13 R21 R22 R23 R31 R32 R33
+class moAnnotationView_c 1
+cstr %NAME
+u8 1
+f64bits %R11 %R12 %R13 %R21 %R22 %R23 %R31 %R32 %R33
+rep 24 00
+f64 1.0
+rep 26 00
+f64 1.0
+rep 3 00
+i32 -1
+f64 -1.0
+u32 0 %NUMBER
+rep 58 00
+u32 1
+i32 -65536
+u32 65535
+i32 -65536 -1
+hex FF FF
 @end

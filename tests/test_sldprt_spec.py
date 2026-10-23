@@ -20,6 +20,7 @@ from swnative import listing as L
 from swnative import speccases as S
 from swnative.speccases import cut as CUT
 from swnative.speccases import design as D
+from swnative.speccases import fillet as FIL
 from swnative.speccases import full as F
 
 SPEC = Path(__file__).resolve().parents[1] / "docs" / "sldprt-spec"
@@ -282,22 +283,18 @@ def test_the_scan_of_o10_and_o11_reaches_every_anchor():
 
 
 def test_the_circle_and_cut_listings_give_o11s_records():
-    """15.5.12 and 15.5.13 on o11, whose cut follows a box like a generated part's: Sketch2 and
-    Cut-Extrude1 byte for byte, but for the class of the two faces of Fillet1 in each of the
-    cut's two lists of its body's faces, which o11 names moFilletSurfIdRep_c (a fillet's face)
-    and the listing, written for a box, moFromSktEntSurfIdRep_c."""
+    """15.5.12 and 15.5.13 on o11, whose cut follows a box rounded by a fillet on its four edges
+    along its depth: Sketch2 and Cut-Extrude1 byte for byte, the two faces of Fillet1 in each of
+    the cut's two lists of its body's faces included (entries of kind 4, moFilletSurfIdRep_c)."""
     case = CUT.feature_case("o11")
     feats = S.fixture("o11")[CUT.FEATURES]
     uid = _uid("o11")
-    w = CUT.walk(S.fixture("o11"), len(feats), CUT.cache_phantoms(feats, 0.04))
-    fillet = struct.pack("<H", 0x8000 | w.classes["moFilletSurfIdRep_c"])
-    side = struct.pack("<H", 0x8000 | w.classes["moFromSktEntSurfIdRep_c"])
-    assert len(case.got) == len(case.want)
-    differ = {k for k in range(len(case.got)) if case.got[k] != case.want[k]}
-    starts = [k for k in range(len(case.got) - 1)
-              if case.got[k:k + 2] == side and case.want[k:k + 2] == fillet]
-    assert len(starts) == 4
-    assert differ <= {k for s in starts for k in (s, s + 1)}
+    assert case.got == case.want
+    ring = case.slots["features"][1]["ring"]
+    assert [(e["kind"], e["uid"], e["face"]) for e in ring] == [
+        (1, uid["Boss-Extrude1"], 4), (2, uid["Boss-Extrude1"], 1), (4, uid["Fillet1"], 1),
+        (2, uid["Boss-Extrude1"], 0), (4, uid["Fillet1"], 4)]
+    assert ring[2]["created"] == CUT.history_created(feats, uid["Fillet1"])
     cut = case.slots["features"][1]
     box_time = CUT.history_created(feats, uid["Boss-Extrude1"])
     assert cut["target_created"] == box_time == cut["ring"][0]["created"] == cut["ring"][3]["created"]
@@ -373,8 +370,7 @@ def test_the_rules_of_15_6_give_a_box_with_a_hole():
     sketch, cut = slots["features"][2:]
     assert (sketch["id"], cut["id"], sketch["circle"], cut["cut"]) == (33, 40, True, True)
     assert sketch["start"] == [0.0075, 0.01] and cut["target_uid"] == 32 and cut["body_id"] == 102
-    assert [(e["end"], e["face"]) for e in cut["ring"]] == [
-        (False, 4), (True, 1), (False, 3), (True, 0), (False, 1)]
+    assert [(e["kind"], e["face"]) for e in cut["ring"]] == [(1, 4), (2, 1), (1, 3), (2, 0), (1, 1)]
     assert [(b["id"], b["live"], b["from"], b["into"]) for b in slots["bodies"]] == [
         (101, False, [], [102]), (102, True, [101], [])]
     assert [b["feature"] for b in slots["builds"]] == [40, 32]
@@ -427,6 +423,167 @@ def test_a_degenerate_circle_never_reaches_the_rules_of_15_6():
     doc.features[2].curves[0].radius = 0.0
     with pytest.raises(ir.IRError, match="positive radius"):
         ir.validate(doc)
+
+
+# ------------------------------------------------------------------ fillets (15.5.14)
+def filleted(corners=(0.0, 0.0, 0.04, 0.03), depth=0.01, r=0.003, hole=(0.02, 0.015, 0.005), r2=0.001,
+             box_fillet=True, hole_fillet=True) -> ir.Document:
+    """A box, a fillet on its four edges along its depth (each named by its middle), a hole cut
+    through all and a fillet on the hole's edge on the far face (named by its point on +x):
+    o11's form, with each part optional."""
+    x0, y0, x1, y1 = corners
+    feats = [D._rectangle("s1", "Sketch1", *corners), ir.Extrude("e1", "Extrude1", "s1", depth)]
+    if box_fillet:
+        pts = [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
+        feats.append(ir.Fillet("f1", "Round", [ir.EdgeRef((x, y, depth / 2)) for x, y in pts], r))
+    if hole is not None:
+        cx, cy, rh = hole
+        feats += [D.circle_sketch("s2", "Sketch2", cx, cy, rh), D.through_cut("e2", "Cut1", "s2")]
+        if hole_fillet:
+            feats.append(ir.Fillet("f2", "Rim", [ir.EdgeRef((cx + rh, cy, depth))], r2))
+    return ir.validate(ir.Document("block", feats))
+
+
+def _move_hole(doc: ir.Document, cx: float, cy: float, r: float) -> None:
+    """Put the hole of :func:`filleted` elsewhere: inside the box's rectangle, but reaching into
+    the square a 3 mm fillet rounds at the first corner."""
+    circle = doc.features[3]
+    circle.points[0].x, circle.points[0].y = cx, cy
+    circle.curves[0].radius = r
+
+
+def _change_count_at(result: L.Result) -> int:
+    """The offset of the change count (15.2.3.2) in a member assembled by its listing."""
+    for run in result.runs:
+        line = (LISTINGS / run.source).read_text(encoding="utf-8").splitlines()[run.line - 1]
+        if "=101+len($features)" in line:
+            return run.offset
+    raise AssertionError("no change count")
+
+
+def _o11_gives_its_members(results: dict[str, L.Result]) -> None:
+    """Every member of o11 byte for byte, but its change count (15.2.3.2), a session counter: 106
+    where the rule gives 101 and one for each of its six features."""
+    fx = S.fixture("o11")
+    assert len(results) == 35
+    wrong = {m for m, r in results.items() if r.data != fx[m]}
+    assert wrong == {"Contents/CMgrHdr2", "Contents/Config-0"}
+    for m in wrong:
+        got, want = results[m].data, fx[m]
+        k = _change_count_at(results[m])
+        assert got[k:k + 4] == struct.pack("<I", 107) and want[k:k + 4] == struct.pack("<I", 106)
+        assert got[:k] + got[k + 4:] == want[:k] + want[k + 4:]
+
+
+@pytest.mark.parametrize("which", ["Fillet1", "Fillet2"])
+def test_the_fillet_listing_gives_o11s_fillets(which):
+    """15.5.14 on o11, each fillet byte for byte with the archive o11 has where it starts: Fillet1
+    on the box's four edges along its depth, Fillet2 on the hole's edge on the far face. What is
+    read from o11 agrees with the rest of the part: each fillet's creation time is its history
+    entry's (15.5.3), and the counter of its mark record is its body's rebuild counter (15.4.6)."""
+    case = FIL.feature_case(which)
+    assert case.got == case.want
+    f = case.slots["features"][0]
+    feats = S.fixture("o11")[CUT.FEATURES]
+    uid = _uid("o11")
+    assert f["created"] == CUT.history_created(feats, uid[which])
+    regen = {b["id"]: b["regen"] for b in FIL.o11_slots()["bodies"]}
+    assert f["body_regen"] == regen[f["body_id"]]
+    assert F_.parameter(feats, f"D1@{which}").value == f["radius"]
+    owners = {e["uid"] for e in f["edges"][0]["faces"]}
+    box, cut = uid["Boss-Extrude1"], uid["Cut-Extrude1"]
+    assert owners == ({box} if which == "Fillet1" else {box, cut})
+
+
+def test_one_slot_dict_gives_every_member_of_o11():
+    """o11, a box, a fillet, a hole and a fillet, as a whole: one slot dict assembles all 35 of
+    its members, the feature stream with its six features, the second annotation view of
+    Contents/Config-0 (15.4.9) and the fillets' KeyWords elements (15.1.5) included."""
+    _o11_gives_its_members(_assemble_all(FIL.o11_slots()))
+
+
+def test_the_rules_of_15_6_give_o11_from_its_design():
+    """Section 15.6 on o11 written as a design, with only its identity and free slots read from
+    it: all 35 members, as for the boxes."""
+    _o11_gives_its_members(_assemble_all(D.design_slots(FIL.o11_design(), FIL.o11_identity())))
+
+
+@pytest.mark.parametrize("box_fillet, hole, hole_fillet", [
+    (True, False, False), (True, True, False), (False, True, True), (True, True, True)])
+def test_the_rules_of_15_6_give_a_box_with_fillets(box_fillet, hole, hole_fillet):
+    """15.6.2 to 15.6.6 for each combination o11's features allow: the items, the creation
+    numbers (a fillet's radius dimension takes the number before the fillet's, 15.5.4), the bodies
+    a fillet changes and renames, the second annotation view, and all 35 members assemble with
+    the archive counted through (15.0.4)."""
+    doc = filleted(corners=(0.012, 0.004, 0.052, 0.034), hole=(0.03, 0.02, 0.005) if hole else None,
+                   box_fillet=box_fillet, hole_fillet=hole_fillet)
+    slots = D.design_slots(doc, D.generator_identity(doc, D.Identity.new()))
+    feats = slots["features"]
+    names = [f["name"] for f in feats]
+    ids = [f["id"] for f in feats]
+    expect = {(True, False, False): (["Sketch1", "Boss-Extrude1", "Fillet1"], [26, 32, 34]),
+              (True, True, False): (["Sketch1", "Boss-Extrude1", "Fillet1", "Sketch2", "Cut-Extrude1"],
+                                    [26, 32, 34, 35, 42]),
+              (False, True, True): (["Sketch1", "Boss-Extrude1", "Sketch2", "Cut-Extrude1", "Fillet1"],
+                                    [26, 32, 33, 40, 42]),
+              (True, True, True): (["Sketch1", "Boss-Extrude1", "Fillet1", "Sketch2", "Cut-Extrude1",
+                                    "Fillet2"],
+                                   [26, 32, 34, 35, 42, 44])}[(box_fillet, hole, hole_fillet)]
+    assert (names, ids) == expect
+    assert slots["hdr"]["next_id"] == ids[-1] + 1 and slots["model"]["back_view"] is box_fillet
+    fillets = [f for f in feats if not f["sketch"] and f["fillet"]]
+    assert [f["hole"] for f in fillets] == [False] * box_fillet + [True] * hole_fillet
+    live = slots["live_bodies"][0]
+    assert live["name"] == names[-1] if not feats[-1]["sketch"] else True
+    assert live["changed"] == [f["id"] for f in fillets if f["body_id"] == live["id"]]
+    if box_fillet:
+        assert fillets[0]["anchor"] == [0.012 + 0.003, 0.004 + 0.003, 0.01]
+    if hole and box_fillet:
+        ring = next(f for f in feats if not f["sketch"] and f["cut"])["ring"]
+        assert [(e["kind"], e["uid"], e["face"]) for e in ring] == [
+            (1, 32, 4), (2, 32, 1), (4, 34, 1), (2, 32, 0), (4, 34, 4)]
+    kw = [g["id"] for g in slots["meta"]["kw_features"]]
+    assert kw == sorted(kw, key=str) and len(kw) == 23 + len(fillets)
+    results = _assemble_all(slots)
+    assert len(results) == 35
+    c0, stream = results["Contents/Config-0"].data, results["Contents/Config-0-ResolvedFeatures"].data
+    assert F_.object_map(c0, stream)[0].count == F_.header(stream)[0]
+    assert [n.name for n in F_.named_nodes(stream) if n.name in names] == names
+    assert [p.full_name for p in F_.parameters(stream)] == (
+        ["D1@Boss-Extrude1"] + [f"D1@{f['name']}" for f in fillets])
+    for f in fillets:
+        assert F_.parameter(stream, f"D1@{f['name']}").value == f["radius"]
+    # "*Back" is also a standard view's name in every Contents/Config-0; the annotation view adds one
+    assert c0.count("*Back".encode("utf-16-le")) == 1 + int(box_fillet)
+
+
+@pytest.mark.parametrize("change, reason", [
+    (lambda d: d.features[2].edges.pop(), "all four of its edges"),
+    (lambda d: setattr(d.features[2].edges[0], "point", (0.0, 0.0, 0.0)), "all four of its edges"),
+    (lambda d: setattr(d.features[2].edges[0], "point", (0.0, 0.0, 0.0105)), "all four of its edges"),
+    (lambda d: d.features[2].edges.append(ir.EdgeRef((0.0, 0.0, 0.002))), "all four of its edges"),
+    (lambda d: setattr(d.features[2], "radius", 0.015), "half the box's shorter side"),
+    (lambda d: setattr(d.features[2], "suppressed", True), "suppressed fillet"),
+    (lambda d: d.features.insert(0, d.features.pop(2)), "right after the box's extrusion"),
+    (lambda d: d.features.insert(3, ir.Fillet("f9", "Again", list(d.features[2].edges), 0.001)),
+     "right after the box's extrusion"),
+    (lambda d: d.features.insert(3, d.features.pop(5)), "right after the box's extrusion"),
+    (lambda d: setattr(d.features[5].edges[0], "point", (0.025, 0.015, 0.0)),
+     "hole's edge on the box's far face"),
+    (lambda d: setattr(d.features[5].edges[0], "point", (0.026, 0.015, 0.01)),
+     "hole's edge on the box's far face"),
+    (lambda d: setattr(d.features[5], "radius", 0.01), "stay on the box's far face"),
+    (lambda d: _move_hole(d, 0.008, 0.008, 0.0075), "rounded corner"),
+    (lambda d: d.features.append(ir.Fillet("f9", "Again", list(d.features[5].edges), 0.0005)),
+     "only as the last feature"),
+    (lambda d: d.features.extend([D._rectangle("s9", "S9", 0.05, 0.0, 0.06, 0.01),
+                                  ir.Extrude("e9", "E9", "s9", 0.01)]), "one box"),
+])
+def test_the_rules_of_15_6_refuse_a_fillet_the_fixtures_do_not_show(change, reason):
+    doc = filleted()
+    change(doc)
+    with pytest.raises(ValueError, match=reason):
+        D.features_of(doc)
 
 
 # ------------------------------------------------------------------ shaded image quality (15.4.7)

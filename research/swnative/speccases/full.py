@@ -69,7 +69,9 @@ def design_part(name: str) -> dict:
                   "corners": list(corners), "at_origin": (x0, y0) == (0.0, 0.0)}
         uid += 6 if k == 0 else 7  # 15.5.4: the first sketch leaves 5 numbers unused, a later one 6
         ext = {
-            "name": f"Boss-Extrude{k + 1}", "sketch": False, "cut": False, "log_modified": False, "id": uid,
+            "name": f"Boss-Extrude{k + 1}", "sketch": False, "cut": False, "fillet": False,
+            "log_modified": False,
+            "id": uid,
             "sketch_name": sketch["name"], "sketch_id": sketch["id"], "depth": depth,
             "depth_text": T.depth_text(depth * 1000), "corners": list(corners),
             "first": k == 0, "merge": k == 0,
@@ -103,7 +105,7 @@ def design_part(name: str) -> dict:
         "builds": [{"feature": b["feature"]} for _, _, b in
                    sorted((b["feature"] % 17, -k, b) for k, b in enumerate(bodies))],
         "model": {
-            "solid": solid, "min": lo, "max": hi, "centre": centre,
+            "solid": solid, "min": lo, "max": hi, "centre": centre, "back_view": False,
             "sphere": A.sphere(boxes) if solid else [0.0] * 4,
             "origin_refs": sum(1 for f in features if f["sketch"] and f["at_origin"]),
         },
@@ -112,7 +114,8 @@ def design_part(name: str) -> dict:
             "centre": H.header_centre(boxes) if solid else [0.0] * 3,
             "next_id": features[-1]["id"] + 1 if features else 26,
         },
-        "meta": {"kw_extrusions": T.kw_extrusions(features), "kw_sketches": T.kw_sketches(features)},
+        "meta": {"kw_extrusions": T.kw_extrusions(features), "kw_sketches": T.kw_sketches(features),
+                 "kw_features": T.kw_features(features)},
     }
 
 
@@ -127,8 +130,34 @@ def _merge(into: dict, more: dict) -> None:
 # ------------------------------------------------------------------ the one dict
 @cache
 def _full(name: str) -> dict:
-    fx = fixture(name)
-    s = design_part(name)
+    return read_part(fixture(name), design_part(name))
+
+
+def _made(s: dict) -> None:
+    """15.6.2: every face a cut or a fillet names carries the creation time of the feature
+    that made it; a list's loop end (kind 0) carries zeros."""
+    created = {f["id"]: f["created"] for f in s["features"]}
+
+    def made(entries):
+        for e in entries:
+            e["created"] = created[e["uid"]] if e["kind"] else 0
+
+    for f in s["features"]:
+        if f["sketch"]:
+            continue
+        if f["cut"]:
+            f["target_created"] = created[f["target_uid"]]
+            made(f["ring"])
+        if f.get("fillet"):
+            for e in f["edges"]:
+                made(e["faces"])
+            for g in f["faces"]:
+                made(g["ring"])
+
+
+def read_part(fx: Fixture, s: dict) -> dict:
+    """``s``, a part's design slots and the slots derived from them alone, with its identity
+    and free slots read from fixture ``fx`` (step 2) and the slots derived from those (step 3)."""
     # 2. identity and free slots, section by section
     _merge(s, T.read_identity(fx))
     _merge(s, E.read_identity(fx))
@@ -136,7 +165,12 @@ def _full(name: str) -> dict:
     H.read_identity(fx, s)
     for b in s["bodies"]:  # 15.2.7.5 gives each body's time, in the list of the features that built it
         b["time"] = next(x["time"] for x in s["builds"] if x["feature"] == b["feature"])
+    _made(s)
     s = A.read_identity(fx, s)
+    regen = {b["id"]: b["regen"] for b in s["bodies"]}
+    for f in s["features"]:  # 15.5.14: a fillet's mark record holds its body's rebuild counter
+        if not f["sketch"] and f.get("fillet"):
+            f["body_regen"] = regen[f["body_id"]]
     # 3. derived from identity and free slots
     doc = s["doc"]
     doc["iso"] = datetime.fromtimestamp(doc["unix"], UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -156,9 +190,14 @@ def identity_of(fixture_name: str | Fixture) -> dict:
     """The identity and free slots of a fixture, read from it: the paths section 15.6.6
     lists (``design.IDENTITY``), with the feature items' and bodies' own identity and free
     fields as lists in timeline order."""
+    return identity_from(full_slots(fixture_name))
+
+
+def identity_from(s: dict) -> dict:
+    """The identity and free slots of one slot dict (:func:`identity_of`); a fillet's
+    counters as the lists ``edge_counters`` and ``face_counters`` (``design.FILLET_IDENTITY``)."""
     from .design import BODY_IDENTITY, FEATURE_IDENTITY, IDENTITY
 
-    s = full_slots(fixture_name)
     out: dict = {}
     for path in IDENTITY:
         cur, box = s, out
@@ -167,6 +206,12 @@ def identity_of(fixture_name: str | Fixture) -> dict:
             cur = cur[p]
             box = box.setdefault(p, {})
         box[parts[-1]] = cur[parts[-1]]
-    out["features"] = [{k: f[k] for k in FEATURE_IDENTITY if k in f} for f in s["features"]]
+    out["features"] = []
+    for f in s["features"]:
+        item = {k: f[k] for k in FEATURE_IDENTITY if k in f}
+        if not f["sketch"] and f.get("fillet"):
+            item.update(edge_counters=[e["counter"] for e in f["edges"]],
+                        face_counters=[g["counter"] for g in f["faces"]])
+        out["features"].append(item)
     out["bodies"] = [{k: b[k] for k in BODY_IDENTITY} for b in s["bodies"]]
     return out

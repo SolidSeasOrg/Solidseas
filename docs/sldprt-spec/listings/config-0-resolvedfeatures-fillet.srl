@@ -1,0 +1,276 @@
+# Contents/Config-0-ResolvedFeatures, section 15.5.14: one fillet of constant radius, the
+# features item $f, in one of the two forms o11 shows: the four edges of the box along its
+# depth (Fillet1), or the hole's edge on the box's far end face (Fillet2, $f.hole). The fillet
+# changes one body ($f.body_label) and makes one face along each of its edges. It names each
+# edge by the faces of the features that made them (15.5.13), and drives its radius by a
+# radius dimension, D1. Proved on o11's Fillet1 and Fillet2 (15.5.14).
+@section 15.5.14
+class Fillet_c 1 as $f.name
+@use nodehead NAME=$f.name FLAGS=0x40000000 UID=$f.id
+u16 0  # children
+@use feattail ID==$fixed.id_base+11+$f_index STAMP=1 MEMO=$f.cache_memo TIME=$f.time
+u32 1
+rep 18 00
+objref $f.body_label     # the body the fillet changes
+rep 4 00
+u32 3
+rep 10 00
+u32 1
+rep 16 00
+u32 1
+class moPMarkRecord_c 1
+u16 $f.counter_marks   # free (15.5.9)
+u16 0
+u32 $f.body_regen 1 $f.body_regen
+rep 16 00
+u32 =len($f.edges)
+rep 30 00
+u32 =len($f.edges)+1
+# The faces the fillet makes: the fillet itself, then its face along each edge, in the order
+# of the edges.
+class moSurfaceIdRep_c 1
+objref $f.name
+class moFR_c 1
+objref ext_obj
+u32 $f.id $f.created
+@for e in $f.edges
+class moFilletSurfIdRep_c 1
+objref $f.name
+class moFR_c 1
+objref ext_obj
+u32 $f.id $f.created =$e_index+1
+@endfor
+u16 =len($f.edges)
+# The edges it rounds, each by its four faces (15.5.14).
+@for e in $f.edges
+class moEdgeRef_c 1 as $e.label
+@use edgehead COUNTER=$e.counter
+@for x in $e.faces
+@use faceentry E=x
+@endfor
+rep 8 00
+u32 17000
+rep 4 00
+@endfor
+rep 6 00
+class suObList 1
+u16 =len($f.edges)
+@for e in $f.edges reversed
+class moCompEdge_c 1
+class moUnitComponent_c 1
+u16 2
+rep 5 00
+u32 $f.body_id
+rep 32 00
+i32 -1 -1 -1 -1
+rep 20 00
+u32 17000
+u8 0
+objref $e.label
+rep 62 00
+@endfor
+class suObList 1
+u16 0
+class suObList 1
+u16 0
+class suObList 1
+rep 14 00
+class suObList 1
+u16 1
+# The radius dimension: its display (the extrusion's layout, 15.5.8) and D1, the radius.
+class edgeRadiusObject_c 1
+@if $f.hole
+@use dimdisplay CLASS=moDisplayRadialDim_c VIEW=200 KIND=20   # in the *Top view (15.4.9)
+@else
+@use dimdisplay CLASS=moDisplayRadialDim_c VIEW=201 KIND=20   # in the *Back view
+@endif
+class ThreeDRadiusDim_c 1
+u32 1
+class moLengthParameter_c 1
+class moNodeName_c 1
+cstr "D1"
+f64 2.0
+i32 -1
+u32 0
+cstr ""
+rep 2 00
+f64 $f.radius   # D1, metres
+rep 3 00
+u32 =$f.id-1    # the creation number before the fillet's (15.5.4)
+u32 0
+@if $f.hole
+u32 0
+@else
+u32 8
+@endif
+rep 8 00
+# The dimension's place (15.5.14), a cache: twice the anchor, then the frame the dimension
+# is drawn in, as a rotation by rows, the model origin seen in that frame, and a scale.
+f64 $f.anchor.0 $f.anchor.1 $f.anchor.2
+f64 $f.anchor.0 $f.anchor.1 $f.anchor.2
+rep 26 00
+u16 1
+u8 1
+@if $f.hole
+f64 1.0 0.0 0.0 0.0 0.0 1.0 0.0 -1.0 0.0
+f64 =-$f.anchor.0 $f.anchor.2 =-$f.anchor.1
+@else
+f64 -1.0 0.0 0.0 0.0 1.0 0.0 0.0 0.0 -1.0
+f64 $f.anchor.0 =-$f.anchor.1 $f.anchor.2
+@endif
+f64 1.0
+rep 3 00
+u32 65537
+rep 2 00
+cstr "R"
+cstr ""
+cstr ""
+cstr ""
+f64 1.0
+rep 16 00
+f64 0.5
+rep 8 00
+f64 $f.radius
+f64 -1.0
+rep 130 00
+u32 131077 131075
+f64 1.0
+rep 44 00
+u32 131074
+hex 27
+u32 8388612
+rep 7 00
+cstr ""
+u32 0
+i32 -1
+f64 $f.radius
+u32 8 16 1 1
+f64 $f.radius
+cstr ""
+class moFavoriteHandle_c 1
+u32 0
+i32 -1 -1
+f64 -1.0
+u32 65537
+hex FD
+u32 14737987
+rep 41 00
+u32 114745 0
+f64 1.0
+rep 24 00
+f64 1.0
+rep 24 00
+f64 1.0
+u32 1
+rep 28 00
+f64 1.0
+u32 0 0
+f64 1.0
+cstr ""
+cstr ""
+cstr ""
+cstr ""
+u32 0
+i32 -1
+u32 1
+rep 6 00
+u32 1002101
+rep 18 00
+u32 1 1
+rep 44 00
+cstr ""
+cstr ""
+i32 -1
+u32 0 0
+cstr ""
+rep 40 00
+cstr ""
+u16 150 56
+rep 48 00
+# The fillet's tangent points in the dimension's frame: (r, 0, 0) and (0, -r, 0) for the box's
+# edges; for the hole's edge, which has none, the frame's own point twice.
+@if $f.hole
+f64 =-$f.anchor.0 $f.anchor.2 =-$f.anchor.1
+f64 =-$f.anchor.0 $f.anchor.2 =-$f.anchor.1
+@else
+f64 $f.radius 0.0 0.0
+f64 0.0 =-$f.radius 0.0
+@endif
+rep 6 00
+cstr ""
+rep 18 00
+# The edge the dimension is drawn on: the last of the fillet's edges.
+class moCompEdge_c 1
+class moUnitComponent_c 1
+u16 2
+rep 5 00
+u32 0
+rep 32 00
+i32 -1 -1 -1 -1
+rep 20 00
+u32 17000
+u8 0
+objref $f.dim_edge
+rep 66 00
+u8 1
+class suObList 1
+u16 0
+u32 1 0
+hex 02 02
+u32 1
+rep 7 00
+f64 0.5 0.5
+u8 1
+rep 6 00
+u8 1
+rep 13 00
+u32 =len($f.edges)
+# Each face the fillet makes, by itself and its neighbours (as 15.5.13's lists), then the edge
+# it lies along.
+@for g in $f.faces
+class moCompFace_c 1
+@use bodycomponent BODY=$f.body_id
+u8 0
+@use faceref KIND==len($g.ring)+1 FLAGS=768 COUNTER=$g.counter
+@for x in $g.ring
+@use faceentry E=x
+@endfor
+rep 10 00
+u32 17000
+rep 10 00
+class moCompEdge_c 1
+@use bodycomponent BODY=$f.body_id
+u8 0
+class moEdgeRef_c 1
+@use edgehead COUNTER=0
+@for x in $g.edge
+@use faceentry E=x
+@endfor
+rep 8 00
+u32 17000
+rep 66 00
+@endfor
+rep 10 00
+i32 -1 -1
+rep 8 00
+u32 =len($f.edges)
+# Each edge again, with the radius it is rounded to.
+@for e in $f.closing
+u32 0 1
+f64 $f.radius
+class moCompEdge_c 1
+@use bodycomponent BODY=$f.body_id
+u8 0
+class moEdgeRef_c 1
+@use edgehead COUNTER=0
+@for x in $e.faces
+@use faceentry E=x
+@endfor
+rep 8 00
+u32 17000
+rep 66 00
+@endfor
+u32 6
+u16 0
+u32 21040 25 23341 22711 22993
+rep 16 00

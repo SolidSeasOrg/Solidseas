@@ -38,6 +38,8 @@ READ = (
     "f.time",
     "f.counter*",
     "f.cache*",
+    "e.counter",  # a fillet's edges and faces (15.5.14)
+    "g.counter",
 )
 
 _INT = {"u8": "<B", "u16": "<H", "u32": "<I", "u64": "<Q", "i8": "<b", "i16": "<h", "i32": "<i", "i64": "<q"}
@@ -233,6 +235,12 @@ def read_identity(fx: Fixture, slots: dict) -> dict:
         f.update(time=0, cache_memo=0.0)
         if f["sketch"]:
             f.update(regen=0)
+        elif f.get("fillet"):
+            f.update(counter_marks=0, body_regen=0)
+            for item in (*f["edges"], *f["faces"]):
+                item["counter"] = 0
+        elif f.get("cut"):
+            f.update(counter_marks=0, counter_face1=0, counter_face2=0, counter_end=0)
         else:
             f.update(cache_text=0.0, counter_marks=0, counter_favorite=0, counter_face1=0, counter_face2=0)
     for b in slots["bodies"]:

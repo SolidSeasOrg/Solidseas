@@ -399,9 +399,12 @@ class _Assembler:
             if opts.get("final", "yes") == "yes":
                 text += eol
             constant = "${" not in text
-            def sub(m: re.Match) -> str:
+
+            def sub(m: re.Match) -> str:  # every text listing is XML: 15.1.2's escaping, & first
                 ref = m.group(1)
-                return str(_eval(ref[1:], slots) if ref.startswith("=") else _lookup(slots, ref))
+                value = str(_eval(ref[1:], slots) if ref.startswith("=") else _lookup(slots, ref))
+                return (value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+                        .replace('"', "&quot;"))
 
             text = re.sub(r"\$\{([^}]+)\}", sub, text)
             data = text.encode({"utf8": "utf-8", "utf16": "utf-16-le", "latin1": "latin-1"}[enc])
