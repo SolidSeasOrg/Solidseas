@@ -2260,19 +2260,35 @@ o05 to o06 (configuration) adds `docProps/Config-1-Properties.xml` but no
     names hold. (Why the virtual-file counts differ from the `VirtualComp`
     document counts, once listed here, is settled in section 12.4: 640 virtual
     files, 744 virtual instances, and 511 of the files stored inside
-    sub-assemblies.)
+    sub-assemblies.) The fixtures cannot settle either: o16's one virtual file
+    has its `VirtualComp` document, and no fixture holds an `ImportedComp`
+    document. VERIFIED (3 fixture assemblies). A corpus run listing, for each of
+    the 4 files, its `swPath`, `swIsVirtualComponent` and the nested names the
+    assembly does hold, and for each `ImportedComp` document no imported file
+    names, its own `Header2`, `ModelHeader` and feature names, would; so would
+    section 16 item 3.
 18. Feature history, sketches, mates and dimensions: not decoded, beyond the
     feature stream's framing, driving parameters and sketch points
     (section 5.1).
 19. The meaning of `swFlexible` and `swComponentReference`, and where a
     component's pattern membership and fixed state are stored (neither is in
-    the component tree; fixture o16 has a pattern).
+    the component tree; fixture o16 has a pattern). On the fixtures
+    `swFlexible` is `NO` and `swComponentReference` empty on all 30 instances,
+    and none of the 36 attribute names the trees use marks a pattern or a fixed
+    component. VERIFIED (3 fixture assemblies). Section 16 item 16 (a flexible
+    sub-assembly, a pattern and a fixed component, each made one change at a
+    time) would settle them.
 20. Why 86 `Header2` reference records store a creation time that matches no
-    file in the component tree (section 12.2).
+    file in the component tree (section 12.2). On the fixtures every one does
+    (11 of 11 records). VERIFIED (3 fixture assemblies). That they name a file
+    replaced since the assembly was saved is a HYPOTHESIS; a corpus run giving,
+    for each of the 86, whether its path is still in the tree, the tree's
+    creation time for that path and the referenced file's own, would test it.
 21. Which visibility SOLIDWORKS shows where a configuration's display state and
     `swHidden` disagree (11 corpus instances, section 12.1), and whether either
     hides an instance at all as SolidSeas reads them: the fixtures have no
-    hidden instance.
+    hidden instance (the 3 with `swHidden` `YES`, all in o16, are its 3
+    suppressed ones). Section 16 item 17 would settle it.
 22. Drawings with more than one sheet or model (section 12.5), and whether a
     view's `Description` is the configuration it shows.
 23. How an exploded view and its steps are stored: the fixtures hold only
