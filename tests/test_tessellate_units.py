@@ -561,6 +561,53 @@ def test_runs_of_boundary_points_in_a_line_keep_a_box_closed(axis, angle, splits
     assert m["area"] == pytest.approx(2 * (0.03 * 0.02 + 0.03 * 0.01 + 0.02 * 0.01), rel=1e-9)
 
 
+@pytest.mark.parametrize("turn", [0.0, 0.1, 0.37])
+@pytest.mark.parametrize("gap", [0.0, -1e-7, -5e-6], ids=["touching", "crossing 0.1 um", "crossing 5 um"])
+def test_a_solid_whose_face_boundary_touches_itself_comes_out_closed(gap, turn, monkeypatch):
+    """A hole tangent to the disc's rim, or crossing it by less than the chord tolerance:
+    sampled, the top and bottom faces' loops touch or cross, which no triangulation of
+    the polygon can take, and accepted loosely their triangles left some boundary unused
+    and the solid open. The points on the wrong side are moved just across in the
+    triangulation's (u, v) alone, and every boundary segment is used once each way."""
+    from solidseas.tessellate import _engine
+
+    seen = []
+    real = _engine.Engine._untangled
+
+    def untangled(self, dom, rings):
+        got = real(self, dom, rings)
+        seen.append(got is not None)
+        return got
+
+    monkeypatch.setattr(_engine.Engine, "_untangled", untangled)
+    R, H, hole = 0.01, 0.004, 0.003
+    t = tessellate_transmit(xt_bodies.holed_disc(R, H, hole, gap, turn), chord_m=1e-5)
+    assert seen == [True, True]  # the top and the bottom
+    assert t.closed is True and t.reasons == {} and not any(t.checks.values())
+    assert t.measures()["volume"] == pytest.approx(math.pi * (R * R - hole * hole) * H, rel=2e-3)
+
+
+def test_untangling_moves_only_what_lies_on_the_wrong_side():
+    """A square hole poking a hair out of a square outer ring: its two corners outside are
+    moved just inside, along the outer side's normal; a corner the two rings share (one
+    point id) stays; and rings that do not touch are left as they are."""
+    xy = [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)]
+    xy += [(0.4, 0.2), (0.6, 0.2), (0.6, 1.0 + 1e-6), (0.4, 1.0 + 1e-6)]
+    pid = list(range(8))
+    rings = [[0, 1, 2, 3], [7, 6, 5, 4]]
+    assert tri.untangle(xy, rings, pid, 1e-4, Clock(30)) == 2
+    assert xy[6] == pytest.approx((0.6, 1.0 - 1e-7)) and xy[7] == pytest.approx((0.4, 1.0 - 1e-7))
+    assert xy[4] == (0.4, 0.2) and xy[0] == (0.0, 0.0)
+    tris, complete = tri.earcut(xy, rings[0], rings[1:], pid, Clock(30))
+    assert complete and tri.check(xy, rings, tris)
+    apart = [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.4, 0.2), (0.6, 0.2), (0.6, 0.8), (0.4, 0.8)]
+    assert tri.untangle(list(apart), rings, pid, 1e-4, Clock(30)) == 0
+    shared = list(xy)
+    shared[7] = (0.0, 1.0)
+    assert tri.untangle(shared, rings, [0, 1, 2, 3, 4, 5, 6, 3], 1e-4, Clock(30)) <= 1  # 7 is 3: stays
+    assert shared[7] == (0.0, 1.0)
+
+
 def test_a_face_thinner_than_the_tolerance_follows_its_loop():
     """A sliver whose loop runs against its normal (its sides cross within the tolerance):
     its triangles run the loop's way, so its edges meet the next face's the other way."""

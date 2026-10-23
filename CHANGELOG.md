@@ -1860,6 +1860,10 @@ while the project takes shape.
 
 ### Fixed
 
+- **Watertight solids with a hole at an edge.** Solids with a hole that touches
+  or almost touches an edge of a face now come out closed, so their 3D prints
+  are watertight.
+
 - **Domes and lemon shapes.** Domes and lemon shapes made by revolving an arc
   whose centre lies off the axis are drawn; they used to be left as holes.
 

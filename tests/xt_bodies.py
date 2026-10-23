@@ -335,6 +335,28 @@ def torus_band(R: float, r: float, v0: float, v1: float) -> XtTransmit:
     return b.body([lo, hi], body_type=3)
 
 
+def holed_disc(
+    R: float = 0.01, H: float = 0.004, hole: float = 0.003, gap: float = 1e-5, turn: float = 0.0
+) -> XtTransmit:
+    """A disc of radius ``R`` and height ``H`` with a round hole through it whose wall
+    comes within ``gap`` of the disc's rim (a negative gap: crosses it by that much): once
+    sampled, the hole's circle and the rim's can touch or cross on the top and bottom
+    faces. The hole's circles start ``turn`` radians round from the rim's, so that their
+    samples meet the rim's (0) or fall between them. Volume ``pi (R^2 - hole^2) H``."""
+    b = XtBuilder()
+    c = (R - hole - gap, 0.0)
+    hx = (math.cos(turn), math.sin(turn), 0.0)
+    bottom = b.edge(b.circle((0, 0, 0), Z, X, R))
+    top = b.edge(b.circle((0, 0, H), Z, X, R))
+    hb = b.edge(b.circle((c[0], c[1], 0), Z, hx, hole))
+    ht = b.edge(b.circle((c[0], c[1], H), Z, hx, hole))
+    b.face(b.cylinder((0, 0, 0), Z, R, X), "+", [[(bottom, "+")], [(top, "-")]])
+    b.face(b.cylinder((c[0], c[1], 0), Z, hole, X), "-", [[(hb, "-")], [(ht, "+")]])
+    b.face(b.plane((0, 0, H), Z, X), "+", [[(top, "+")], [(ht, "-")]])
+    b.face(b.plane((0, 0, 0), Z, X), "-", [[(bottom, "-")], [(hb, "+")]])
+    return b.body([bottom, top, hb, ht])
+
+
 def torus_dome(R: float = 0.003, r: float = 0.005, up: bool = True) -> XtTransmit:
     """A dome on a disc: the part of a torus whose major radius is under its minor one
     from its equator (a circle of radius R + r at z = 0) to where it meets its axis, a

@@ -1808,6 +1808,16 @@ by their sense, and some have no edge between faces by which a check could
 turn them. Where such a face meets neighbours that disagree, a STEP scene's
 check turns it to agree with them (3.20.7).
 
+Where a face's loops touch or cross one another by less than the chord tolerance
+once sampled (a hole tangent to a face's rim, or crossing it by a hair), no
+triangulation of its (u, v) polygon can take them. The points of one loop that
+lie on the wrong side of another, or a thousandth of the chord tolerance from
+it, are moved just across in the triangulation's (u, v) alone, never in space,
+and the face is triangulated again; a point both loops pass (one vertex) stays.
+Accepted loosely as before, such a face's triangles left some of its boundary
+unused and its solid open; now every boundary segment is used once each way.
+Only when that too fails is the face accepted loosely.
+
 A rolling blend (BLENDED_EDGE, the surface a sphere sweeps as it rolls along two
 faces, as a fillet does) has no closed form, and Parasolid's own (u, v) of it is
 not known. It is drawn from the rational B-spline the STEP export writes for it

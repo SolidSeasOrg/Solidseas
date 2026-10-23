@@ -600,6 +600,118 @@ def covers(xy, rings, tris, tol_area: float) -> bool:
     return want > 0.0 and 0.5 * (abs(pos - want) + 2.0 * neg) <= tol_area
 
 
+def _inside_ring(xy, ring, x: float, y: float) -> bool:
+    inside = False
+    n = len(ring)
+    for k in range(n):
+        x1, y1 = xy[ring[k]]
+        x2, y2 = xy[ring[(k + 1) % n]]
+        if (y1 > y) != (y2 > y) and x < x1 + (y - y1) * (x2 - x1) / (y2 - y1):
+            inside = not inside
+    return inside
+
+
+def _crossings(xy, rings, pid, clock) -> bool:
+    """Whether a segment of one ring crosses or touches one of another ring, or two points
+    of different ids lie at one place (segments that share a point id do not count)."""
+    segs = []
+    for r, ring in enumerate(rings):
+        n = len(ring)
+        for k in range(n):
+            a, b = ring[k], ring[(k + 1) % n]
+            (ax, ay), (bx, by) = xy[a], xy[b]
+            segs.append((min(ax, bx), max(ax, bx), min(ay, by), max(ay, by), r, a, b))
+    segs.sort()
+    for i, (_x0, x1, y0, y1, r, a, b) in enumerate(segs):
+        for j in range(i + 1, len(segs)):
+            clock.tick()
+            u0, u1, v0, v1, s, c, d = segs[j]
+            if u0 > x1:
+                break
+            if s == r or v0 > y1 or v1 < y0:
+                continue
+            if {pid[a], pid[b]} & {pid[c], pid[d]}:
+                continue
+            p, q, m, n = xy[a], xy[b], xy[c], xy[d]
+            d1 = (q[0] - p[0]) * (m[1] - p[1]) - (q[1] - p[1]) * (m[0] - p[0])
+            d2 = (q[0] - p[0]) * (n[1] - p[1]) - (q[1] - p[1]) * (n[0] - p[0])
+            d3 = (n[0] - m[0]) * (p[1] - m[1]) - (n[1] - m[1]) * (p[0] - m[0])
+            d4 = (n[0] - m[0]) * (q[1] - m[1]) - (n[1] - m[1]) * (q[0] - m[0])
+            if (d1 > 0) != (d2 > 0) and (d3 > 0) != (d4 > 0):
+                return True
+            if 0.0 in (d1, d2, d3, d4):
+                return True
+    return False
+
+
+def untangle(xy, rings, pid, tol: float, clock) -> int:
+    """Move, in ``xy`` alone, the points of one ring that lie on the wrong side of another
+    ring of the polygon, or within ``tol`` / 1000 of it, to just that far on the right side
+    (inside the outer ring, outside a hole), so that rings which touch or cross by less
+    than ``tol`` no longer do. Only rings of different loops are judged, and a point that
+    shares its id with a point of the other ring (a vertex both loops pass) stays. The
+    point ids, and so the mesh's points and the next face's, are untouched; only the
+    triangulation's (u, v) moves. Returns how many points moved, or 0 when none needed to
+    or the rings still cross after (``xy`` is then as it was)."""
+    margin = 1e-3 * tol
+    saved = list(xy)
+    area = [ring_area(xy, r) for r in rings]
+    moved = 0
+    for h, hole in enumerate(rings):
+        for o, other in enumerate(rings):
+            if o == h or len(other) < 2:
+                continue
+            ids = {pid[i] for i in other}
+            n = len(other)
+            boxes = [xy[i] for i in other]
+            lo_x = min(p[0] for p in boxes) - tol
+            hi_x = max(p[0] for p in boxes) + tol
+            lo_y = min(p[1] for p in boxes) - tol
+            hi_y = max(p[1] for p in boxes) + tol
+            # the side the face lies on: inside the outer ring, outside a hole
+            want_inside = o == 0
+            for i in hole:
+                clock.tick()
+                if pid[i] in ids:
+                    continue
+                x, y = xy[i]
+                if not (lo_x <= x <= hi_x and lo_y <= y <= hi_y):
+                    continue
+                best, qx, qy, seg = math.inf, 0.0, 0.0, 0
+                clock.tick(n)
+                for k in range(n):
+                    (ax, ay), (bx, by) = xy[other[k]], xy[other[(k + 1) % n]]
+                    dx, dy = bx - ax, by - ay
+                    ll = dx * dx + dy * dy
+                    t = 0.0 if ll == 0.0 else min(1.0, max(0.0, ((x - ax) * dx + (y - ay) * dy) / ll))
+                    px, py = ax + t * dx, ay + t * dy
+                    d = math.hypot(x - px, y - py)
+                    if d < best:
+                        best, qx, qy, seg = d, px, py, k
+                if best > tol:
+                    continue
+                right = _inside_ring(xy, other, x, y) == want_inside
+                if right and best >= margin:
+                    continue
+                if best > 0.0:
+                    sx, sy = (x - qx) / best, (y - qy) / best
+                    if not right:
+                        sx, sy = -sx, -sy
+                else:  # on the ring: along its normal, to the face's side
+                    (ax, ay), (bx, by) = xy[other[seg]], xy[other[(seg + 1) % n]]
+                    ll = math.hypot(bx - ax, by - ay) or 1.0
+                    sx, sy = -(by - ay) / ll, (bx - ax) / ll  # the left of a ring running round
+                    left_is_inside = area[o] > 0.0
+                    if left_is_inside != want_inside:
+                        sx, sy = -sx, -sy
+                xy[i] = (qx + margin * sx, qy + margin * sy)
+                moved += 1
+    if moved and _crossings(xy, rings, pid, clock):
+        xy[:] = saved
+        return 0
+    return moved
+
+
 def perimeter(xy, rings) -> float:
     total = 0.0
     for r in rings:

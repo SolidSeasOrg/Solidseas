@@ -25,7 +25,18 @@ from .edges import EdgeSampler
 from .fit import FitFailed
 from .surfaces import Geometry
 from .topology import BLENDED_EDGE, EDGE, SURFACE_TYPES, Clock, FaceFailed, TimeUp
-from .triangulate import TriMesh, cdt, check, covers, earcut, fill_gaps, perimeter, ring_area, tri_area2
+from .triangulate import (
+    TriMesh,
+    cdt,
+    check,
+    covers,
+    earcut,
+    fill_gaps,
+    perimeter,
+    ring_area,
+    tri_area2,
+    untangle,
+)
 
 MAX_SKIPPED_LISTED = 1000
 REFINE_PASSES = 8
@@ -500,7 +511,12 @@ class Engine:
         if not complete or not check(dom.xy, idx_rings, tris):
             self.stats["cdt_fallback"] += 1
             alt = cdt(dom.xy, idx_rings, dom.pid, clock)
-            if alt is not None and check(dom.xy, idx_rings, alt, 1e-7):
+            untangled = None
+            if alt is None or not check(dom.xy, idx_rings, alt, 1e-7):
+                untangled = self._untangled(dom, idx_rings)
+            if untangled is not None:
+                tris = untangled
+            elif alt is not None and check(dom.xy, idx_rings, alt, 1e-7):
                 tris = alt
             elif tris and covers(dom.xy, idx_rings, tris, opts.chord * perimeter(dom.xy, idx_rings)):
                 # rings that touch or cross themselves by less than the chord tolerance
@@ -546,6 +562,26 @@ class Engine:
             self.checks["loops_reversed"] += 1
         if coarse:
             self.checks["faces_coarse"] += 1
+
+    def _untangled(self, dom: _Dom, rings):
+        """The triangles of a face whose loops touch or cross one another by less than the
+        chord tolerance in (u, v) (a hole tangent to the rim, sampled), after
+        :func:`.triangulate.untangle` moves the few points on the wrong side just across in
+        the triangulation's (u, v) alone; or None, ``dom.xy`` as it was. Accepted loosely
+        instead, such a face's triangles left some of its boundary unused, and its solid
+        open: here every boundary segment, shared with the next face, is a triangle's."""
+        clock = self.clock
+        saved = list(dom.xy)
+        if not untangle(dom.xy, rings, dom.pid, self.opts.chord, clock):
+            return None
+        tris, complete = earcut(dom.xy, rings[0], rings[1:], dom.pid, clock)
+        if not (complete and check(dom.xy, rings, tris)):
+            tris = cdt(dom.xy, rings, dom.pid, clock)
+            if tris is None or not check(dom.xy, rings, tris, 1e-7):
+                dom.xy[:] = saved
+                return None
+        self.stats["untangled"] += 1
+        return tris
 
     def _edge_key(self, body_k: int, topo, edge) -> tuple[int, int]:
         """An edge's key in the detail: (body, EDGE ``node_id``), or for an edge whose
