@@ -84,6 +84,24 @@ def test_only_the_documents_changed_last_are_kept(tmp_path, monkeypatch):
     assert listed[0] == {"id": ids[2], "looks": None, "explode": {SUB: False}}
 
 
+def test_two_viewers_keep_each_others_changes(tmp_path):
+    """Each write puts the documents changed in that viewer over what the file holds then."""
+    path = tmp_path / "ViewerLooks.json"
+    one, two = LookStore(str(path)), LookStore(str(path))
+    b, c = hashlib.sha256(b"b").hexdigest(), hashlib.sha256(b"c").hexdigest()
+    assert one.get(A) is None and two.get(A) is None  # both read the file before either wrote
+    one.put(A, _chosen())
+    two.put(b, _chosen())
+    assert one.flush() and two.flush()
+    listed = json.loads(path.read_text(encoding="utf-8"))["documents"]
+    assert [d["id"] for d in listed] == [b, A]
+    assert two.get(A) == lookstore.clean(_chosen())  # the other viewer's, read back as it wrote
+    one.put(c, _chosen())
+    one.put(A, {"looks": None, "explode": {}})  # Reset appearance there
+    assert one.flush()
+    assert [d["id"] for d in json.loads(path.read_text(encoding="utf-8"))["documents"]] == [c, b]
+
+
 def test_the_file_names_no_path_or_document(tmp_path):
     path = tmp_path / "ViewerLooks.json"
     store = LookStore(str(path))

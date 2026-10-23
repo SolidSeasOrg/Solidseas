@@ -14,10 +14,12 @@ another file (:func:`document_id`), so the file names no path. It keeps the
 :data:`MAX_DOCUMENTS` documents changed last, and a document left with nothing chosen
 (Reset appearance) is dropped. The file is read when first asked and written through a
 temporary file and a rename when :meth:`LookStore.flush` is called (the window does a
-moment after a change, and when it closes). Every value read back is checked: a file
-that is damaged, too large or of another version is taken as empty and replaced at the
-next write, and a choice that does not check out is left out, so a hand-edited file
-never stops the viewer. Nothing here raises, and nothing here imports Qt.
+moment after a change, and when it closes), with the documents changed here put over
+what the file holds then, so two viewers open at once keep each other's changes. Every
+value read back is checked: a file that is damaged, too large or of another version is
+taken as empty and replaced at the next write, and a choice that does not check out is
+left out, so a hand-edited file never stops the viewer. Nothing here raises, and
+nothing here imports Qt.
 """
 
 import hashlib
@@ -110,6 +112,16 @@ def clean(state: Any) -> dict[str, Any] | None:
     return {"looks": looks, "explode": switches}
 
 
+def _keep(docs: dict[str, dict[str, Any]], ident: str, state: dict[str, Any] | None) -> None:
+    """Put ``state`` in ``docs`` for ``ident`` as the one changed last (None: drop it), and
+    drop the oldest past :data:`MAX_DOCUMENTS`."""
+    docs.pop(ident, None)
+    if state is not None:
+        docs[ident] = state
+        while len(docs) > MAX_DOCUMENTS:
+            docs.pop(next(iter(docs)))
+
+
 class LookStore:
     """The looks of the documents shown, by :func:`document_id` (see the module notes):
     in the file at ``path``, or in memory only when it is None. ``on_change`` is called
@@ -118,9 +130,16 @@ class LookStore:
     def __init__(self, path: str | None) -> None:
         self.path = path
         self.on_change: Callable[[], None] | None = None
-        self.dirty = False  # a change the file does not have yet
         self.write_failed = False
         self._docs: dict[str, dict[str, Any]] | None = None  # the one changed last comes last
+        # The documents changed here since the last write, each with its state (None:
+        # forgotten), the one changed last last: what a write adds to the file's own.
+        self._changed: dict[str, dict[str, Any] | None] = {}
+
+    @property
+    def dirty(self) -> bool:
+        """Whether the file lacks a change made here."""
+        return bool(self._changed)
 
     def _loaded(self) -> dict[str, dict[str, Any]]:
         if self._docs is None:
@@ -167,22 +186,24 @@ class LookStore:
         kept = clean(state)
         if kept == docs.get(ident):
             return
-        docs.pop(ident, None)
-        if kept is not None:
-            docs[ident] = kept
-            while len(docs) > MAX_DOCUMENTS:
-                docs.pop(next(iter(docs)))
+        _keep(docs, ident, kept)
         if self.path is not None:
-            self.dirty = True
+            self._changed.pop(ident, None)
+            self._changed[ident] = kept
             if self.on_change is not None:
                 self.on_change()
 
     def flush(self) -> bool:
-        """Write what changed to the file; True when the file has it all (or there is no
-        file). A failed write leaves the file as it was and sets ``write_failed``."""
-        if not self.dirty or self.path is None:
+        """Write what changed here to the file, over what the file holds now, so the
+        changes another viewer wrote meanwhile are kept; True when the file has them all
+        (or there is no file). A failed write leaves the file as it was, keeps the
+        changes for the next one and sets ``write_failed``."""
+        if not self._changed or self.path is None:
             return True
-        docs = list(reversed(self._loaded().items()))  # the latest first
+        merged = self._read()
+        for ident, state in self._changed.items():
+            _keep(merged, ident, state)
+        docs = list(reversed(merged.items()))  # the latest first
         while True:
             # Escaped to ASCII: a name with a character UTF-8 cannot hold still reads back.
             text = json.dumps(
@@ -194,7 +215,9 @@ class LookStore:
                 break
             docs = docs[: len(docs) * 3 // 4]  # the oldest go first
         ok = self._write(data)
-        self.dirty = not ok
+        if ok:
+            self._changed.clear()
+            self._docs = dict(reversed(docs))  # with what the other viewer changed
         self.write_failed = self.write_failed or not ok
         return ok
 
