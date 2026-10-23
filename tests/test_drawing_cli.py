@@ -345,7 +345,7 @@ def test_new_takes_every_option_of_the_table(capsys, place, tmp_path):
         ("--scale", "1-2"),
         ("--views", "front,nowhere"),
         ("--turn", "5"),
-        ("--process", "turned"),
+        ("--process", "sheet_metal"),
         ("--units", "cm"),
     ],
 )

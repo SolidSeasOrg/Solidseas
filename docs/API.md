@@ -4533,7 +4533,9 @@ first, third and fourth are `InvalidArgumentError`s, so existing handlers keep
 working.
 
 **`DrawingOptions`** (frozen, checked when made, `InvalidArgumentError` naming
-the field): `process` (`machined`, `printed`), `scheme` (`datum`, `plusminus`;
+the field): `process` (`machined`, `printed`, `turned`; a turned part is drawn by
+the rules of `docs/drawings/turned.md` and takes Drawing Settings' machined
+entries, `types.settings_type`), `scheme` (`datum`, `plusminus`;
 None takes the process's default), `units` (`part`, `in`, `mm`), `views`
 (`auto` or names), `front` and `turn`, `hidden`, `tangent`, `sheet` (`auto`, `A`
 to `E`), `scale` (`auto` or `(sheet, model)` such as `(1, 2)`), `arrangement`

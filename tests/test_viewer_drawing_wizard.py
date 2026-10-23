@@ -508,10 +508,13 @@ def test_manufacturing_page(app, open_wizard, made, dw):
     go_to(app, w, 2)
     mp = w.manufacturing_page
     assert mp.machined.isChecked()
-    assert not mp.turned.isEnabled() and mp.turned.text() == "Turned (lathe): coming in 1.1"
+    assert mp.turned.isEnabled() and mp.turned.text() == "Turned (lathe)"
     assert not mp.sheet_metal.isEnabled() and mp.sheet_metal.text() == "Sheet metal: coming later"
     assert "editor's sheet, not here" in mp.datum_label.text() and mp.datum_label.isVisibleTo(w)
-    assert mp.suggestion_label.text().startswith("Suggested: Machined (milled), because nothing about")
+    assert (
+        mp.suggestion_label.text()
+        == "Suggested: Machined (milled), because nothing about the part says otherwise."
+    )
     assert not mp.printed_box.isVisibleTo(w)
     assert mp.scheme.currentData() == "datum"
     assert mp.detail.currentData() == "full" and mp.detail.count() == 3
@@ -570,6 +573,45 @@ def test_a_printing_material_suggests_printed(app, open_wizard, made):
     assert mp.suggestion_label.text() == (
         "Suggested: 3D printed, because PLA is a printing material in your materials list."
     )
+
+
+TURNED_WHY = "every face is a face of revolution about one axis or a plane square to it"
+
+
+def test_a_part_the_preview_finds_turned_suggests_turned(app, open_wizard, made):
+    worker = StandIn(answer_of(made, turned=TURNED_WHY))
+    w = open_wizard(worker)
+    go_to(app, w, 1)
+    finish_title(w)
+    settle(app, w)
+    assert w.turned_reason == TURNED_WHY  # from the preview page 2 made
+    go_to(app, w, 2)
+    mp = w.manufacturing_page
+    assert mp.turned.isChecked() and mp.chosen_process() == "turned"
+    assert mp.suggestion_label.text() == f"Suggested: Turned (lathe), because {TURNED_WHY}."
+    assert mp.scheme.currentData() == "datum"  # the machined entry of Drawing Settings
+    settle(app, w)
+    assert worker.last_make()[2].process == "turned"
+    mp.machined.click()  # the user's choice stays, whatever a later preview says
+    settle(app, w)
+    assert worker.last_make()[2].process == "machined" and mp.machined.isChecked()
+
+
+def test_a_preview_that_comes_late_still_suggests_turned(app, open_wizard, made):
+    worker = StandIn(answer_of(made))
+    w = open_wizard(worker)
+    go_to(app, w, 1)
+    finish_title(w)
+    go_to(app, w, 2)
+    mp = w.manufacturing_page
+    assert mp.machined.isChecked()
+    worker.answer = answer_of(made, turned=TURNED_WHY)
+    mp.detail.setCurrentIndex(mp.detail.findData("complex"))
+    mp.detail.activated.emit(mp.detail.currentIndex())  # a change: another preview
+    settle(app, w)
+    assert mp.turned.isChecked()
+    settle(app, w)
+    assert worker.last_make()[2].process == "turned"
 
 
 # --------------------------------------------------------------------------- page 4

@@ -632,6 +632,7 @@ class _Run:
                         view=v,
                         shift=moved.along_mm if moved is not None else 0.0,
                         clear=self._free if near_free else None,
+                        framed=pd.frame is not None,
                     )
                     self.annotations.append(ann)
                     if pd.frame is not None:

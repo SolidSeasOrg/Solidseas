@@ -48,7 +48,7 @@ those of the table in 14:
 | Option | Meaning |
 |---|---|
 | `--configuration C` | the configuration drawn (default: the active one) |
-| `--process machined\|printed` | default `machined` |
+| `--process machined\|printed\|turned` | default `machined`; `turned` draws a turned (lathe) part by the rules of [turned.md](turned.md) |
 | `--scheme datum\|plusminus` | default: the process's (datum machined, plus/minus printed) |
 | `--detail simplified\|complex\|full` | how much the drawing says (`docs/DRAWINGS.md` 10.4a); default: Drawing Settings' default level, `full` unless changed |
 | `--units part\|in\|mm` | default `part`: the part's unit. A part that states no unit is refused (`invalid_argument`, `detail.rule` `units_unstated`, exit 2) unless `--units` names `in` or `mm`, so an unattended run never guesses silently. Drawing Settings that fix the unit (`standard.units`) count as naming one |

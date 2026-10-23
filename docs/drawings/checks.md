@@ -28,6 +28,8 @@ found = checks.run_checks(drawing, release=True)                               #
   layout's own checks go. `release.release_problems(drawing, checks=...)` and
   `release.release(...)` read the result as they read any checks (`level`,
   `code`, `item`, `message`).
+- What the table says of machined parts holds for turned parts too
+  (`types.MACHINING`): a turned part is machined on a lathe.
 
 ## Two modes
 
@@ -100,7 +102,7 @@ file-only mode does without the model.
 | R11.leaders | leaders at 15 to 75 degrees | warning | the painted layer: a line and its 3 mm horizontal shoulder |
 | R12.views | section and detail labels (SECTION A-A, DETAIL B), letters without I, O, Q or X, never reused; a principal view labelled; a view with no dimension; a section beside the view it replaces; cramped features | warning | labels and letters only |
 | R13.scheme | a location measured from another feature rather than the datum; a baseline band the layout found too deep, or with more locations than the ordinate tracks | warning | skipped |
-| R13.plusminus | locations toleranced plus and minus | warning, information on printed parts | runs |
+| R13.plusminus | locations toleranced plus and minus; a turned part's shoulders and ends placed from its datum end face are left alone under the datum scheme, where they are toleranced on purpose ([turned.md](turned.md)) | warning, information on printed parts | runs |
 | R14.notes | the fillet note's radius against the most common one; chamfers as leg X angle or two legs; the edge break note on machined parts; TYP in a note or dimension | warning | runs, except the fillet radius |
 | R15.process | the type's fixed notes from the Settings' templates; a printed part's process note and the block pointing at it; the build-direction arrow on each view with Z dimensions (and on the isometric, live); a machined block that points at a note; the model-governs note on a reduced-dimension drawing, with the model's part number, revision and short hash, the precedence words and its profile frame | error | runs, except the arrow on the isometric |
 | R18.datums | every datum a frame refers to defined once, with its symbol shown and on the sheet, on a face its view shows as a visible line | error | runs, except the visible line |

@@ -334,7 +334,7 @@ PAGES: tuple[Page, ...] = (
         "Notes",
         f"One note a line. A note may hold {_TOKENS}.",
         (
-            Field("notes", "machined", "Machined parts", "lines"),
+            Field("notes", "machined", "Machined and turned parts", "lines"),
             Field("notes", "printed", "3D printed parts", "lines"),
             Field("notes", "edge_break_in", "Edge break, inch", "text"),
             Field("notes", "edge_break_mm", "Edge break, millimetre", "text"),

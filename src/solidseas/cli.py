@@ -4075,7 +4075,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="a SOLIDWORKS part or assembly, or a STEP, Parasolid or Alibre Design part (opened read-only)",
     )
     ap.add_argument("--configuration", metavar="C", default=None, help="the configuration to draw")
-    ap.add_argument("--process", choices=("machined", "printed"), default="machined")
+    ap.add_argument("--process", choices=("machined", "printed", "turned"), default="machined")
     ap.add_argument("--scheme", choices=("datum", "plusminus"), default=None, help="(default: the process's)")
     ap.add_argument(
         "--detail",

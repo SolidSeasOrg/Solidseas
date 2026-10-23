@@ -135,7 +135,13 @@ such texts meet at a tiny part's corner, and no dimension of the same track
 stands there); basic values boxed; stacked tolerances; ordinates
 from a 0, close values jogged and equal values sharing one; leaders with a
 horizontal shoulder; feature control frames as cells; datum symbols. Holes in
-line get a centre line joining them.
+line get a centre line joining them. A vertical dimension with a frame under its
+text (a turned part's diameter with its runout frame, a slot's width with its
+position frame) has its line broken below the text for the frame too
+(`dimension.frame_room`), so the frame stands in its own dimension's track rather
+than across the next one; the arrangement counts that room before it lets the text
+stand inside the span, and a text that does not fit stands past the end with its
+frame beside it.
 
 `layout.glyphs.Pen` measures text with the writers' fonts and draws the symbols
 WinAnsi lacks as paths: counterbore, spotface, countersink and depth, the GD&T

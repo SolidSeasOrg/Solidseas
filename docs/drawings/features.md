@@ -28,6 +28,11 @@ their ids in: holes first, so a pattern's members are their indices in the set,
 then patterns, bosses, grooves, slots, pockets, widths, steps, blends, chamfers
 and angled faces, each sorted by position.
 
+Last, `FeatureSet.turned` holds the part's turned profile when it looks turned or
+mixed, else None ([turned.md](turned.md)). It claims no face: the features above
+are the same whatever the part is, and a turned drawing plans from them and the
+profile together.
+
 ## What each recogniser finds
 
 | Feature | Rule | Values |
@@ -131,7 +136,9 @@ sweep on the PC measures it on real parts (section 20.3).
   intersection curves, so no test part has an `into_bore` end yet. A cross hole
   entering a cylinder and a passage ending in a cross bore wait for a builder
   that makes them.
-- **Turned profiles** come in stage 2.
+- **Turned profiles** are recognised ([turned.md](turned.md)); what they do not
+  recognise yet (flats, keyseats and holes across the axis as turned features) is
+  listed there.
 - **Rolling-blend radii** come in stage 4. Until then those faces
   are blends whose radius is estimated, or free-form faces when they do not
   qualify.

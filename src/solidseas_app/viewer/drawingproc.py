@@ -298,8 +298,10 @@ class Answer:
     ``document.loads`` and given the child's ``checks``, ``coverage`` and ``warnings``;
     ``summary``, the drawing's summary as ``drawing_result`` carries it; the thread
     candidates; ``seconds`` per stage (``total`` the child's, ``wall`` the whole wait,
-    ``start`` a new child's start-up); and for a regeneration the ``merge`` report
-    (``drawing.merge.MergeReport``)."""
+    ``start`` a new child's start-up); for a regeneration the ``merge`` report
+    (``drawing.merge.MergeReport``); and ``turned``, why the part looks turned when it
+    does (``drawing.types.TurnedProfile.reason``), which the wizard suggests the
+    Turned type from."""
 
     data: bytes
     drawing: Any
@@ -310,6 +312,7 @@ class Answer:
     seconds: Mapping[str, float] = dataclasses.field(default_factory=dict)
     warnings: tuple[str, ...] = ()
     merge: Any = None
+    turned: str | None = None
 
 
 @dataclass(frozen=True)
@@ -1010,12 +1013,14 @@ def _drawing_answer(
     from solidseas.drawing import document
 
     data = document.dumps(drawing, limits=limits)
+    turned = getattr(features, "turned", None)
     result = {
         "summary": model.drawing_summary_data(drawing),
         "checks": [model.drawing_check_data(c) for c in checks],
         "coverage": _coverage_out(coverage),
         "thread_candidates": model.drawing_thread_candidates(drawing, features),
         "warnings": [model.clean_text(str(w))[:MAX_TEXT] for w in warnings][:MAX_LIST],
+        "turned": None if turned is None else model.clean_text(turned.reason)[:MAX_TEXT],
     }
     return result, [("ssdrw", data)]
 
@@ -2109,6 +2114,7 @@ def _answer_in(
     warnings = _texts(result.get("warnings", []), "a warning")
     seconds = {**_seconds(result.get("seconds", {})), **extra}
     report = _merge_in(result.get("merge")) if merge else None
+    turned = _opt_text(result.get("turned"), "why the part looks turned")
     drawing, problems = document.loads(data, limits=limits)
     drawing = replace(
         drawing,
@@ -2117,7 +2123,7 @@ def _answer_in(
         seconds=tuple(seconds.items()),
         warnings=(*problems, *warnings),
     )
-    return Answer(data, drawing, summary, checks, coverage, candidates, seconds, warnings, report)
+    return Answer(data, drawing, summary, checks, coverage, candidates, seconds, warnings, report, turned)
 
 
 def _probe_in(result: dict, extra: dict[str, float]) -> Probe:

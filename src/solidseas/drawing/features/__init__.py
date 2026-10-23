@@ -9,7 +9,8 @@ into positions or unclaimed faces with their reasons. The features come out in a
 fixed order too, which is the order the drawing gives their ids in: holes first
 (so a pattern's members are their indices), then patterns, bosses, grooves,
 slots, pockets, widths, steps, blends, chamfers and angled faces, each by
-position.
+position. A part that looks turned also gets its profile along the axis
+(:mod:`.turned`), which a turned drawing is planned on.
 """
 
 from __future__ import annotations
@@ -29,6 +30,7 @@ from .holes import recognise_holes
 from .inclined import recognise_angled
 from .patterns import recognise_patterns
 from .pockets import recognise_pockets, recognise_slots, recognise_steps
+from .turned import turned_profile
 from .widths import recognise_widths
 
 
@@ -87,7 +89,13 @@ def recognise(
     unclaimed, coverage, warnings = account(model, frame, features, claimed)
     check("accounting")
     return FeatureSet(
-        tuple(features), frame, tuple(depths), unclaimed, coverage, (*model.warnings, *warnings)
+        tuple(features),
+        frame,
+        tuple(depths),
+        unclaimed,
+        coverage,
+        (*model.warnings, *warnings),
+        turned=turned_profile(model, frame),
     )
 
 

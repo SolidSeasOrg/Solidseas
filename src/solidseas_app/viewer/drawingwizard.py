@@ -12,11 +12,14 @@ of one part and writes it: the ``.ssdrw`` always, and its PDF and DXF when ticke
    material (from the part, the Drawing Settings list, or typed; one the list does
    not map is flagged, and a heat-treatable one asks for its heat treatment), finish
    (always chosen, None being a choice), and who drew it (from People).
-3. **Manufacturing:** Machined (milled) and 3D printed; Turned (lathe) shown as
-   coming in 1.1 and Sheet metal as coming later. The tolerancing scheme, and for a
-   printed part the process with its figures (section 10.6), layer height, infill
-   and walls, supports and post-processing. Datum faces are chosen on the editor's
-   sheet in stage 1, and the page says so.
+3. **Manufacturing:** Machined (milled), 3D printed and Turned (lathe); Sheet metal
+   shown as coming later. The tolerancing scheme, and for a printed part the process
+   with its figures (section 10.6), layer height, infill and walls, supports and
+   post-processing. Datum faces are chosen on the editor's sheet in stage 1, and the
+   page says so. The suggested type is taken until the user chooses one: 3D printed
+   for a printing material, Turned for a part the preview finds turned (its
+   ``Answer.turned`` says why), else Machined. A turned part takes the machined
+   entries of Drawing Settings (``drawing.types.settings_type``).
 4. **Views and sheet:** the front direction and its turn, the projected views and
    the isometric, hidden lines, tangent edges, scale and sheet. "Make these my
    defaults" saves them to Drawing Settings (``save_settings``); nothing else here
@@ -118,7 +121,7 @@ from PySide6.QtWidgets import (
 
 from solidseas.drawing import document, locate, standards
 from solidseas.drawing import settings as drawing_settings
-from solidseas.drawing.types import DIRECTIONS, DrawingOptions
+from solidseas.drawing.types import DIRECTIONS, DrawingOptions, settings_type
 from solidseas.errors import (
     ConfigurationNotFoundError,
     InvalidArgumentError,
@@ -153,7 +156,6 @@ STAGE_WORDS = {
 TITLE_CHARS = 256  # a title field (DrawingLimits.title_chars)
 UNIT_NAMES = {"in": "inch", "mm": "millimetre"}
 LATER = "coming in a later release"
-TURNED_LATER = "coming in 1.1"
 SHEET_METAL_LATER = "coming later"
 DATUM_WORDS = (
     "Datum faces A, B and C are chosen from the part's largest faces. In this release you change "
@@ -171,7 +173,7 @@ FIELD_LABELS = {
     "revision": "Revision",
     "model_revision": "Model revision",
 }
-PROCESS_LABELS = {"machined": "Machined (milled)", "printed": "3D printed"}
+PROCESS_LABELS = {"machined": "Machined (milled)", "printed": "3D printed", "turned": "Turned (lathe)"}
 DETAIL_LABELS = (
     (
         "simplified",
@@ -861,9 +863,8 @@ class ManufacturingPage(_Page):
         super().__init__(wizard, MANUFACTURING, "How the part is made decides how it is dimensioned (10.6).")
         self.machined = QRadioButton(PROCESS_LABELS["machined"])
         self.printed = QRadioButton(PROCESS_LABELS["printed"])
-        self.turned = QRadioButton(f"Turned (lathe): {TURNED_LATER}")
+        self.turned = QRadioButton(PROCESS_LABELS["turned"])
         self.sheet_metal = QRadioButton(f"Sheet metal: {SHEET_METAL_LATER}")
-        self.turned.setEnabled(False)
         self.sheet_metal.setEnabled(False)
         self.group = QButtonGroup(self)
         for k, button in enumerate((self.machined, self.printed, self.turned, self.sheet_metal)):
@@ -923,7 +924,13 @@ class ManufacturingPage(_Page):
             edit.textChanged.connect(lambda _t: wizard.changed(MANUFACTURING))
 
     def chosen_process(self) -> str:
-        return "printed" if self.printed.isChecked() else "machined"
+        if self.printed.isChecked():
+            return "printed"
+        return "turned" if self.turned.isChecked() else "machined"
+
+    def choose(self, process: str) -> None:
+        """Tick the button of ``process``."""
+        {"printed": self.printed, "turned": self.turned}.get(process, self.machined).setChecked(True)
 
     def fill_processes(self, settings: Any) -> None:
         chosen = self.process.currentText()
@@ -1029,7 +1036,7 @@ class ViewsPage(_Page):
     def put_defaults(self, settings: Any, process: str) -> None:
         """The Default Views of ``process`` and the default sheet size, as the controls'
         values."""
-        d = settings.defaults.views[process]
+        d = settings.defaults.views[settings_type(process)]
         widgets = (*self.views.values(), self.isometric, self.hidden, self.front, self.tangent, self.sheet)
         for widget in widgets:
             widget.blockSignals(True)
@@ -1226,6 +1233,7 @@ class DrawingWizard(QWizard):
         self._writing = False
         self._offered = False
         self._process_touched = False
+        self.turned_reason: str | None = None  # why the part looks turned, from a preview
         self._scheme_touched = False
         self._detail_touched = False  # the Detail choice, else Drawing Settings' default
         self._views_touched = False
@@ -1579,7 +1587,7 @@ class DrawingWizard(QWizard):
     def _views_option(self, process: str) -> Any:
         """``auto`` when the ticks are Drawing Settings' Default Views for ``process``,
         else the views ticked (the front always)."""
-        d = self.settings.defaults.views[process]
+        d = self.settings.defaults.views[settings_type(process)]
         vp = self.views_page
         ticked = vp.ticked()
         same = set(ticked) == set(d["views"]) - {"front"} and vp.isometric.isChecked() == bool(d["isometric"])
@@ -1770,21 +1778,31 @@ class DrawingWizard(QWizard):
         self.changed(VIEWS)
 
     def _put_scheme(self, process: str) -> None:
-        scheme = self.settings.gdt.scheme.get(process, "datum")
+        scheme = self.settings.gdt.scheme.get(settings_type(process), "datum")
         box = self.manufacturing_page.scheme
         box.blockSignals(True)
         box.setCurrentIndex(max(box.findData(scheme), 0))
         box.blockSignals(False)
 
     def suggestion(self) -> tuple[str, str]:
-        """The manufacturing type SolidSeas suggests and why (10.6)."""
+        """The manufacturing type SolidSeas suggests and why (10.6): 3D printed for a
+        printing material, Turned for a part the preview found turned, else Machined."""
         entry = self.material()
         if entry is not None and list(entry.get("types") or ()) == ["printed"]:
             return "printed", f"{entry['callout']} is a printing material in your materials list"
-        return "machined", (
-            "nothing about the part says otherwise. A part that looks turned is drawn by the machined "
-            f"rules in this release; turned drawings are {TURNED_LATER}"
-        )
+        if self.turned_reason:
+            return "turned", self.turned_reason
+        return "machined", "nothing about the part says otherwise"
+
+    def _follow_suggestion(self) -> None:
+        """Take the suggested type while the user has chosen none."""
+        if self._process_touched:
+            return
+        mp = self.manufacturing_page
+        process, _why = self.suggestion()
+        if process != mp.chosen_process():
+            mp.choose(process)
+            self._process_follows()
 
     def _show_title_notes(self) -> None:
         tp, s = self.title_page, self.settings
@@ -1831,12 +1849,8 @@ class DrawingWizard(QWizard):
 
     def _page_shown(self, index: int) -> None:
         self._widen_preview()
-        mp = self.manufacturing_page
-        if index == MANUFACTURING and not self._process_touched:
-            process, _why = self.suggestion()  # the suggestion is taken until the user chooses
-            if process != mp.chosen_process():
-                (mp.printed if process == "printed" else mp.machined).setChecked(True)
-                self._process_follows()
+        if index == MANUFACTURING:
+            self._follow_suggestion()  # the suggestion is taken until the user chooses
         self.request_preview()
         if index == OUTPUT:
             self.folder_changed()
@@ -1962,7 +1976,10 @@ class DrawingWizard(QWizard):
             return
         self.preview_error = None
         self.answer, self.answer_request = result["answer"], result["request"]
+        self.turned_reason = getattr(self.answer, "turned", None)
         self._show_answer(self.answer)
+        if self.currentId() == MANUFACTURING:
+            self._follow_suggestion()  # the part turned out to be turned while the page shows
 
     def _show_answer(self, answer: Any) -> None:
         sheet = answer.drawing.sheet
@@ -2116,9 +2133,10 @@ class DrawingWizard(QWizard):
     def make_defaults(self) -> bool:
         """Save the views, isometric, hidden lines, tangent edges, front direction and
         sheet size as Drawing Settings' defaults for the chosen manufacturing type
-        (``save_settings``); whether they were saved."""
+        (``save_settings``; a turned part's are the machined ones); whether they were
+        saved."""
         vp, s = self.views_page, self.settings
-        process = self.manufacturing_page.chosen_process()
+        process = settings_type(self.manufacturing_page.chosen_process())
         views = {k: dict(v) for k, v in s.defaults.views.items()}
         views[process] = {
             "views": ["front", *vp.ticked()],
@@ -2136,7 +2154,11 @@ class DrawingWizard(QWizard):
             return False
         self._views_touched = True  # the controls already show them
         self.set_settings(new)
-        kind = PROCESS_LABELS[process].lower()
+        kind = (
+            "machined (milled) and turned (lathe)"
+            if process == "machined"
+            else PROCESS_LABELS[process].lower()
+        )
         vp.defaults_label.setText(f"Saved in {where} as the defaults for {kind} parts.")
         return True
 

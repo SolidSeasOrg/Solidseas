@@ -23,6 +23,7 @@ from .. import standards
 from ..numbers import plain_sum
 from ..plan.values import dim_text
 from ..types import PlannedDimension, ViewGeometry, ViewSpec
+from .dimension import frame_room
 from .glyphs import text_width
 from .index import Box
 from .sheet import GAP, SheetFrame
@@ -172,7 +173,9 @@ def bands(
             w = max(w, frame_width(ctx, pd.frame))  # the frame sits under the text
         bd = BandDim(pd, side, lo, hi, w, origin=a * slot.k, at=b * slot.k)
         if pd.kind != "ordinate":
-            need = (w if sheet_axis == "x" else h) + 2 * arrow + 3.0
+            # a vertical line is broken below its text for a frame there (dimension.linear)
+            below = frame_room(h) if pd.frame is not None and sheet_axis != "x" else 0.0
+            need = (w if sheet_axis == "x" else h + below) + 2 * arrow + 3.0
             if hi - lo < need:
                 bd.outside = True
                 hi += (w if sheet_axis == "x" else h) + arrow + 2.0

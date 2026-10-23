@@ -2465,7 +2465,7 @@ def _freeze(
         kw["scheme"] = (
             options.effective_scheme
             if options.detail != "full"
-            else settings.gdt.scheme.get(options.process, options.effective_scheme)
+            else settings.gdt.scheme.get(types.settings_type(options.process), options.effective_scheme)
         )
     if options.views == "auto":
         specs = [s for s, _g in drawn] if drawn else list(plan.views)

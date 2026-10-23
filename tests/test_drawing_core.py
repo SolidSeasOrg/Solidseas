@@ -61,12 +61,13 @@ def test_options_are_checked_and_the_scheme_follows_the_process():
     assert types.DrawingOptions().effective_scheme == "datum"
     assert types.DrawingOptions(process="printed").effective_scheme == "plusminus"
     assert types.DrawingOptions(process="printed", scheme="datum").effective_scheme == "datum"
+    assert types.DrawingOptions(process="turned").effective_scheme == "datum"  # runout to A (10.5)
     good = types.DrawingOptions(
         views=("front", "top"), scale=(1, 2), arrangement=(("v-1/x", "ordinate"),), turn=1
     )
     assert good.scale == (1, 2)
     for bad in (
-        {"process": "turned"},
+        {"process": "sheet_metal"},
         {"scheme": "chain"},
         {"units": "cm"},
         {"views": ("front", "aux")},

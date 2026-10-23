@@ -452,7 +452,7 @@ def test_the_codecs_go_both_ways_and_refuse_what_the_library_refuses():
         drawingproc.options_from_json(json.loads(json.dumps(drawingproc.options_to_json(options)))) == options
     )
     with pytest.raises(InvalidArgumentError):
-        drawingproc.options_from_json({"process": "turned"})
+        drawingproc.options_from_json({"process": "sheet_metal"})
     with pytest.raises(InvalidArgumentError):
         drawingproc.options_from_json({"colour": "red"})
     s = people()

@@ -28,7 +28,10 @@ from ..errors import InvalidArgumentError
 Vec2 = tuple[float, float]
 Vec3 = tuple[float, float, float]
 
-PROCESSES = ("machined", "printed")  # "turned" in stage 2
+PROCESSES = ("machined", "printed", "turned")
+# The manufacturing types made by machining: a turned (lathe) part is noted and checked
+# as a machined one, and takes the machined entries of Drawing Settings (settings_type)
+MACHINING = ("machined", "turned")
 SCHEMES = ("datum", "plusminus")
 # How much a part's drawing says (docs/DRAWINGS.md, "Detail level"): the overall size and
 # each hole and boss by size; every feature sized and located; or that, proven to define
@@ -62,6 +65,13 @@ def check_id(value: Any, what: str = "id") -> str:
 def _choice(value: Any, choices: tuple[str, ...], name: str) -> None:
     if value not in choices:
         raise InvalidArgumentError(f"{name} must be one of {', '.join(choices)}", detail={"parameter": name})
+
+
+def settings_type(process: str) -> str:
+    """The manufacturing type whose entries of Drawing Settings a drawing of ``process``
+    takes (default views, dimensioning, scheme, notes, materials and finishes): a turned
+    part takes the machined ones, which Settings hold per type as machined and printed."""
+    return "machined" if process == "turned" else process
 
 
 # --------------------------------------------------------------------------- options (14)
@@ -471,12 +481,68 @@ class Coverage:
 
 
 @dataclass(frozen=True)
+class TurnedSegment:
+    """One face of revolution of a turned part, along its axis: ``kind`` is cylinder,
+    cone, torus or sphere; ``start`` and ``end`` its extent along the axis, metres
+    from the larger end; ``diameter`` a cylinder's or sphere's, a cone's at ``start``
+    with ``diameter_end`` its diameter at ``end``, a torus's at its tube's centre;
+    ``internal`` for a face the material lies outside of (a bore). Faces of one
+    cylinder split into several (seam halves) are one segment."""
+
+    faces: tuple[int, ...]
+    kind: str
+    start: float
+    end: float
+    diameter: float
+    diameter_end: float = 0.0
+    internal: bool = False
+
+    @property
+    def length(self) -> float:
+        return self.end - self.start
+
+
+@dataclass(frozen=True)
+class TurnedProfile:
+    """Why a part is a turned (lathe) part, and what its drawing is laid out on
+    (``docs/DRAWINGS.md`` 10.5, 10.6; stage 2). Its faces of revolution share one axis,
+    along frame axis ``frame_axis``, and ``axis`` points from the larger end toward the
+    other, from a point on the larger end's plane. ``segments`` are those faces along
+    it, outside faces before bores; ``length`` the part's extent along the axis;
+    ``ends`` the planar end faces at the larger end and at the other (None where an end
+    is not a plane). ``datum_a`` is a face of the default datum A, the longest
+    cylindrical segment, and ``datum_b`` the default datum B, the end face at the larger
+    end. ``mixed`` when other faces remain (flats, cross holes, keyseats), which the
+    machined rules draw; ``share`` the part's area on the axis and the planes square to
+    it; ``reason`` says it in words."""
+
+    axis: Axis
+    frame_axis: str
+    segments: tuple[TurnedSegment, ...]
+    length: float
+    ends: tuple[int | None, int | None]
+    datum_a: int
+    datum_b: int | None
+    mixed: bool = False
+    share: float = 1.0
+    reason: str = ""
+
+    def cylinder_of(self, face: int) -> TurnedSegment | None:
+        """The cylindrical segment a face belongs to, or None."""
+        for s in self.segments:
+            if s.kind == "cylinder" and face in s.faces:
+                return s
+        return None
+
+
+@dataclass(frozen=True)
 class FeatureSet:
     """Everything recognition found (6.4). ``features`` in recognition order, which is
     the order drawing ids are given in. ``model_defined`` holds the indices of the
     features a key-dimensions drawing leaves to the model (10.10), which the planner
     neither states nor locates; ``lettering`` those of them that are engraved letters,
-    whose shared depth it still states once."""
+    whose shared depth it still states once. ``turned`` is the part's
+    :class:`TurnedProfile` when it looks turned (or mixed), else None."""
 
     features: tuple[Feature, ...] = ()
     frame: Frame = Frame()
@@ -486,6 +552,7 @@ class FeatureSet:
     warnings: tuple[str, ...] = ()
     model_defined: frozenset[int] = frozenset()
     lettering: frozenset[int] = frozenset()
+    turned: TurnedProfile | None = None
 
     def of_type(self, cls: type) -> list[tuple[int, Feature]]:
         """The features of a type, by index, but those left to the model."""
@@ -933,6 +1000,7 @@ __all__ = [
     "DRAWING_MODES",
     "DIMENSION_KINDS",
     "DIRECTIONS",
+    "MACHINING",
     "PROCESSES",
     "QUALITIES",
     "REQUIREMENT_KINDS",
@@ -986,6 +1054,8 @@ __all__ = [
     "Source",
     "Step",
     "TitleField",
+    "TurnedProfile",
+    "TurnedSegment",
     "Unclaimed",
     "ViewGeometry",
     "ViewSpec",
@@ -993,4 +1063,5 @@ __all__ = [
     "Witness",
     "check_id",
     "requirement_key",
+    "settings_type",
 ]

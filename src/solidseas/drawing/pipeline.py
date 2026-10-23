@@ -69,6 +69,17 @@ ENTRY_POINTS: dict[str, str] = {
 }
 
 
+def _for_process(features: Any, process: str) -> Any:
+    """The feature set the later stages plan from: a turned part's drawing takes its
+    turned datums (:func:`.features.turned.for_process`), every other drawing the
+    features as recognised."""
+    if process != "turned":
+        return features
+    from .features.turned import for_process
+
+    return for_process(features, process)
+
+
 def stage_missing(name: str) -> UnsupportedOperationError:
     return UnsupportedOperationError(
         f"this SolidSeas cannot make drawings yet: the {name} stage is not built",
@@ -192,7 +203,7 @@ def run(
         "features": lambda: (
             FeatureSet()
             if is_assembly(made["source"]) and "features" not in override
-            else stage("features")(made["model"])
+            else _for_process(stage("features")(made["model"]), options.process)
         ),
         "views": lambda: stage("views")(made["model"], made["features"], options, settings),
         "plan": lambda: stage("plan")(

@@ -43,6 +43,26 @@ def position(ctx: Context, *, tapped: bool = False) -> FrameCell | None:
     )
 
 
+def axis_letter(ctx: Context) -> str | None:
+    """The letter of the datum on a cylinder (a turned part's datum axis), or None."""
+    from ..facegraph import Cylinder
+
+    faces = ctx.model.faces
+    for d in ctx.features.frame.datums:
+        if 0 <= d.face < len(faces) and isinstance(faces[d.face].surface, Cylinder):
+            return d.letter
+    return None
+
+
+def runout(ctx: Context) -> FrameCell | None:
+    """A turned diameter's circular runout frame to the datum axis, with the Settings
+    value (10.5), or None outside the datum scheme or without a datum axis."""
+    letter = axis_letter(ctx)
+    if ctx.scheme != "datum" or letter is None:
+        return None
+    return FrameCell("circular_runout", numbers.from_unit(_g(ctx, "runout"), ctx.unit), datums=(letter,))
+
+
 def profile(ctx: Context, *, undimensioned: bool = False) -> FrameCell | None:
     """The general profile frame, or the model-governs note's frame for undimensioned
     surfaces (its own Settings value when one is set)."""
@@ -80,4 +100,13 @@ def draws_datums(ctx: Context, needs_model_note: bool) -> bool:
     return bool(letters(ctx)) and (ctx.scheme == "datum" or needs_model_note)
 
 
-__all__ = ["draws_datums", "frame_item", "letters", "position", "profile", "zone_text"]
+__all__ = [
+    "axis_letter",
+    "draws_datums",
+    "frame_item",
+    "letters",
+    "position",
+    "profile",
+    "runout",
+    "zone_text",
+]

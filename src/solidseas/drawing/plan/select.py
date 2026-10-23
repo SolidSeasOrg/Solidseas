@@ -91,8 +91,25 @@ def _facing(ctx: Context):
     return out
 
 
+def profile_choices(ctx: Context) -> list[tuple[str, int]] | None:
+    """For a turned part's drawing, the fronts and turns that show its profile (10.6):
+    looking square to the axis, the axis across the sheet and the larger end on the
+    left; None for any other drawing."""
+    t = ctx.features.turned
+    if ctx.process != "turned" or t is None:
+        return None
+    out = []
+    for front in ORDER:
+        for turn in range(4):
+            right, _up, d = frame_of(front, turn)
+            if abs(dot(d, t.axis.direction)) <= 1e-9 and dot(right, t.axis.direction) > 1.0 - 1e-9:
+                out.append((front, turn))
+    return out or None
+
+
 def choose_front(ctx: Context) -> FrontChoice:
-    """The front direction and turn with the best score (8.2)."""
+    """The front direction and turn with the best score (8.2); for a turned part, the
+    best of those that show its profile (:func:`profile_choices`)."""
     model = ctx.model
     facing = _facing(ctx)
     planar_area = {}
@@ -103,34 +120,39 @@ def choose_front(ctx: Context) -> FrontChoice:
     total_area = plain_sum(a for _n, a in planar_area.values()) or 1.0
     (lo, hi) = model.box
     extent = tuple(hi[k] - lo[k] for k in range(3))
+    profile = profile_choices(ctx)
+    choices = profile or [(front, turn) for front in ORDER for turn in range(4)]
     best: FrontChoice | None = None
-    for front in ORDER:
-        for turn in range(4):
-            right, up, d = frame_of(front, turn)
-            seen = plain_sum(w for v, w, _word in facing if dot(v, d) > 0.999)
-            hidden = plain_sum(w for v, w, _word in facing if dot(v, d) < -0.999)
-            area = plain_sum(a for n, a in planar_area.values() if dot(n, d) > 0.999) / total_area
-            across = abs(dot(right, extent))
-            tall = abs(dot(up, extent))
-            wide = 1.0 if across >= tall - 1e-9 else 0.0
-            natural = 0.0
-            if ctx.process == "printed" and dot(up, (0.0, 0.0, 1.0)) > 0.999:
-                natural = 1.0  # the build plate at the bottom
-            score = 2.0 * seen - 1.0 * hidden + 1.0 * area + 0.75 * wide + 1.5 * natural
-            words = []
-            kinds = sorted({word for v, _w, word in facing if dot(v, d) > 0.999})
-            if kinds:
-                words.append("it shows the " + " and ".join(kinds) + " in true shape")
-            if area > 0.2:
-                words.append("it sees the largest faces flat on")
-            if wide:
-                words.append("the longest side runs across the sheet")
-            if natural:
-                words.append("the build plate is at the bottom")
-            reason = "; ".join(words) or "it is the first direction in the fixed order"
-            choice = FrontChoice(front, turn, score, reason)
-            if best is None or score > best.score + 1e-9:
-                best = choice
+    for front, turn in choices:
+        right, up, d = frame_of(front, turn)
+        seen = plain_sum(w for v, w, _word in facing if dot(v, d) > 0.999)
+        hidden = plain_sum(w for v, w, _word in facing if dot(v, d) < -0.999)
+        area = plain_sum(a for n, a in planar_area.values() if dot(n, d) > 0.999) / total_area
+        across = abs(dot(right, extent))
+        tall = abs(dot(up, extent))
+        wide = 1.0 if across >= tall - 1e-9 else 0.0
+        natural = 0.0
+        if ctx.process == "printed" and dot(up, (0.0, 0.0, 1.0)) > 0.999:
+            natural = 1.0  # the build plate at the bottom
+        score = 2.0 * seen - 1.0 * hidden + 1.0 * area + 0.75 * wide + 1.5 * natural
+        words = []
+        if profile:
+            words.append(
+                "it shows the turned profile, the axis across the sheet and the larger end on the left"
+            )
+        kinds = sorted({word for v, _w, word in facing if dot(v, d) > 0.999})
+        if kinds:
+            words.append("it shows the " + " and ".join(kinds) + " in true shape")
+        if area > 0.2:
+            words.append("it sees the largest faces flat on")
+        if wide and not profile:
+            words.append("the longest side runs across the sheet")
+        if natural:
+            words.append("the build plate is at the bottom")
+        reason = "; ".join(words) or "it is the first direction in the fixed order"
+        choice = FrontChoice(front, turn, score, reason)
+        if best is None or score > best.score + 1e-9:
+            best = choice
     assert best is not None
     return best
 
@@ -200,4 +222,12 @@ def standard_view_name(direction) -> str | None:
     return None
 
 
-__all__ = ["DIRECTIONS", "FrontChoice", "choose_front", "choose_views", "covers", "frame_of"]
+__all__ = [
+    "DIRECTIONS",
+    "FrontChoice",
+    "choose_front",
+    "choose_views",
+    "covers",
+    "frame_of",
+    "profile_choices",
+]

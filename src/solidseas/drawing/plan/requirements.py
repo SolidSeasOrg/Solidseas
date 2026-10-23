@@ -87,7 +87,9 @@ class Need:
     any of them. A radius's leader starts on an arc: ``on_face`` holds, for each member
     a view shows as it shows the first, a point in the middle of its arc, that arc's
     centre, which may lie far off the part, and half the angle the arc spans
-    (degrees)."""
+    (degrees). ``prefix`` goes before the value (Ø for a turned part's diameter, drawn
+    across its outline); ``frame`` names the frame a framed size takes when it is not
+    a position frame (``runout``, to the datum axis of a turned part)."""
 
     req: Requirement
     kind: str
@@ -105,6 +107,8 @@ class Need:
     derived: bool = False
     anchors: tuple[Vec3, ...] = ()
     on_face: tuple[tuple[Vec3, Vec3, float], ...] = ()
+    prefix: str = ""
+    frame: str = ""
 
 
 @dataclass
@@ -467,12 +471,19 @@ def requirements(ctx: Context) -> Requirements:
 
     # ------------------------------------------------------------------ bosses and grooves
     bosses: dict[tuple[str, int], list[int]] = {}
+    across = _turned_radial_axis(ctx)
+    turned: dict[int, list[tuple[int, int]]] = {}  # a turned part's equal diameters
     for k, b in fs.of_type(Boss):
         ax = ctx.axis_of(b.axis.direction)
         if ax is None:
             continue
-        centre(k, b.axis.point, b.axis.direction, b.diameter / 2, seen=(b.axis.direction,))
+        made = centre(k, b.axis.point, b.axis.direction, b.diameter / 2, seen=(b.axis.direction,))
+        if across is not None and _on_turned_axis(ctx, b):
+            turned.setdefault(round(b.diameter / max(ctx.tol, 1e-12)), []).append((k, made[across]))
+            continue
         bosses.setdefault((ax, round(b.diameter / max(ctx.tol, 1e-12))), []).append(k)
+    for members in turned.values():
+        _turned_diameter(ctx, out, pos, links, members, across)
     # Equal bosses on one axis are sized once, with their count (nX Ø), on the first of
     # them, as a group of equal holes is; each is still located.
     for ks in bosses.values():
@@ -969,6 +980,90 @@ def _slot(ctx: Context, out: Requirements, pos, links, k: int, s: Slot, face_pos
             role="width",
             count=2,
             derived=True,
+        )
+    )
+
+
+def _turned_radial_axis(ctx: Context) -> str | None:
+    """For a turned part's drawing, the frame axis square to the turning axis that the
+    base view shows across the sheet (or the first view that sees the axis side on),
+    along which its diameters are drawn across the outline (10.6); None for any other
+    drawing, or when no view sees the axis side on."""
+    t = ctx.features.turned
+    if ctx.process != "turned" or t is None:
+        return None
+    radial = [a for a in AXES if a != t.frame_axis]
+    for spec, _geom in sorted(ctx.orthographic(), key=lambda sg: sg[0].kind != "base"):
+        if ctx.looks_along(spec, t.axis.direction):
+            continue
+        shown = [a for a in radial if ctx.sheet_axis(spec, a) is not None]
+        if shown:
+            return shown[0]
+    return None
+
+
+def _on_turned_axis(ctx: Context, b: Boss) -> bool:
+    """Whether a boss turns about the turned part's axis."""
+    t = ctx.features.turned
+    if t is None or abs(abs(dot(b.axis.direction, t.axis.direction)) - 1.0) > 1e-6:
+        return False
+    rel = tuple(b.axis.point[j] - t.axis.point[j] for j in range(3))
+    along = dot(rel, t.axis.direction)
+    off = math.sqrt(max(dot(rel, rel) - along * along, 0.0))
+    return off <= ctx.tol
+
+
+def _turned_diameter(
+    ctx: Context, out: Requirements, pos: dict, links: dict, members: list[tuple[int, int]], across: str
+) -> None:
+    """A turned diameter (10.6): a cylindrical segment's size, drawn across its outline
+    in the profile view, from one outline line to the other, as Ø. ``members`` are the
+    segments of that diameter (boss index and its centre position along ``across``):
+    equal segments share their outline lines, so they are stated once, on the first,
+    with their count (2X Ø), as the coincident-surface check asks. The outline lines
+    are positions along ``across``, joined to each other and to the axis by the size,
+    so the graph needs no location for them. Under the datum scheme each diameter
+    carries a circular runout frame to the datum axis, but the datum's own: a datum on
+    a 2X diameter is the common axis of its segments."""
+    from .. import standards
+
+    fs = ctx.features
+    first = fs.features[members[0][0]]
+    fids = tuple(ctx.ids[k] for k, _c in members)
+    faces = tuple(f for k, _c in members for f in fs.features[k].faces)
+    r = first.diameter / 2.0
+    c = ctx.along(across, first.axis.point)
+    lo = pos[across].add(c - r, "face", features=fids, faces=faces)
+    hi = pos[across].add(c + r, "face", features=fids, faces=faces)
+    key = requirement_key("size", [fids[0]])
+    links[across].append(Link(lo, hi, key))
+    for _k, centre_id in members:
+        links[across].append(Link(centre_id, lo, key))
+    datum = any(d.face in faces for d in fs.frame.datums)
+    framed = ctx.scheme == "datum" and not datum
+    count = f"{len(members)}X " if len(members) > 1 else ""
+    out.needs.append(
+        Need(
+            Requirement(
+                key,
+                "size",
+                fids,
+                first.diameter,
+                "feature_size",
+                axis=across,
+                satisfied_by=("linear",),
+                tolerance_class="frame" if framed else "block",
+            ),
+            "linear",
+            axis=across,
+            a=lo,
+            b=hi,
+            features=tuple(k for k, _c in members),
+            role="hole_size",
+            count=len(members),
+            faces=faces,
+            prefix=count + standards.SYMBOL_DIAMETER,
+            frame="runout" if framed else "",
         )
     )
 

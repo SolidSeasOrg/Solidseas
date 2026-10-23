@@ -689,7 +689,7 @@ def _format_problems(s: _In, d: types.PlannedDimension, t: D.DimText) -> list[st
             out.append("it is toleranced by limits but does not show both")
         return out
     places = _decimals(value)
-    if s.process == "machined" and places is not None and places != d.places:
+    if s.process in types.MACHINING and places is not None and places != d.places:
         out.append(f"{value} shows {_plural(places, 'place')} where its precision is {d.places}")
     if tol in ("max", "min") and t.after != tol.upper():
         out.append(f"it is a {tol.upper()} value, and {tol.upper()} does not follow it")
@@ -875,7 +875,7 @@ def _r3_tolerance(s: _In, out: _Out) -> None:
                 ("Set Tolerance",),
             )
             continue
-        if d.tolerance == "block" and s.process == "machined" and d.kind != "angle":
+        if d.tolerance == "block" and s.process in types.MACHINING and d.kind != "angle":
             if d.places not in rows and d.places <= top:
                 out.add(
                     "R3.tolerance",
@@ -887,7 +887,7 @@ def _r3_tolerance(s: _In, out: _Out) -> None:
 
 
 def _r3_block(s: _In, out: _Out) -> None:
-    if s.process != "machined":
+    if s.process not in types.MACHINING:
         return
     top = _max_row(s)
     for d in s.shown:
@@ -938,7 +938,7 @@ def _checked_signed(s: _In) -> bool:
 
 
 def _r3_roles(s: _In, out: _Out) -> None:
-    if _checked_signed(s) or s.process != "machined":
+    if _checked_signed(s) or s.process not in types.MACHINING:
         return
     counts: dict[str, int] = {}
     for d in s.shown:
@@ -2205,12 +2205,16 @@ def _r13_scheme(s: _In, out: _Out) -> None:
 
 
 def _r13_plusminus(s: _In, out: _Out) -> None:
+    # Under the datum scheme a turned part's shoulders and ends are placed from the datum
+    # end face by toleranced dimensions on purpose (docs/DRAWINGS.md 10.6), between faces
+    turned = s.process == "turned" and s.drawing.options.effective_scheme == "datum"
     pm = [
         d
         for d in s.shown
         if d.role == "feature_location"
         and d.tolerance not in ("basic", "reference")
         and d.kind != "datum_feature"
+        and not (turned and d.positions and not any(p.centre for p in d.positions))
     ]
     if not pm:
         return
@@ -2266,7 +2270,7 @@ def _r14_notes(s: _In, out: _Out) -> None:
     for nid, n in s.notes:
         if _TYP.search(n.text):
             out.add("R14.notes", f"note {nid} says TYP; repetition is stated with nX", nid, ("Edit Notes",))
-    if s.process == "machined":
+    if s.process in types.MACHINING:
         words = s.settings.notes.edge_break_in if s.unit == "in" else s.settings.notes.edge_break_mm
         if not any(words.upper() in t or ("BREAK" in t and "EDGE" in t) for t in texts):
             out.add("R14.notes", "no note breaks the sharp edges", "R14.notes", ("Edit Notes",))

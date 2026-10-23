@@ -115,7 +115,7 @@ The wizard asks for:
 
 - the part: its configuration, bodies and, when the part states none, its unit;
 - the title block;
-- how it is made (machined or 3D printed);
+- how it is made (machined, 3D printed or turned on a lathe);
 - the views and sheet;
 - the dimensions and holes;
 - the files to write.
@@ -124,6 +124,21 @@ The sheet is previewed beside the pages. **Finish** writes the drawing file and
 the PDF and DXF you tick, next to the part or to the folder Drawing Settings
 name. A file SolidSeas did not write is never replaced: a taken name gets
 " (2)".
+
+### Turned parts
+
+When the preview finds that the part is turned (its round faces share one axis and
+its flat faces are square to it, or nearly all of it is so), the wizard suggests
+**Turned (lathe)** and says why. A turned part's drawing shows its profile with the
+axis across the sheet and the larger end on the left. Each diameter is dimensioned
+across the outline, equal diameters once with their count (2X), and the shoulders
+are measured from the end face at the larger end. Datum A is the longest diameter
+and datum B that end face; under datum-referenced tolerancing every other diameter
+carries a circular runout to A, with the value on Drawing Settings' GD&T page. A
+turned part uses the machined entries of Drawing Settings, so its notes are those
+under "Machined and turned parts". Choosing another diameter for A, half sections of
+bores, keyseats, flats and tapers are not offered yet; a taper is left to the model,
+and the drawing says so.
 
 ## Editing a drawing
 

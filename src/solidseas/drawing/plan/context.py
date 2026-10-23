@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from ..facegraph import BrepModel, Plane
-from ..types import DrawingOptions, FeatureSet, ViewGeometry, ViewSpec
+from ..types import DrawingOptions, FeatureSet, ViewGeometry, ViewSpec, settings_type
 
 AXES = ("x", "y", "z")
 Vec3 = tuple[float, float, float]
@@ -66,7 +66,7 @@ class Context:
 
     @property
     def dimensioning(self) -> dict:
-        return self.settings.defaults.dimensioning[self.process]
+        return self.settings.defaults.dimensioning[settings_type(self.process)]
 
     # ------------------------------------------------------------------ the frame
 

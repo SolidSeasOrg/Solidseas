@@ -35,7 +35,7 @@ from .plan import Context, Planned, keep, make_plan
 from .plan.assembly import make_plan as assembly_plan
 from .plan.select import choose_front, frame_of
 from .plan.values import unit_for
-from .types import DrawingOptions
+from .types import DrawingOptions, settings_type
 
 
 def _front_drawn(views) -> tuple | None:
@@ -129,7 +129,7 @@ def run(
             hints=hints,
             decisions=dict(decisions or {}),
         )
-    default_front = settings.defaults.views[options.process]["front"]
+    default_front = settings.defaults.views[settings_type(options.process)]["front"]
     if options.front is None and default_front == "auto":
         choice = choose_front(ctx)
         _r, up, d = frame_of(choice.front, choice.turn)

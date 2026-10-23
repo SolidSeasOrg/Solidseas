@@ -27,6 +27,14 @@ from .index import DIMLINE, EXTLINE, HARD, Box, Index
 
 OVERSHOOT = 3.0  # a centre mark beyond its circle, on paper (8.7)
 LINE_PITCH = 1.7  # text lines a text height apart, times this
+FRAME_GAP = 1.2  # between a text and the frame under it, and that frame and the line below
+
+
+def frame_room(h: float) -> float:
+    """How much further a vertical linear dimension's line is broken below its text
+    for the feature control frame that stands under the text: the frame (a text height
+    and 2 mm) and the gap below it."""
+    return h + 2.0 + FRAME_GAP
 
 
 def flags(tolerance: str) -> tuple[str, ...]:
@@ -129,6 +137,7 @@ def linear(
     view: str,
     shift: float = 0.0,
     clear=None,
+    framed: bool = False,
 ) -> D.Dimension:
     """A linear dimension between sheet coordinates ``a`` and ``b`` along its axis,
     its line at ``at`` across it; each extension line starts at ``start`` (less its
@@ -137,10 +146,14 @@ def linear(
     then runs from end to end, on to the text when it stands past an end, with a
     break for the text. A text too wide for its span stands past the far end (right
     or above); ``clear``, given, says whether a box is free, and the text stands past
-    the near end instead when only that is (two such texts at a view's corner)."""
+    the near end instead when only that is (two such texts at a view's corner).
+    ``framed``: a feature control frame stands under the text, so a vertical line's
+    break runs on below the text for it (:func:`frame_room`), and the line is indexed
+    as its two pieces, leaving the frame's place free."""
     pre = standards.DIMENSIONS
     arrow = h
     lo, hi = min(a, b), max(a, b)
+    room_below = frame_room(h) if framed and not horizontal else 0.0
     over = pre.extension_overrun * 0.5 + 0.5
     pts = []
     for s, start, gap in ((a, start_a, gap_a), (b, start_b, gap_b)):
@@ -156,13 +169,14 @@ def linear(
             pts.append((start, s))
     w = text_width(value_line(text), h) + (h * 0.6 if text.boxed else 0.0)
     span = hi - lo
-    room = (w if horizontal else h) + 2 * arrow + 3.0
+    room = (w if horizontal else h + room_below) + 2 * arrow + 3.0
     inside = span >= room
     mid = (lo + hi) / 2
+    pieces: list[Box] = []  # a vertical line broken for a frame, indexed as its two pieces
     if shift:
         along = mid + shift
         half = (w / 2 + 1.0) if horizontal else (h / 2 + 1.2)
-        _broken_line(pen, did, lo, hi, along - half, along + half, at, horizontal)
+        _broken_line(pen, did, lo, hi, along - half - room_below, along + half, at, horizontal)
         if horizontal:
             pen.arrow((lo, at), (-1.0, 0.0), arrow, owner=did)
             pen.arrow((hi, at), (1.0, 0.0), arrow, owner=did)
@@ -174,6 +188,11 @@ def linear(
             pen.arrow((at, hi), (0.0, 1.0), arrow, owner=did)
             tb = paint_value(pen, index, at, along - h / 2, h, text, anchor="centre", owner=did)
             line_box = Box(at - 0.25, min(lo, tb.y0) - arrow, at + 0.25, max(hi, tb.y1) + arrow)
+            if room_below:
+                pieces = [
+                    Box(at - 0.25, min(lo, tb.y0) - arrow, at + 0.25, along - half - room_below),
+                    Box(at - 0.25, along + half, at + 0.25, max(hi, tb.y1) + arrow),
+                ]
             text_at, dim_pt = (at, along), (at, a)
     elif horizontal:
         if inside:
@@ -199,11 +218,16 @@ def linear(
         dim_pt = (a, at)
     else:
         if inside:
-            pen.line((at, lo), (at, mid - h / 2 - 1.2), owner=did)
+            pen.line((at, lo), (at, mid - h / 2 - 1.2 - room_below), owner=did)
             pen.line((at, mid + h / 2 + 1.2), (at, hi), owner=did)
             pen.arrow((at, lo), (0.0, -1.0), arrow, owner=did)
             pen.arrow((at, hi), (0.0, 1.0), arrow, owner=did)
             ty = mid
+            if room_below:
+                pieces = [
+                    Box(at - 0.25, lo - arrow, at + 0.25, mid - h / 2 - 1.2 - room_below),
+                    Box(at - 0.25, mid + h / 2 + 1.2, at + 0.25, hi + arrow),
+                ]
         else:
             far, near = hi + arrow + 2.0 + h / 2, lo - arrow - 2.0 - h / 2
             boxes = [Box(at - w / 2, y - h * 0.7, at + w / 2, y + h * 0.7) for y in (far, near)]
@@ -221,7 +245,8 @@ def linear(
         dim_pt = (at, a)
     if text.suffix:
         paint_suffix(pen, index, text_at[0], text_at[1] - h / 2, h, text.suffix, anchor="centre", owner=did)
-    index.add(DIMLINE, line_box, did)
+    for box in pieces or [line_box]:
+        index.add(DIMLINE, box, did)
     return D.Dimension(
         did,
         kind,

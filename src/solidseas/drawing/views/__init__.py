@@ -30,7 +30,17 @@ from dataclasses import replace
 
 from ..facegraph import BrepModel, Cone, Cylinder, Plane
 from ..limits import DEFAULT_LIMITS, DrawingLimits
-from ..types import AngledFace, DrawingOptions, FeatureSet, Run, Source, ViewGeometry, ViewSpec, Witness
+from ..types import (
+    AngledFace,
+    DrawingOptions,
+    FeatureSet,
+    Run,
+    Source,
+    ViewGeometry,
+    ViewSpec,
+    Witness,
+    settings_type,
+)
 from .centres import centres
 from .cleanup import Piece, cleanup, length
 from .curves import edge_primitive, outline_points, silhouette_primitive
@@ -330,7 +340,7 @@ def _witnesses(runs: list[Run], tol: float) -> tuple[Witness, ...]:
 def default_specs(options: DrawingOptions, settings) -> list[ViewSpec]:
     """The views ``make_views`` draws for these options and settings."""
     proc = options.process
-    defaults = settings.defaults.views[proc]
+    defaults = settings.defaults.views[settings_type(proc)]
     if options.views == "auto":
         names = list(defaults["views"])
         iso = defaults["isometric"]

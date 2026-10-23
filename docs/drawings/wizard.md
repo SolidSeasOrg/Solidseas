@@ -76,14 +76,17 @@ right and the isometric, without hidden lines).
    its callout. Drawn by: a person from People, whose name signs
    DRAWN with today's date. A revision must be a revision mark (A, B, ... without I,
    O, Q, S, X and Z). Checker and approver sign in the editor.
-3. **Manufacturing.** Machined (milled) or 3D printed; Turned (lathe) is shown
-   disabled as "coming in 1.1" and Sheet metal as "coming later". The suggestion and
-   its reason: 3D printed when the material is a printing material in the list, else
-   machined, with the note that a part that looks turned gets the machined rules in
-   this release. It is taken until the user chooses. The tolerancing scheme
-   (datum-referenced or plus and minus), starting at Drawing Settings' scheme for the
-   type. The page says that datum faces A, B and C are chosen from the largest faces
-   and changed by clicking faces on the editor's sheet, not here, in this release.
+3. **Manufacturing.** Machined (milled), 3D printed or Turned (lathe); Sheet metal
+   is shown disabled as "coming later". The suggestion and its reason: 3D printed
+   when the material is a printing material in the list, Turned when the preview
+   finds the part turned ([turned.md](turned.md); the drawing process's answer says
+   why, as `Answer.turned`), else machined. It is taken until the user chooses, also
+   when a preview that comes while the page shows finds the part turned. The
+   tolerancing scheme (datum-referenced or plus and minus), starting at Drawing
+   Settings' scheme for the type; a turned part takes the machined entries of Drawing
+   Settings. The page says that datum faces A, B and C are chosen from the largest
+   faces and changed by clicking faces on the editor's sheet, not here, in this
+   release.
    For a printed part: the process, with its figures as 10.6 gives them and the
    settings' label ("Service bureau figures; replace them with your own."), the
    layer height (the `{layer_height}` of the printed notes), infill and walls,
@@ -237,8 +240,9 @@ the tests read the options, fields and edits each page sends:
 
 - Page 5's feature groups have no tick boxes and the tolerance bands are not shown;
   Remove and Restore, and the bands, are in the editor.
-- The suggestion of 10.6 from the geometry (a part that looks turned) needs the
-  probe to say so; the wizard suggests from the material only.
+- The Turned suggestion comes with the first preview (from page 2), not with the
+  probe of page 1, which reads no features; Guided and Express drawings do not use
+  it yet.
 - A printed part's tapped holes as "tap after printing" or heat-set inserts (10.6)
   are not offered yet.
 - On the Windows PC: the wizard's look in the Windows style, the folder checks on

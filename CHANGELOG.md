@@ -37,6 +37,14 @@ while the project takes shape.
 
 ### Added
 
+- **Drawings of turned (lathe) parts.** Turned (lathe) is a manufacturing type
+  for drawings, and the wizard suggests it when the part turns about one axis.
+  The drawing shows the profile with the larger end on the left; each diameter
+  is dimensioned across the outline (equal ones once with 2X), with circular
+  runout to datum A on the longest diameter, and shoulders are measured from
+  datum B on the end face. Turned parts use the machined entries of Drawing
+  Settings. On the command line: `--process turned`.
+
 - **Drawings of STEP, Parasolid and Alibre parts.** You can now make drawings of
   parts saved as STEP, Parasolid (.x_t, .x_b) or Alibre Design files, from the
   viewer's Make Drawing and New Drawing or with `solidseas drawing new`. Such a
@@ -1793,6 +1801,9 @@ while the project takes shape.
   its file or folder names does.
 
 ### Fixed
+
+- **A frame under a vertical dimension.** A feature control frame under a
+  vertical dimension's text no longer lands across the next dimension.
 
 - **No slivers along holes in 3D print files.** STL and 3MF exports no longer
   contain zero-area slivers along the edge of a hole, which slicers counted as

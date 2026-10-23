@@ -173,8 +173,12 @@ def make_plan(
                 if schemes.arrangement(kept_ctx, loc.view, ax, counts[(loc.view, ax)], deep) == "ordinate"
                 else "linear"
             )
-            datum = kept_ctx.scheme == "datum"
-            role = "basic" if datum else ("hole_location" if b.kind != "face" else "step")
+            # A turned part's faces (its shoulders and ends) are placed from the datum end
+            # face by toleranced dimensions to three places (10.6); its holes and other
+            # round features keep basic locations under their position frames.
+            turned_face = kept_ctx.process == "turned" and b.kind == "face"
+            datum = kept_ctx.scheme == "datum" and not turned_face
+            role = "basic" if datum else ("hole_location" if b.kind != "face" or turned_face else "step")
             did = ids.next()
             spec = kept_ctx.view(loc.view)[0]
             sa = kept_ctx.sheet_axis(spec, ax)
@@ -313,6 +317,12 @@ def express_graphs(ctx: Context, req: Requirements) -> dict[str, Graph]:
     return out
 
 
+def _frame_of(ctx: Context, need: Need):
+    """The frame a framed size carries: a turned diameter's runout to the datum axis,
+    else the position frame of 10.5."""
+    return gdt.runout(ctx) if need.frame == "runout" else gdt.position(ctx)
+
+
 def _need_dimension(
     ctx: Context, req: Requirements, need: Need, assigner: Assigner, ids: _Ids, feats, detail: PlanDetail
 ) -> PlannedDimension | None:
@@ -344,8 +354,8 @@ def _need_dimension(
                 features=feats,
                 places=places,
                 tolerance=tolerance,
-                prefix=prefix,
-                frame=gdt.position(ctx) if r.tolerance_class == "frame" else None,
+                prefix=prefix + need.prefix,
+                frame=_frame_of(ctx, need) if r.tolerance_class == "frame" else None,
                 role=r.role,
                 serves=(r.key,),
             )
@@ -488,30 +498,43 @@ def _datum_dimension(
 ) -> PlannedDimension | None:
     """A datum feature symbol, in a view where its face is a visible line: the front
     first, then the least crowded. The other such views, in the same order, go in
-    ``detail.other_views`` for a layout that finds no clear place in the first."""
+    ``detail.other_views`` for a layout that finds no clear place in the first.
+
+    A datum on a cylinder (a turned part's datum axis, 10.5) stands on the cylinder's
+    outline, apart from its size dimension, which names its axis (ASME practice as
+    summarised; verify against Y14.5 when it is bought): the outline line further along
+    its axis first."""
     ax = ctx.plane_axis(d.face)
-    if ax is None:
-        return None
-    hit = next((p for p in req.positions.get(ax, []) if d.face in p.faces), None)
-    if hit is None:
-        return None
+    if ax is not None:
+        hit = next((p for p in req.positions.get(ax, []) if d.face in p.faces), None)
+        hits = [hit] if hit is not None else []
+    else:
+        hits = [
+            p
+            for a in AXES
+            for p in sorted(req.positions.get(a, []), key=lambda q: -q.value)
+            if p.kind == "face" and d.face in p.faces
+        ]
     shown = []
-    for v in assigner.views:
-        spec, geom = ctx.view(v)
-        w = witness_in(ctx, spec, geom, hit)
-        if w is None:
-            continue
-        key = (0 if spec.kind == "base" else 1, assigner.count[v], assigner.views.index(v))
-        shown.append((key, v, w.sheet_axis))
+    for rank, hit in enumerate(hits):
+        for v in assigner.views:
+            spec, geom = ctx.view(v)
+            w = witness_in(ctx, spec, geom, hit)
+            if w is None:
+                continue
+            key = (0 if spec.kind == "base" else 1, rank, assigner.count[v], assigner.views.index(v))
+            shown.append((key, v, w.sheet_axis, hit))
     if not shown:
         return None
-    shown.sort()
-    _key, view, sheet_axis = shown[0]
+    shown.sort(key=lambda s: s[0])
+    _key, view, sheet_axis, hit = shown[0]
+    ax = hit.axis
+    shown = [s for s in shown if s[3] is hit]
     did = ids.next()
     detail.positions[did] = (hit,)
     detail.sheet_axis[did] = sheet_axis
     if len(shown) > 1:
-        detail.other_views[did] = tuple((v, sa) for _k, v, sa in shown[1:])
+        detail.other_views[did] = tuple((v, sa) for _k, v, sa, _h in shown[1:])
     from .requirements import _face_point
 
     return PlannedDimension(

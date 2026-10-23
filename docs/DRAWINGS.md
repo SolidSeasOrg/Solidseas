@@ -264,6 +264,13 @@ Branches from the stage 1 release, each owning the files listed:
 Integration and viewer commits follow as in stage 1 (the wizard's Turned
 option; auxiliary and removed-section kinds in the editor's Add View).
 
+Built so far: `dwg-sources` (6.2), and the core of `dwg-turned`
+(`docs/drawings/turned.md`): which parts are turned, the profile view, datums A and
+B, a diameter a segment with runout to A, shoulders from B, the wizard's Turned
+option and its suggestion. Half and removed sections, broken views, across flats,
+surface texture symbols and tapers are not built yet; `dwg-auxiliary` and
+`dwg-details` are not started.
+
 ### 3.6 Stage 3: release 2, the SOLIDWORKS drawing
 
 `dwg-sldrw` (section 16): `drawing/sldrw.py`; the bridge operations it needs in
@@ -462,7 +469,9 @@ not part of the feature: the drawing assigns them (section 13.4).
 | `Frame` | three directions; datum faces A, B, C with the reason for each; extents |
 | `FeatureSet` | all of the above; `unclaimed` (faces with area and reason: `free_form`, `needs_auxiliary`, `skipped`, `unrecognised`); coverage by feature count, face count and area; warnings |
 
-`TurnedProfile` is added in stage 2.
+`TurnedProfile` is added in stage 2, as `FeatureSet.turned` (the axis, the
+segments of revolution along it from the larger end, the default datums, whether
+the part is mixed, and the reason in words; `docs/drawings/turned.md`).
 
 #### 6.4.1 Descriptors
 
@@ -1241,10 +1250,13 @@ modifiers) and `set_datum(face, letter)`.
 - **Mixed (stage 2):** turned rules for the revolved faces, machined for the
   rest.
 
-The wizard suggests a type from the geometry and says why. In stage 1 a part
-that looks turned (every revolved face on one axis and every plane square to
-it: 6.9 % of sampled parts and none of the 13 drawn parts, measured) gets the
-machined rules with a message that turned drawings come in release 1.1.
+The wizard suggests a type from the geometry and says why. A part that looks
+turned (every revolved face on one axis and every plane square to it: 6.9 % of
+sampled parts and none of the 13 drawn parts, measured), or mixed (at least 80 %
+of its area so), has Turned suggested from its first preview; the turned rules
+built so far are in `docs/drawings/turned.md`. A turned part takes the machined
+entries of Drawing Settings (decided: Settings hold their per-type values for
+machined and printed parts, and a turned part is machined).
 
 ### 10.7 Which view each dimension goes in
 
