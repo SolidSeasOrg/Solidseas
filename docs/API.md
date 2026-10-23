@@ -6378,7 +6378,10 @@ to run `list` or `batch` must call it under `if __name__ == "__main__":`.
 
 **The catalog commands** (3.18). `index` builds or updates the catalog of its
 folders: the first FOLDER is root `project` (then `project2`...), `--library`
-folders are `library1`... unless `ID=DIR` names them, and the catalog goes to
+folders are `library1`... unless `ID=DIR` names them (a folder the catalog
+already holds keeps the id it has there, so `index` and `serve --catalog`, which
+share the catalog of a folder, do not rename each other's roots; one named
+with `ID=DIR` takes that name), and the catalog goes to
 your cache folder unless `--catalog`, `--db` or `--in-project` says otherwise
 (`--in-project` only on Windows, where a network drive can be told apart; it
 says on standard error that the project folder now carries every file's names

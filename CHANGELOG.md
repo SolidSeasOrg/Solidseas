@@ -1891,6 +1891,10 @@ while the project takes shape.
 
 ### Fixed
 
+- **index and serve agree on root ids.** `solidseas index FOLDER` now keeps the
+  root id `serve --catalog` gave the folder, so the two no longer rename each
+  other's roots and resolve every document again.
+
 - **Picking through transparent parts on OpenGL ES.** On OpenGL ES graphics, a
   click goes through a transparent part to what lies inside its box, as on other
   graphics, also where the driver lacks depth writes from shaders or high

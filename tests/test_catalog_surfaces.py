@@ -302,6 +302,25 @@ def test_the_service_answers_from_its_catalog(capsys, tmp_path):
         running.close()
 
 
+def test_index_keeps_the_root_id_the_service_gave_a_folder(capsys, tmp_path):
+    """serve --catalog and index FOLDER share the catalog of a folder. A folder given to
+    index without an id keeps the one the catalog stores for it, so nothing is renamed
+    and no document is resolved again; one named with --root is renamed as asked."""
+    root = tmp_path / "jobs"
+    copy_documents(root)
+    with catalog.open(Roots([Root("jobs", str(root))])) as cat:  # as the service opens it
+        cat.scan(workers=1)
+    code, env = run(capsys, "index", str(root))
+    data = check(env, "catalog_scan")
+    assert code == 0 and [r["id"] for r in data["roots"]] == ["jobs"]
+    assert data["counts"]["resolved_documents"] == 0 and data["removed_roots"] == []
+    with catalog.open(root, mode="r") as cat:
+        assert [r.id for r in cat.roots] == ["jobs"]
+    code, env = run(capsys, "index", "--root", f"named={root}")
+    data = check(env, "catalog_scan")
+    assert [r["id"] for r in data["roots"]] == ["named"] and data["counts"]["resolved_documents"] > 0
+
+
 def test_the_service_pages_duplicates_missing_references_and_changes(tmp_path):
     """``/v1/duplicates``, ``/v1/missing`` and ``/v1/changes`` give what Python gives on the
     same catalog, a page at a time; a page over the route's size cap holds fewer rows,

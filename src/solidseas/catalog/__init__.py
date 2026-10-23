@@ -311,6 +311,28 @@ class Catalog:
         ).fetchall()
         return Roots(Root(r[0], r[1], bool(r[2]), r[3]) for r in rows)
 
+    def keep_stored_ids(self, made_up: Iterable[str]) -> None:
+        """Let each of the roots given to this writer whose id is in ``made_up`` (an id the
+        caller made up, such as the command line's ``project`` for a folder given without
+        one) take the id the catalog already stores for its folder, unless another given
+        root has that id. ``solidseas index FOLDER`` and ``serve --catalog`` share the
+        catalog of a folder; without this, each scan by one renamed the roots the other
+        named, and every assembly and drawing was resolved again."""
+        self._writable()
+        made_up = set(made_up)
+        stored = {fold(r.path).rstrip("\\/"): r.id for r in self._stored_roots()}
+        given = list(self.roots or ())
+        taken = {r.id for r in given if r.id not in made_up}
+        out = []
+        for r in given:
+            new = stored.get(fold(r.path).rstrip("\\/")) if r.id in made_up else None
+            if new is not None and new != r.id and new not in taken:
+                r = Root(new, r.path, r.recursive, r.role)
+            taken.add(r.id)
+            out.append(r)
+        if len({r.id for r in out}) == len(out):  # else a made-up id was taken: keep them all
+            self.roots = Roots(out)
+
     def _root_rows(self) -> list[tuple[int, Root]]:
         by_id = {r.id: r for r in self.roots}
         out = []

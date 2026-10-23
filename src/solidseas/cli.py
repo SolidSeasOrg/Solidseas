@@ -2120,6 +2120,13 @@ def _index_roots(args: argparse.Namespace) -> list[Root]:
     return roots
 
 
+def _named_root(root_id: str, args: argparse.Namespace) -> bool:
+    """Whether ``index`` was given ``root_id`` by name (``--root ID=FOLDER`` or ``--library
+    ID=FOLDER``) rather than making it up for a folder given alone."""
+    texts = [*(getattr(args, "root", None) or ()), *(getattr(args, "library", None) or ())]
+    return any(t.partition("=")[0] == root_id and "=" in t for t in texts)
+
+
 def _check_in_project(args: argparse.Namespace) -> None:
     from . import netfs
 
@@ -2204,6 +2211,8 @@ def cmd_index(args: argparse.Namespace) -> int:
         )
     location = "project" if args.in_project else "cache"
     with catalog.open(roots, location=location, name=args.catalog, db=args.db) as cat:
+        # A folder given without an id keeps the one the catalog has for it (serve's, say).
+        cat.keep_stored_ids(r.id for r in roots if not _named_root(r.id, args))
         if args.part_number_property is not None:
             cat.configure(part_number_property=args.part_number_property or None)
         if args.formats is not None:
