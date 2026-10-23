@@ -157,8 +157,9 @@ beside the SOLIDWORKS reader, which they leave as it is (`docs/API.md` 3.20,
 
 Pure Python, like the readers, and separate from them: the readers never
 write. It lays out 2015+ containers, edits feature parameters in place,
-holds `ParametricDocumentIR` and the SolidCraft adapter, and writes an IR
-part through a seed. It imports nothing from `solidseas.swapi`; SOLIDWORKS
+holds `ParametricDocumentIR` and its source adapters (SolidCraft designs, and
+CadQuery models through a recording of how they were built: `cqrecorder` in a
+CadQuery session, `cqrecording` anywhere), and writes an IR part through a seed. It imports nothing from `solidseas.swapi`; SOLIDWORKS
 only checks its output, through the bridge's `native_check` on the PC.
 `docs/NATIVE_SLDPRT_WRITER.md` is its design and status.
 
@@ -256,7 +257,7 @@ and write, and the engine picks the best available one.
 |---|---|---|---|
 | native | nothing | SLDPRT, SLDASM, and every format `solidseas.formats` reads (STEP, Parasolid, STL, 3MF, OBJ, PLY, OFF, glTF, AMF, ACIS SAB, Alibre Design) | Parasolid extracted from a SOLIDWORKS file; STL and 3MF from any of them, tessellated from B-rep bodies or taken from the file's own triangles (`solidseas.export`); STEP of a part from its Parasolid bodies, a SOLIDWORKS part's or a Parasolid transmit file's (`solidseas.step`) |
 | occt | the OCCT backend extension (Open CASCADE, in a helper program of its own) | IGES, OCCT's BREP, STEP | IGES, BREP, STEP |
-| cadquery | CadQuery (OpenCASCADE) | STEP, CadQuery scripts | STEP, STL, 3MF, glTF |
+| cadquery | CadQuery (OpenCASCADE) | STEP, CadQuery scripts; built so far: a CadQuery model's recording, which the native backend writes as an SLDPRT with no CadQuery present (`solidseas.nativewrite.cqrecording`) | STEP, STL, 3MF, glTF |
 | solidworks | local SOLIDWORKS, Windows | SLDPRT, SLDASM, Parasolid, STEP | SLDPRT, SLDASM, Parasolid, STEP, STL, 3MF |
 
 Two honest limits shape this table. OpenCASCADE cannot read or write

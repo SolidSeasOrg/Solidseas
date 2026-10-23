@@ -142,7 +142,10 @@ File > Convert writes IGES, BREP and STEP through the helper.
 ### Tier 2, later and separate
 
 - The CadQuery workspace (SolidSeas-03q) is a separate, heavier extra: the full
-  `cadquery`, with casadi and VTK.
+  `cadquery`, with casadi and VTK. Its first part is built: `solidseas.nativewrite.cqrecorder`, the one
+  module that imports `cadquery` (inside a function, when a recorder opens), records a
+  model in the user's CadQuery session, and the recording becomes a native part with no
+  CadQuery present (`docs/API.md` 3.27). The `[cad]` extra stays the full `cadquery`.
 - OCCT's polygon-based hidden-line algorithm as an accelerator for drawings is
   a stage 4 question only (`docs/DRAWINGS.md` section 25).
 

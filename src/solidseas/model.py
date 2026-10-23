@@ -3249,7 +3249,7 @@ _SLDPRT_WRITTEN_SCHEMA = _obj(
         "design": _obj(
             {
                 "name": _STR,
-                "format": {"type": "string", "description": "solidcraft or ir (an open set)"},
+                "format": {"type": "string", "description": "solidcraft, ir or cadquery (an open set)"},
             }
         ),
         "features": _arr(_obj({"id": _STR, "name": _STR, "part_name": _STR})),

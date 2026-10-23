@@ -57,9 +57,9 @@ write a file with a SOLIDWORKS extension or over a source file; and never
 overwrite an existing file unless ``--force`` is given.
 
 ``sldprt`` (provisional) is the one exception to the SOLIDWORKS extension rule: it
-writes a new ``.sldprt`` made from a SolidCraft design or a SolidSeas IR file by the
-clean-room generator (``solidseas.nativewrite.generate``), reads it back first, and
-never replaces a file, so it has no ``--force``.
+writes a new ``.sldprt`` made from a SolidCraft design, a SolidSeas IR file or a CadQuery
+recording by the clean-room generator (``solidseas.nativewrite.generate``), reads it back
+first, and never replaces a file, so it has no ``--force``.
 """
 
 import argparse
@@ -1061,15 +1061,18 @@ def check_new_part(out: str, design: str, *, allow_source_dir: bool) -> str:
 
 def _read_design(path: str):
     """A design as ``ParametricDocumentIR``: a ``.solidcraft`` file through its adapter, a
-    SolidSeas IR ``.json`` file as it is. Returns the document and its format."""
+    ``.json`` file as a CadQuery recording when its format says it is one
+    (``solidseas.nativewrite.cqrecording``), else as a SolidSeas IR file. Returns the
+    document and its format."""
     import zipfile
 
-    from .nativewrite import ir, solidcraft
+    from .nativewrite import cqrecording, ir, solidcraft
 
     fmt = DESIGN_FORMATS.get(os.path.splitext(path)[1].lower())
     if fmt is None:
         raise InvalidArgumentError(
-            f"a design is a .solidcraft file or a SolidSeas IR .json file: {path}",
+            f"a design is a .solidcraft file, or a .json file holding a SolidSeas IR document or a "
+            f"CadQuery recording: {path}",
             detail={"parameter": "design"},
         )
     try:
@@ -1079,9 +1082,16 @@ def _read_design(path: str):
             raw = fh.read(solidcraft.MAX_FILE_BYTES + 1)
         if len(raw) > solidcraft.MAX_FILE_BYTES:
             raise ir.IRError(f"the file is larger than {solidcraft.MAX_FILE_BYTES >> 20} MiB")
+        fmt = "cadquery"  # what the message below calls it when the recording is refused
+        recording = cqrecording.recording_in(raw)
+        if recording is not None:
+            return cqrecording.to_ir(recording), fmt
+        fmt = "ir"
         return ir.from_json(raw), fmt
     except (ValueError, KeyError, zipfile.BadZipFile, RecursionError) as exc:
-        what = "SolidCraft design" if fmt == "solidcraft" else "SolidSeas IR document"
+        what = {"solidcraft": "SolidCraft design", "cadquery": "CadQuery recording"}.get(
+            fmt, "SolidSeas IR document"
+        )
         raise InvalidArgumentError(
             f"{path} is not a {what} SolidSeas reads: {exc}", detail={"parameter": "design"}
         ) from None
@@ -3755,12 +3765,15 @@ def build_parser() -> argparse.ArgumentParser:
     add_write_flags(sp)
     sp = add(
         "sldprt",
-        "write a SOLIDWORKS part from a SolidCraft design or a SolidSeas IR file, without SOLIDWORKS "
-        "(provisional)",
+        "write a SOLIDWORKS part from a SolidCraft design, a SolidSeas IR file or a CadQuery recording, "
+        "without SOLIDWORKS (provisional)",
         target="none",
     )
     sp.add_argument(
-        "path", metavar="DESIGN", help="a .solidcraft file or a SolidSeas IR .json file (never changed)"
+        "path",
+        metavar="DESIGN",
+        help="a .solidcraft file, or a .json file with a SolidSeas IR document or a CadQuery recording "
+        "(never changed)",
     )
     sp.add_argument(
         "-o",

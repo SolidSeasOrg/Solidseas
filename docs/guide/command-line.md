@@ -120,6 +120,36 @@ writes it. Parts like these open in SOLIDWORKS 2024 with their feature tree and
 rebuild when you change a depth; other versions have not been tried, so open an
 important one there before you rely on it.
 
+#### From CadQuery
+
+A CadQuery model becomes a part the same way, through a recording of how it was
+built. In the Python session where you run CadQuery (with `pip install solidseas[cad]`):
+
+```python
+import cadquery as cq
+from solidseas.nativewrite import cqrecorder
+
+with cqrecorder.Recorder() as rec:
+    plate = (cq.Workplane("XY").rect(40, 30, centered=False).extrude(10)
+             .faces(">Z").workplane(centerOption="CenterOfMass").hole(8))
+rec.save("plate.json", plate, name="plate", properties={"PartNo": "SS-1001"})
+```
+
+Then, on any machine and without CadQuery:
+
+```bash
+solidseas sldprt plate.json -o D:\Parts      # D:\Parts\plate.SLDPRT
+```
+
+Each feature is listed by the CadQuery call that made it, such as
+`Boss-Extrude1, from extrude(10)`. The same limits apply as for any design: today
+the part holds rectangles on the Front Plane (`Workplane("XY")`) extruded up from
+it and one hole through all. Use `box(..., centered=(True, True, False))` rather than
+a plain `box(...)`, which CadQuery centres on the plane. A hole drilled from a face
+right through the part is sketched on the Front Plane and cut through all, which
+gives the same hole. Calls SolidSeas does not translate yet, such as `fillet` or
+`polygon`, are listed by name, and `--allow-partial` writes the part without them.
+The recording is a plain `.json` file you can keep with the model's code.
 ### A file's versions
 
 `solidseas history` lists the versions of a file, newest first, and

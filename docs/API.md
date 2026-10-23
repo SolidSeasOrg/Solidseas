@@ -4813,6 +4813,59 @@ versions.data_dir() -> str                                  # where the user's s
   compares counts alone. A version not measured whole in time is not compared on its
   measures (warning `measures_incomplete`). Assemblies and drawings are compared on
   the document, properties and configurations. Section 5.19 has the fields.
+### 3.27 CadQuery models as native parts: `solidseas.nativewrite.cqrecording` (provisional)
+
+A CadQuery model becomes a SOLIDWORKS part through a *recording*: the calls made on
+CadQuery's `Workplane` while the model was built, as plain JSON. `cqrecorder` makes one in a
+session where CadQuery runs; `cqrecording` reads one with the standard library only and
+translates it into the `ParametricDocumentIR` that `solidseas.nativewrite.generate` writes.
+
+```python
+import cadquery as cq
+from solidseas.nativewrite import cqrecorder, cqrecording, generate
+
+with cqrecorder.Recorder() as rec:
+    plate = (cq.Workplane("XY").rect(40, 30, centered=False).extrude(10)
+             .faces(">Z").workplane(centerOption="CenterOfMass").hole(8))
+recording = rec.recording(plate, name="plate", properties={"PartNo": "SS-1001"})
+rec.save("plate.json", plate, name="plate")          # for solidseas sldprt plate.json
+part = generate.write_part(cqrecording.to_ir(recording))
+```
+
+`Recorder(workplane=None)` changes `Workplane` (CadQuery's, imported only then) for the whole
+process while it is open, and puts it back when it closes; one is open at a time. Each call
+made from outside CadQuery is one step: its name, its arguments (numbers, text, lists,
+`Vector` and `Plane` values as data, a workplane as its number, anything else by its type's
+name only), the workplane it was called on and the one it returned. `recording(model, *,
+name="model", units="mm", properties=None)` takes the workplane that holds the finished part
+(`ValueError` for any other) and keeps the steps of its chain; `properties` maps names to
+text, numbers, `True` or `False` and dates. `save(path, model, **options)` writes a new
+`.json` file and never replaces one.
+
+`cqrecording.load(path_or_bytes)` and `from_data(data)` read a recording (format
+`solidseas-cadquery-recording/1`, at most 16 MiB and 10,000 steps), `to_data` and `to_json`
+write one, and `to_ir(recording)` and `read_ir(path_or_bytes)` translate it. Data that is not
+a recording, or one that contradicts itself (a feature with no wires to use, a cut with no
+solid, a workplane made twice), raises `RecordingError`, a `ValueError`.
+
+The translation replays CadQuery 2.8's own rules for `Workplane` on a named plane or a given
+`Plane`, `center`, `moveTo`, `pushPoints`, `faces` with `>X`, `<X`, `>Y`, `<Y`, `>Z` or `<Z`,
+`workplane` (offset, invert, origin, centre options), `tag`, `end`, `rect`, `circle`,
+`extrude` (blind, either way or both, joined, kept apart or cut), `cutBlind`, `cutThruAll`,
+`box` and `hole` without a depth. Workplanes must have their axes along X, Y and Z. A
+sketch lies on the base plane it is parallel to, or on a plane offset from one; a cut through
+all material (`cutThruAll`, or a hole that goes through every body in its way) is sketched on
+the base plane and cut through all both ways, which removes the same material. A body that
+does not touch the earlier ones is a body of its own. Feature names are the calls' text
+(`rect(40, 30, centered=False)`, `extrude(10)`, `hole(8)`), with the step number when a call
+repeats; no sketch dimension or relation is made. Any other call, and each feature after one,
+is an `Unsupported` entry naming it, so the native writer refuses the design or, asked for a
+partial part, leaves those out. Numbers are in the recording's `units` (`mm`, `cm`, `m` or
+`in`).
+
+CadQuery is the optional `[cad]` extra. Nothing else in the library imports it, the viewer's
+executable leaves it out, and the translation was checked against CadQuery 2.8.0: each model
+in `tests/test_cadquery_models.py` keeps exactly CadQuery's own material.
 
 ## 4. JSON encoding
 
@@ -5853,7 +5906,7 @@ without SOLIDWORKS (section 7.1).
 | Field | Meaning |
 |---|---|
 | `output`, `bytes` | The absolute path of the new part and its size |
-| `design` | The design's name, and its `format`: `solidcraft` for a SolidCraft file, `ir` for a SolidSeas IR file (an open set) |
+| `design` | The design's name, and its `format`: `solidcraft` for a SolidCraft file, `ir` for a SolidSeas IR file, `cadquery` for a CadQuery recording (an open set) |
 | `features` | The design's features the part holds, in timeline order: their `id` and `name` in the design, and `part_name`, the name the part gives them (`Sketch1`, `Boss-Extrude1`, as SOLIDWORKS names them) |
 | `properties` | The file custom properties the part holds, in order, as SOLIDWORKS shows them on the Custom tab: `name`, `type` (`text`, `number`, `date` or `yesno`) and `value` (a string, a number, a `YYYY-MM-DD` date, or true or false). They come from the design and from `--property` |
 | `left_out` | Everything of the design the part does not carry, in words, each naming the design's feature: a feature left out, a sketch dimension kept as geometry only, a relation not written, an expression written as its value |
@@ -6238,8 +6291,9 @@ solid joins two faces and the shape is valid. The result is `export_result`'s
 with `3mf` or `stl` it exits 2.
 
 `sldprt` writes a SOLIDWORKS part from a design, without SOLIDWORKS
-(provisional). DESIGN is a SolidCraft file (`.solidcraft`) or a SolidSeas IR
-file (`.json`, the `ParametricDocumentIR` of `solidseas.nativewrite.ir`). Today
+(provisional). DESIGN is a SolidCraft file (`.solidcraft`), a SolidSeas IR
+file (`.json`, the `ParametricDocumentIR` of `solidseas.nativewrite.ir`) or a CadQuery
+recording (`.json` whose format says so, translated as section 3.27 says). Today
 the part can hold corner rectangles on the Front Plane (the base plane `xy`),
 each extruded blind away from the plane, the first as the part's body and each
 later one as a body of its own; the depth stays editable in SOLIDWORKS. A design

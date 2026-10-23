@@ -37,6 +37,16 @@ while the project takes shape.
 
 ### Added
 
+- **SOLIDWORKS parts from CadQuery models.** `solidseas sldprt` now writes a
+  SOLIDWORKS part from a CadQuery model. Record the model in your CadQuery
+  session with `solidseas.nativewrite.cqrecorder` and save the recording as a
+  .json file; the part then needs neither CadQuery nor SOLIDWORKS to make. Each
+  feature is listed by the CadQuery call that made it. Calls SolidSeas does not
+  translate yet, such as fillet, are named, and `--allow-partial` leaves them
+  out. Today a part can hold what the generator writes: rectangles on the Front
+  Plane extruded up and one hole through all. CadQuery stays the optional cad
+  extra.
+
 - **A file's versions, and what changed between them.** `solidseas history FILE`
   lists a file's versions, newest first. Inside a Git repository these are the
   commits that changed it; SolidSeas reads them without running Git or any

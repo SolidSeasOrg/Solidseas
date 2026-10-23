@@ -8,6 +8,8 @@ not exist before.
 - :mod:`.container` lays out or patches a 2015+ container from its members.
 - :mod:`.ir` is the source-agnostic ``ParametricDocumentIR``.
 - :mod:`.solidcraft` reads SolidCraft designs into the IR.
+- :mod:`.cqrecording` reads a recording of how a CadQuery model was built into the IR,
+  and :mod:`.cqrecorder` makes one in a CadQuery session.
 - ``generate`` (to come) is the clean-room generator: IR to ``.sldprt``,
   written from the specification alone.
 
