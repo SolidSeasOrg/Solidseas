@@ -39,11 +39,12 @@ Some components need a word of explanation:
 - A virtual component, which has no file of its own, is printed from inside the
   assembly that stores it, or from inside the sub-assembly that does.
 - A part the 3D view read from a sub-assembly's own file (when the assembly does
-  not list that sub-assembly's components, so no row stands for it) is printed
-  from the file its mesh was read from. One drawn from what its sub-assembly
-  keeps of it, because its own file was not found, has 3D Print Part greyed
-  with the reason (and its stored path in the tooltip), and still 3D Print
-  Sub-assembly.
+  not list that sub-assembly's components) is printed from the file found for
+  it, from its row on the Components tab or from the 3D view, as any other
+  component is.
+  One drawn from what its sub-assembly keeps of it, because its own file was not
+  found, has 3D Print Part greyed with the reason (and its stored path in the
+  tooltip), and still 3D Print Sub-assembly.
 - A component whose file was not found is not printed: its 3D Print entry is
   greyed with the reason, as Show in folder list is, and its tooltip says why,
   with the path the assembly stored for it.

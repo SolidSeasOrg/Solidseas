@@ -77,6 +77,13 @@ while the project takes shape.
 
 ### Added
 
+- **Parts from a sub-assembly's own file on the Components tab.** When an
+  assembly does not list a sub-assembly's components, the Components tab now
+  lists the parts the 3D view read from the sub-assembly's own file, under its
+  row: you can pick them, go to their files, print them and change their looks
+  like any other row. If a part's file is not in the folder, the message offers
+  to open the sub-assembly.
+
 - **STEP from STEP, ACIS and Alibre parts.** `solidseas export --format step`
   writes STEP from parts read from STEP, ACIS SAB and Alibre Design files.
   Assemblies, bodies placed away from the part's origin, and bodies or items the

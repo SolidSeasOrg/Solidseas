@@ -18,9 +18,10 @@ view did not end at that amount. ``--pick NAME`` (repeatable) then picks the
 instance whose component tree id is NAME in that 3D view, with a mouse click
 where the view draws it (exploded, if it was): it saves the view and the
 Components tab, failing the run unless that instance alone is picked and its
-row is the Components tab's current one (for an instance read from a
-sub-assembly's own file, which has no row, unless no row is current and the
-sub-assembly's row stands for it, which the report names as ``row``), then
+row is the Components tab's current one (for an instance with no row, one read
+from a sub-assembly's own file past the rows the tab shows, unless no row is
+current and the sub-assembly's row stands for it, which the report names as
+``row``), then
 turns the view with the Left key and zooms in toward the instance with the
 wheel, double-clicks it, saves the file it opens (or the dialog that says why
 it cannot be), goes Back and saves the view again, failing the run unless Back
@@ -3493,8 +3494,9 @@ class SelfTest(QObject):
         current = details.instances.currentItem()
         rec["components_tab"] = details.selection().get("instances") if current is not None else None
         rec["picked"] = [pane.instance_ids[g] for g in sorted(view.selected)]  # type: ignore[union-attr]
-        # An instance read from a sub-assembly's own file has no row of its own: the click
-        # leaves no row current, and the sub-assembly's row stands for it.
+        # An instance read from a sub-assembly's own file has a row once the 3D view's read
+        # gives it one; past the rows the tab shows it has none, the click leaves no row
+        # current, and the nearest sub-assembly's row stands for it.
         rec["row"] = details.row_of(name)
         own_row = rec["row"] == name
         if rec["picked"] != [name] or (rec["components_tab"] != name if own_row else rec["components_tab"]):

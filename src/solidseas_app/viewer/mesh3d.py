@@ -288,6 +288,7 @@ def assembly_mesh_of(assembly, stream: str, cap: int, over: list[str] | None = N
 
 # --------------------------------------------------------------------------- assemblies
 MAX_SKIPPED_LISTED = 500  # instances not shown that a result names one by one; the rest are counted
+MAX_EXPANDED_ROWS = 2_000  # rows of sub-assemblies' own files sent: the Components tab shows no more
 # Instances not shown whose place and stored box a result carries, for the view to draw a box in
 # their place: as many as the library expands by default, 88 bytes each.
 MAX_PLACEHOLDERS = 100_000
@@ -369,7 +370,9 @@ class SceneBuffers:
     ``missing`` gives, for such an instance drawn from what its sub-assembly stores of
     it because its own file was not found, could not be told from others or could not
     be read, its name, stored path and that reason, by instance id: what the 3D view's
-    menu says in place of 3D Print (:func:`instance_missing`)."""
+    menu says in place of 3D Print (:func:`instance_missing`). ``expanded`` are the rows
+    the Components tab lacks for the instances read from
+    sub-assemblies' own files (:func:`expanded_rows`)."""
 
     meshes: list[MeshBuffers]
     matrices: list[bytes]
@@ -384,6 +387,7 @@ class SceneBuffers:
     boxes: BoxBuffers | None = None
     documents: dict[str, dict[str, Any]] = field(default_factory=dict)
     missing: dict[str, dict[str, Any]] = field(default_factory=dict)
+    expanded: list[dict[str, Any]] = field(default_factory=list)
 
     @property
     def nbytes(self) -> int:
@@ -489,6 +493,76 @@ def instance_missing(g) -> dict[str, dict[str, Any]]:
         stored = (f.stored_path or None) if f else None
         name = (f.file_name or os.path.basename((stored or "").replace("\\", "/"))) if f else None
         out[inst.id] = {"name": name or inst.name, "stored_path": stored, "reason": reason}
+    return out
+
+
+def expanded_rows(g) -> list[dict[str, Any]]:
+    """The instances ``g`` read from sub-assemblies' own documents, for the Components
+    tab, which lists only what the assembly's own tree does. One entry for each
+    sub-assembly instance expanded (:attr:`solidseas.geometry.DisplayGeometry.expanded`),
+    parents first: ``{"id", "file", "configuration", "nodes", "children", "files"}``.
+    ``children`` are its instances as the ``components`` kind gives them
+    (:func:`solidseas.model.component_node_data`), their ids and file keys under the
+    sub-assembly's (``<id>/...``, ``<file>/...``) and their placements in the top
+    assembly's frame; ``files`` are its files as the ``references`` kind gives them, each
+    with the resolution the read made of it (None where it made none). ``nodes`` counts
+    the instances its tree holds; over all entries at most :data:`MAX_EXPANDED_ROWS` are
+    given, as the tab shows no more."""
+    out: list[dict[str, Any]] = []
+    budget = MAX_EXPANDED_ROWS
+    for e in g.expanded:
+        if not e.file:
+            continue
+        results = e.resolution.results if e.resolution is not None else {}
+        depth = e.id.count("/") + 1
+
+        def row(n, parent: str, e=e, depth=depth) -> dict[str, Any]:
+            nonlocal budget
+            budget -= 1
+            d = model.component_node_data(n, flat=True)
+            place = None
+            if e.placement is not None and n.placement is not None:
+                composed = e.placement.then(n.placement)
+                place = composed if composed.is_finite() else None
+            d.update(
+                id=f"{e.id}/{n.id}",
+                parent=parent,
+                depth=depth + n.depth,
+                file=f"{e.file}/{n.file}" if n.file is not None else None,
+                placement=model.placement_data(place),
+            )
+            kids = []
+            for c in n.children:
+                if budget <= 0:
+                    break
+                kids.append(row(c, d["id"]))
+            d["children"] = kids
+            return d
+
+        children = []
+        for n in e.tree.children:
+            if budget <= 0:
+                break
+            children.append(row(n, e.id))
+        files = []
+        for f in e.tree.files.values():
+            fd = model.component_file_data(f)
+            fd["key"] = f"{e.file}/{f.key}"
+            r = results.get(f.key)
+            fd["resolution"] = None if r is None else {**model.resolution_result_data(r), "key": fd["key"]}
+            files.append(fd)
+        entry = {
+            "id": e.id,
+            "file": e.file,
+            "configuration": e.configuration,
+            "nodes": e.tree.node_count,
+            "children": children,
+            "files": files,
+        }
+        try:
+            out.append(model.to_json_data(entry))
+        except (TypeError, ValueError):  # a value JSON cannot carry: the tab goes without it
+            continue
     return out
 
 
@@ -783,6 +857,9 @@ def read_assembly_scene(
                 max_bytes=byte_budget(cap),
                 max_triangles_drawn=drawn_budget(cap),
                 brep_cache=brep_cache,
+                # The Components tab lists the instances read from sub-assemblies' own files
+                # and goes to their files, so where those are is worked out for each.
+                resolve_expanded=True,
             )
             reference = assembly_box(doc, g.configuration)
             seconds["read"] = time.perf_counter() - t
@@ -849,6 +926,7 @@ def read_assembly_scene(
         scene = SceneBuffers(meshes=[], matrices=[], files_of=[], instance_ids=[], files=[], bbox=boxes.bbox)
     scene.boxes = boxes
     scene.info = info
+    scene.expanded = expanded_rows(g)
     return {"state": "ok", "data": scene, "geometry": info, "cap": cap, "seconds": seconds}
 
 

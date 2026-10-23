@@ -2192,7 +2192,9 @@ class MainWindow(QMainWindow):
         if t.stored_path:
             text += f"\n\nStored path: {t.stored_path}"
         offer = None
-        if parent and t.status == "embedded_in_subassembly":
+        # A virtual component a sub-assembly stores, or a row read from a sub-assembly's own
+        # file (:meth:`.details.DetailsPanel.from_subassembly_file`): that sub-assembly opens.
+        if parent and (t.status == "embedded_in_subassembly" or self.details.from_subassembly_file(t.key)):
             offer = "Open the Sub-assembly"
         if self.explain(OPEN_TITLE, text, offer=offer) and parent:
             self.go_to_component(parent, OPEN)

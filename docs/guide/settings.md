@@ -242,11 +242,14 @@ a click up to three pixels off a component still picks it. A box in front of a
 component is picked where it covers it, while a component inside a box, or
 reaching into it, is picked through the box.
 
-A part read from a sub-assembly's own file, because the assembly does not list
-that sub-assembly's components, has no row on the Components tab. Picking it
-leaves no row selected, the note names the sub-assembly's row that stands for
-it, a double-click opens that sub-assembly, and Back still puts the pick back.
-Its menu is that sub-assembly's, with 3D Print Part for the part itself.
+When an assembly does not list a sub-assembly's components, the 3D view reads
+them from the sub-assembly's own file, and the Components tab then lists them
+under the sub-assembly's row, with a tooltip saying where they were read.
+Picking one selects its row, a double-click opens its file, and Back puts the
+pick back. When its file is not in the folder, the message that says so offers
+to open the sub-assembly instead. A part past the rows the tab shows has no row:
+picking it leaves no row selected, the note names the sub-assembly's row that
+stands for it, and a double-click opens that sub-assembly.
 
 ## Transparency, Hide and Isolate
 

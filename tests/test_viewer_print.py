@@ -2100,9 +2100,9 @@ def test_a_virtual_part_its_sub_assembly_does_not_store_says_so(printer, tmp_pat
 @needs_qt
 def test_a_part_read_from_a_sub_assemblys_own_file_prints_from_the_3d_view(printer, models):
     """An assembly that stores no components below a sub-assembly: the 3D view reads them
-    from the sub-assembly's own file, and no row of the Components tab stands for them.
-    Right-clicking one still offers 3D Print Part for it, the document its mesh was read
-    from, in the configuration its instance uses, then the sub-assembly."""
+    from the sub-assembly's own file, and the Components tab gives them rows under the
+    sub-assembly's. Right-clicking one offers 3D Print Part for it, the file that read
+    found for it, in the configuration its instance uses, then the sub-assembly."""
     from builders import TreeXml, assembly_with_tree
     from solidseas_app.viewer.details import TABS
     from solidseas_app.viewer.preview import MODEL
@@ -2126,7 +2126,8 @@ def test_a_part_read_from_a_sub_assemblys_own_file_prints_from_the_3d_view(print
     _wait(p.app, lambda: pane.mesh_state not in ("idle", "starting", "loading") and not w.busy)
     ident = "o15_sub_asm-1/o02_boxA-1"
     assert pane.mesh_state == "ready" and ident in pane.instance_ids
-    assert d.instance_item(ident) is None and d.row_of(ident) == "o15_sub_asm-1"
+    row = d.instance_item(ident)
+    assert row is not None and row.parent() is d.instance_item("o15_sub_asm-1") and d.row_of(ident) == ident
     document = pane.instance_documents[ident]
     assert document == {
         "path": str(models / "o02_boxA.SLDPRT"),
@@ -2271,7 +2272,10 @@ def test_a_part_whose_own_file_is_not_found_has_its_3d_print_off_with_the_reason
     assert not entry.isEnabled() and menu.toolTipsVisible()
     said = entry.toolTip()  # plain text, escaped (wording.tip)
     assert "o02_boxA.SLDPRT cannot be 3D printed from here.<br><br>No file of that name was found." in said
-    assert "what its sub-assembly stores of it" in said and "Stored path: " in said
+    # The Components tab now lists the parts read from a sub-assembly's own file, so this
+    # part has a row and its entry gives the row's not-found text; the wording that says the
+    # view draws it from what its sub-assembly stores is for a part past the rows the tab shows.
+    assert "Stored path: " in said
     assert _entry(menu, "3D Print Sub-assembly").isEnabled()
     menu.deleteLater()
     found = d.instance_menu("o15_sub_asm-1/o07_boxB_h31-1")

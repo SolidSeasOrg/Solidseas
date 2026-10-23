@@ -648,6 +648,7 @@ class PreviewPane(QWidget):
     filePicked = Signal(str)  # a file clicked in the legend: every instance of it, by file key
     boxesPicked = Signal()  # the boxes' row clicked in the legend: every instance drawn as a box
     looksChanged = Signal()  # what is hidden or transparent changed, for the Components tab
+    rowsArrived = Signal()  # an assembly's read listed instances of sub-assemblies' own files
     pickDropped = Signal()  # a look chosen from a menu dropped the pick: no row stays current
 
     def __init__(self) -> None:
@@ -698,6 +699,10 @@ class PreviewPane(QWidget):
         # "reason"}, for the entry off with the reason (:attr:`.mesh3d.SceneBuffers.missing`).
         self.instance_documents: dict[str, dict[str, Any]] = {}
         self.instance_missing: dict[str, dict[str, Any]] = {}
+        # The instances the read found in sub-assemblies' own files, as rows for the
+        # Components tab (:func:`.mesh3d.expanded_rows`), and the configuration read.
+        self.expanded_rows: list[dict[str, Any]] = []
+        self.expanded_configuration: str | None = None
         self.files: list[dict[str, Any]] = []  # the legend's files
         self.explode_groups: dict[str, int] = {}
         # The instances drawn as boxes come last, from ``box_from`` in ``instance_ids``: their
@@ -936,6 +941,7 @@ class PreviewPane(QWidget):
         self.instance_files = []
         self.instance_documents = {}
         self.instance_missing = {}
+        self.expanded_rows, self.expanded_configuration = [], None
         self.files = []
         self._no_boxes()
         self.assembly = None
@@ -1435,7 +1441,7 @@ class PreviewPane(QWidget):
             row = self.row_of(value) if self.row_of is not None else None
             if row is not None and row != value:
                 return (
-                    f"{text} It was read from the sub-assembly's own file, so the Components tab has no "
+                    f"{text} It was read from the sub-assembly's own file, and the Components tab has no "
                     f"row for it; {row} stands for it there, and a double-click opens that file."
                 )
             return f"{text} Double-click it to open its file."
@@ -1769,6 +1775,10 @@ class PreviewPane(QWidget):
             data = result["data"]
             if geometry is not None:  # an assembly
                 self.assembly = (data, geometry, result.get("cap"), seconds)
+                # What the read found in sub-assemblies' own files, for the Components tab.
+                self.expanded_rows = list(data.expanded)
+                self.expanded_configuration = geometry.get("configuration")
+                self.rowsArrived.emit()
                 self._show_assembly()
                 return
             self.mesh_info = {

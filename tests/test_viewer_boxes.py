@@ -640,11 +640,12 @@ def _unlisted_top(tmp_path: Path, *, boxes: bool) -> Path:
 
 @needs_qt
 @pytest.mark.parametrize("boxes", [False, True])
-def test_an_instance_the_components_tab_does_not_list_is_picked_and_opened(viewer, tmp_path, boxes):
-    """o15's parts, read from o15's own file, have no row on the top assembly's Components
-    tab: a click picks one in the view and leaves no row current, the note says which row
-    stands for it, a double-click and the menu go to o15's file, and Back puts the pick
-    back. Drawn from o15's meshes or as the boxes o15 stores, on SOLIDWORKS' boxes."""
+def test_an_instance_read_from_a_sub_assemblys_own_file_has_a_row_and_is_opened(viewer, tmp_path, boxes):
+    """o15's parts, read from o15's own file, which the top assembly's tree does not list,
+    get rows under o15's on the Components tab: a click picks one in the view and makes
+    its row current, its menu is its own, and a double-click says its file is not in the
+    folder and offers o15, which opens; Back puts the pick and its row back. Drawn from
+    o15's meshes or as the boxes o15 stores, on SOLIDWORKS' boxes."""
     folder = _unlisted_top(tmp_path, boxes=boxes)
     before = _state(folder)
     w, pane, made = _in_3d(viewer, folder, "top.SLDASM")
@@ -656,30 +657,34 @@ def test_an_instance_the_components_tab_does_not_list_is_picked_and_opened(viewe
             assert box == pytest.approx(gt[iid], abs=TOL), iid
     g = pane.instance_ids.index(INNER[1])
     assert "o07_boxB_h31.SLDPRT" in view.describe(g)
-    w.details.instances.setCurrentItem(w.details.instance_item("o15_sub_asm-1"))  # a row, to see it go
+    host = w.details.instance_item("o15_sub_asm-1")
+    assert [host.child(k).text(0) for k in range(host.childCount())] == [i.split("/")[-1] for i in INNER]
+    w.details.instances.setCurrentItem(host)  # a row, to see the pick move from it
     view.picked.emit(g)
-    assert view.selected == {g} and _current(w) is None and pane.highlight == ("instance", INNER[1])
-    assert "the Components tab has no row for it; o15_sub_asm-1 stands for it there" in pane.pick_note.text()
-    assert w.details.row_of(INNER[1]) == "o15_sub_asm-1" and w.details.row_of("nothing-1/x-1") is None
+    assert view.selected == {g} and _current(w) == INNER[1] and pane.highlight == ("instance", INNER[1])
+    assert pane.pick_note.text().endswith("Double-click it to open its file.")
+    assert w.details.row_of(INNER[1]) == INNER[1] and w.details.row_of("nothing-1/x-1") is None
     menu = w.details.instance_menu(INNER[1])
     texts = [a.text() for a in menu.actions()]
     assert texts[:6] == [
-        opening.OPEN_TEXT,
-        opening.show_text(),
+        f"{opening.OPEN_TEXT} (not found)",
+        f"{opening.show_text()} (not found)",
         "",
         "Go to file",
-        "Show in folder list",
-        "Show o15_sub_asm-1 on Components tab",
+        "Show in folder list (not found)",
+        "Show on Components tab",
     ]
     menu.deleteLater()
-    asked: list = []
-    w.details.componentRequested.connect(lambda *a: asked.append(a))
+    told: list = []
+    w.explain = lambda title, text, offer=None: told.append((text, offer)) or True  # takes the offer
     view.activated.emit(g)
     _wait(viewer.app, lambda: not w.busy and pane.mesh_state not in ("starting", "loading"))
-    assert asked[-1][:2] == ("2", "open") and w.details.title.text() == O15
+    ((text, offer),) = told
+    assert offer == "Open the Sub-assembly" and text.startswith("o07_boxB_h31.SLDPRT cannot be opened")
+    assert w.details.title.text() == O15
     assert w.go_back()
     _wait(viewer.app, lambda: not w.busy and pane.mesh_state == "ready")
-    assert w.details.title.text() == "top.SLDASM" and _current(w) is None
+    assert w.details.title.text() == "top.SLDASM" and _current(w) == INNER[1]
     assert pane.highlight == ("instance", INNER[1]) and view.selected == {pane.instance_ids.index(INNER[1])}
     # The sub-assembly's row picks the parts read from its file.
     w.details.instances.setCurrentItem(w.details.instance_item("o15_sub_asm-1"))
@@ -693,11 +698,13 @@ def test_an_instance_the_components_tab_does_not_list_is_picked_and_opened(viewe
 
 
 @needs_qt
-def test_the_self_test_picks_an_instance_the_components_tab_does_not_list(tmp_path):
+def test_the_self_test_picks_an_instance_read_from_a_sub_assemblys_own_file(tmp_path):
     """``--pick`` of a part read from a sub-assembly's own file: the click picks it and
-    leaves no row current, since the sub-assembly's row stands for it, which the report
-    names; the double-click opens that sub-assembly, and Back returns to the pick."""
+    makes its row current, the row the 3D view's read gave it under the sub-assembly's;
+    the double-click opens the part's file, found in the folder, and Back returns to the
+    pick and its row."""
     folder = _unlisted_top(tmp_path, boxes=False)
+    shutil.copy2(fixture_path("o07_boxB_h31.SLDPRT"), folder / "o07_boxB_h31.SLDPRT")
     before = _state(folder)
     shots = tmp_path / "shots"
     args = ["--self-test", str(folder), "--screenshot-dir", str(shots), "--select", "top.SLDASM", "--3d"]
@@ -706,9 +713,9 @@ def test_the_self_test_picks_an_instance_the_components_tab_does_not_list(tmp_pa
     (doc,) = report["documents"]
     assert doc["errors"] == []
     (picked,) = doc["picked"]
-    assert picked["picked"] == [INNER[1]] and picked["components_tab"] is None
-    assert picked["row"] == "o15_sub_asm-1" and picked["outcome"] == "listed" and picked["back"]
-    assert picked["picked_after_back"] == [INNER[1]]
+    assert picked["picked"] == [INNER[1]] and picked["components_tab"] == INNER[1]
+    assert picked["row"] == INNER[1] and picked["outcome"] == "listed" and picked["back"]
+    assert picked["shown"] == "o07_boxB_h31.SLDPRT" and picked["picked_after_back"] == [INNER[1]]
     assert _state(folder) == before
 
 

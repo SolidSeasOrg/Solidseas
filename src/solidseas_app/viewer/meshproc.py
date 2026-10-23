@@ -202,6 +202,7 @@ def _scene_header(scene: "mesh3d.SceneBuffers") -> tuple[dict[str, Any], list[by
         "instance_ids": scene.instance_ids,
         "documents": scene.documents,
         "missing": scene.missing,
+        "expanded": scene.expanded,
         "bbox": scene.bbox,
         "n_instances": scene.n_instances,
         "n_triangles": scene.n_triangles,
@@ -274,6 +275,163 @@ def check_mesh(m: Any, positions: bytes, normals: bytes, indices: bytes) -> None
         if max(idx) >= nv:
             raise BadAnswer("a triangle names a vertex the mesh does not have")
     _box(m.get("bbox"))
+
+
+_TEXT_OR_NONE = (str, type(None))
+
+
+def _number_row(value: Any) -> bool:
+    return (
+        isinstance(value, list)
+        and len(value) == 3
+        and all(isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v) for v in value)
+    )
+
+
+def _placement(value: Any) -> dict[str, Any] | None:
+    """A placement the panel can show: three rows of three finite numbers and a finite
+    translation, or None."""
+    if not isinstance(value, dict):
+        return None
+    rotation, translation = value.get("rotation"), value.get("translation_m")
+    if not (isinstance(rotation, list) and len(rotation) == 3 and all(_number_row(r) for r in rotation)):
+        return None
+    if not _number_row(translation):
+        return None
+    return {"rotation": rotation, "translation_m": translation}
+
+
+def _place_of(value: Any, root_id: str) -> tuple[str | None, str] | None:
+    """A location the window may go to: a path relative to the opened folder (root
+    ``root_id``) that never climbs out of it, or an absolute path outside every root
+    (root None). Anything else is None."""
+    if not isinstance(value, dict):
+        return None
+    root, path = value.get("root"), value.get("path")
+    if not isinstance(path, str) or not path or "\x00" in path:
+        return None
+    if root == root_id:
+        parts = path.replace("\\", "/").split("/")
+        if path.startswith(("/", "\\")) or ":" in path or any(p in ("", ".", "..") for p in parts):
+            return None
+        return root, path
+    if root is None and os.path.isabs(path):
+        return None, path
+    return None
+
+
+def _resolution(value: Any, root_id: str) -> dict[str, Any] | None:
+    """A file's resolution result as the panel reads it, its locations checked."""
+    if not isinstance(value, dict):
+        return None
+    out: dict[str, Any] = {}
+    for k in ("status", "rule", "confidence", "identity", "nested", "stored_path"):
+        v = value.get(k)
+        out[k] = v if isinstance(v, str) else None
+    match = _place_of(value.get("match"), root_id)
+    out["match"] = None if match is None else {"root": match[0], "path": match[1]}
+    candidates = []
+    for c in value.get("candidates") or []:
+        place = _place_of(c, root_id)
+        if place is None:
+            continue
+        found_by, identity = c.get("found_by"), c.get("identity")
+        candidates.append(
+            {
+                "root": place[0],
+                "path": place[1],
+                "found_by": found_by if isinstance(found_by, str) else None,
+                "identity": identity if isinstance(identity, str) else None,
+                "placeholder": c.get("placeholder") is True,
+            }
+        )
+    out["candidates"] = candidates[:100]
+    out["warnings"] = [
+        {"code": w["code"], "message": w["message"]}
+        for w in (value.get("warnings") or [])[:100]
+        if isinstance(w, dict) and isinstance(w.get("code"), str) and isinstance(w.get("message"), str)
+    ]
+    return out
+
+
+def _expanded_file(value: Any, root_id: str) -> dict[str, Any] | None:
+    if not isinstance(value, dict) or not isinstance(value.get("key"), str):
+        return None
+    out: dict[str, Any] = {"key": value["key"]}
+    for k in ("file_name", "stored_path", "doc_type", "embedded", "nested"):
+        v = value.get(k)
+        out[k] = v if isinstance(v, str) else None
+    for k in ("virtual", "imported"):
+        out[k] = value.get(k) is True
+    direct = value.get("direct")
+    out["direct"] = direct if isinstance(direct, bool) else None
+    used = value.get("configurations_used")
+    out["configurations_used"] = [c for c in used if isinstance(c, str)] if isinstance(used, list) else []
+    out["resolution"] = _resolution(value.get("resolution"), root_id)
+    return out
+
+
+def checked_expanded(value: Any, *, most: int = mesh3d.MAX_EXPANDED_ROWS) -> list[dict[str, Any]]:
+    """The rows of sub-assemblies' own files the mesh process sent
+    (:func:`.mesh3d.expanded_rows`), rebuilt from what checks: each instance keeps only
+    the fields the Components tab reads, with the types it expects, and a file's
+    location only when the window may go there (:func:`_place_of`). An entry or an
+    instance that does not check is left out with what is under it; at most ``most``
+    instances are kept. The tab shows all of it as plain text."""
+    from .reading import ROOT_ID
+
+    left = [most]
+
+    def node(n: Any, depth: int) -> dict[str, Any] | None:
+        if left[0] <= 0 or depth > 128 or not isinstance(n, dict):
+            return None
+        if not isinstance(n.get("id"), str) or not isinstance(n.get("name"), str):
+            return None
+        if not all(isinstance(n.get(k), _TEXT_OR_NONE) for k in ("file", "configuration")):
+            return None
+        flags = ("suppressed", "hidden", "excluded_from_bom", "virtual")
+        if not all(isinstance(n.get(k), bool) for k in flags) or not isinstance(n.get("children_state"), str):
+            return None
+        left[0] -= 1
+        transform = n.get("transform")
+        local = transform.get("translation_m") if isinstance(transform, dict) else None
+        out = {
+            "id": n["id"],
+            "name": n["name"],
+            "file": n["file"],
+            "configuration": n["configuration"],
+            **{k: n[k] for k in flags},
+            "children_state": n["children_state"],
+            "placement": _placement(n.get("placement")),
+            "transform": {"translation_m": local} if _number_row(local) else None,
+            "children": [],
+        }
+        kids = n.get("children")
+        for c in kids if isinstance(kids, list) else []:
+            got = node(c, depth + 1)
+            if got is not None:
+                out["children"].append(got)
+        return out
+
+    rows: list[dict[str, Any]] = []
+    for e in value if isinstance(value, list) else []:
+        if not isinstance(e, dict) or not isinstance(e.get("id"), str) or not isinstance(e.get("file"), str):
+            continue
+        children = e.get("children") if isinstance(e.get("children"), list) else []
+        files = e.get("files") if isinstance(e.get("files"), list) else []
+        nodes = e.get("nodes")
+        whole = isinstance(nodes, int) and not isinstance(nodes, bool) and nodes >= 0
+        rows.append(
+            {
+                "id": e["id"],
+                "file": e["file"],
+                "configuration": e.get("configuration") if isinstance(e.get("configuration"), str) else None,
+                "nodes": nodes if whole else 0,
+                "children": [got for c in children if (got := node(c, 1)) is not None],
+                "files": [got for f in files[: 4 * most] if (got := _expanded_file(f, ROOT_ID)) is not None],
+            }
+        )
+    return rows
 
 
 def check_scene(s: Any, n_meshes: int) -> None:
@@ -545,6 +703,7 @@ class MeshReader:
             instance_ids=s["instance_ids"],
             documents=s.get("documents") if isinstance(s.get("documents"), dict) else {},
             missing=s.get("missing") if isinstance(s.get("missing"), dict) else {},
+            expanded=checked_expanded(s.get("expanded")),
             files=s["files"],
             bbox=_box(s["bbox"]),
             n_instances=s["n_instances"],

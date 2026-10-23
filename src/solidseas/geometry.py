@@ -239,6 +239,26 @@ class SkippedInstance:
 
 
 @dataclass(frozen=True)
+class ExpandedSubassembly:
+    """A sub-assembly instance whose components the tree above it does not list, expanded
+    from its own document: ``id`` and ``file`` are its instance id and file key, as the
+    instances name them; ``configuration`` the one it is used in; ``tree`` the component
+    tree its own document gave (:meth:`Document.components`, in that configuration),
+    whose instance ids and file keys the expanded instances carry after ``<id>/`` and
+    ``<file>/``; ``placement`` where it sits in the top assembly's frame (None when a
+    stored transform on the way is unreadable). ``resolution`` is the reference
+    resolution of its own document's files, None when the call made none: no file of it
+    was looked for, and ``resolve_expanded`` was not asked."""
+
+    id: str
+    file: str | None
+    configuration: str | None
+    tree: Any = field(repr=False)
+    placement: Placement | None
+    resolution: Any = field(default=None, repr=False)
+
+
+@dataclass(frozen=True)
 class DisplayGeometry:
     """One assembly configuration, ready to draw. ``counts`` has ``instances`` (the
     component tree's, with the instances of the sub-assemblies expanded from their
@@ -257,7 +277,11 @@ class DisplayGeometry:
     says, by file key, why the ``"file"`` source gave no mesh where it was tried (a
     key of :data:`REASONS`: ``missing``, ``ambiguous``, ``unreadable``, ``no_mesh``...),
     so an instance drawn from another source, what a sub-assembly stores of it say,
-    can tell why its own file was not used."""
+    can tell why its own file was not used. ``expanded`` lists
+    each sub-assembly instance expanded from its own document
+    (:class:`ExpandedSubassembly`), in the order the instances were met, parents before
+    the sub-assemblies inside them: what a component list needs to show the instances
+    the tree above them does not list."""
 
     configuration: str | None
     configuration_source: str
@@ -270,6 +294,7 @@ class DisplayGeometry:
     files: dict[str, ComponentFile] = field(default_factory=dict)
     resolution: Any = None
     file_failures: dict[str, str] = field(default_factory=dict)
+    expanded: tuple[ExpandedSubassembly, ...] = ()
     # Each mesh's own box, measured once however many instances share the mesh.
     _mesh_boxes: dict[str, Box] = field(default_factory=dict, init=False, repr=False, compare=False)
 
@@ -769,12 +794,25 @@ class _Stored:
 
 class _Builder:
     def __init__(
-        self, doc, tree, *, roots, resolution, resolve_options, sources, limits, brep=None
+        self,
+        doc,
+        tree,
+        *,
+        roots,
+        resolution,
+        resolve_options,
+        sources,
+        limits,
+        brep=None,
+        resolve_expanded=False,
     ) -> None:
         self.doc = doc
         self.tree = tree
         self.roots = roots
         self.resolve_options = resolve_options
+        self.resolve_expanded = resolve_expanded
+        # (id, file key, configuration, tree, placement, shared) of each sub-assembly expanded
+        self.expansions: list[tuple] = []
         self.sources = sources
         # The brep source's tessellation: options for solidseas.tessellate, the body types,
         # the seconds a part may take and whether to keep the shared-vertex triangles.
@@ -875,6 +913,16 @@ class _Builder:
                         # A sub-assembly whose components this tree does not list: its own file does.
                         inner, children = self._expand(it)
                         self.counts["parts"] -= 1
+                        self.expansions.append(
+                            (
+                                ctx.id_prefix + node.id,
+                                ctx.key(node.file),
+                                node.configuration,
+                                inner.tree,
+                                it.place,
+                                inner.shared,
+                            )
+                        )
                         self._push(stack, it, inner, children, sup, hid)
                         continue
                     key = self._place(it)
@@ -928,6 +976,10 @@ class _Builder:
             files=self.files,
             resolution=self.top.shared.resolution,
             file_failures=dict(self.file_failures),
+            expanded=tuple(
+                ExpandedSubassembly(ident, key, cfg, sub, place, shared.resolution)
+                for ident, key, cfg, sub, place, shared in self.expansions
+            ),
         )
 
     def _push(self, stack: list, it: _Item, ctx: _Ctx, children, sup: bool, hid: bool) -> None:
@@ -986,6 +1038,11 @@ class _Builder:
         inner = _Ctx(
             ref, sub, f"{full}/", f"{ctx.id_prefix}{node.id}/", depth, ctx.lineage | {ref.ident}, shared
         )
+        if self.resolve_expanded and sub.files:
+            try:  # where its files are, for a component list, even if none is read for a mesh
+                self._resolution(inner)
+            except _Failed:  # each instance that needs a file says why when it is reached
+                pass
         for k, f in sub.files.items():
             key = inner.key(k)
             if key not in self.files:
@@ -1285,10 +1342,28 @@ class _Builder:
 
     def _resolved(self, ctx: _Ctx, file_key: str):
         """``(host path, within)`` of a file of ``ctx``'s document that reference
-        resolution found. Resolution runs once a document, and every document resolved
-        in one call shares one index of the roots (the ``cache`` given, or one of its
-        own), so the roots are walked once. The documents its identity reads open count
-        as files opened, and get only the room ``max_files`` leaves."""
+        resolution found (:meth:`_resolution`)."""
+        r = self._resolution(ctx).results.get(file_key)
+        if r is None:
+            raise _Failed("missing")
+        if r.match is None or r.status not in ("resolved", "moved"):
+            reason = r.status if r.status in REASONS else "missing"
+            raise _Failed(reason)
+        if r.match.root is not None:
+            try:
+                within = self.roots[r.match.root].path  # type: ignore[index]
+            except (KeyError, TypeError):
+                raise _Failed("missing", "the file was found under a root this call was not given") from None
+        else:
+            within = os.path.dirname(r.match.host_path)
+        return r.match.host_path, within
+
+    def _resolution(self, ctx: _Ctx):
+        """The reference resolution of ``ctx``'s document's files, made on first use.
+        Resolution runs once a document, and every document resolved in one call shares
+        one index of the roots (the ``cache`` given, or one of its own), so the roots are
+        walked once. The documents its identity reads open count as files opened, and
+        get only the room ``max_files`` leaves."""
         sh = ctx.shared
         if sh.resolution is None:
             if self.roots is None:
@@ -1326,20 +1401,7 @@ class _Builder:
                 c[0] == "identity" and c[2] == "skipped" for c in gateway.calls
             ):  # identities left unread for want of room: the results may be less sure
                 self.truncated.append("max_files")
-        r = sh.resolution.results.get(file_key)
-        if r is None:
-            raise _Failed("missing")
-        if r.match is None or r.status not in ("resolved", "moved"):
-            reason = r.status if r.status in REASONS else "missing"
-            raise _Failed(reason)
-        if r.match.root is not None:
-            try:
-                within = self.roots[r.match.root].path  # type: ignore[index]
-            except (KeyError, TypeError):
-                raise _Failed("missing", "the file was found under a root this call was not given") from None
-        else:
-            within = os.path.dirname(r.match.host_path)
-        return r.match.host_path, within
+        return sh.resolution
 
     def _open(self, path: str, within: str):
         if self.counts["files_opened"] >= self.max_files:
@@ -1796,6 +1858,7 @@ def display_geometry(
     brep_options: Mapping[str, Any] | None = None,
     keep_welded: bool = False,
     brep_cache=None,
+    resolve_expanded: bool = False,
 ) -> DisplayGeometry | None:
     """The display geometry of one configuration of the assembly ``doc``, or None for a
     part or a drawing. Provisional (``docs/API.md`` section 3.14).
@@ -1840,6 +1903,14 @@ def display_geometry(
     what the part's document holds: a part it holds is drawn without reading its
     bodies, even once ``max_brep_seconds`` is spent, and counts in
     ``meshes_tessellated`` as one made.
+
+
+    Each sub-assembly expanded from its own document is listed in
+    :attr:`DisplayGeometry.expanded`, with its tree and the resolution of its files when
+    one was made. With ``resolve_expanded`` (provisional) that resolution is made for
+    every one when it is expanded, even where no file of it is read for a mesh, so a
+    component list can say where each of its files is; its identity reads count as
+    files opened, as every resolution's do.
     """
     if brep_cache is not None:
         from .tesscache import TessellationCache
@@ -1881,6 +1952,7 @@ def display_geometry(
         sources=order,
         limits=limits,
         brep=brep,
+        resolve_expanded=bool(resolve_expanded),
     )
     return builder.run()
 
@@ -1896,6 +1968,7 @@ __all__ = [
     "SOURCES",
     "Box",
     "DisplayGeometry",
+    "ExpandedSubassembly",
     "MeshSource",
     "PlacedInstance",
     "SkippedInstance",

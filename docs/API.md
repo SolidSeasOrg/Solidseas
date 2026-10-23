@@ -1471,6 +1471,7 @@ def display_geometry(
     brep_options=None,                # how the brep source tessellates (below)
     keep_welded=False,                # brep meshes also carry their shared-vertex triangles
     brep_cache=None,                  # a TessellationCache: parts' tessellations kept between calls
+    resolve_expanded=False,           # resolve the files of every sub-assembly expanded from its own file
 ) -> DisplayGeometry | None
 ```
 
@@ -1498,7 +1499,15 @@ or a drawing gives None.
   dropped without a word. A suppressed or hidden one is counted once and not
   read. On the development corpus its three shown cases add no part: two are
   empty virtual sub-assemblies (`no_components`) and the third's file is not
-  found (`missing`).
+  found (`missing`). `expanded` lists each sub-assembly instance expanded
+  (`ExpandedSubassembly`: its `id`, `file`, `configuration`, the `tree` its
+  own document gave, its `placement` in the top frame and the `resolution` of
+  its files, None when no file of it was looked for), parents first, so a
+  component list can show the instances the tree above them does not list;
+  with `resolve_expanded=True` (provisional) that resolution is made for each
+  one as it is expanded, even when no file of it is read for a mesh, its
+  identity reads counted as files opened. The viewer's Components tab lists
+  them this way.
 - **Placements** are the components' `placement`s: the stored transforms
   composed through every parent (3.9). On the three fixture assemblies, in
   every configuration, each placed instance's mesh in the top frame has the box

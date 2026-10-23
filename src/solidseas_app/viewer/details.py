@@ -29,21 +29,24 @@ menu also has 3D Print for it, in the row's configuration (:meth:`DetailsPanel.a
 which the window's :attr:`DetailsPanel.print_item` fills in; off, with the reason,
 for a file that was not found); the 3D view's menu for a part has it for the part
 and for each sub-assembly the part is in, nearest first (a part read from a
-sub-assembly's own file, which no row stands for, through the document the view
-drew it from, :attr:`DetailsPanel.print_document`, or off with the reason when the
-view drew it from what its sub-assembly stores of it, its own file not found,
-:attr:`DetailsPanel.print_missing`), and the legend's for a file.
+sub-assembly's own file that no row stands for, past the rows a tree shows,
+through the document the view drew it from, :attr:`DetailsPanel.print_document`, or
+off with the reason when the view drew it from what its sub-assembly stores of it,
+its own file not found, :attr:`DetailsPanel.print_missing`), and the legend's for a
+file.
 
 The assembly's 3D view on the Preview tab and the Components tab pick the same
 thing: an instance clicked in the view becomes the current row of the
 instances, and the current row of the instances (or of the files) is picked in
 the view. An instance double-clicked or right-clicked in the view goes to its
 file, or opens its row's menu, exactly as its row would. An instance drawn as a
-box, for want of a mesh, is one of these rows like any other. One the library
-read from a sub-assembly's own file, which the components section does not
-list, has no row: picking it leaves no row current, and a double-click or the
-menu goes to the file of the sub-assembly it came from, whose row stands for it
-(:meth:`DetailsPanel.row_of`).
+box, for want of a mesh, is one of these rows like any other. The instances the
+library read from a sub-assembly's own file, which the components section does
+not list, get rows under that sub-assembly's once the 3D view has read them
+(:meth:`DetailsPanel._graft_rows`), and go to the files that read found for them.
+One past the rows a tree shows has none: picking it leaves no row current, and a
+double-click or the menu goes to the file of the nearest sub-assembly above it
+that has a row (:meth:`DetailsPanel.row_of`).
 
 A 3D file of another format than SOLIDWORKS (STEP, STL, 3MF, Alibre Design...) is
 shown from the sections the window's worker pool reads (:func:`.reading.read_model`):
@@ -81,6 +84,7 @@ transparent marked with a half filled square (:meth:`DetailsPanel._show_looks`).
 
 import html
 from collections.abc import Callable
+from dataclasses import replace
 from typing import Any
 
 from PySide6.QtCore import QEvent, QObject, QPoint, QRect, QSize, Qt, Signal
@@ -716,6 +720,10 @@ class DetailsPanel(QWidget):
         self.preview.file_menu = self._file_link_menu
         self.preview.looksChanged.connect(self._show_looks)
         self.preview.pickDropped.connect(self._no_current_rows)
+        self.preview.rowsArrived.connect(self._graft_rows)
+        # The files of the rows the 3D view's read found in sub-assemblies' own files, by
+        # their keys (``<sub-assembly's key>/<key in its file>``), with their resolution.
+        self._grafted_files: dict[str, dict[str, Any]] = {}
         # The window's 3D Print entry for a menu: (menu, its text, the file key, the file key
         # of the sub-assembly the row is in, the configuration); None: the menus have none.
         self.print_item: Callable[[QMenu, str, str, str, str], Any] | None = None
@@ -1000,6 +1008,7 @@ class DetailsPanel(QWidget):
         self.size = None
         self.sections = {}
         self.bom_section = None
+        self._grafted_files = {}
         self._rows_of: str | None = None  # the document whose instances and files the rows are
         self._picked_in = "instances"  # the tree whose current row the 3D view picked last
         self.geometry = self.geometry_error = None
@@ -1494,6 +1503,7 @@ class DetailsPanel(QWidget):
             self._assembly(data["components"])
             self._rows_of = self.path
             page.show_content()
+            self._graft_rows()  # a read of the 3D view's that came first
             self._show_looks()  # what the 3D view hides or shows through, on the new rows
             if kept:
                 self.restore_selection(kept)
@@ -1540,7 +1550,7 @@ class DetailsPanel(QWidget):
         self.components_counts.setText(text)
 
         files = {f["key"]: f for f in c["files"]}
-        disabled = self.palette().color(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Text)
+        self._grafted_files = {}
         right = Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
         t = self.instances
         _reset(t)
@@ -1550,46 +1560,8 @@ class DetailsPanel(QWidget):
             stack = [(None, n, False, None) for n in reversed(c["children"] or [])]
             while stack and shown < MAX_ROWS:
                 parent, n, parent_suppressed, parent_file = stack.pop()
-                f = files.get(n["file"]) or {}
-                pl = n.get("placement") or {}
-                pos = pl.get("translation_m") or [None, None, None]
-                local = (n.get("transform") or {}).get("translation_m")
-                if is_internal(n["file"]):
-                    lines = [f"inside this file: {f.get('file_name') or n['name']}"]
-                else:
-                    lines = [f.get("file_name") or "file unknown"]
-                if f.get("stored_path"):
-                    lines.append(f["stored_path"])
-                if local:
-                    relative = ", ".join(mm(v) for v in local)
-                    lines.append(f"position relative to its parent: {relative} mm")
-                if n["children_state"] in ("truncated", "cycle", "unknown"):
-                    lines.append(f"children: {n['children_state']}")
-                if parent_suppressed and not n["suppressed"]:
-                    lines.append("inside a suppressed sub-assembly, so suppressed too")
-                suppressed = n["suppressed"] or parent_suppressed
-                item = _make(
-                    [
-                        n["name"],
-                        n["configuration"] or "",
-                        _state(n, parent_suppressed=parent_suppressed),
-                        mm(pos[0]),
-                        mm(pos[1]),
-                        mm(pos[2]),
-                        rotation_text(pl.get("rotation")),
-                    ],
-                    color=disabled if suppressed else None,
-                    tip_text="\n".join(lines),
-                )
-                _link(item, n["file"], n.get("id") or n["name"], parent_file, n["configuration"])
-                item.setData(0, GREY_ROLE, bool(suppressed))
+                item, suppressed = self._instance_item(n, files, parent_suppressed, parent_file)
                 shown += 1
-                for col in (3, 4, 5):
-                    item.setTextAlignment(col, right)
-                if n["hidden"]:
-                    font = QFont(item.font(0))
-                    font.setItalic(True)
-                    item.setFont(0, font)
                 if parent is None:
                     tops.append(item)
                 else:
@@ -1645,6 +1617,119 @@ class DetailsPanel(QWidget):
         finally:
             _done(ft)
         self.preview.set_components(*component_files(c))
+
+    def _instance_item(
+        self,
+        n: dict[str, Any],
+        files: dict[str, dict[str, Any]],
+        parent_suppressed: bool,
+        parent_file: str | None,
+        *,
+        source: str = "",
+    ) -> tuple[QTreeWidgetItem, bool]:
+        """The row of the instance ``n`` (a node of the ``components`` kind), not yet in the
+        tree, and whether it counts as suppressed. ``files`` holds the file its key names;
+        ``source``, when given, is a last line for its tooltip saying where it was read."""
+        disabled = self.palette().color(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Text)
+        right = Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+        f = files.get(n["file"]) or {}
+        pl = n.get("placement") or {}
+        pos = pl.get("translation_m") or [None, None, None]
+        local = (n.get("transform") or {}).get("translation_m")
+        if is_internal(n["file"]):
+            lines = [f"inside this file: {f.get('file_name') or n['name']}"]
+        else:
+            lines = [f.get("file_name") or "file unknown"]
+        if f.get("stored_path"):
+            lines.append(f["stored_path"])
+        if local:
+            relative = ", ".join(mm(v) for v in local)
+            lines.append(f"position relative to its parent: {relative} mm")
+        if n["children_state"] in ("truncated", "cycle", "unknown"):
+            lines.append(f"children: {n['children_state']}")
+        if parent_suppressed and not n["suppressed"]:
+            lines.append("inside a suppressed sub-assembly, so suppressed too")
+        if source:
+            lines.append(source)
+        suppressed = bool(n["suppressed"] or parent_suppressed)
+        item = _make(
+            [
+                n["name"],
+                n["configuration"] or "",
+                _state(n, parent_suppressed=parent_suppressed),
+                mm(pos[0]),
+                mm(pos[1]),
+                mm(pos[2]),
+                rotation_text(pl.get("rotation")),
+            ],
+            color=disabled if suppressed else None,
+            tip_text="\n".join(lines),
+        )
+        _link(item, n["file"], n.get("id") or n["name"], parent_file, n["configuration"])
+        item.setData(0, GREY_ROLE, suppressed)
+        for col in (3, 4, 5):
+            item.setTextAlignment(col, right)
+        if n["hidden"]:
+            font = QFont(item.font(0))
+            font.setItalic(True)
+            item.setFont(0, font)
+        return item, suppressed
+
+    def _graft_rows(self) -> None:
+        """Add, under each sub-assembly whose components the assembly's own tree does not
+        list, the instances the 3D view's read found in its own file
+        (:attr:`.preview.PreviewPane.expanded_rows`): rows like the others, which the view
+        picks, whose files they go to (:meth:`target`) and whose looks they show. Only for
+        the configuration the tab shows, under a row with no rows of its own yet, and
+        within the rows a tree shows (:data:`MAX_ROWS`)."""
+        pane = self.preview
+        if not pane.expanded_rows or self.configuration_shown() is None:
+            return
+        if not self.pages["Components"].showing_content or self.components_stack.currentIndex() != 0:
+            return
+        if pane.expanded_configuration != self.configuration_shown():
+            return  # a read of another configuration: this one's follows
+        t = self.instances
+        by_id: dict[str, QTreeWidgetItem] = {}
+        shown = 0
+        for item in _walk(t):
+            shown += 1
+            ident = item.data(0, IDENT_ROLE)
+            if ident and item.data(0, KEY_ROLE):
+                by_id[ident] = item
+        source = (
+            "Listed in its sub-assembly's own file, which the 3D view read; this assembly does not list it."
+        )
+        added = False
+        for e in pane.expanded_rows:
+            host = by_id.get(e["id"])
+            if host is None or host.childCount() or host.data(0, KEY_ROLE) != e["file"]:
+                continue
+            files = {f["key"]: f for f in e["files"]}
+            self._grafted_files.update(files)
+            made = 0
+            stack = [(host, n, bool(host.data(0, GREY_ROLE)), e["file"]) for n in reversed(e["children"])]
+            while stack and shown < MAX_ROWS:
+                parent, n, parent_suppressed, parent_file = stack.pop()
+                item, suppressed = self._instance_item(
+                    n, files, parent_suppressed, parent_file, source=source
+                )
+                parent.addChild(item)
+                by_id[n["id"]] = item
+                shown += 1
+                made += 1
+                stack.extend((item, ch, suppressed, n["file"]) for ch in reversed(n["children"]))
+            if e["nodes"] > made:
+                host.addChild(_more(e["nodes"] - made, "instance", "instances", " from its own file"))
+            host.setExpanded(True)
+            added = True
+        if added:
+            self._show_looks()
+            # The view's pick and the current row follow each other: an instance picked
+            # before its row came (Back puts the pick back first) gets its row now.
+            pick = pane.highlight
+            if pick and pick[0] == "instance" and t.currentItem() is None and pick[1] in by_id:
+                self.select_instance(pick[1])
 
     def _drawing(self, r: dict[str, Any]) -> None:
         for tree in (self.instances, self.files):  # an earlier assembly's rows
@@ -1943,6 +2028,20 @@ class DetailsPanel(QWidget):
                 self._internal_name(key),
                 why="It is a part of this file, not a file of its own.",
             )
+        grafted = self._grafted_files.get(key)
+        if grafted is not None:  # a file of a sub-assembly's own, found when the 3D view read it
+            t = navigate.target(grafted, key=key)
+            if t.kind == navigate.NESTED:  # stored inside that sub-assembly's file, not this one
+                rr = {**(grafted.get("resolution") or {}), "status": "embedded_in_subassembly"}
+                t = replace(
+                    t,
+                    kind=navigate.MISSING,
+                    status="embedded_in_subassembly",
+                    nested=None,
+                    how="",
+                    why=navigate.missing_text(grafted, rr),
+                )
+            return t
         section = self.sections.get("references")
         if section is None:
             comp = (self.sections.get("components") or {}).get("data") or {}
@@ -1962,6 +2061,11 @@ class DetailsPanel(QWidget):
         outside = (refs.get("resolution") or {}).get("outside_roots", True)
         model = bool(section["data"].get("model"))
         return navigate.target(files.get(key), key=key, outside_roots=bool(outside), model=model)
+
+    def from_subassembly_file(self, key: str) -> bool:
+        """Whether the file ``key`` is one of a row read from a sub-assembly's own file
+        (:meth:`_graft_rows`), which the assembly itself does not name."""
+        return key in self._grafted_files
 
     def _internal_name(self, key: str) -> str:
         comp = ((self.sections.get("components") or {}).get("data") or {}).get("components") or {}
@@ -2106,8 +2210,8 @@ class DetailsPanel(QWidget):
         """The 3D view's 3D Print entries for the instance ``ident``: its part, in the
         configuration the instance uses, then each sub-assembly it is in, nearest first,
         each in the configuration it is used in. The part is found from its row on the
-        Components tab, or for one the 3D view read from a sub-assembly's own file, which
-        has no row, from the document the view drew it from
+        Components tab, or for one the 3D view read from a sub-assembly's own file that
+        has no row (past the rows the tab shows), from the document the view drew it from
         (:attr:`.preview.PreviewPane.instance_documents`); one it drew from what its
         sub-assembly stores of it, its own file not found, has the entry off with the
         reason (:attr:`.preview.PreviewPane.instance_missing`). How many were added."""
@@ -2184,8 +2288,8 @@ class DetailsPanel(QWidget):
     def select_instance(self, ident: str) -> bool:
         """Make the instance ``ident`` the current row of the instances, as a click on it
         in the 3D view does; "" leaves none current, and so does an instance without a row
-        (one read from a sub-assembly's own file), for which it gives False, leaving the
-        view's pick as it is. A body of a model file's multi-body part, drawn under its
+        (one read from a sub-assembly's own file, past the rows shown), for which it gives
+        False, leaving the view's pick as it is. A body of a model file's multi-body part, drawn under its
         part's id (:func:`.modelview.fold`), makes the part's row current: a row inside the
         file stands for everything drawn under it."""
         tree = self.instances
@@ -2245,10 +2349,10 @@ class DetailsPanel(QWidget):
         return None
 
     def row_of(self, ident: str) -> str | None:
-        """The id of the instance of the components section that stands for ``ident``:
-        ``ident`` itself, or for an instance the library read from a sub-assembly's own
-        file (which the section does not list) the nearest sub-assembly above it that the
-        section lists; None when there is none, or no section yet."""
+        """The id of the instance whose row, or place in the components section, stands
+        for ``ident``: ``ident`` itself (a row read from a sub-assembly's own file
+        included, :meth:`_graft_rows`), or for one without either the nearest
+        sub-assembly above it that has one; None when there is none, or no section yet."""
         probe = ident
         while probe:
             if self.instance_link(probe) is not None:

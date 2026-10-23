@@ -627,8 +627,9 @@ it, on the catalog it already indexes.
   file reference resolution found for the row, in the row's configuration; a
   virtual component from inside the assembly that stores it, or from inside
   the sub-assembly that does, found there by its stored name; a part the 3D
-  view read from a sub-assembly's own file, which no row stands for, from the
-  document its mesh came from) and every print, button or menu, goes through
+  view read from a sub-assembly's own file, from the file that read found for
+  its row, or past the rows shown from the document its mesh came from) and
+  every print, button or menu, goes through
   `PrintController.start`; a component whose file was not found has its entry
   off, with the reason. The file is written next to the model it was made from
   (`printing.model_folder`), under a temporary name, then claimed by a rename
