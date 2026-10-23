@@ -3,6 +3,7 @@ with ``formats``, the worker jobs, the command line and the REST service, and th
 same ``model_summary`` from Python, the CLI and REST."""
 
 import json
+import os
 import shutil
 
 import pytest
@@ -11,8 +12,8 @@ import mesh_writers as mw
 from jsonschema_subset import validate
 from model_writers import box, scene_document, stl_ascii, stl_binary, two_object_assembly
 from serve_support import Running
-from solidseas import cli, jobs, model, scan
-from solidseas.errors import FormatNotSupportedError, InvalidArgumentError, SldLimitError
+from solidseas import Root, Roots, cli, jobs, model, scan
+from solidseas.errors import FormatNotSupportedError, InvalidArgumentError, PathRefusedError, SldLimitError
 from solidseas.formats import Limits, open_model
 from solidseas.workers import WorkerPool
 from support import fixture_path
@@ -203,6 +204,32 @@ def test_a_pool_carries_its_formats_and_limits_to_its_workers(disguised):
         assert pool._settings["job_settings"]["formats"] is None
         assert pool._settings["job_settings"]["limits"] is None
 
+
+
+def test_a_root_served_without_subfolders_keeps_named_files_beside_the_document(tmp_path):
+    data, sib = mw.gltf(box(1, 1, 1), buffer="file")
+    doc = json.loads(data)
+    doc["buffers"][0]["uri"] = "sub/scene.bin"
+    (tmp_path / "sub").mkdir()
+    (tmp_path / "sub" / "scene.bin").write_bytes(sib["scene.bin"])
+    (tmp_path / "s.gltf").write_text(json.dumps(doc))
+    base = {"path": str(tmp_path / "s.gltf"), "within": str(tmp_path), "name": "s.gltf"}
+    jobs.configure({"roots": [str(tmp_path)], "flat_roots": [str(tmp_path)]})
+    try:
+        assert jobs.model_summary(base)["references"][0]["resolution"]["status"] == "refused"
+        with pytest.raises(PathRefusedError) as exc:
+            jobs.model_preview({**base, "render": "always"})
+        assert exc.value.detail == {"rule": "subfolder"}
+    finally:
+        jobs.configure({})
+    jobs.configure({"roots": [str(tmp_path)]})  # a root served with its subfolders
+    try:
+        assert jobs.model_summary(base)["references"][0]["resolution"]["status"] == "found"
+    finally:
+        jobs.configure({})
+    flat = Roots([Root("r", str(tmp_path), recursive=False)])
+    with WorkerPool(1, roots=flat) as pool:  # a pool takes the rule from a root that is not recursive
+        assert pool._settings["job_settings"]["flat_roots"] == [os.path.abspath(tmp_path)]
 
 def test_a_listing_reads_a_model_file_only_as_a_listed_format(disguised):
     got = _by_path(scan(disguised, formats="stl").listing()["entries"])

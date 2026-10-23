@@ -262,3 +262,28 @@ def test_python_cli_and_rest_give_the_same_model_summary(tmp_path, capsys):
     (tmp_path / "a.ply").write_bytes(mw.ply(two_object_assembly(), face_colors=True))
     (tmp_path / "b.ply").write_bytes(mw.ply(two_object_assembly(), encoding="binary_be", normals=True))
     mw.same_on_three_surfaces(tmp_path, ["a.ply", "b.ply"], "ply", capsys)
+
+
+@pytest.mark.parametrize("newline", [b"\n", b"\r\n"])
+def test_a_comment_that_mentions_end_header_does_not_end_the_header(newline):
+    lines = [
+        b"ply",
+        b"format ascii 1.0",
+        b"comment end_header is the last line",
+        b"comment see end_header",
+        b"element vertex 3",
+        b"property float x",
+        b"property float y",
+        b"property float z",
+        b"element face 1",
+        b"property list uchar int vertex_indices",
+        b"end_header",
+        b"0 0 0",
+        b"1 0 0",
+        b"0 1 0",
+        b"3 0 1 2",
+    ]
+    with open_model(newline.join(lines) + newline, name="c.ply") as doc:
+        assert doc.scene().counts["triangles"] == 1
+        (comment,) = [p for p in doc.properties if p.name == "comment"]
+        assert comment.value == "end_header is the last line\nsee end_header"

@@ -26,6 +26,9 @@ settings:
   the formats it was started with.
 * ``limits`` (provisional): the bounds of every model-file read, as a mapping of
   :class:`~solidseas.formats.Limits` fields to values (the defaults for the rest).
+* ``flat_roots`` (provisional): roots served without their subfolders. A model file
+  opened within one reads the files it names (a glTF buffer, an OBJ material
+  library, an Alibre component) from its own folder only.
 
 Two jobs serve the catalog (:mod:`solidseas.catalog`), whose writer process
 never parses a CAD file itself: :func:`catalog_document` reads one document's
@@ -73,6 +76,7 @@ _settings: dict[str, Any] = {
     "max_file_bytes": None,
     "formats": None,
     "limits": None,
+    "flat_roots": (),
 }
 
 
@@ -93,6 +97,14 @@ def configure(settings: dict[str, Any]) -> None:
     _settings["formats"] = enabled_formats(settings.get("formats"))
     bounds = settings.get("limits")
     _settings["limits"] = check_limits(dict(bounds)) if bounds else None
+    flat = settings.get("flat_roots") or ()
+    _settings["flat_roots"] = tuple(_norm(r) for r in flat if isinstance(r, str))
+
+
+def _subfolders(within: str | None) -> bool:
+    """Whether a model file opened ``within`` a folder may read files below its own folder:
+    not when that folder is a root served without its subfolders."""
+    return within is None or _norm(within) not in _settings["flat_roots"]
 
 
 def _model_formats(asked: list[str] | None = None) -> list[str] | None:
@@ -290,6 +302,7 @@ def listing_entry(params: dict[str, Any]) -> tuple[dict[str, Any], bytes | None]
         refuse_hard_links=_settings["refuse_hard_links"],
         formats=asked,
         limits=_settings["limits"],
+        subfolders=_subfolders(within),
     )
     return entry, image if "preview_data" in include else None
 
@@ -316,6 +329,7 @@ def _open_model(params: dict[str, Any]):
         hold_open=True,
         formats=_model_formats(),
         limits=_settings["limits"],
+        subfolders=_subfolders(within),
     )
 
 
@@ -368,6 +382,7 @@ def model_entry(params: dict[str, Any]) -> tuple[dict[str, Any], bytes | None]:
         refuse_hard_links=_settings["refuse_hard_links"],
         formats=_model_formats(_formats(params)),
         limits=_settings["limits"],
+        subfolders=_subfolders(within),
     )
     return entry, image if "preview_data" in include else None
 
@@ -478,6 +493,7 @@ def catalog_document(params: dict[str, Any]) -> tuple[dict[str, Any], bytes | No
             hold_open=True,
             formats=_model_formats(),
             limits=_settings["limits"],
+            subfolders=_subfolders(within),
         ) as doc:
             if isinstance(doc, ModelDocument):
                 return build_model_record(doc, previews=previews)

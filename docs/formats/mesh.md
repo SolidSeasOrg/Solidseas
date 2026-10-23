@@ -124,8 +124,9 @@ and the Open Packaging Conventions (ECMA-376 Part 2).
   triangle without `p1` takes its object's `pid` and `pindex`, whatever its own
   `pid`: the core specification gives such a triangle the object's default
   property. Texture groups, composite materials and multi-properties give no
-  colour (`textures_ignored` for textures). Past `threemf_color_groups` (65,536)
-  group entries a part's further colours are not kept (`colors_ignored`); more
+  colour (`textures_ignored` for textures), and none of their entries is kept.
+  Past `threemf_color_groups` (65,536) group entries a part's further colours are
+  not kept, and a triangle that names one has no colour (`colors_ignored`); more
   groups than that are refused.
 - **Metadata** (verified: specification). The root model's `<metadata>`
   elements with unprefixed names: `Title` (`fields.title`), `Designer`
@@ -200,7 +201,8 @@ descriptions, as published with the Advanced Visualizer manual.
   spaces; else its words), read only from inside the document's folder by
   `read_sibling` (no `..`, absolute path, drive, UNC, scheme, alternate stream or
   link, and no second name when the document was opened with
-  `refuse_hard_links`; at most `obj_material_libraries`, 16). From a library: `newmtl`, `Kd`
+  `refuse_hard_links`; at most `obj_material_libraries`, 16, counted as each is
+  named, so the seventeenth stops the read where it stands). From a library: `newmtl`, `Kd`
   (diffuse colour, clamped to 0 to 1; a spectral or CIE XYZ `Kd` is not read),
   `d` (opacity) or `Tr` (one less the opacity); `map_` statements and `bump`,
   `disp`, `decal`, `refl` give `textures_ignored`. A library that cannot be read
@@ -220,8 +222,9 @@ Stanford 3D Scanning Repository.
   | binary_little_endian | binary_big_endian 1.0` (the variant `ascii`,
   `binary_le`, `binary_be`), `comment` and `obj_info` lines (the properties
   `comment` and `obj_info`), `element name count` and `property type name` or
-  `property list count_type item_type name`, ending at `end_header` and its line
-  feed (CR LF accepted). Types `char`, `uchar`, `short`, `ushort`, `int`, `uint`,
+  `property list count_type item_type name`, ending at the first line that is
+  `end_header` alone and its line feed (CR LF accepted): the words in a comment
+  end nothing. Types `char`, `uchar`, `short`, `ushort`, `int`, `uint`,
   `float`, `double` and their sized names (`int8`... `float64`). At most
   `ply_header_bytes` (64 KiB), `ply_elements` (32) and `ply_properties` (64) an
   element. Every element's rows must fit in what follows the header (each at
@@ -283,7 +286,8 @@ Sources: the glTF 2.0 specification (Khronos) and the extension specifications
 `EXT_meshopt_compression`.
 
 - **Containers** (verified: specification, synthetic tests). JSON (at most
-  `json_bytes`, strict: no NaN or Infinity, depth `json_depth`) or GLB: `glTF`,
+  `json_bytes`, strict: no NaN or Infinity, nor a number too large for a double such
+  as `1e999`, depth `json_depth`) or GLB: `glTF`,
   version 2, the total length (not past the file), a JSON chunk first and an
   optional binary chunk, which is buffer 0 when that buffer has no `uri`. The
   variant is `gltf` or `glb`; `asset.version` must be 2.x.
@@ -327,6 +331,9 @@ Sources: the glTF 2.0 specification (Khronos) and the extension specifications
   `baseColorFactor` (or the specular-glossiness extension's `diffuseFactor`); a
   material with only a texture has no colour (`textures_ignored`). Points and
   lines, and primitives without positions, are left out (`primitives_skipped`).
+  Turning strips and fans into triangles and converting normalised values tick
+  the scene's clock, as walking a GLB's chunks ticks the opening's, so the time
+  bounds and `scene(cancelled=...)` reach them.
   A primitive held only in Draco form (its positions accessor has no buffer
   view) or only in meshopt form (its views' buffer is the extension's fallback,
   without data) is left out (`compression_not_supported`).
@@ -388,6 +395,11 @@ consulted.
   triangle cannot blend corners), else its volume's colour, else its object's,
   else its volume's material's. A colour written as a formula (AMF allows them)
   is not read; textures and composite materials are not read.
+- **Bounds** (verified: synthetic tests). Volumes, of every object together,
+  count against `amf_volumes` (100,000), and materials with a colour against
+  `amf_materials` (65,536). `tree()` keeps of each triangle only its first corner,
+  which its colour may need, and no position: 4 bytes a triangle where a scene
+  keeps 12, and the tree still numbers the scene's objects as `scene()` does.
 - **Constellations** (verified for the order: the published description;
   synthetic tests). `<instance objectid>` with `<deltax> <deltay> <deltaz>` and
   `<rx> <ry> <rz>` in degrees, turned about x, then y, then z, then moved; an

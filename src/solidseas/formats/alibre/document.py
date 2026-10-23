@@ -377,7 +377,12 @@ class AlibreDocument(ModelDocument):
         if self._resolver is None or self._resolver.roots != tuple(os.path.abspath(r) for r in roots if r):
             folder = os.path.dirname(os.path.abspath(self.path)) if self.path else None
             self._resolver = Resolver(
-                folder, roots, self.limits, exclude=self.path, refuse_hard_links=self.refuse_hard_links
+                folder,
+                roots,
+                self.limits,
+                exclude=self.path,
+                refuse_hard_links=self.refuse_hard_links,
+                subfolders=self.subfolders,
             )
             self._resolutions = {}
         return self._resolver
@@ -589,8 +594,9 @@ class _AssemblyState:
 
     def _open(self, path: str, within: str) -> tuple["AlibreDocument | None", str]:
         """The component document at ``path`` (opened once, under the rules the top
-        assembly was opened with: ``refuse_hard_links`` and ``max_file_bytes``), or None
-        and why: ``limit`` (``components`` reached) or ``unreadable``."""
+        assembly was opened with: ``refuse_hard_links``, ``max_file_bytes`` and
+        ``subfolders``), or None and why: ``limit`` (``components`` reached) or
+        ``unreadable``."""
         from ..base import open_model
 
         key = os.path.normcase(os.path.abspath(path))
@@ -609,6 +615,7 @@ class _AssemblyState:
                 limits=self.top.limits,
                 refuse_hard_links=self.top.refuse_hard_links,
                 max_file_bytes=self.top.max_file_bytes,
+                subfolders=self.top.subfolders,
             )
         except FileTooLargeError:  # this component's own file is over the caller's limit: left out
             doc = None

@@ -139,11 +139,16 @@ REFUSED_DRAIN_S = 0.1  # how long a refused connection's bytes are read before i
 REPLY_MARGIN = 64 << 10
 # The bounds of a model-file read in the service: the library's, but for a scene that fits
 # a worker's 2 GiB (a binary STL's scene takes about 158 bytes a triangle, so the library's
-# 20 million triangles would need about 3.2 GB) and for the files a document names.
+# 20 million triangles would need about 3.2 GB), for the files a document names, and for
+# the search for an Alibre assembly's components, which every request that reads the
+# assembly makes again.
 SERVE_LIMITS = DEFAULT_LIMITS.replace(
     triangles=10_000_000,
     vertices=30_000_000,
     sibling_total_bytes=512 << 20,
+    resolve_examined=5_000,
+    resolve_candidates=500,
+    resolve_seconds=5.0,
 )
 CATALOG_WORKERS = 2  # the catalog's own workers (at most the service's), below normal priority
 CATALOG_SCANS_KEPT = 10  # the last scans' results the service keeps (Server.catalog_scans)
@@ -592,7 +597,7 @@ class Server:
                 self.config.workers,
                 timeout_s=max(self.config.deadlines.values()),
                 memory_mb=self.config.worker_memory_mb,
-                roots=[s.root.path for s in self._states],
+                roots=[s.root for s in self._states],
                 reader_message=False,
                 refuse_hard_links=self.config.refuse_hard_links,
                 max_file_bytes=self.config.max_file_bytes,
@@ -705,7 +710,7 @@ class Server:
             max(1, min(CATALOG_WORKERS, self.config.workers)),
             timeout_s=max(DEFAULT_FILE_TIMEOUT, HASH_BASE_SECONDS),
             memory_mb=self.config.worker_memory_mb,
-            roots=[s.root.path for s in self._states],
+            roots=[s.root for s in self._states],
             reader_message=False,
             refuse_hard_links=self.config.refuse_hard_links,
             max_file_bytes=self.config.max_file_bytes,

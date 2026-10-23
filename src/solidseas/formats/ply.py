@@ -5,9 +5,11 @@ A PLY file is a text header, then the elements it declares in order. The header
 is ``ply``, ``format ascii|binary_little_endian|binary_big_endian 1.0``,
 ``comment`` and ``obj_info`` lines, and for each element ``element name count``
 followed by its properties: ``property type name`` or ``property list
-count_type item_type name``. SolidSeas reads the ``vertex`` element (``x``, ``y``,
-``z``; ``nx``, ``ny``, ``nz`` as normals; ``red``, ``green``, ``blue`` and
-``alpha``, or ``diffuse_red``... as colours) and the ``face`` element
+count_type item_type name``; it ends at the first line that is ``end_header``
+alone (the words in a comment end nothing). SolidSeas reads the ``vertex``
+element (``x``, ``y``, ``z``; ``nx``, ``ny``, ``nz`` as normals; ``red``,
+``green``, ``blue`` and ``alpha``, or ``diffuse_red``... as colours) and the
+``face`` element
 (``vertex_indices`` or ``vertex_index``, and a colour of its own), or
 ``tristrips`` (strips with -1 between them). Every other element is skipped by
 its size; a list is skipped item by item. Faces of more than three corners are cut
@@ -24,6 +26,7 @@ each row takes at least its fixed-size properties and list counts (binary), or
 two bytes a property (ASCII).
 """
 
+import re
 import struct
 import sys
 from array import array
@@ -53,6 +56,7 @@ _TYPES = {
     b"float64": "d",
 }
 _INTEGER = frozenset("bBhHiI")
+_END_HEADER = re.compile(rb"\nend_header(\r?\n|\Z)")  # the line that ends the header, and its line end
 _COLOR_SCALE = {"b": 127.0, "B": 255.0, "h": 32767.0, "H": 65535.0, "i": 2147483647.0, "I": 4294967295.0}
 _FORMATS = {b"ascii": "ascii", b"binary_little_endian": "binary_le", b"binary_big_endian": "binary_be"}
 _COLOR_NAMES = (
@@ -115,21 +119,18 @@ class PlyDocument(ModelDocument):
     def _header(self) -> None:
         lim = self.limits
         head = self.source.head(lim.ply_header_bytes + 2)
-        end = head.find(b"end_header")
-        if end < 0:
+        # the header ends at a line that is end_header alone, never at those words in a comment
+        m = _END_HEADER.search(head)
+        if m is not None and not m.group(1) and len(head) < self.source.size:
+            m = None  # cut off by the head, not by the file's end
+        if m is None:
             if self.source.size > lim.ply_header_bytes:
                 raise lim.exceeded(
                     "ply_header_bytes", f"the PLY header is longer than {lim.ply_header_bytes:,} bytes"
                 )
             raise SldFormatError("the PLY header has no end_header line")
-        rest = head[end + 10 : end + 12]
-        if rest.startswith(b"\r\n"):
-            self.data_start = end + 12
-        elif rest.startswith(b"\n") or rest == b"":
-            self.data_start = end + 11 if rest else end + 10
-        else:
-            raise SldFormatError("the PLY header's end_header line is followed by other text")
-        lines = head[:end].replace(b"\r\n", b"\n").split(b"\n")
+        self.data_start = m.end()
+        lines = head[: m.start() + 1].replace(b"\r\n", b"\n").split(b"\n")
         if not lines or lines[0].strip() != b"ply":
             raise SldFormatError("not a PLY file: it does not start with ply")
         fmt = None

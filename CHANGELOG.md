@@ -1808,6 +1808,13 @@ while the project takes shape.
 
 ### Fixed
 
+- **Reader fixes.** The zip compression ratio is taken against the bytes
+  actually read; a second scene of a 3MF no longer trips the zip total limit;
+  3MF colour groups and AMF volumes and materials are bounded; OBJ material
+  libraries are counted as they are named; a PLY comment mentioning end_header
+  no longer ends the header; JSON numbers such as 1e999 are refused; glTF
+  strips, fans and GLB chunks keep the time limit.
+
 - **Crafted files that ask for too much memory.** A crafted 3MF or zipped AMF
   can no longer make SolidSeas build a central directory larger than its end
   record admits, a glTF accessor's sparse block is checked before any zeros are

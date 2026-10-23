@@ -96,6 +96,7 @@ _HARMLESS = frozenset(
 Z_UP = Placement(((1.0, 0.0, 0.0), (0.0, 0.0, -1.0), (0.0, 1.0, 0.0)), (0.0, 0.0, 0.0))
 _ARRAYS = ("accessors", "bufferViews", "meshes", "nodes", "materials", "scenes", "images", "textures")
 _ZERO_FLOOR = 1 << 20  # a zero-filled accessor may always hold this many bytes
+_BATCH = 4096  # values converted, or strip and fan corners turned, between ticks of the clock
 
 
 def _int(value: Any, what: str, low: int = 0) -> int:
@@ -153,7 +154,7 @@ class GltfDocument(ModelDocument):
         self._budget = SiblingBudget.of(source, limits)
         if source.head(4) == _GLB_MAGIC:
             self.variant = "glb"
-            data = self._glb()
+            data = self._glb(Clock(limits.seconds))
         else:
             self.variant = "gltf"
             data = source.read_all(limits.json_bytes, "json_bytes")
@@ -163,7 +164,7 @@ class GltfDocument(ModelDocument):
         self._head()
 
     # -- the container ----------------------------------------------------------------------
-    def _glb(self) -> bytes:
+    def _glb(self, clock: Clock) -> bytes:
         src = self.source
         lim = self.limits
         if src.size < 20:
@@ -176,6 +177,7 @@ class GltfDocument(ModelDocument):
         pos = 12
         json_data = None
         while pos + 8 <= length:
+            clock.tick()  # a file of empty chunks keeps the time bound
             clen, ctype = struct.unpack("<II", src.read_at(pos, 8))
             if pos + 8 + clen > length:
                 raise SldFormatError("a GLB chunk runs past the end of the file")
@@ -479,11 +481,17 @@ class GltfDocument(ModelDocument):
         return data
 
     def _accessor(
-        self, index: Any, types: tuple[str, ...], what: str, budget: tuple[int, str] | None = None
+        self,
+        index: Any,
+        types: tuple[str, ...],
+        what: str,
+        budget: tuple[int, str] | None = None,
+        clock: Clock | None = None,
     ) -> tuple[array, int]:
         """An accessor's values as a flat array (floats for normalised integers), and the
         components an element. ``budget`` is ``(elements, limit name)``: the most it may
-        hold, checked before anything is allocated."""
+        hold, checked before anything is allocated; ``clock`` is ticked as normalised
+        values are converted."""
         acc = self._get("accessors", index)
         ctype = acc.get("componentType")
         if ctype not in _COMPONENTS:
@@ -540,7 +548,11 @@ class GltfDocument(ModelDocument):
             for k, p in enumerate(positions):
                 values[p * ncomp : (p + 1) * ncomp] = rep[k * ncomp : (k + 1) * ncomp]
         if scale is not None and acc.get("normalized"):
-            fl = array("f", (max(v / scale, -1.0) for v in values))
+            fl = array("f")
+            for i in range(0, len(values), _BATCH):
+                fl.extend(max(v / scale, -1.0) for v in values[i : i + _BATCH])
+                if clock is not None:
+                    clock.tick(_BATCH)
             return fl, ncomp
         return values, ncomp
 
@@ -676,8 +688,9 @@ class GltfDocument(ModelDocument):
         what = f"mesh {mi} primitive {pi}"
         attrs = prim["attributes"]
         lim = self.limits
+        clock = sb.clock
         pos, _n = self._accessor(
-            attrs["POSITION"], ("VEC3",), f"{what} POSITION", (lim.vertices - sb.vertices, "vertices")
+            attrs["POSITION"], ("VEC3",), f"{what} POSITION", (lim.vertices - sb.vertices, "vertices"), clock
         )
         nv = len(pos) // 3
         normals = None
@@ -686,7 +699,7 @@ class GltfDocument(ModelDocument):
             and not self._all_zeros(attrs["NORMAL"])
             and self._get("accessors", attrs["NORMAL"]).get("count") == nv
         ):
-            nrm, _n = self._accessor(attrs["NORMAL"], ("VEC3",), f"{what} NORMAL", (nv, "vertices"))
+            nrm, _n = self._accessor(attrs["NORMAL"], ("VEC3",), f"{what} NORMAL", (nv, "vertices"), clock)
             if len(nrm) == len(pos):
                 normals = nrm
         if "indices" in prim:
@@ -695,6 +708,7 @@ class GltfDocument(ModelDocument):
                 ("SCALAR",),
                 f"{what} indices",
                 (3 * (lim.triangles - sb.triangles) + 2, "triangles"),
+                clock,
             )
             if idx.typecode not in "BHI":
                 raise SldFormatError(f"{what}: indices are not unsigned whole numbers")
@@ -711,10 +725,14 @@ class GltfDocument(ModelDocument):
                     tris.extend((idx[i], idx[i + 1], idx[i + 2]))
                 else:
                     tris.extend((idx[i + 1], idx[i], idx[i + 2]))
+                if not i % _BATCH:
+                    clock.tick(_BATCH)
         else:
             tris = array("I")
             for i in range(1, n - 1):
                 tris.extend((idx[i], idx[i + 1], idx[0]))
+                if not i % _BATCH:
+                    clock.tick(_BATCH)
         mb = sb.mesh(name=self._object_name(mi, pi), scale_m=1.0, color=self._color(prim), node=None)
         mb.add_vertices(pos if pos.typecode == "d" else iter(pos))
         if normals is not None:
@@ -728,7 +746,9 @@ class GltfDocument(ModelDocument):
             uri = buf.get("uri")
             if isinstance(uri, str) and not uri.startswith("data:"):
                 name = uri.replace("\\", "/").rsplit("/", 1)[-1] or uri
-                res = sibling_resolution(self.path, uri, refuse_hard_links=self.refuse_hard_links)
+                res = sibling_resolution(
+                    self.path, uri, refuse_hard_links=self.refuse_hard_links, subfolders=self.subfolders
+                )
                 out.append(ExternalReference(f"buffer:{i}", "buffer", uri, name, res))
         return out
 

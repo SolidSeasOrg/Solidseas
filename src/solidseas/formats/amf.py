@@ -33,7 +33,10 @@ constellations only, and the finished objects are placed.
 
 The XML is parsed by :func:`~solidseas.formats._source.xml_events` (no DOCTYPE or
 entity, depth and text bounded); a zipped one is inflated by
-:class:`~solidseas.formats._source.SafeZip` within the zip bounds.
+:class:`~solidseas.formats._source.SafeZip` within the zip bounds. Volumes count
+against ``limits.amf_volumes`` and materials with a colour against
+``limits.amf_materials``. A tree keeps of each triangle only its first corner, which
+its colour may need, and no position.
 """
 
 import math
@@ -92,7 +95,9 @@ class _Object:
     __slots__ = (
         "color",
         "dropped",
+        "firsts",
         "id",
+        "n_triangles",
         "n_vertices",
         "name",
         "palette",
@@ -108,18 +113,23 @@ class _Object:
         self.name: str | None = None
         self.color: Any = None
         self.positions = array("d")
-        self.triangles = array("I")
+        self.triangles = array("I")  # a scene's: every corner
+        self.firsts = array("I")  # a tree's: each triangle's first corner, all its colour needs
+        self.n_triangles = 0
         self.n_vertices = 0
         self.palette = palette  # the colours of its vertices and triangles, numbered
         self.vertex_colors: array | None = None  # a palette id a vertex (0: none), when any has one
         self.tri_colors: array | None = None  # a palette id a triangle (0: none), when any has one
-        self.volumes: list[dict] = []  # materialid, colour, triangles
+        self.volumes: list[dict] = []  # materialid, colour, first and last triangle
         self.dropped = False  # cut by a scene's max_triangles
 
     def drop(self) -> None:
         self.dropped = True
-        self.positions, self.triangles = array("d"), array("I")
+        self.positions, self.triangles, self.firsts = array("d"), array("I"), array("I")
         self.vertex_colors = self.tri_colors = None
+
+    def first_corner(self, t: int) -> int:
+        return self.triangles[3 * t] if self.triangles else self.firsts[t]
 
 
 class AmfDocument(ModelDocument):
@@ -269,6 +279,7 @@ class AmfDocument(ModelDocument):
         curved = False
         pending_v = pending_t = 0  # read and not counted yet, of the object being read
         placements = 0  # constellations and instances
+        volumes = 0
         build = sink.building
 
         def cut() -> None:
@@ -290,7 +301,12 @@ class AmfDocument(ModelDocument):
                     if sink.cut:  # past max_triangles: read on for the constellations only
                         obj.drop()
                 elif tag == "volume" and obj is not None:
-                    volume = {"material": value.get("materialid"), "color": None, "start": len(obj.triangles)}
+                    volumes += 1
+                    if volumes > lim.amf_volumes:
+                        raise lim.exceeded(
+                            "amf_volumes", f"the file has more than {lim.amf_volumes:,} volumes"
+                        )
+                    volume = {"material": value.get("materialid"), "color": None, "start": obj.n_triangles}
                     obj.volumes.append(volume)
                 elif tag == "material" and len(path) == 2:
                     material_id = value.get("id")
@@ -341,10 +357,14 @@ class AmfDocument(ModelDocument):
                 tri = {}
                 if obj.dropped:
                     continue
-                obj.triangles.extend((_index(a), _index(b), _index(c)))
+                if build:
+                    obj.triangles.extend((_index(a), _index(b), _index(c)))
+                else:  # a tree keeps what a triangle's colour needs, not the triangle
+                    obj.firsts.append(_index(a))
+                obj.n_triangles += 1
                 if tri_color is not None or obj.tri_colors is not None:
                     if obj.tri_colors is None:
-                        obj.tri_colors = array("I", bytes(4 * (len(obj.triangles) // 3 - 1)))
+                        obj.tri_colors = array("I", bytes(4 * (obj.n_triangles - 1)))
                     obj.tri_colors.append(obj.palette.id(tri_color) if tri_color is not None else 0)
                 pending_t += 1
                 if pending_t >= 4096:
@@ -367,6 +387,10 @@ class AmfDocument(ModelDocument):
                 elif parent == "object" and obj is not None:
                     obj.color = c
                 elif parent == "material" and material_id is not None:
+                    if material_id not in materials and len(materials) >= lim.amf_materials:
+                        raise lim.exceeded(
+                            "amf_materials", f"the file has more than {lim.amf_materials:,} materials"
+                        )
                     materials[material_id] = c
             elif parent == "metadata" or tag == "metadata":
                 if (
@@ -388,7 +412,7 @@ class AmfDocument(ModelDocument):
                 instance = None
             elif tag == "volume":
                 if volume is not None and obj is not None:
-                    volume["end"] = len(obj.triangles)
+                    volume["end"] = obj.n_triangles
                 volume = None
             elif tag == "object":
                 # an object is finished: what it holds is counted before it is kept
@@ -419,7 +443,7 @@ class AmfDocument(ModelDocument):
                 dropped.add(obj.id)
                 continue
             palette = obj.palette
-            ntri = len(obj.triangles) // 3
+            ntri = obj.n_triangles
             # each triangle's colour: its own, else its first corner's, else its volume's
             ids = array("I", bytes(4 * ntri))
             for vol in obj.volumes:
@@ -428,16 +452,15 @@ class AmfDocument(ModelDocument):
                     c = obj.color
                 if c is None and vol["material"] is not None:
                     c = materials.get(vol["material"])
-                first = vol["start"] // 3
-                n = (vol.get("end", len(obj.triangles)) - vol["start"]) // 3
+                first = vol["start"]
+                n = vol.get("end", ntri) - first
                 ids[first : first + n] = array("I", [palette.id(c)]) * n
             vc, tc = obj.vertex_colors, obj.tri_colors
             if vc is not None or tc is not None:
-                tris = obj.triangles
                 for t in range(ntri):
                     k = tc[t] if tc is not None and t < len(tc) else 0
                     if not k and vc is not None:
-                        a = tris[3 * t]
+                        a = obj.first_corner(t)
                         k = vc[a] if a < len(vc) else 0
                     if k:
                         ids[t] = k
@@ -568,10 +591,14 @@ class AmfDocument(ModelDocument):
 
     # -- hooks ---------------------------------------------------------------------------
     def _tree(self, clock: Clock):
+        if self._zip is not None:
+            self._zip.start_read()
         nodes, _items, truncated = self._layout(_AmfSink(None, self.limits, clock))
         return ModelTree(tuple(nodes), truncated)
 
     def _scene(self, sb: SceneBuilder) -> None:
+        if self._zip is not None:
+            self._zip.start_read()
         sink = _AmfSink(sb, self.limits, sb.clock)
         _nodes, items, _t = self._layout(sink)
         for i, node, placement in items:

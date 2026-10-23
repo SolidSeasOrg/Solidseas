@@ -14,7 +14,7 @@ one place:
   ``zipfile`` reads the directory, the directory ``zipfile`` then reads is
   refused past its bound and has its entries counted before ``zipfile`` builds
   them, encrypted members are refused, and a member is inflated chunk by chunk
-  against its own bound, the document's total and a compression ratio, so a zip
+  against its own bound, the read's total and a compression ratio, so a zip
   bomb stops after a few chunks.
   :func:`opc_resolve` turns a package relationship's target into a member name,
   refusing one that climbs out of the package.
@@ -131,8 +131,8 @@ class Source:
     """One document's bytes: ``data`` in memory, or a held read-only handle ``fh`` of
     ``size`` bytes. Reads are positioned (``read_at``) and bounded by the caller.
 
-    ``refuse_hard_links`` and ``max_file_bytes`` say how the document was opened
-    (:func:`open_source`), so the files it names (a glTF buffer, an OBJ material
+    ``refuse_hard_links``, ``max_file_bytes`` and ``subfolders`` say how the document was
+    opened (:func:`open_source`), so the files it names (a glTF buffer, an OBJ material
     library, an Alibre component) are opened under the same rules. ``file_ident`` is
     ``(st_dev, st_ino, st_nlink)`` from ``fstat`` on the handle a path was opened
     with, as a SOLIDWORKS container keeps it (None for bytes)."""
@@ -145,6 +145,7 @@ class Source:
         self.size = len(data) if data is not None else int(size or 0)
         self.refuse_hard_links = False
         self.max_file_bytes: int | None = None
+        self.subfolders = True  # whether the files it names may lie below its own folder
         self.file_ident: tuple[int, int, int] | None = None
 
     @property
@@ -265,6 +266,7 @@ def open_source(
     refuse_hard_links: bool = False,
     hold_open: bool = False,
     limits: Limits,
+    subfolders: bool = True,
 ) -> tuple[Source, str | None, FileInfo | None]:
     """Open ``src`` (a path, or the bytes of a whole file) as
     ``open_document`` opens a SOLIDWORKS file: the :class:`Source`, the path (None for
@@ -275,7 +277,8 @@ def open_source(
     ``max_file_bytes`` (or ``limits.file_bytes``) raises ``FileTooLargeError``
     before any byte is read, and one with several names ``LinkRefusedError`` when
     ``refuse_hard_links``. Files up to ``limits.whole_read_bytes`` are read whole
-    and the handle closed, unless ``hold_open``."""
+    and the handle closed, unless ``hold_open``. ``subfolders`` false keeps the files
+    the document names to its own folder (:func:`read_sibling`)."""
     max_file_bytes = check_max_file_bytes(max_file_bytes)
     caps = [c for c in (max_file_bytes, limits.file_bytes) if c is not None]
     cap = min(caps) if caps else None
@@ -290,7 +293,7 @@ def open_source(
                 f"<memory>: {len(data)} bytes exceeds the limit of {cap} bytes",
                 detail={"limit": cap, "value": len(data)},
             )
-        return _opened(Source(data), refuse_hard_links, max_file_bytes), None, None
+        return _opened(Source(data), refuse_hard_links, max_file_bytes, subfolders), None, None
     try:
         path = os.fspath(src)
     except TypeError:
@@ -318,15 +321,18 @@ def open_source(
         else:
             source = Source(fh=fh, size=size)
         source.file_ident = (st.st_dev, st.st_ino, st.st_nlink)
-        return _opened(source, refuse_hard_links, max_file_bytes), path, info
+        return _opened(source, refuse_hard_links, max_file_bytes, subfolders), path, info
     except BaseException:
         fh.close()
         raise
 
 
-def _opened(source: Source, refuse_hard_links: bool, max_file_bytes: int | None) -> Source:
+def _opened(
+    source: Source, refuse_hard_links: bool, max_file_bytes: int | None, subfolders: bool = True
+) -> Source:
     source.refuse_hard_links = bool(refuse_hard_links)
     source.max_file_bytes = max_file_bytes
+    source.subfolders = bool(subfolders)
     return source
 
 
@@ -399,22 +405,26 @@ def central_entries(data: bytes, most: int) -> int:
     return n
 
 
-class _OpeningZip(_SourceFile):
+class _PackageFile(_SourceFile):
     """The file Python's ``zipfile`` reads a package through. While :class:`SafeZip`
     opens the package (``opening``), a read longer than the central directory may be
     is refused (``zip_directory_bytes``), and a read that holds a central directory has
     its entries counted (``zip_members``) before ``zipfile`` builds one object an entry:
     neither depends on how ``zipfile`` found the directory. Afterwards it reads as any
-    file does."""
+    file does, counting the bytes read (``consumed``), which is how much of the file
+    a member's inflation has taken."""
 
     def __init__(self, source: Source, limits: Limits) -> None:
         super().__init__(source)
         self.limits = limits
         self.opening = True
+        self.consumed = 0
 
     def read(self, size: int = -1) -> bytes:
         if not self.opening:
-            return super().read(size)
+            data = super().read(size)
+            self.consumed += len(data)
+            return data
         lim = self.limits
         want = self._s.size - self._pos if size is None or size < 0 else size  # some releases read to the end
         if want > max(lim.zip_directory_bytes, _END_SEARCH):
@@ -436,7 +446,10 @@ def first_member_name(head: bytes) -> str | None:
 
 
 class SafeZip:
-    """A zip package read within :class:`Limits` (see the module notes)."""
+    """A zip package read within :class:`Limits` (see the module notes). What its members
+    inflate to is counted against ``zip_total_bytes`` one read at a time: a reader calls
+    :meth:`start_read` as each of its calls (``tree()``, ``scene()``, ``preview()``)
+    begins, the package's opening being the first read."""
 
     def __init__(self, source: Source, limits: Limits, clock: Clock | None = None) -> None:
         self.limits = limits
@@ -446,7 +459,7 @@ class SafeZip:
             raise limits.exceeded("zip_members", f"the package has {members:,} members", members)
         if cd_size > limits.zip_directory_bytes:
             raise limits.exceeded("zip_directory_bytes", f"the package's directory is {cd_size:,} bytes")
-        fobj = _OpeningZip(source, limits)
+        fobj = self._file = _PackageFile(source, limits)
         try:
             self._zf = zipfile.ZipFile(fobj)
         except (zipfile.BadZipFile, zipfile.LargeZipFile, ValueError, struct.error, EOFError) as exc:
@@ -463,7 +476,11 @@ class SafeZip:
         self._folded: dict[str, list[str]] = {}
         for name in self._by_name:
             self._folded.setdefault(name.casefold(), []).append(name)
-        self.inflated = 0  # every member inflated so far
+        self.inflated = 0  # every member inflated in this read so far
+
+    def start_read(self) -> None:
+        """Count what is inflated from now on as a new read against ``zip_total_bytes``."""
+        self.inflated = 0
 
     def close(self) -> None:
         self._zf.close()
@@ -501,12 +518,14 @@ class SafeZip:
 
     def iter_member(self, name: str, *, max_bytes: int | None = None) -> Iterator[bytes]:
         """The member's bytes, inflated :data:`CHUNK` at a time, each chunk counted
-        against ``max_bytes`` (default ``zip_member_bytes``), the document's
-        ``zip_total_bytes`` and the ``zip_ratio``."""
+        against ``max_bytes`` (default ``zip_member_bytes``), the read's
+        ``zip_total_bytes`` and the ``zip_ratio``. The ratio is taken against the bytes
+        read from the file for the member so far (its header and what ``zipfile`` read
+        ahead included), never against the size its directory entry states."""
         info = self._info(name)
         lim = self.limits
         cap = lim.zip_member_bytes if max_bytes is None else min(max_bytes, lim.zip_member_bytes)
-        stored = max(1, info.compress_size)
+        start = self._file.consumed
         got = 0
         try:
             with self._zf.open(info) as fh:
@@ -522,6 +541,7 @@ class SafeZip:
                         raise lim.exceeded("zip_member_bytes", f"a part inflates past {cap:,} bytes")
                     if self.inflated > lim.zip_total_bytes:
                         raise lim.exceeded("zip_total_bytes", "the package inflates past its total limit")
+                    stored = max(1, self._file.consumed - start)
                     if got > _RATIO_FLOOR and got > lim.zip_ratio * stored:
                         raise lim.exceeded("zip_ratio", "a part inflates far more than a model part can")
                     yield chunk
@@ -695,21 +715,22 @@ def xml_tree(
     limits: Limits,
     clock: Clock | None = None,
     *,
-    max_nodes: int = 100_000,
+    max_nodes: int | None = None,
     namespaces: bool = True,
 ) -> XmlNode:
     """A small XML document (a relationships part, content types, metadata) as an
     :class:`XmlNode` tree, parsed by :func:`xml_events` with at most ``max_nodes``
-    elements."""
+    elements (default ``limits.xml_nodes``)."""
     chunks = [data] if isinstance(data, (bytes, bytearray)) else data
+    most = limits.xml_nodes if max_nodes is None else max_nodes
     root: XmlNode | None = None
     stack: list[XmlNode] = []
     n = 0
     for kind, tag, value in xml_events(chunks, limits, clock, namespaces=namespaces):
         if kind == "start":
             n += 1
-            if n > max_nodes:
-                raise limits.exceeded("xml_nodes", f"the XML part has more than {max_nodes:,} elements")
+            if n > most:
+                raise limits.exceeded("xml_nodes", f"the XML part has more than {most:,} elements")
             node = XmlNode(tag, value)
             if stack:
                 stack[-1].children.append(node)
@@ -728,9 +749,17 @@ def _refuse_constant(name: str) -> None:
     raise ValueError(f"{name} is not JSON")
 
 
+def _finite_float(text: str) -> float:
+    value = float(text)
+    if not math.isfinite(value):  # 1e999 is valid JSON, and Python reads it as infinity
+        raise ValueError(f"the number {text[:24]} is too large to hold")
+    return value
+
+
 def load_json(data: bytes, limits: Limits) -> Any:
-    """``data`` parsed as strict JSON (UTF-8, no NaN or Infinity), at most ``json_bytes``
-    long and ``json_depth`` deep; damaged JSON raises :class:`SldFormatError`."""
+    """``data`` parsed as strict JSON (UTF-8, no NaN or Infinity, and no number too
+    large for a double, such as 1e999), at most ``json_bytes`` long and
+    ``json_depth`` deep; damaged JSON raises :class:`SldFormatError`."""
     if len(data) > limits.json_bytes:
         raise limits.exceeded("json_bytes", f"the JSON is {len(data):,} bytes", len(data))
     try:
@@ -739,7 +768,7 @@ def load_json(data: bytes, limits: Limits) -> Any:
         raise SldFormatError("the JSON is not UTF-8") from None
     text = text.removeprefix("﻿")
     try:
-        value = json.loads(text, parse_constant=_refuse_constant)
+        value = json.loads(text, parse_constant=_refuse_constant, parse_float=_finite_float)
     except RecursionError:
         raise SldFormatError("the JSON nests too deeply", detail={"limit": "json_depth"}) from None
     except ValueError as exc:
@@ -795,22 +824,33 @@ class SiblingBudget:
     """How many files beside one document have been read, against ``limits.siblings``,
     and how many bytes, against ``limits.sibling_total_bytes`` (every read counts, so
     two buffers that name one file count it twice), and the rules the document was
-    opened under (``refuse_hard_links``, ``max_file_bytes``), which every file it names
-    is opened under too."""
+    opened under (``refuse_hard_links``, ``max_file_bytes``, ``subfolders``), which every
+    file it names is opened under too."""
 
     def __init__(
-        self, limits: Limits, *, refuse_hard_links: bool = False, max_file_bytes: int | None = None
+        self,
+        limits: Limits,
+        *,
+        refuse_hard_links: bool = False,
+        max_file_bytes: int | None = None,
+        subfolders: bool = True,
     ) -> None:
         self.limits = limits
         self.count = 0
         self.bytes = 0
         self.refuse_hard_links = bool(refuse_hard_links)
         self.max_file_bytes = max_file_bytes
+        self.subfolders = bool(subfolders)
 
     @classmethod
     def of(cls, source: "Source", limits: Limits) -> "SiblingBudget":
         """A budget under the rules ``source`` was opened with."""
-        return cls(limits, refuse_hard_links=source.refuse_hard_links, max_file_bytes=source.max_file_bytes)
+        return cls(
+            limits,
+            refuse_hard_links=source.refuse_hard_links,
+            max_file_bytes=source.max_file_bytes,
+            subfolders=source.subfolders,
+        )
 
 
 def read_sibling(doc_path: str | None, uri: str, budget: SiblingBudget) -> bytes:
@@ -818,8 +858,10 @@ def read_sibling(doc_path: str | None, uri: str, budget: SiblingBudget) -> bytes
     ``within`` the document's folder (no link, junction or placeholder), at most
     ``sibling_bytes`` (and the budget's ``max_file_bytes``) long, refused when it has
     several names and the budget's ``refuse_hard_links`` says so, and counted against
-    ``siblings`` and ``sibling_total_bytes`` before it is read. A document opened from
-    bytes has no folder: :class:`SldFormatError`."""
+    ``siblings`` and ``sibling_total_bytes`` before it is read. When the budget's
+    ``subfolders`` is false, a file in a subfolder of the document's folder is refused
+    (``PathRefusedError``, rule ``subfolder``). A document opened from bytes has no
+    folder: :class:`SldFormatError`."""
     if doc_path is None:
         raise SldFormatError("the document was opened from bytes, so the files it names cannot be read")
     lim = budget.limits
@@ -828,6 +870,11 @@ def read_sibling(doc_path: str | None, uri: str, budget: SiblingBudget) -> bytes
         raise lim.exceeded("siblings", f"the document names more than {lim.siblings:,} files")
     folder = os.path.dirname(os.path.abspath(doc_path))
     path = sibling_path(folder, uri)
+    if not budget.subfolders and os.path.dirname(path) != folder:
+        raise PathRefusedError(
+            "a file the document names lies in a subfolder, and only the document's own folder is read",
+            detail={"rule": "subfolder"},
+        )
     with open_readonly(path, within=folder) as fh:
         st = os.fstat(fh.fileno())
         size = st.st_size
@@ -853,15 +900,17 @@ def read_sibling(doc_path: str | None, uri: str, budget: SiblingBudget) -> bytes
         return pread(fh, 0, size) if size else b""
 
 
-def sibling_resolution(doc_path: str | None, uri: str, *, refuse_hard_links: bool = False) -> dict[str, Any]:
+def sibling_resolution(
+    doc_path: str | None, uri: str, *, refuse_hard_links: bool = False, subfolders: bool = True
+) -> dict[str, Any]:
     """Where a file the document names would be read from, as :func:`read_sibling` would
     open it, without opening anything: ``status`` ``found`` (a regular file inside the
     document's folder; ``path`` relative to that folder, ``/``-separated, and
     ``found_by`` ``relative_path``), ``not_found``, or ``refused`` (a reference that
     climbs out, a link, junction or cloud placeholder on the way, a file with several
-    names when ``refuse_hard_links``, or a document opened from bytes). Each component
-    below the folder is read with ``lstat`` only after the ones above it passed, so no
-    stat goes through a link."""
+    names when ``refuse_hard_links``, one in a subfolder when not ``subfolders``, or a
+    document opened from bytes). Each component below the folder is read with
+    ``lstat`` only after the ones above it passed, so no stat goes through a link."""
     from ..walk import reparse_link
     from .solidworks._io import _PLACEHOLDER_ATTRIBUTES
 
@@ -881,6 +930,8 @@ def sibling_resolution(doc_path: str | None, uri: str, *, refuse_hard_links: boo
     except PathRefusedError:
         return answer("refused")
     parts = os.path.relpath(path, folder).split(os.sep)
+    if not subfolders and len(parts) > 1:
+        return answer("refused")
     cur = folder
     st = None
     for i, name in enumerate(parts):

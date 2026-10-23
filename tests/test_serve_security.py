@@ -1321,6 +1321,35 @@ def test_a_file_is_read_only_as_a_format_the_service_reads(tmp_path):
     ).limits == SERVE_LIMITS.replace(triangles=5)
 
 
+
+def test_a_root_served_without_subfolders_reads_no_file_below_a_documents_folder(tmp_path):
+    """A model file in a root served without its subfolders reads the files it names from
+    its own folder only, and the service's Alibre component search has bounds of its own."""
+    import mesh_writers as mw
+    from model_writers import box
+    from solidseas.serve.server import SERVE_LIMITS
+
+    root = tmp_path / "flat"
+    (root / "sub").mkdir(parents=True)
+    data, sib = mw.gltf(box(1, 1, 1), buffer="file")
+    doc = json.loads(data)
+    doc["buffers"][0]["uri"] = "sub/scene.bin"
+    (root / "sub" / "scene.bin").write_bytes(sib["scene.bin"])
+    (root / "s.gltf").write_text(json.dumps(doc))
+    running = Running(Roots([Root("m", str(root), recursive=False)]), formats="all")
+    try:
+        r = running.get("document", root="m", path="s.gltf")
+        assert r.status == 200 and r.json()["data"]["references"][0]["resolution"]["status"] == "refused"
+        r = running.get("preview", root="m", path="s.gltf", render="always")
+        assert r.status == 403 and r.json()["error"]["detail"]["rule"] == "subfolder"
+    finally:
+        running.close()
+    assert (SERVE_LIMITS.resolve_examined, SERVE_LIMITS.resolve_candidates, SERVE_LIMITS.resolve_seconds) == (
+        5_000,
+        500,
+        5.0,
+    )
+
 def test_a_slow_crashing_or_greedy_file_is_contained(tmp_path):
     for name in ("slow.SLDPRT", "crash.SLDPRT", "bomb.SLDPRT", "fine.SLDPRT"):
         shutil.copy2(O02, tmp_path / name)

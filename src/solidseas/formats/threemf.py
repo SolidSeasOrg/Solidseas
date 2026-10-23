@@ -119,10 +119,10 @@ _BASEMATERIALS = f"{{{CORE}}}basematerials"
 _BASE = f"{{{CORE}}}base"
 _COLORGROUP = f"{{{MATERIAL}}}colorgroup"
 _COLOR = f"{{{MATERIAL}}}color"
-_NO_COLOR_GROUPS = {
-    f"{{{MATERIAL}}}texture2dgroup": (f"{{{MATERIAL}}}tex2coord", True),
-    f"{{{MATERIAL}}}compositematerials": (f"{{{MATERIAL}}}composite", False),
-    f"{{{MATERIAL}}}multiproperties": (f"{{{MATERIAL}}}multi", False),
+_NO_COLOR_GROUPS = {  # property groups whose entries give no colour: whether each is a texture's
+    f"{{{MATERIAL}}}texture2dgroup": True,
+    f"{{{MATERIAL}}}compositematerials": False,
+    f"{{{MATERIAL}}}multiproperties": False,
 }
 _PATH = f"{{{PRODUCTION}}}path"
 
@@ -429,6 +429,7 @@ class ThreeMfDocument(ModelDocument):
 
     def _preview(self):
         lim = self.limits
+        self._zip.start_read()
         for member in self._thumbnails:
             if self._zip.size(member) > lim.image_bytes:
                 continue
@@ -471,7 +472,6 @@ class ThreeMfDocument(ModelDocument):
         scale = 0.001
         groups: dict[str, list] = {}
         group: list | None = None
-        group_entry: str | None = None
         group_entries = 0
         groups_dropped = textures = False
         obj: _Obj | None = None
@@ -600,25 +600,16 @@ class ThreeMfDocument(ModelDocument):
                 elif tag == _BASEMATERIALS or tag == _COLORGROUP:
                     group = self._new_group(groups, a)
                 elif tag in _NO_COLOR_GROUPS:
+                    # its entries give no colour: none is kept, and an index into it finds none
                     group = self._new_group(groups, a)
-                    group_entry, is_texture = _NO_COLOR_GROUPS[tag]
-                    textures = textures or is_texture
-                elif tag == _BASE and group is not None:
+                    textures = textures or _NO_COLOR_GROUPS[tag]
+                elif (tag == _BASE or tag == _COLOR) and group is not None:
+                    # at most threemf_color_groups entries are kept; an index past them finds none
                     group_entries += 1
                     if group_entries <= lim.threemf_color_groups:
-                        group.append(hex_color(a.get("displaycolor", "")))
+                        group.append(hex_color(a.get("displaycolor" if tag == _BASE else "color", "")))
                     else:
                         groups_dropped = True
-                        group.append(None)
-                elif tag == _COLOR and group is not None:
-                    group_entries += 1
-                    if group_entries <= lim.threemf_color_groups:
-                        group.append(hex_color(a.get("color", "")))
-                    else:
-                        groups_dropped = True
-                        group.append(None)
-                elif group_entry is not None and tag == group_entry and group is not None:
-                    group.append(None)
                 elif tag == _MODEL:
                     unit = a.get("unit")
                     if unit is not None:
@@ -657,7 +648,6 @@ class ThreeMfDocument(ModelDocument):
                 obj = None
             elif tag in (_BASEMATERIALS, _COLORGROUP) or tag in _NO_COLOR_GROUPS:
                 group = None
-                group_entry = None
         if refused:
             sink.warn(
                 "part_reference_refused",
@@ -813,10 +803,12 @@ class ThreeMfDocument(ModelDocument):
         return nodes, items, False
 
     def _tree(self, clock: Clock):
+        self._zip.start_read()
         nodes, _items, truncated = self._layout(MeshSink(None, self.limits, clock))
         return ModelTree(tuple(nodes), truncated)
 
     def _scene(self, sb: SceneBuilder) -> None:
+        self._zip.start_read()
         sink = MeshSink(sb, self.limits, sb.clock)
         _nodes, items, _t = self._layout(sink)
         for i, node, placement in items:

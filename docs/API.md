@@ -1393,7 +1393,9 @@ class WorkerPool:
 - **What a job may open.** With `roots`, a document job must name one of them as
   `within` and the document must lie below it (`path_refused`, rule
   `outside_roots`, otherwise); `max_file_bytes` and `refuse_hard_links` apply to
-  every document (section 3.1). Jobs read lazily (`hold_open=True`) and close the
+  every document (section 3.1). A model file opened within a `Root` that is not
+  `recursive` reads the files it names from its own folder only (3.20.1,
+  `subfolders`). Jobs read lazily (`hold_open=True`) and close the
   file when the job ends. `reader_message=False` leaves the exception text out of
   error objects, as the REST service does.
 - Jobs come from a fixed table in `solidseas.jobs`. Nothing a request or a
@@ -3340,7 +3342,8 @@ with open_any(path, within=folder) as doc:   # a SOLIDWORKS Document or a ModelD
 
 ```python
 open_model(src, *, name=None, format=None, within=None, max_file_bytes=None,
-           refuse_hard_links=False, hold_open=False, limits=None, formats=None) -> ModelDocument
+           refuse_hard_links=False, hold_open=False, limits=None, formats=None,
+           subfolders=True) -> ModelDocument
 open_any(src, *, ...the same...) -> Document | ModelDocument
 ```
 
@@ -3387,6 +3390,12 @@ open_any(src, *, ...the same...) -> Document | ModelDocument
   than `max_file_bytes`. The REST service opens every document with
   `refuse_hard_links`, so it never reads a file outside a root through a hard
   link a document names.
+- `subfolders` (default True) says whether those files may lie below the
+  document's folder. With `subfolders=False` a buffer or library in a subfolder
+  raises `PathRefusedError` with `detail.rule` `subfolder` (a library is warned
+  `material_library_unread`), `references()` gives it `status` `refused`, and an
+  Alibre assembly looks for its components in its own folder only. The REST
+  service opens a document of a root it serves without its subfolders this way.
 
 | Member | Type | Notes |
 |---|---|---|
@@ -3404,7 +3413,7 @@ open_any(src, *, ...the same...) -> Document | ModelDocument
 | `bodies(*, max_seconds=30.0)` | list of `BodyRef` or None | `name`, `transmit` (an in-memory Parasolid `XtTransmit`), `color`, `node`, `body_type`; None for a format with no B-rep |
 | `preview(prefer="png")` | `Preview` or None | the image the file stores, as stored (a bitmap stays a bitmap); `stream` names the package part or stream |
 | `references()` | list of `ExternalReference` | `key`, `kind` (`component`, `buffer`, `material_library`), `stored` (the text the file stores, which can be a path from another machine), `name` and `resolution` (`status`, `path`, `found_by`, `version`) when it was looked for; `path` is relative to the document's folder (`/`-separated), absolute only for an Alibre component found under one of `scene(roots=...)` |
-| `refuse_hard_links`, `max_file_bytes` | `bool`, int or None | those it was opened with, which the files it names are opened under |
+| `refuse_hard_links`, `max_file_bytes`, `subfolders` | `bool`, int or None, `bool` | those it was opened with, which the files it names are opened under |
 | `warnings` | list of `ReaderWarning` | coded (3.5) |
 | `summary(include=("properties", "tree"))` | dict | `model_summary` data; `include` takes `properties`, `tree` and `references` |
 | `close()`, `with` | | closes a held handle |
@@ -3450,8 +3459,9 @@ hard stop.
 | `colors_per_object` | 256 | colour splits of one object (then merged, `colors_ignored`) |
 | `siblings`, `sibling_bytes`, `sibling_total_bytes` | 1,000, 512 MiB, 2 GiB | files beside the document that it names and that are read, each one's size, and their total, every read counted (a file named twice counts twice) |
 | `zip_members`, `zip_directory_bytes` | 10,000, 64 MiB | a zip's members and central directory, from its end records (a ZIP64 record included whenever one stands before them, as Python's `zipfile` reads it) before the directory is read, and again from the directory `zipfile` reads, before it builds an entry |
-| `zip_member_bytes`, `zip_total_bytes`, `zip_ratio` | 1 GiB, 2 GiB, 200 | one member inflated, every member one document inflates, and inflated to stored size once a member passes 1 MiB, each counted as it inflates |
+| `zip_member_bytes`, `zip_total_bytes`, `zip_ratio` | 1 GiB, 2 GiB, 200 | one member inflated, every member one read inflates (the opening, each `tree()`, `scene()` and `preview()` counted alone), and inflated to the bytes read from the file for the member, never the size its directory entry states, once a member passes 1 MiB, each counted as it inflates |
 | `xml_depth`, `xml_attribute_bytes`, `xml_text_bytes` | 64, 64 KiB, 64 KiB | element nesting (`damaged_file`), one attribute value, one element's text |
+| `xml_nodes` | 100,000 | the elements of a small XML part read as a whole (a package's relationships) |
 | `json_bytes`, `json_depth` | 64 MiB, 64 | one JSON document and its nesting (`damaged_file`) |
 | `image_side`, `image_bytes`, `png_chunks` | 4,096, 64 MiB, 10,000 | a stored or converted image's width and height, its bytes and inflated pixels, and a PNG's chunks (the image is refused, `preview_undecodable`) |
 | `render_triangles`, `render_side`, `render_seconds` | 500,000, 4,096, 5 | 3.21 |
@@ -3466,6 +3476,7 @@ never changes this table's module: `threemf_model_parts` (10,000),
 `obj_material_libraries` (16), `ply_header_bytes` (64 KiB), `ply_elements`
 (32), `ply_properties` (64), `gltf_buffers` (1,000), `gltf_data_uri_bytes`
 (256 MiB), `gltf_array_items` (100,000), `amf_constellation_depth` (16),
+`amf_volumes` (100,000), `amf_materials` (65,536: those with a colour),
 `xt_transmit_bytes` (64 MiB), `xt_nodes` (20,000,000), `xt_header_bytes`
 (64 KiB), `p21_header_bytes` (1 MiB), `p21_record_bytes` (16 MiB),
 `p21_records` (20,000,000), `p21_list_items` (10,000,000), `p21_list_depth`
@@ -6658,7 +6669,11 @@ names the index, or a listing of a folder the index knows, returned.
   lie outside the root.
 - The root itself may be a junction or a share (C6). A root configured without
   its subfolders (`recursive=False`, Python only) serves its own folder: paths
-  below it are not found, and `recursive=1` on its listing answers 400.
+  below it are not found, and `recursive=1` on its listing answers 400. A model
+  file there reads the files it names (a glTF buffer, an OBJ material library, an
+  Alibre component) from its own folder only (3.20.1, `subfolders`): one in a
+  subfolder is `refused` in `references`, and a read that needs it answers 403
+  `path_refused`, rule `subfolder`.
 - While a root's index is being built, requests for it answer 503 `busy` with
   `Retry-After: 2`. A root that could not be indexed, or whose folder has gone,
   answers 503 `root_unavailable` with `Retry-After: 30`. `/v1/roots` shows each
@@ -6869,7 +6884,7 @@ Each route accepts exactly the parameters in its row of 8.6
 | Requests reading documents at once | 16 | 503 `busy`, `Retry-After: 2` |
 | Worker processes | one per CPU, at most 4 (`--workers`) | requests wait for a free one, within their deadline |
 | Memory per worker | 2 GiB | 422 `limit_exceeded` |
-| Reading a model file | the library's bounds (3.20.2), but 10,000,000 triangles, 30,000,000 vertices and 512 MiB of files a document names (`SERVE_LIMITS`; `ServeConfig.limits` changes them), so a scene stays inside a worker's memory: a binary STL's scene takes about 158 bytes a triangle | 422 `limit_exceeded`, `detail.limit` the bound |
+| Reading a model file | the library's bounds (3.20.2), but 10,000,000 triangles, 30,000,000 vertices and 512 MiB of files a document names, so a scene stays inside a worker's memory (a binary STL's scene takes about 158 bytes a triangle), and an Alibre assembly's component search, made again by every request that reads it, examines 5,000 entries, reads 500 candidates and takes 5 s at most (`SERVE_LIMITS`; `ServeConfig.limits` changes them) | 422 `limit_exceeded`, `detail.limit` the bound; a component search that stops early says `truncated` |
 | Document size | 256 MiB | 422 `file_too_large` |
 | Deadlines | per route, in 8.6; time spent waiting for a worker counts | 504 `timeout` |
 | Response size | per route, in 8.6. A worker's answer may be that plus 64 KiB; a longer one is refused in the worker, before the service reads it | 422 `response_too_large` |

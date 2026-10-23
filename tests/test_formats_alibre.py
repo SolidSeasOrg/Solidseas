@@ -277,6 +277,21 @@ def test_several_copies_and_versions(tmp_path):
         assert "component_older" in {w.code for w in doc.warnings}
 
 
+
+def test_a_component_below_the_assemblys_folder_is_found_only_when_subfolders_are_read(tmp_path):
+    asm = _assembly_with(tmp_path, {"sub/cube.AD_PRT": A.part()}, [A.Placed(A.CUBE_GUID)])
+    with open_model(asm) as doc:
+        assert doc.references()[0].resolution["path"] == "sub/cube.AD_PRT"
+        assert len(doc.scene().items) == 1
+    with open_model(asm, subfolders=False) as doc:
+        assert doc.references()[0].resolution["status"] == "not_found"
+        scene = doc.scene()
+        assert scene.items == () and "component_not_found" in {w.code for w in scene.warnings}
+    beside = _assembly_with(tmp_path / "b", {"cube.AD_PRT": A.part()}, [A.Placed(A.CUBE_GUID)])
+    with open_model(beside, subfolders=False) as doc:  # one beside the assembly is found
+        assert doc.references()[0].resolution["path"] == "cube.AD_PRT"
+        assert len(doc.scene().items) == 1
+
 def test_components_keep_the_rules_the_assembly_was_opened_with(tmp_path):
     """A component file with a second name outside the folder is no candidate when the
     assembly refuses hard links (as the REST service opens it), and a component larger

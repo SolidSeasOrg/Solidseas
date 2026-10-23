@@ -22,10 +22,12 @@ only the ``VERSION`` stream of each, opened read-only within its folder:
 
 A file with several names (a hard link) is no candidate when the assembly was
 opened with ``refuse_hard_links``: another of its names may lie outside the
-folder. The walk keeps ``resolve_depth``, ``resolve_examined`` and
-``resolve_seconds``, and at most ``resolve_candidates`` files are read; a bound
-reached is reported as ``truncated``. GUIDs read are cached by path, size and modification time for
-the life of one :class:`Resolver`.
+folder. An assembly opened with ``subfolders`` false finds candidates in its own
+folder only, not below it (further roots are walked whole). The walk keeps
+``resolve_depth``, ``resolve_examined`` and ``resolve_seconds``, and at most
+``resolve_candidates`` files are read; a bound reached is reported as
+``truncated``. GUIDs read are cached by path, size and modification time for the
+life of one :class:`Resolver`.
 """
 
 import os
@@ -123,12 +125,14 @@ class Resolver:
         *,
         exclude: str | None = None,
         refuse_hard_links: bool = False,
+        subfolders: bool = True,
     ) -> None:
         self.folder = os.path.abspath(folder) if folder else None
         self.roots = tuple(os.path.abspath(r) for r in roots if r)
         self.limits = limits
         self.exclude = os.path.normcase(os.path.abspath(exclude)) if exclude else None
         self.refuse_hard_links = refuse_hard_links
+        self.subfolders = subfolders
         self._refused: set[str] = set()  # candidates with several names, when those are refused
         self.truncated = False
         self._candidates: list[Candidate] | None = None
@@ -151,6 +155,7 @@ class Resolver:
             try:
                 walk = Walk(
                     base,
+                    recursive=self.subfolders or base != self.folder,
                     max_depth=lim.resolve_depth,
                     max_examined=lim.resolve_examined,
                     deadline=self._deadline,

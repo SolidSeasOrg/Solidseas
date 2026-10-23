@@ -532,3 +532,55 @@ def test_python_cli_and_rest_give_the_same_model_summary(tmp_path, capsys):
     (tmp_path / "a.3mf").write_bytes(mw.threemf(two_object_assembly(), thumbnail=mw.png(), production=True))
     (tmp_path / "b.3mf").write_bytes(FIXTURE.read_bytes())
     mw.same_on_three_surfaces(tmp_path, ["a.3mf", "b.3mf"], "3mf", capsys)
+
+
+def test_each_read_counts_its_own_inflation_against_the_total():
+    """``zip_total_bytes`` holds one read: the opening, a tree, a scene or a preview. A second
+    scene of the same document never meets what the first inflated."""
+    data = mw.threemf(box(1, 1, 1), thumbnail=mw.png())
+    with open_model(data, name="r.3mf") as doc:
+        opened = doc._zip.inflated
+        doc.scene()
+        assert 0 < doc._zip.inflated < opened  # the scene counted only its own
+    with open_model(data, name="r.3mf", limits=Limits(zip_total_bytes=opened)) as doc:
+        for _ in range(3):
+            assert doc.scene().counts["triangles"] == 12
+        assert doc.tree().nodes and doc.preview() is not None
+
+
+def test_colour_groups_keep_at_most_their_bound_and_entries_without_colour_keep_nothing(monkeypatch):
+    from solidseas.formats.threemf import ThreeMfDocument
+
+    kept = []
+    new_group = ThreeMfDocument._new_group
+
+    def spy(self, groups, a):
+        group = new_group(self, groups, a)
+        kept.append(group)
+        return group
+
+    monkeypatch.setattr(ThreeMfDocument, "_new_group", spy)
+    colors = "".join(f'<m:color color="#{40 * k:02X}0000"/>' for k in range(6))
+    groups = (
+        f'<m:colorgroup id="5">{colors}</m:colorgroup>'
+        '<m:texture2dgroup id="7" texid="1">' + '<m:tex2coord u="0" v="0"/>' * 1000 + "</m:texture2dgroup>"
+        '<m:compositematerials id="8" matid="5" matindices="0 1">'
+        + '<m:composite values="0.5 0.5"/>' * 100
+        + "</m:compositematerials>"
+        '<m:multiproperties id="9" pids="5">' + '<m:multi pindices="0"/>' * 100 + "</m:multiproperties>"
+    )
+    obj = mw.threemf_mesh_xml(box(1, 1, 1), 1, tri_props=lambda k: f' pid="5" p1="{k % 6}"')
+    data = mw.threemf(
+        Scene([], []),
+        resources_extra=groups + obj,
+        build_xml='<build><item objectid="1"/></build>',
+        colors="colorgroup",
+    )
+    with open_model(data, name="g.3mf", limits=Limits(threemf_color_groups=5)) as doc:
+        s = doc.scene()
+    # five groups, the bound: the writer's own empty one, five of group 5's six colours, and
+    # nothing of the rest
+    assert sorted(len(g) for g in kept) == [0, 0, 0, 0, 5]
+    assert "colors_ignored" in mw.codes(s.warnings)
+    # the triangles whose colour was not kept have none: five colours and no colour
+    assert len(s.objects) == 6 and sum(o.color is None for o in s.objects) == 1

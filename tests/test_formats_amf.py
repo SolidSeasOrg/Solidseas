@@ -222,3 +222,77 @@ def test_python_cli_and_rest_give_the_same_model_summary(tmp_path, capsys):
     (tmp_path / "a.amf").write_bytes(mw.amf(two_object_assembly()))
     (tmp_path / "b.amf").write_bytes(mw.amf(two_object_assembly(), zipped=True, constellation=False))
     mw.same_on_three_surfaces(tmp_path, ["a.amf", "b.amf"], "amf", capsys)
+
+
+def _amf(volumes: int, materials: int) -> bytes:
+    """One object of ``volumes`` volumes of one triangle each, and ``materials`` coloured
+    materials."""
+    mats = b"".join(
+        b'<material id="%d"><color><r>1</r><g>0</g><b>0</b></color></material>' % i for i in range(materials)
+    )
+    verts = b"".join(
+        b"<vertex><coordinates><x>%d</x><y>%d</y><z>0</z></coordinates></vertex>" % p
+        for p in ((0, 0), (1, 0), (0, 1))
+    )
+    vols = b'<volume materialid="0"><triangle><v1>0</v1><v2>1</v2><v3>2</v3></triangle></volume>' * volumes
+    mesh = b'<object id="1"><mesh><vertices>' + verts + b"</vertices>" + vols + b"</mesh></object>"
+    return b"<amf>" + mats + mesh + b"</amf>"
+
+
+def test_volumes_and_materials_are_bounded():
+    with open_model(_amf(10, 1), name="v.amf", limits=Limits(amf_volumes=5)) as doc:
+        with pytest.raises(SldLimitError) as exc:
+            doc.tree()
+    assert exc.value.detail["limit"] == "amf_volumes"
+    with open_model(_amf(1, 10), name="m.amf", limits=Limits(amf_materials=5)) as doc:
+        with pytest.raises(SldLimitError) as exc:
+            doc.scene()
+    assert exc.value.detail["limit"] == "amf_materials"
+    with open_model(_amf(5, 5), name="ok.amf", limits=Limits(amf_volumes=5, amf_materials=5)) as doc:
+        assert doc.scene().objects[0].color == (1.0, 0.0, 0.0, 1.0)
+    assert (Limits().amf_volumes, Limits().amf_materials) == (100_000, 65_536)
+
+
+def test_a_tree_keeps_no_triangles_and_numbers_objects_as_the_scene_does(monkeypatch):
+    from solidseas.formats.amf import AmfDocument
+
+    parsed = []
+    parse = AmfDocument._parse
+
+    def spy(self, sink):
+        out = parse(self, sink)
+        parsed.append((sink.building, out[0]))
+        return out
+
+    monkeypatch.setattr(AmfDocument, "_parse", spy)
+
+    def vertex(x, y, z, color=b""):
+        return b"<vertex><coordinates><x>%d</x><y>%d</y><z>%d</z></coordinates>%s</vertex>" % (x, y, z, color)
+
+    magenta = b"<color><r>1</r><g>0</g><b>1</b></color>"
+    first = (  # two colours: a triangle whose first corner is magenta, and one with none
+        b'<object id="1"><mesh><vertices>'
+        + vertex(0, 0, 0)
+        + vertex(1, 0, 0)
+        + vertex(0, 1, 0)
+        + vertex(0, 0, 1, magenta)
+        + b"</vertices><volume><triangle><v1>3</v1><v2>1</v2><v3>2</v3></triangle>"
+        b"<triangle><v1>0</v1><v2>2</v2><v3>1</v3></triangle></volume></mesh></object>"
+    )
+    second = (
+        b'<object id="2"><mesh><vertices>'
+        + vertex(5, 0, 0)
+        + vertex(6, 0, 0)
+        + vertex(5, 1, 0)
+        + b"</vertices><volume><triangle><v1>0</v1><v2>1</v2><v3>2</v3></triangle></volume></mesh></object>"
+    )
+    with open_model(b"<amf>" + first + second + b"</amf>", name="t.amf") as doc:
+        tree = doc.tree()
+        scene = doc.scene()
+    (tree_built, tree_objects), (scene_built, scene_objects) = parsed
+    assert not tree_built and scene_built
+    kept = [(len(o.triangles), len(o.positions), len(o.firsts)) for o in tree_objects]
+    assert kept == [(0, 0, 2), (0, 0, 1)]
+    assert [len(o.triangles) for o in scene_objects] == [6, 3]
+    assert len(scene.objects) == 3 and [n.object for n in tree.nodes] == [0, 2]
+    assert tree.nodes[0].color == scene.objects[0].color

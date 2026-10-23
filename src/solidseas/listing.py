@@ -127,6 +127,7 @@ def read_entry(
     refuse_hard_links: bool = False,
     formats: Collection[str] | None = None,
     limits: Any = None,
+    subfolders: bool = True,
 ) -> tuple[dict[str, Any], bytes | None]:
     """The ``listing`` entry for one document the walk found, and its preview image when
     ``include`` asks for the preview. The document is opened ``within`` the folder;
@@ -135,8 +136,8 @@ def read_entry(
     listing that has a pool; ``max_file_bytes`` and ``refuse_hard_links`` are
     passed to ``open_document``. With ``formats`` (format ids), a file wearing a
     SOLIDWORKS extension whose content is a format among them that SolidSeas reads
-    is read as that format (:func:`read_model_entry`, with those ``formats`` and
-    ``limits``)."""
+    is read as that format (:func:`read_model_entry`, with those ``formats``, ``limits``
+    and ``subfolders``)."""
     try:
         with open_document(
             path,
@@ -163,6 +164,7 @@ def read_entry(
                     refuse_hard_links=refuse_hard_links,
                     formats=formats,
                     limits=limits,
+                    subfolders=subfolders,
                 )
         detected = sniff_format(path, within=within)
         if detected is not None:
@@ -195,14 +197,16 @@ def read_model_entry(
     refuse_hard_links: bool = False,
     formats: Collection[str] | None = None,
     limits: Any = None,
+    subfolders: bool = True,
 ) -> tuple[dict[str, Any], bytes | None]:
     """The ``listing`` entry for one file of another format than SOLIDWORKS (provisional),
     and the preview it stores, as a PNG SolidSeas wrote, when ``include`` asks for the
     preview. The file is opened with :func:`solidseas.formats.open_any` ``within`` the
     folder, holding its handle, reading only ``formats`` (None: every format) within
-    ``limits``; a SOLIDWORKS document wearing another extension gets a SOLIDWORKS
-    entry. Any failure becomes the entry's error. A worker runs this for a listing with
-    a pool (the job ``model_entry``)."""
+    ``limits``, the files it names below its folder only when ``subfolders``; a
+    SOLIDWORKS document wearing another extension gets a SOLIDWORKS entry. Any failure
+    becomes the entry's error. A worker runs this for a listing with a pool (the job
+    ``model_entry``)."""
     from .formats import open_any
     from .formats.base import ModelDocument
 
@@ -216,6 +220,7 @@ def read_model_entry(
             refuse_hard_links=refuse_hard_links,
             formats=formats,
             limits=limits,
+            subfolders=subfolders,
         ) as doc:
             if isinstance(doc, ModelDocument):
                 return model.model_listing_entry(rel, doc, include)

@@ -466,7 +466,8 @@ class WorkerPool:
     ``timeout_s`` is the default deadline per job, ``memory_mb`` the cap per
     worker (None for none), ``max_result_bytes`` the longest reply accepted.
     ``roots`` (a :class:`~solidseas.Roots`, or folder paths) restricts the ``within``
-    a document job may open below,
+    a document job may open below (a model file opened within a :class:`~solidseas.Root`
+    that is not ``recursive`` reads the files it names from its own folder only),
     ``reader_message`` whether error objects carry the exception text (the REST
     service turns it off), ``refuse_hard_links`` whether a file with more than one
     name is refused, and ``max_file_bytes`` the largest document a job reads.
@@ -563,6 +564,9 @@ class WorkerPool:
                 "max_file_bytes": max_file_bytes,
                 "formats": None if allowed is None else sorted(allowed),
                 "limits": bounds or None,
+                "flat_roots": [
+                    os.path.abspath(r.path) for r in roots or () if isinstance(r, Root) and not r.recursive
+                ],
             },
         }
         self._ctx = multiprocessing.get_context("spawn")

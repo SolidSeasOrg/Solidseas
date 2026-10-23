@@ -666,6 +666,8 @@ class ObjDocument(ModelDocument):
                 for lib in _library_names(raw.strip()[6:], lim):
                     if lib not in libraries:
                         libraries.append(lib)
+                        if len(libraries) > lim.obj_material_libraries:  # checked as each is named
+                            raise _too_many_libraries(lim)
             elif key in _PRIMITIVES:
                 skipped_primitives = True
             elif key in _FREE_FORM or key in _KNOWN or key.startswith(b"#"):
@@ -727,9 +729,7 @@ class ObjDocument(ModelDocument):
             return colors, textures, unread
         lim = self.limits
         if len(libraries) > lim.obj_material_libraries:
-            raise lim.exceeded(
-                "obj_material_libraries", f"the file names more than {lim.obj_material_libraries} libraries"
-            )
+            raise _too_many_libraries(lim)
         budget = SiblingBudget.of(self.source, lim)
         for lib in libraries:
             try:
@@ -760,25 +760,35 @@ class ObjDocument(ModelDocument):
 
     def _references(self, clock: Clock) -> list[ExternalReference]:
         lim = self.limits
-        names: list[str] = []
+        names: dict[str, None] = {}  # in the order they are named
         for _n, raw in text_lines(self.source, clock, lim.obj_line_bytes, "obj_line_bytes"):
             line = uncomment(raw).lstrip() if b"#" in raw else raw.lstrip()
             if line[:6] == b"mtllib" and line[6:7].isspace():
                 for lib in _library_names(line.strip()[6:], lim):
                     if lib not in names:
-                        names.append(lib)
-                        if len(names) > lim.references:
-                            break
+                        names[lib] = None
+                        if len(names) > lim.references:  # refused here, before the rest is read
+                            raise lim.exceeded(
+                                "references", f"the document names more than {lim.references:,} files"
+                            )
         return [
             ExternalReference(
                 f"mtllib:{i + 1}",
                 "material_library",
                 lib,
                 os.path.basename(lib.replace("\\", "/")) or lib,
-                sibling_resolution(self.path, lib, refuse_hard_links=self.refuse_hard_links),
+                sibling_resolution(
+                    self.path, lib, refuse_hard_links=self.refuse_hard_links, subfolders=self.subfolders
+                ),
             )
             for i, lib in enumerate(names)
         ]
+
+
+def _too_many_libraries(limits: Limits) -> SolidSeasError:
+    return limits.exceeded(
+        "obj_material_libraries", f"the file names more than {limits.obj_material_libraries} libraries"
+    )
 
 
 def _library_names(raw: bytes, limits: Limits) -> list[str]:

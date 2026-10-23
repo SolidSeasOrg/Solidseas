@@ -512,6 +512,44 @@ def test_safe_zip_refuses_encrypted_and_unknown_methods():
     assert exc.value.detail == {"rule": "compression", "value": "zip_method_12"}
 
 
+
+def _padded_bomb(inflated: int, junk: int) -> bytes:
+    """A zip of one deflated member of ``inflated`` zero bytes whose entries state a
+    compressed size ``junk`` bytes larger than its deflate stream, the junk lying between
+    the stream and the central directory, so Python's zipfile sees no overlap."""
+    deflate = zlib.compressobj(9, zlib.DEFLATED, -15)
+    stream = deflate.compress(bytes(inflated)) + deflate.flush()
+    crc = zlib.crc32(bytes(inflated))
+    name = b"bomb"
+    stated = len(stream) + junk
+    local = struct.pack("<4s5H3L2H", b"PK\x03\x04", 20, 0, 8, 0, 0, crc, stated, inflated, len(name), 0)
+    body = local + name + stream + bytes(junk)
+    central = struct.pack(
+        "<4s6H3L5H2L", b"PK\x01\x02", 20, 20, 0, 8, 0, 0, crc, stated, inflated, len(name), 0, 0, 0, 0, 0, 0
+    )
+    end = struct.pack("<4s4H2LH", b"PK\x05\x06", 0, 0, 1, 1, len(central) + len(name), len(body), 0)
+    return body + central + name + end
+
+
+def test_the_ratio_counts_the_bytes_read_not_the_size_a_directory_states():
+    # 20 MiB of zeros deflate to about 20 KB; a stated size of 1 MiB more let the ratio
+    # allow 200 MiB, while what is read for the member is the stream and one read ahead
+    bomb = _padded_bomb(20 << 20, 1 << 20)
+    with pytest.raises(SldLimitError) as exc:
+        src.SafeZip(src.Source(bomb), Limits()).read("bomb")
+    assert exc.value.detail["limit"] == "zip_ratio"
+    small = _padded_bomb(1 << 20, 1 << 20)  # under the 1 MiB the ratio waits for: read
+    assert src.SafeZip(src.Source(small), Limits()).read("bomb") == bytes(1 << 20)
+
+
+def test_each_read_of_a_package_counts_against_its_total_alone():
+    z = src.SafeZip(src.Source(_zip_bytes({"a": b"a" * 600, "b": b"b" * 600})), Limits(zip_total_bytes=1000))
+    z.read("a")
+    with pytest.raises(SldLimitError):
+        z.read("b")  # one read: 1,200 bytes
+    z.start_read()
+    assert z.read("b") == b"b" * 600 and z.inflated == 600
+
 def test_a_zip_feature_python_declines_is_refused_not_raised():
     """A directory entry asking for a zip version Python's reader lacks makes ``zipfile``
     raise NotImplementedError: SafeZip turns it into the reader's own error."""
@@ -599,7 +637,7 @@ def test_the_directory_zipfile_reads_is_bounded_and_counted_before_it_is_built(m
     assert src.central_entries(b"", 5) == 0 and src.central_entries(b"PK\x01\x02" + bytes(42), 5) == 1
     # some Python releases read the end record with read() and no size: that is the rest of
     # the file, held to the same bound
-    f = src._OpeningZip(src.Source(bytes(70_000)), Limits(zip_directory_bytes=1))
+    f = src._PackageFile(src.Source(bytes(70_000)), Limits(zip_directory_bytes=1))
     f.seek(-22, 2)
     assert f.read() == bytes(22)
     f.seek(0)
@@ -668,6 +706,25 @@ def test_json_is_strict_and_bounded():
         src.load_json(b"[1]", Limits(json_bytes=2))
 
 
+
+def test_json_numbers_too_large_for_a_double_are_refused():
+    for bad in (b"[1e999]", b'{"a": -1e999}', b"[1.5e400]"):
+        with pytest.raises(SldFormatError) as exc:
+            src.load_json(bad, Limits())
+        assert "too large" in str(exc.value)
+    assert src.load_json(b"[1.7e308, -1e-400, 1e2]", Limits()) == [1.7e308, -0.0, 100.0]
+
+
+def test_a_small_xml_tree_has_a_limit_of_its_own():
+    lim = Limits(xml_nodes=3)
+    assert len(src.xml_tree(b"<a><b/><b/></a>", lim).children) == 2
+    with pytest.raises(SldLimitError) as exc:
+        src.xml_tree(b"<a><b/><b/><b/></a>", lim)
+    assert exc.value.detail == {"limit": "xml_nodes"}
+    with pytest.raises(SldLimitError):  # a caller's own bound wins
+        src.xml_tree(b"<a><b/></a>", Limits(), max_nodes=1)
+    assert Limits().xml_nodes == 100_000
+
 @pytest.mark.parametrize(
     "uri",
     [
@@ -716,6 +773,25 @@ def test_siblings_are_bounded_in_total_with_every_read_counted(tmp_path):
     assert exc.value.detail == {"limit": "sibling_total_bytes", "value": 1200} and budget.bytes == 800
     assert Limits().sibling_total_bytes == 2 << 30
 
+
+
+def test_a_document_opened_without_subfolders_reads_files_beside_it_only(tmp_path):
+    (tmp_path / "sub").mkdir()
+    (tmp_path / "sub" / "b.bin").write_bytes(b"below")
+    (tmp_path / "b.bin").write_bytes(b"beside")
+    doc = str(tmp_path / "m.gltf")
+    flat = src.SiblingBudget(Limits(), subfolders=False)
+    assert src.read_sibling(doc, "b.bin", flat) == b"beside"
+    with pytest.raises(PathRefusedError) as exc:
+        src.read_sibling(doc, "sub/b.bin", flat)
+    assert exc.value.detail == {"rule": "subfolder"}
+    assert src.read_sibling(doc, "sub/b.bin", src.SiblingBudget(Limits())) == b"below"
+    assert src.sibling_resolution(doc, "sub/b.bin")["status"] == "found"
+    assert src.sibling_resolution(doc, "sub/b.bin", subfolders=False)["status"] == "refused"
+    assert src.sibling_resolution(doc, "b.bin", subfolders=False)["status"] == "found"
+    # how a document was opened travels with its Source to the budget
+    source, _path, _info = src.open_source(tmp_path / "b.bin", limits=Limits(), subfolders=False)
+    assert source.subfolders is False and src.SiblingBudget.of(source, Limits()).subfolders is False
 
 def _folder_link(target, link) -> None:
     """A junction on Windows (no extra rights needed), a symbolic link elsewhere."""

@@ -7,6 +7,7 @@ import base64
 import json
 import os
 import struct
+import sys
 import tracemalloc
 
 import pytest
@@ -536,3 +537,58 @@ def test_python_cli_and_rest_give_the_same_model_summary(tmp_path, capsys):
         (tmp_path / k).write_bytes(v)
     (tmp_path / "b.glb").write_bytes(mw.gltf(two_object_assembly(), buffer="glb", hierarchy=True)[0])
     mw.same_on_three_surfaces(tmp_path, ["a.gltf", "b.glb"], "gltf", capsys)
+
+
+def test_the_glb_chunk_walk_keeps_the_time_bound():
+    js = json.dumps({"asset": {"version": "2.0"}}).encode()
+    js += b" " * (-len(js) % 4)
+    chunks = struct.pack("<II", len(js), 0x4E4F534A) + js + struct.pack("<II", 0, 0x5A5A5A5A) * 10_000
+    glb = b"glTF" + struct.pack("<II", 2, 12 + len(chunks)) + chunks
+    with open_model(glb, name="c.glb") as doc:  # ten thousand empty chunks read in time
+        assert doc.counts()["objects"] == 0
+    with pytest.raises(SldLimitError) as exc:
+        open_model(glb, name="c.glb", limits=Limits(seconds=1e-9))
+    assert exc.value.detail["limit"] == "seconds"
+
+
+def test_strips_fans_and_normalised_values_tick_the_clock():
+    """The loops that turn strips and fans into triangles and convert normalised values
+    tick the scene's clock as they go, so its time bound and cancellation reach them."""
+    pts = [((i % 100) * 300, (i // 100) * 300, (i % 7) * 100) for i in range(9000)]
+    blob = b"".join(struct.pack("<3h", *p) for p in pts)
+    acc = {"bufferView": 0, "componentType": 5122, "normalized": True, "count": len(pts), "type": "VEC3"}
+    quantized = {"extensionsRequired": ["KHR_mesh_quantization"], "extensionsUsed": ["KHR_mesh_quantization"]}
+    prims = [{"attributes": {"POSITION": 0}, "mode": 5}, {"attributes": {"POSITION": 0}, "mode": 6}]
+    data = _asset(prims, blob, accessors=[acc], extra=quantized)
+    callers = []
+
+    def cancelled():
+        frame = sys._getframe(1)
+        while frame is not None and frame.f_code.co_name in ("check", "tick"):
+            frame = frame.f_back
+        callers.append(frame.f_code.co_name if frame is not None else None)
+        return False
+
+    with open_model(data, name="q.gltf") as doc:
+        s = doc.scene(cancelled=cancelled)
+    assert len(s.objects) == 2
+    assert callers.count("_primitive") >= 4 and callers.count("_accessor") >= 6
+
+
+def test_a_buffer_in_a_subfolder_is_read_only_when_subfolders_are(tmp_path):
+    data, sib = mw.gltf(box(1, 1, 1), buffer="file")
+    doc = json.loads(data)
+    doc["buffers"][0]["uri"] = "sub/scene.bin"
+    (tmp_path / "sub").mkdir()
+    (tmp_path / "sub" / "scene.bin").write_bytes(sib["scene.bin"])
+    path = tmp_path / "s.gltf"
+    path.write_text(json.dumps(doc))
+    with open_model(path) as m:
+        assert m.scene().counts["triangles"] == 12
+        assert m.references()[0].resolution["status"] == "found"
+    with open_model(path, subfolders=False) as m:
+        assert m.subfolders is False
+        with pytest.raises(PathRefusedError) as exc:
+            m.scene()
+        assert exc.value.detail == {"rule": "subfolder"}
+        assert m.references()[0].resolution["status"] == "refused"

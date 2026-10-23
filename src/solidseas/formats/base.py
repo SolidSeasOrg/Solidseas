@@ -596,8 +596,9 @@ class ModelDocument:
     ``source``), ``application`` (``name``, ``version``), ``fields``
     (:class:`SummaryFields`), ``properties`` (file-scope :class:`Property` objects),
     ``configurations`` (always empty), ``active_configuration`` and ``warnings``.
-    ``refuse_hard_links`` and ``max_file_bytes`` are those it was opened with; a file
-    it names (a buffer, a material library, a component) is opened under them too."""
+    ``refuse_hard_links``, ``max_file_bytes`` and ``subfolders`` are those it was opened
+    with; a file it names (a buffer, a material library, a component) is opened under
+    them too."""
 
     format: str = ""
 
@@ -620,6 +621,7 @@ class ModelDocument:
         # how the document was opened: the files it names are opened under the same rules
         self.refuse_hard_links: bool = bool(getattr(source, "refuse_hard_links", False))
         self.max_file_bytes: int | None = getattr(source, "max_file_bytes", None)
+        self.subfolders: bool = bool(getattr(source, "subfolders", True))
         spec = registry.FORMATS.get(self.format)
         self.variant: str | None = detection.variant if detection is not None else None
         self.doc_type: str | None = "part"
@@ -953,6 +955,7 @@ def _open(
     allow_solidworks: bool,
     unknown: UnknownFormatError | None = None,
     formats: Any = None,
+    subfolders: bool = True,
 ) -> Any:
     lim = check_limits(limits)
     max_file_bytes = check_max_file_bytes(max_file_bytes)
@@ -964,6 +967,7 @@ def _open(
         refuse_hard_links=bool(refuse_hard_links),
         hold_open=hold_open,
         limits=lim,
+        subfolders=bool(subfolders),
     )
     try:
         shown = name if name is not None else (os.path.basename(path) if path else None)
@@ -1051,6 +1055,7 @@ def open_model(
     hold_open: bool = False,
     limits: Any = None,
     formats: Any = None,
+    subfolders: bool = True,
 ) -> ModelDocument:
     """Open a 3D file that is not a SOLIDWORKS document, read-only (provisional).
 
@@ -1061,7 +1066,9 @@ def open_model(
     ``hold_open`` behave as for ``open_document``; ``limits`` (a :class:`Limits`)
     overrides any bound. ``formats`` names the formats this call may read (``"all"``,
     an id, comma-separated ids or ids; None: every one): a file whose content is
-    another is refused, whatever its name says.
+    another is refused, whatever its name says. ``subfolders`` false keeps the files the
+    document names (a glTF buffer, an OBJ material library, an Alibre component) to
+    its own folder, as a service root served without its subfolders needs.
 
     Raises what ``open_document`` raises, plus
     :class:`~solidseas.errors.FormatNotSupportedError` for a format SolidSeas
@@ -1082,6 +1089,7 @@ def open_model(
         limits=limits,
         allow_solidworks=False,
         formats=formats,
+        subfolders=subfolders,
     )
 
 
@@ -1096,6 +1104,7 @@ def open_any(
     hold_open: bool = False,
     limits: Any = None,
     formats: Any = None,
+    subfolders: bool = True,
 ) -> Any:
     """A SOLIDWORKS :class:`~solidseas.formats.solidworks.Document` for a SOLIDWORKS
     file, else a :class:`ModelDocument` (provisional). A file with a SOLIDWORKS
@@ -1139,6 +1148,7 @@ def open_any(
             allow_solidworks=False,
             unknown=unknown,
             formats=allowed,
+            subfolders=subfolders,
         )
     return _open(
         src,
@@ -1151,6 +1161,7 @@ def open_any(
         limits=limits,
         allow_solidworks=True,
         formats=allowed,
+        subfolders=subfolders,
     )
 
 

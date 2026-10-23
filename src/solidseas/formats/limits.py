@@ -57,6 +57,7 @@ class Limits:
     xml_depth: int = 64  # element nesting (damaged_file)
     xml_attribute_bytes: int = 64 * KIB  # one attribute value
     xml_text_bytes: int = 64 * KIB  # one element's text
+    xml_nodes: int = 100_000  # elements of a small XML part read as a tree (relationships, metadata)
     json_bytes: int = 64 * MIB  # one JSON document
     json_depth: int = 64  # JSON nesting (damaged_file)
     image_side: int = 4096  # width and height of a stored or converted image
@@ -88,6 +89,8 @@ class Limits:
     gltf_data_uri_bytes: int = 256 * MIB
     gltf_array_items: int = 100_000
     amf_constellation_depth: int = 16
+    amf_volumes: int = 100_000  # volumes of every object of one file
+    amf_materials: int = 65_536  # materials of one file
     # -- Parasolid files ------------------------------------------------------------------
     xt_transmit_bytes: int = 64 * MIB
     xt_nodes: int = 20_000_000

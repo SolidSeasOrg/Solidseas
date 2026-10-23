@@ -293,3 +293,31 @@ def test_python_cli_and_rest_give_the_same_model_summary(tmp_path, capsys):
     _write(tmp_path, "s.obj", data, sib)
     (tmp_path / "q.obj").write_bytes(mw.obj_quads_box())
     mw.same_on_three_surfaces(tmp_path, ["s.obj", "q.obj"], "obj", capsys)
+
+
+def test_material_libraries_are_counted_as_they_are_named():
+    # the seventeenth library is refused where it is named, before the damaged line after it
+    text = "".join(f"mtllib lib{i}.mtl\n" for i in range(17)) + "v x y z\n"
+    with open_model(text.encode(), name="l.obj") as doc:
+        with pytest.raises(SldLimitError) as exc:
+            doc.scene()
+    assert exc.value.detail["limit"] == "obj_material_libraries"
+    # references() stops at its bound, before the over-long line after it
+    text = "".join(f"mtllib r{i}.mtl\n" for i in range(4)) + "#" + "x" * 2000 + "\n"
+    with open_model(text.encode(), name="r.obj", limits=Limits(references=3, obj_line_bytes=1000)) as doc:
+        with pytest.raises(SldLimitError) as exc:
+            doc.references()
+    assert exc.value.detail["limit"] == "references"
+
+
+def test_a_library_in_a_subfolder_is_read_only_when_subfolders_are(tmp_path):
+    (tmp_path / "sub").mkdir()
+    (tmp_path / "sub" / "m.mtl").write_text("newmtl red\nKd 1 0 0\n")
+    (tmp_path / "x.obj").write_text("mtllib sub/m.mtl\nusemtl red\nv 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n")
+    with open_model(tmp_path / "x.obj") as doc:
+        assert doc.scene().objects[0].color == (1.0, 0.0, 0.0, 1.0)
+        assert doc.references()[0].resolution["status"] == "found"
+    with open_model(tmp_path / "x.obj", subfolders=False) as doc:
+        s = doc.scene()
+        assert s.objects[0].color is None and "material_library_unread" in mw.codes(s.warnings)
+        assert doc.references()[0].resolution["status"] == "refused"
