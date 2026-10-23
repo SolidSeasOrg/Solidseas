@@ -1474,7 +1474,14 @@ reported for them) and in the corpus (in 820 of 820 non-custom files the system 
 expected length and mass units). The other enum names are a HYPOTHESIS from the
 API documentation. Units are UNKNOWN for all legacy files and for 1,220 modern
 files without these properties: the binary units objects in `Contents/Config-0`
-are not decoded.
+are not decoded. The fixtures cannot decode them: all 19 state their units in
+`ISolidWorksInformation` (the 17 parts and assemblies MMGS, the 2 drawings IPS),
+so none is a file whose units are unknown, and every part shares one system, so
+no byte of `Config-0` can be told to follow the units. VERIFIED (19 fixtures).
+Section 16 item 8 (one part saved in IPS, CGS, MKS and MMGS, nothing else
+changed), the same part saved as SOLIDWORKS 2014 or earlier for the legacy
+layout, and a part saved with a custom system whose length and mass units differ
+from every standard one would let the units objects be found by comparison.
 
 ### 11.7 Title, author and dates
 
@@ -2248,7 +2255,8 @@ o05 to o06 (configuration) adds `docProps/Config-1-Properties.xml` but no
     `swTransform`, once listed here, are read in sections 12.3 and 12.1.)
 12. Per-face colours and appearances, the secondary tessellation block, the
     edge tags and bytes of descriptors 4 and 6.
-13. Units of legacy files and of modern files without `SW_Units*`.
+13. Units of legacy files and of modern files without `SW_Units*` (section 11.6
+    says which controlled files would settle it; the fixtures cannot).
 14. The meaning of the History u16 fields and date-code flag byte, release
     names below 1500 and from 18000, and service packs other than 2024 SP1.
 15. The full Biography record layout and why its first record differs from
