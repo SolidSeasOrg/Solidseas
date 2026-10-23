@@ -67,7 +67,10 @@ way: its own program's fragment shader moves the depth of each of its fragments
 to where the line of sight leaves the mesh's own box, carried by the instance's
 matrix, so it is picked where it is drawn over what lies behind its box, and a
 part inside it (or in front) is picked through it; a hidden one is never
-picked. The colour buffer's fourth
+picked. Where a fragment shader cannot set a depth (OpenGL ES without
+``GL_EXT_frag_depth``) it ranks there all the same, through the stencil: its
+mesh marks where it is drawn, then its box's far side is drawn there. That
+shader keeps every constant within half precision, which OpenGL ES may give it. The colour buffer's fourth
 value is an instance's state: shown as usual, picked (drawn in a selection
 blue), or faded toward the background while another is picked. The id pass's
 depth variant (``u_depth``) writes each fragment's own window depth, 24 bits in
@@ -232,6 +235,8 @@ _EXPLODE_TICK_MS = 15
 KEPT_EXPLOSIONS = 8  # a scene's explosions kept, the last made (Scene.explosion)
 Vec3 = tuple[float, float, float]
 GL_POLYGON_OFFSET_FILL = 0x8037
+GL_STENCIL_TEST, GL_STENCIL_BUFFER_BIT = 0x0B90, 0x0400
+GL_ALWAYS, GL_EQUAL, GL_KEEP, GL_REPLACE = 0x0207, 0x0202, 0x1E00, 0x1E01
 
 _VERTEX = """
 VIN vec3 a_position;
@@ -244,7 +249,7 @@ VIN vec4 a_color;
 VIN vec4 a_offset;
 VIN vec2 a_look;
 VIN float a_batch;  /* a box's batch while something is transparent: 1 behind it all, 2 in front */
-uniform mat4 u_viewproj;
+uniform SHARED mat4 u_viewproj;
 uniform mat4 u_view;
 uniform float u_explode;
 uniform float u_opaque;  /* 1 in the first pass: the opaque instances only */
@@ -257,7 +262,7 @@ VOUT vec3 v_id;
 VOUT float v_mirror;  /* below 0 when the instance's matrix mirrors, which turns its faces round */
 VOUT float v_alpha;
 #ifdef FAR_DEPTH
-uniform vec3 u_dir;
+uniform SHARED vec3 u_dir;
 VOUT vec3 v_local;
 VOUT vec3 v_ray;
 VOUT vec3 v_world;
@@ -322,15 +327,22 @@ uniform vec3 u_edge_color;
 FIN vec3 v_local;
 FIN vec3 v_ray;
 FIN vec3 v_world;
-uniform mat4 u_viewproj;
-uniform vec3 u_dir;
+uniform SHARED mat4 u_viewproj;
+uniform SHARED vec3 u_dir;
 uniform vec3 u_box_lo;  /* the mesh's own box, in its own frame */
 uniform vec3 u_box_hi;
 uniform float u_rank_box;  /* 1 for a mesh's transparent instances: ranked at the far side of the box */
 
+/* How far the line of sight goes from p, at d a unit along one axis, before it leaves the
+   box's slab on that axis (never less than 0); -1 when it runs along the slab. Nothing
+   here is out of range where floats are only half precision: no sentinel, and PARALLEL
+   (the header's) is a slope such floats hold. */
 float leave(float p, float d, float lo, float hi) {
-    if (abs(d) < 1e-20) return 1e30;
-    return ((d > 0.0 ? hi : lo) - p) / d;
+    if (abs(d) < PARALLEL) return -1.0;
+    return max(((d > 0.0 ? hi : lo) - p) / d, 0.0);
+}
+float nearer(float t, float s) {  /* the nearer of two distances, -1 being none */
+    return s < 0.0 ? t : (t < 0.0 ? s : min(t, s));
 }
 #endif
 void main() {
@@ -353,11 +365,11 @@ void main() {
             /* A transparent instance ranks where the line of sight leaves its own box, as a
                box's far side does: what lies inside the box, or in front, is picked through
                it, and it is picked over what lies behind the box. */
-            float t = min(leave(v_local.x, v_ray.x, u_box_lo.x, u_box_hi.x),
-                          min(leave(v_local.y, v_ray.y, u_box_lo.y, u_box_hi.y),
-                              leave(v_local.z, v_ray.z, u_box_lo.z, u_box_hi.z)));
-            if (t < 1e29) {
-                vec4 c = u_viewproj * vec4(v_world + max(t, 0.0) * u_dir, 1.0);
+            float t = nearer(leave(v_local.x, v_ray.x, u_box_lo.x, u_box_hi.x),
+                             nearer(leave(v_local.y, v_ray.y, u_box_lo.y, u_box_hi.y),
+                                    leave(v_local.z, v_ray.z, u_box_lo.z, u_box_hi.z)));
+            if (t >= 0.0) {
+                vec4 c = u_viewproj * vec4(v_world + t * u_dir, 1.0);
                 FRAG_DEPTH = clamp(0.5 * c.z / c.w + 0.5, 0.0, 1.0);
             }
         }
@@ -408,13 +420,20 @@ class GLError(RuntimeError):
     pass
 
 
-def _headers(ctx: QOpenGLContext, *, far_depth: bool = False) -> tuple[str, str] | None:
+def _headers(
+    ctx: QOpenGLContext, *, far_depth: bool = False, frag_depth: bool = True, highp: bool = True
+) -> tuple[str, str] | None:
     """GLSL headers for the context: 1.20 (a compatibility context, the Windows
     default), 1.50 (a core profile) or ES 1.00. With ``far_depth`` the id pass's: its
     fragment shader sets the depth of a transparent instance's fragments to where the
     line of sight leaves its box (``FAR_DEPTH``); None where it cannot (OpenGL ES
-    without ``GL_EXT_frag_depth``)."""
+    without ``GL_EXT_frag_depth``, or ``frag_depth`` False, as a test asks). On OpenGL
+    ES that shader takes high precision where the driver has it, and medium (perhaps
+    half) precision otherwise, or with ``highp`` False; ``PARALLEL``, the slope below
+    which the line of sight runs along a side of the box, suits each."""
     fmt = ctx.format()
+    if far_depth and not frag_depth:
+        return None
     if ctx.isOpenGLES():
         extensions = ""
         if ctx.hasExtension(b"GL_OES_standard_derivatives"):
@@ -424,20 +443,31 @@ def _headers(ctx: QOpenGLContext, *, far_depth: bool = False) -> tuple[str, str]
                 return None
             extensions += "#extension GL_EXT_frag_depth : enable\n"
         precision = "precision mediump float;\n"
-        if far_depth:  # a depth worked out in the shader wants every bit there is
+        # What both stages declare (u_viewproj, u_dir) takes one precision in both, or the
+        # program does not link: the fragment shader's, which the vertex shader can tell.
+        shared = "#define SHARED highp\n"
+        medium = "#define SHARED mediump\n"
+        if far_depth and highp:  # a depth worked out in the shader wants every bit there is
+            shared = f"#ifdef GL_FRAGMENT_PRECISION_HIGH\n{shared}#else\n{medium}#endif\n"
             precision = (
-                "#ifdef GL_FRAGMENT_PRECISION_HIGH\nprecision highp float;\n"
-                "#else\nprecision mediump float;\n#endif\n"
+                "#ifdef GL_FRAGMENT_PRECISION_HIGH\nprecision highp float;\n#define PARALLEL 1e-20\n"
+                "#else\nprecision mediump float;\n#define PARALLEL 1e-3\n#endif\n"
             )
-        frag = f"#version 100\n{extensions}{precision}#define FIN varying\n#define FRAG gl_FragColor\n"
+        elif far_depth:
+            shared = medium
+            precision = "precision mediump float;\n#define PARALLEL 1e-3\n"
+        frag = f"#version 100\n{extensions}{precision}{shared}"
+        frag += "#define FIN varying\n#define FRAG gl_FragColor\n"
         if "derivatives" in extensions:
             frag += "#define DERIVATIVES 1\n"
-        vert = "#version 100\n#define VIN attribute\n#define VOUT varying\n"
+        vert = f"#version 100\n{shared}#define VIN attribute\n#define VOUT varying\n"
         if far_depth:
             frag += "#define FAR_DEPTH 1\n#define FRAG_DEPTH gl_FragDepthEXT\n"
             vert += "#define FAR_DEPTH 1\n"
         return vert, frag
-    far = "#define FAR_DEPTH 1\n#define FRAG_DEPTH gl_FragDepth\n" if far_depth else ""
+    far = "#define SHARED\n"  # desktop GLSL 1.20 takes no precision
+    if far_depth:
+        far += "#define FAR_DEPTH 1\n#define FRAG_DEPTH gl_FragDepth\n#define PARALLEL 1e-20\n"
     if fmt.profile() == QSurfaceFormat.OpenGLContextProfile.CoreProfile:
         return (
             "#version 150\n#define VIN in\n#define VOUT out\n" + far,
@@ -775,6 +805,10 @@ class Renderer:
 
     allow_instancing = True  # tests turn it off to draw instance by instance
     batch_boxes = True  # tests turn it off to sort every box among the transparent instances
+    # Tests turn these off to rank transparent instances as where OpenGL ES has no
+    # GL_EXT_frag_depth (through the stencil), and to compile the id pass in medium precision.
+    allow_frag_depth = True
+    allow_highp = True
 
     def __init__(self) -> None:
         ctx = QOpenGLContext.currentContext()
@@ -800,10 +834,12 @@ class Renderer:
         # The id pass's own program, which ranks a transparent instance at the far side of
         # its box (FAR_DEPTH). Its fragment shader sets the depth, which costs the drawing
         # pass its early depth test, so that pass keeps the plain one. Where it cannot be
-        # made, a transparent instance ranks as an opaque one does.
+        # made (OpenGL ES without GL_EXT_frag_depth), a transparent instance ranks there all
+        # the same, through the stencil (:meth:`_rank_through_stencil`).
         self.pick_program = self.program
         self.rank_far = False
-        far = _headers(ctx, far_depth=True)
+        self._unit_box: tuple[list[QOpenGLBuffer], QOpenGLVertexArrayObject | None] | None = None
+        far = _headers(ctx, far_depth=True, frag_depth=self.allow_frag_depth, highp=self.allow_highp)
         if far is not None:
             try:
                 self.pick_program = self._program(*far)
@@ -1069,7 +1105,8 @@ class Renderer:
         w, h = size
         if self._fbo is None or (self._fbo.width(), self._fbo.height()) != (w, h):
             fmt = QOpenGLFramebufferObjectFormat()
-            fmt.setAttachment(QOpenGLFramebufferObject.Attachment.Depth)
+            attach = QOpenGLFramebufferObject.Attachment
+            fmt.setAttachment(attach.Depth if self.rank_far else attach.CombinedDepthStencil)
             self._fbo = QOpenGLFramebufferObject(w, h, fmt)
         fbo = self._fbo
         if not fbo.isValid() or not fbo.bind():
@@ -1249,7 +1286,7 @@ class Renderer:
             # check) are drawn whole. A hidden instance is not drawn at all.
             back = (view_rows[8], view_rows[9], view_rows[10])
             prog.setUniformValue(prog.uniformLocation("u_dir"), -back[0], -back[1], -back[2])
-            if not only_boxes:
+            if not only_boxes and self.rank_far:
                 prog.setUniformValue1f("u_rank_box", 1.0)
                 for m in meshes:
                     (x0, y0, z0), (x1, y1, z1) = m.bbox
@@ -1257,11 +1294,18 @@ class Renderer:
                     prog.setUniformValue(prog.uniformLocation("u_box_hi"), x1, y1, z1)
                     self._instances(m, GL_TRIANGLES, m.count, _NO_OFFSET)
                 prog.setUniformValue1f("u_rank_box", 0.0)
+            elif not only_boxes:  # the opaque ones here, the transparent ones after the boxes
+                prog.setUniformValue1f("u_opaque", 1.0)
+                for m in meshes:
+                    self._instances(m, GL_TRIANGLES, m.count, _NO_OFFSET, opaque=True)
+                prog.setUniformValue1f("u_opaque", 0.0)
             for m in boxes:
                 prog.setUniformValue1f("u_side", BOTH_SIDES if only_boxes else FAR_SIDE)
                 self._instances(m, GL_TRIANGLES, BOX_FACES, _NO_OFFSET)
                 prog.setUniformValue1f("u_side", BOTH_SIDES)  # lines face the eye: never their far side
                 self._instances(m, GL_LINES, BOX_EDGES, BOX_EDGE_OFFSET)
+            if not only_boxes and not self.rank_far and self._items:
+                self._rank_through_stencil(prog, depth)
         else:
             # The opaque instances first, writing depth; then what is blended over them, writing
             # no depth, so whatever is behind or inside it still shows (:meth:`_blended`).
@@ -1407,6 +1451,128 @@ class Renderer:
         uniform(alpha_at, 1.0)
         self._blend(False)
 
+    def _rank_through_stencil(self, prog: QOpenGLShaderProgram, depth: bool = False) -> None:
+        """The id pass's transparent instances where its fragment shader cannot set a depth
+        (OpenGL ES without ``GL_EXT_frag_depth``), ranked at the far side of each one's own
+        box all the same: its mesh marks the stencil where it is drawn, whatever lies in
+        front, then its box's far side, carried by its matrix, is drawn there, depth
+        tested, in its colour. What lies inside the box or in front of it is nearer than
+        that far side and keeps its pixel, and what lies behind the box does not: the
+        ranking of ``FAR_DEPTH``, made of geometry instead of a depth written. In the depth
+        variant the mesh is drawn once more where its box won, depth tested without writing,
+        so the pixel says where its own surface is, as with ``FAR_DEPTH``, while the depth
+        the next instance meets is still the far side's."""
+        gl = self.gl
+        side_at = self._at["u_side"]
+        attrib = gl.glVertexAttrib4f
+        gl.glEnable(GL_STENCIL_TEST)
+        gl.glClear(GL_STENCIL_BUFFER_BIT)
+        try:
+            for mi, k in self._items:
+                m = self.meshes[mi]
+                gl.glStencilFunc(GL_ALWAYS, 1, 0xFF)
+                gl.glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE)
+                gl.glColorMask(False, False, False, False)
+                gl.glDepthMask(False)
+                gl.glDisable(GL_DEPTH_TEST)
+                if m.solo is not None:
+                    m.solo.bind()
+                else:
+                    self._attributes(m, False)
+                self._each(m, (k,), GL_TRIANGLES, m.count, _NO_OFFSET, None)
+                if m.solo is not None:
+                    m.solo.release()
+                gl.glStencilFunc(GL_EQUAL, 1, 0xFF)
+                gl.glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP)
+                gl.glColorMask(True, True, True, True)
+                gl.glDepthMask(True)
+                gl.glEnable(GL_DEPTH_TEST)
+                vao = self._bind_unit_box()
+                c = m.matrices[16 * k : 16 * k + 16]
+                (x0, y0, z0), (x1, y1, z1) = m.bbox
+                for j, s in enumerate((x1 - x0, y1 - y0, z1 - z0)):  # the box's axes, scaled to it
+                    attrib(A_MATRIX + j, c[4 * j] * s, c[4 * j + 1] * s, c[4 * j + 2] * s, 0.0)
+                attrib(
+                    A_MATRIX + 3,
+                    *(c[12 + i] + c[i] * x0 + c[4 + i] * y0 + c[8 + i] * z0 for i in range(3)),
+                    1.0,
+                )
+                q = 4 * k
+                attrib(A_COLOR, *m.colors[q : q + 4])
+                attrib(A_OFFSET, *m.offsets[q : q + 4])
+                gl.glVertexAttrib2f(A_LOOK, m.looks[2 * k], 0.0)
+                prog.setUniformValue1f(side_at, FAR_SIDE)
+                if depth:  # where the far side wins, the stencil's second bit says so
+                    gl.glStencilFunc(GL_EQUAL, 3, 0x01)
+                    gl.glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE)
+                    gl.glStencilMask(0x02)
+                gl.glDrawElements(GL_TRIANGLES, BOX_FACES, GL_UNSIGNED_INT, _NO_OFFSET)
+                prog.setUniformValue1f(side_at, BOTH_SIDES)
+                if vao is not None:
+                    vao.release()
+                if depth:
+                    gl.glStencilMask(0xFF)
+                    gl.glStencilFunc(GL_EQUAL, 3, 0x03)
+                    gl.glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP)
+                    gl.glDepthMask(False)
+                    if m.solo is not None:
+                        m.solo.bind()
+                    else:
+                        self._attributes(m, False)
+                    self._each(m, (k,), GL_TRIANGLES, m.count, _NO_OFFSET, None)
+                    if m.solo is not None:
+                        m.solo.release()
+                    gl.glDepthMask(True)
+                gl.glClear(GL_STENCIL_BUFFER_BIT)
+        finally:
+            gl.glStencilMask(0xFF)
+            gl.glDisable(GL_STENCIL_TEST)
+            gl.glColorMask(True, True, True, True)
+            gl.glDepthMask(True)
+            gl.glEnable(GL_DEPTH_TEST)
+
+    def _bind_unit_box(self) -> QOpenGLVertexArrayObject | None:
+        """Bind :data:`BOX_MESH`'s vertices and faces for one box drawn with its values as the
+        attributes' constants, made the first time; the vertex array bound, or None."""
+        if self._unit_box is None:
+            made: list[QOpenGLBuffer] = []
+            vertex, index = QOpenGLBuffer.Type.VertexBuffer, QOpenGLBuffer.Type.IndexBuffer
+            box = BOX_MESH
+            for data, kind in ((box.positions, vertex), (box.normals, vertex), (box.indices, index)):
+                buf = QOpenGLBuffer(kind)
+                buf.setUsagePattern(QOpenGLBuffer.UsagePattern.StaticDraw)
+                if not buf.create() or not buf.bind():
+                    for b in made:
+                        b.destroy()
+                    raise GLError("the graphics driver refused a buffer")
+                buf.allocate(data, len(data))
+                made.append(buf)
+            vao = None
+            if self.has_vao:
+                vao = QOpenGLVertexArrayObject()
+                vao.create()
+                vao.bind()
+                self._point_unit_box(made)
+                vao.release()
+            self._unit_box = (made, vao)
+        made, vao = self._unit_box
+        if vao is not None:
+            vao.bind()
+        else:
+            self._point_unit_box(made)
+        return vao
+
+    def _point_unit_box(self, made: list[QOpenGLBuffer]) -> None:
+        p, n, i = made
+        prog = self.program
+        for buf, location in ((p, A_POSITION), (n, A_NORMAL)):
+            buf.bind()
+            prog.enableAttributeArray(location)
+            prog.setAttributeBuffer(location, GL_FLOAT, 0, 3, 12)
+        for location in range(A_MATRIX, A_BATCH + 1):
+            prog.disableAttributeArray(location)
+        i.bind()
+
     def _instances(self, m: _GpuMesh, mode: int, count: int, offset, *, opaque: bool = False) -> None:
         """Draw ``count`` indices of ``m`` from byte ``offset`` of its index buffer as
         ``mode`` (triangles or lines), for every instance shown (with ``opaque``, every
@@ -1488,6 +1654,13 @@ class Renderer:
 
     def release(self) -> None:
         self.clear()
+        if self._unit_box is not None:
+            made, vao = self._unit_box
+            if vao is not None:
+                vao.destroy()
+            for b in made:
+                b.destroy()
+            self._unit_box = None
         self._fbo = None  # deleted while its context is current
         self.program.removeAllShaders()
         if self.pick_program is not self.program:

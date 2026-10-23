@@ -1873,6 +1873,11 @@ while the project takes shape.
 
 ### Fixed
 
+- **Picking through transparent parts on OpenGL ES.** On OpenGL ES graphics, a
+  click goes through a transparent part to what lies inside its box, as on other
+  graphics, also where the driver lacks depth writes from shaders or high
+  precision.
+
 - **Watertight solids with a hole at an edge.** Solids with a hole that touches
   or almost touches an edge of a face now come out closed, so their 3D prints
   are watertight.

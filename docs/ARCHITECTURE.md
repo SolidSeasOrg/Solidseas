@@ -533,7 +533,8 @@ end, farthest first, so one inside another lies between that one's two sides
 with something transparent so are the boxes wholly behind or in front of it
 along the line of sight, before and after the sorted pass);
 a hidden one is left out of every pass and the exploded view, and a transparent
-one is picked as a box is, at the far side of its own box. The view cube over the
+one is picked as a box is, at the far side of its own box (through the stencil
+where OpenGL ES cannot set a fragment's depth). The view cube over the
 view's corner is a child widget painted with QPainter (`viewer.cubewidget`, its
 geometry in `viewer.viewcube`), not a pass of the OpenGL frame: it shares no
 OpenGL state with the passes, Qt routes its clicks away from picking, and the
