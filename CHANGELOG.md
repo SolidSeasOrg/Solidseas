@@ -1891,6 +1891,10 @@ while the project takes shape.
 
 ### Fixed
 
+- **Indexing a folder that holds SolidSeas' cache.** Indexing a folder that
+  holds SolidSeas' cache (a home folder, say) no longer walks or indexes the
+  catalogs inside it.
+
 - **Where Used notes.** A long Where Used note is cut at its end instead of its
   middle, and its tooltip shows all of it.
 

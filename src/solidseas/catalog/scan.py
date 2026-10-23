@@ -8,7 +8,9 @@ The phases run in this order, each committed in batches (64 documents or a
 quarter of a second) so a reader sees rows as they arrive:
 
 1. **Walk and compare.** Each root is walked (links never followed, cloud
-   placeholders never opened, ``~$`` lock files skipped). Only names ending in an
+   placeholders never opened, ``~$`` lock files skipped, the catalog's own folder
+   and, for a catalog in the cache, SolidSeas' cache folder left out, so indexing a
+   home folder never walks the catalogs inside it). Only names ending in an
    extension of the formats the catalog indexes (its ``formats`` setting:
    ``.sldprt``, ``.sldasm`` and ``.slddrw`` by default) become rows, compared a
    folder at a time with that folder's rows. A file is unchanged when its size and
@@ -562,6 +564,18 @@ class Scanner:
         """Whether a file of this name is one of the formats the catalog indexes."""
         return name.lower().endswith(self.extensions)
 
+    def _own_folders(self) -> list[str]:
+        """The folders a walk leaves out: the catalog's own (its database, previews and
+        lock), and for a catalog in the cache SolidSeas' cache folder with every catalog
+        in it, which a root such as the user's home folder would otherwise hold."""
+        from .store import cache_dir
+
+        own = os.path.dirname(os.path.abspath(self.cat.path))
+        out = [own]
+        if self.cat.location == "cache":
+            out += [os.path.dirname(own), cache_dir()]
+        return out
+
     def _walk_root(self, db: int, root) -> None:
         info = _RootWalk(db)
         self.walks[db] = info
@@ -572,6 +586,7 @@ class Scanner:
                 max_depth=WALK_MAX_DEPTH,
                 max_examined=WALK_MAX_EXAMINED,
                 deadline=self.deadline,
+                exclude=self._own_folders(),
             )
             entries = iter(walk)
             first = next(entries, None)  # the root's own listing: only it raises

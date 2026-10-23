@@ -793,6 +793,30 @@ def test_a_scan_writes_nothing_into_the_scanned_folder(tmp_path, pool):
     assert _tree_state(folder) == before
 
 
+def test_a_scan_of_a_home_folder_leaves_the_catalogs_folders_out(tmp_path, monkeypatch):
+    """A root that holds SolidSeas' cache folder (a home folder, say): the walk does not go
+    into the cache folder, where the catalog itself lives, nor into an in-project
+    catalog's folder, so a document copied into either is never indexed."""
+    home = tmp_path / "home"
+    copy_documents(home / "work")
+    cache = home / ".cache" / "solidseas"
+    monkeypatch.setenv("SOLIDSEAS_CACHE_DIR", str(cache))
+    (cache / "elsewhere").mkdir(parents=True)
+    shutil.copy2(home / "work" / "o02_boxA.SLDPRT", cache / "elsewhere" / "stray.SLDPRT")
+    with catalog.open(home) as cat:
+        assert cat.path.startswith(str(cache))
+        cat.scan(workers=1)
+        shutil.copy2(home / "work" / "o02_boxA.SLDPRT", os.path.join(os.path.dirname(cat.path), "own.SLDPRT"))
+        data = cat.scan(workers=1)
+        assert data["counts"]["seen"] == 19 and data["counts"]["added"] == 0
+        assert cat.search("stray")["results"] == [] and cat.search("own")["results"] == []
+    project_root = home / "work"
+    with catalog.open(project_root, location="project") as cat:
+        shutil.copy2(project_root / "o02_boxA.SLDPRT", project_root / ".solidseas" / "inside.SLDPRT")
+        assert cat.scan(workers=1)["counts"]["seen"] == 19
+        assert cat.search("inside")["results"] == []
+
+
 def test_clear_and_list(tmp_path, pool):
     folder = project(tmp_path)
     with catalog.open(folder) as cat:

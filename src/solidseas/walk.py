@@ -55,7 +55,7 @@ import os
 import stat
 import time
 from collections import deque
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass
 from typing import Any
 
@@ -102,7 +102,7 @@ class WalkEntry:
       be read (``error`` holds the exception).
 
     A ``"folder"`` that a depth limit kept the walk out of has ``reason``
-    ``"max_depth"``.
+    ``"max_depth"``, and one the walk was asked to leave out ``"excluded"``.
     """
 
     path: str  # the root joined with the entry's relative path, in host form
@@ -227,7 +227,10 @@ class Walk:
     ``recursive=False`` lists the root only. ``max_depth`` is the deepest entry
     listed (1 is the root's own entries). ``max_examined`` caps the directory
     entries examined, documents or not. ``deadline`` is a ``time.monotonic()`` value; ``max_seconds``
-    sets one from now. Constructing a walk checks the root: it raises
+    sets one from now. ``exclude`` names folders (absolute paths) the walk lists but
+    does not go into: each is yielded as a folder with reason ``"excluded"``, as a catalog
+    keeps its own folder out of a walk of the folder that holds it. Constructing a walk
+    checks the root: it raises
     ``FileNotFoundError``, ``NotADirectoryError`` or ``PermissionError`` for it,
     and nothing for anything below it.
     """
@@ -241,8 +244,10 @@ class Walk:
         max_examined: int | None = DEFAULT_MAX_EXAMINED,
         max_seconds: float | None = None,
         deadline: float | None = None,
+        exclude: Iterable[str | os.PathLike] = (),
     ) -> None:
         self.root = os.fspath(root)
+        self.exclude = frozenset(os.path.normcase(os.path.abspath(os.fspath(p))) for p in exclude)
         st = os.stat(self.root)  # follows a junction or link root on purpose (C6)
         if not stat.S_ISDIR(st.st_mode):
             raise NotADirectoryError(20, "not a folder", self.root)
@@ -309,7 +314,9 @@ class Walk:
                 elif e.kind == "error":
                     stats.errors += 1
                 elif e.kind == "folder" and self.recursive:
-                    if e.depth >= self.max_depth:
+                    if self.exclude and os.path.normcase(os.path.abspath(e.path)) in self.exclude:
+                        e = dataclasses.replace(e, reason="excluded")
+                    elif e.depth >= self.max_depth:
                         stats.depth_limited += 1
                         e = dataclasses.replace(e, reason="max_depth")
                     else:

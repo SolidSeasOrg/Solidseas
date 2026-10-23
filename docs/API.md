@@ -2780,7 +2780,9 @@ overlap (one inside another) are refused (`invalid_argument`, rule
   without the sticky bit (so that anyone could swap it for a link), is refused
   there (`path_refused`, rule `not_private`); Windows guards folders by their
   access lists. A scan never writes into a scanned folder unless the
-  in-project location was asked for.
+  in-project location was asked for. Its walk leaves out the catalog's own
+  folder and, for a catalog in the cache, SolidSeas' cache folder, so a root
+  that holds them (a home folder, say) never indexes what is in them.
 - A database that is not a catalog (another program's SQLite file, any other
   file) is refused before anything is written to it or made beside it
   (`catalog_incompatible`, rule `not_a_catalog`); its header is read from the
