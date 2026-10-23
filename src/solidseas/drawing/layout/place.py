@@ -203,12 +203,14 @@ class _Run:
         signed,
         sheets=DEFAULT_LIMITS.sheets,
         measure=False,
+        forced=None,
     ):
         self.sheets = sheets  # the most sheets the drawing may take
         # with ``measure``, why an item is placed with a conflict, on its check (.measure)
         self.measure = measure
         self.steps = M.Steps()
         self.room_kept = True  # whether the arrangement kept the datum symbols their room
+        self.forced = forced  # a choice of sheet, scale and arrangement to lay out on (roomier)
         self.planned = planned
         self.plan = planned.plan
         self.detail = planned.detail
@@ -263,26 +265,57 @@ class _Run:
 
     # ------------------------------------------------------------------ sheet and scale
 
+    def sheet_frame(self, name: str):
+        """Sheet ``name``'s frame, with room for the notes, revisions and parts list."""
+        probe = sheet.frame(name, self.settings)
+        parts = self.parts_shape(probe)
+        nh = (
+            N.height(self.plan.notes, probe.title.width - 2.0, self.h, self._frame_w)
+            if self.plan.notes
+            else 0.0
+        )
+        return sheet.frame(
+            name,
+            self.settings,
+            note_height=nh,
+            revisions=len(self.revisions),
+            parts_height=parts.height,
+            parts_width=parts.total_width,
+        )
+
+    def roomier(self, name: str, sc) -> tuple | None:
+        """A sheet after ``name`` on which the views fit with their datum symbols' room at
+        scale ``sc`` or a larger one, as :meth:`choose` gives a choice; None when none
+        does. For a layout whose views fit ``name`` only without that room."""
+        order = sheet.sheet_order(self.options, self.settings)
+        if name not in order:
+            return None
+        least = standards.scale_factor(sc)
+        for later in order[order.index(name) + 1 :]:
+            f = self.sheet_frame(later)
+            for scale in sheet.scale_order(self.options, self.settings):
+                factor = standards.scale_factor(scale)
+                if factor < least - 1e-12:
+                    break  # smaller than the room is worth
+                slots = self.slots_at(factor)
+                datums = self.datum_rooms(slots)
+                bands = {
+                    v: A.bands(self.ctx, s, self.band_inputs(s), datums.get(v)) for v, s in slots.items()
+                }
+                rooms = {v: A.leader_room(self.ctx, self.dims_by_view.get(v, [])) for v in slots}
+                got = A.arrange(self.ctx, f, slots, bands, rooms, datums, pads=self.balloon_pads())
+                if got is not None:
+                    return f, scale, got, None
+        return None
+
     def choose(self):
+        if self.forced is not None:
+            return self.forced
         tried = []
         first_fit = None
         smallest = self.smallest_span()
         for name in sheet.sheet_order(self.options, self.settings):
-            probe = sheet.frame(name, self.settings)
-            parts = self.parts_shape(probe)
-            nh = (
-                N.height(self.plan.notes, probe.title.width - 2.0, self.h, self._frame_w)
-                if self.plan.notes
-                else 0.0
-            )
-            f = sheet.frame(
-                name,
-                self.settings,
-                note_height=nh,
-                revisions=len(self.revisions),
-                parts_height=parts.height,
-                parts_width=parts.total_width,
-            )
+            f = self.sheet_frame(name)
             for sc in sheet.scale_order(self.options, self.settings):
                 factor = standards.scale_factor(sc)
                 slots = self.slots_at(factor)
@@ -389,6 +422,7 @@ class _Run:
     def run(self) -> LayoutResult:
         t0 = time.perf_counter()
         f, sc, arr, cramped_words = self.choose()
+        self.chose = (f.name, sc, cramped_words)
         self.frame = f
         self.arr = arr
         self.pen = Pen()
@@ -1624,21 +1658,41 @@ def layout(
     list too long for the first goes on to, at most ``sheets`` in all. With ``measure``
     each check of an item placed with a conflict, or of text over text, says how layout
     came to it (:mod:`.measure`), which changes nothing on the sheet."""
-    run = _Run(
-        planned,
-        options,
-        settings,
-        logo=logo,
-        logo_sha=logo_sha,
-        source=source,
-        fields=dict(fields or {}),
-        revisions=tuple(revisions),
-        status=status,
-        signed=dict(signed or {}),
-        sheets=sheets,
-        measure=measure,
-    )
-    return run.run()
+
+    def run(forced=None) -> tuple[_Run, LayoutResult]:
+        made = _Run(
+            planned,
+            options,
+            settings,
+            logo=logo,
+            logo_sha=logo_sha,
+            source=source,
+            fields=dict(fields or {}),
+            revisions=tuple(revisions),
+            status=status,
+            signed=dict(signed or {}),
+            sheets=sheets,
+            measure=measure,
+            forced=forced,
+        )
+        return made, made.run()
+
+    first, result = run()
+    # The room for the datum symbols is not worth a smaller scale, but it is worth a larger
+    # sheet when, arranged without it, a symbol has no clear place: kept when it collides less.
+    name, sc, cramped = first.chose
+    if not first.room_kept and cramped is None and any(o.startswith("datum-") for o, *_r in first.unplaced):
+        better = first.roomier(name, sc)
+        if better is not None:
+            _again, retried = run(better)
+            if _collisions(retried) < _collisions(result):
+                result = retried
+    return result
+
+
+def _collisions(result: LayoutResult) -> int:
+    """A layout's text over text and items placed with no clear place."""
+    return sum(1 for c in result.checks if c.code in ("L.overlap", "L.placement"))
 
 
 __all__ = ["LayoutResult", "attach", "layout", "severity"]

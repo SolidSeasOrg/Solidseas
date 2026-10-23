@@ -51,7 +51,10 @@ sheet or scale is kept as it is.
   the view and their lines and texts (an ordinate row's texts start past it as
   they are). The room is not
   worth a smaller scale: when the views do not fit with it, they are arranged
-  without it at the same scale, and the symbol finds what room it can.
+  without it at the same scale, and the symbol finds what room it can. Where a
+  symbol then finds no clear place and the sheet is automatic, the next sheet that
+  fits the views with the room at the same scale or larger is laid out too, and
+  taken when it has fewer conflicts.
 - Third angle: the front anchors, the top above it and the right to its right on
   their shared axes, the gap between two views their facing bands (or datum
   symbols) and two text heights. The group is centred beside the title column, or above it. The

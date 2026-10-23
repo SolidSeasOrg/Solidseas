@@ -418,6 +418,22 @@ def _datum_run(seed: int, n: int, sheet: str):
     )
 
 
+def test_a_datum_symbol_with_no_room_takes_the_next_sheet_rather_than_collide():
+    """This plate's views fit a B sheet at 1:1 only without the datum symbols' room, and
+    datum A, its top view against the drawing area's edge, then has no clear place (nor
+    have two callouts). With the sheet on automatic the next sheet that fits them with
+    the room at that scale or larger is taken, as it collides less: C at 2:1, clear.
+    A B sheet chosen by hand stays as it is, the conflicts reported."""
+    auto = _datum_run(7, 28, "auto")
+    result = auto.orchestrated.result
+    assert (result.sheet.name, result.scale) == ("C", (2, 1))
+    assert not [c for c in result.checks if c.code in ("L.overlap", "L.placement")]
+    assert not [c for c in auto.drawing.checks if c.code == "R11.collisions"]
+    fixed = _datum_run(7, 28, "B").orchestrated.result
+    assert (fixed.sheet.name, fixed.scale) == ("B", (1, 1))
+    assert {c.owner for c in fixed.checks if c.code == "L.placement"} >= {"datum-A"}
+
+
 def test_a_datum_with_no_clear_place_in_its_view_is_drawn_in_another_and_recorded_there():
     """On a B sheet this plate's datum C is boxed in on the front by a tall ordinate
     column. The plan offers the other views where its face is a line, the front first;

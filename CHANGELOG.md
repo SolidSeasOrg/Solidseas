@@ -1896,6 +1896,10 @@ while the project takes shape.
 
 ### Fixed
 
+- **Room for a datum feature symbol.** When a datum feature symbol has no room
+  on the automatically chosen sheet, the drawing moves to the next sheet size if
+  that clears it.
+
 - **Position frames beside a dimension.** A position frame beside a dimension's
   value is no longer covered by a dimension in the next row.
 
