@@ -284,6 +284,13 @@ def _text_result(data: dict, *, error: bool = False, images: Sequence[bytes] = (
     return result
 
 
+def _without_path(exc: OSError) -> str:
+    """What a chat is told of a failed file or system call: the system's reason, never the
+    file names an ``OSError`` carries, which hold the user's own folders (``docs/MCP.md``)."""
+    reason = exc.strerror or type(exc).__name__
+    return f"A file or system call failed: {reason}."
+
+
 def ask_the_person(title: str, text: str) -> bool:
     """Ask in a box of SolidSeas' own, on top of every window, Yes or No, No by default.
     False where there is no such box (anywhere but Windows)."""
@@ -598,7 +605,9 @@ class McpServer:
             data = getattr(self, f"_tool_{name}")(args, rid)
         except ToolRefused as exc:
             return _text_result({"message": str(exc)}, error=True)
-        except (AIError, RunRefused, RuntimeError, OSError) as exc:
+        except OSError as exc:
+            return _text_result({"message": _without_path(exc)}, error=True)
+        except (AIError, RunRefused, RuntimeError) as exc:
             return _text_result({"message": str(exc) or type(exc).__name__}, error=True)
         images = data.pop("_images", ())
         return _text_result(data, images=images)
@@ -642,7 +651,9 @@ class McpServer:
             data, images = tools.call(name, args, cancel)
         except gridfinity.BadArguments as exc:
             raise InvalidParams(str(exc)) from None
-        except (gridfinity.Refused, AIError, OSError) as exc:
+        except OSError as exc:
+            return _text_result({"message": _without_path(exc)}, error=True)
+        except (gridfinity.Refused, AIError) as exc:
             return _text_result({"message": str(exc) or type(exc).__name__}, error=True)
         finally:
             with self._lock:
@@ -744,7 +755,11 @@ class McpServer:
         try:
             image = picture.saved_picture(path)
         except Exception as exc:  # the file could not be read or drawn
-            raise ToolRefused(f"No picture of {doc_id} could be made: {exc}") from None
+            # never the reader's own message, which names the file (a path holds the user's name)
+            raise ToolRefused(
+                f"No picture of {doc_id} could be made: its saved file could not be read or drawn "
+                f"({type(exc).__name__})."
+            ) from None
         return {
             "document": doc_id,
             "caption": image.caption,

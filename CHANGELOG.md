@@ -1921,6 +1921,16 @@ while the project takes shape.
 
 ### Fixed
 
+- **Security fixes from the desktop review.** A chat is no longer told the full
+  path of a part's file when a picture of it cannot be made or a file call
+  fails; a Gridfinity bin laid out by hand on a grid you give is held to the
+  100-cell limit; the SSH tunnel to a Tracefinity server uses Windows' own ssh,
+  never one in the current folder, and always refuses a server key it has not
+  seen before; making a bin never writes through a temporary file already in the
+  bins folder; a packaged SolidSeas no longer looks for the CAD Bridge in a dist
+  folder under your temporary folder; and --set-policy writes the removal of
+  AllowedProviderHosts with the restrictions, before anything that relaxes one.
+
 - **The machine policy holds for checkouts' helpers and extension packages.** An
   administrator's DisableExtensions or AllowedExtensions now holds for a bridge
   named by SOLIDSEAS_SWBRIDGE and an OCCT helper named by

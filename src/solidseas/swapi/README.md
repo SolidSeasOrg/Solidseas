@@ -73,7 +73,12 @@ it was built from (`bridge_version`). `dist\` is not committed.
 `solidseas.swapi.bridge.find_bridge()` looks, in order, at the path it is
 given, the `SOLIDSEAS_SWBRIDGE` environment variable, the folder of the
 running executable when SolidSeas is frozen (so `dist\SolidSeasViewer.exe`
-finds `dist\SolidSeas.SwBridge.exe`), and `dist\` of a source checkout.
+finds `dist\SolidSeas.SwBridge.exe`), and `dist\` of a source checkout (never
+from a frozen build, whose package folder can be under the user's temporary
+folder). The desktop app asks `solidseas_app.extensions.solidworks_bridge()`,
+which honours an administrator's `DisableExtensions` or `AllowedExtensions`
+before any of these, `SOLIDSEAS_SWBRIDGE` included, and runs the CAD Bridge
+package's program only while its files are the ones the package was added with.
 
 ### Protocol (version 1)
 

@@ -20,9 +20,10 @@ SolidSeas that writes the key::
   than it uses. A mistake anywhere writes nothing. Values not named stay as they are.
 * **Who and when.** Each change also writes ``SetBy`` (the account, ``DOMAIN\\name``) and
   ``SetAt`` (UTC), for the next administrator who looks at the key.
-* **Restrictions first.** DWORDs set to 1 are written before anything else, and those set
-  to 0 or removed last, so a write that stops part way has not turned a restriction off
-  before turning the others on.
+* **Restrictions first.** What only adds a restriction (DWORDs set to 1, and
+  ``AllowedProviderHosts`` removed) is written before anything else, and DWORDs set to 0
+  and the other removals last, so a write that stops part way has not turned a
+  restriction off before turning the others on.
 * **Read back.** The policy is then read with the reader SolidSeas uses, and must say what
   was asked, with no problem in any value; otherwise the run has failed, and its output
   says how the policy reads now.
@@ -30,7 +31,9 @@ SolidSeas that writes the key::
 Exit codes: 0 written and read back as asked; 1 not written, or not read back as asked;
 2 a usage error, nothing written; 3 refused, nothing written: not an administrator, or no
 registry on this system. The packaged executable has no console of its own, so its output
-shows only when it is piped (``| more``); the exit code is there either way.
+shows only when it is piped (``| more``), and a prompt does not wait for it: its exit code is
+read by waiting for the process (``Start-Process ... -Wait -PassThru``), not from
+``%ERRORLEVEL%`` after a pipe, which is the pipe's.
 """
 
 from __future__ import annotations
@@ -124,8 +127,10 @@ class Change:
 
     def steps(self) -> list[tuple[str, int | None, Any]]:
         """The writes in the order they are made, ``(name, registry type, value)``, with a
-        type of None for a value to remove: DWORDs set to 1, then the lists, then DWORDs set
-        to 0, then the removals, each group in the policy's own order."""
+        type of None for a value to remove: what only adds a restriction first (DWORDs set
+        to 1, and ``AllowedProviderHosts`` removed, which leaves no extra host allowed), then
+        the lists, then DWORDs set to 0, then the other removals, each group in the policy's
+        own order."""
 
         def ordered(items: list[tuple[str, int | None, Any]]) -> list[tuple[str, int | None, Any]]:
             return sorted(items, key=lambda item: NAMES.index(item[0]))
@@ -135,7 +140,9 @@ class Change:
         lists = [w for w in writes if w[1] == REG_MULTI_SZ]
         off = [w for w in writes if w[1] == REG_DWORD and w[2] == 0]
         removals: list[tuple[str, int | None, Any]] = [(name, None, None) for name in self.remove]
-        return ordered(on) + ordered(lists) + ordered(off) + ordered(removals)
+        narrowing = [r for r in removals if r[0] == ALLOWED_HOSTS]
+        removals = [r for r in removals if r[0] != ALLOWED_HOSTS]
+        return ordered(on + narrowing) + ordered(lists) + ordered(off) + ordered(removals)
 
 
 # --------------------------------------------------------------------------- the arguments
@@ -288,7 +295,10 @@ def account_name() -> str:
             size = wintypes.ULONG(MAX_ACCOUNT)
             buffer = ctypes.create_unicode_buffer(MAX_ACCOUNT)
             name_sam_compatible = 2
-            if ctypes.windll.secur32.GetUserNameExW(name_sam_compatible, buffer, ctypes.byref(size)):  # type: ignore[attr-defined]
+            get_user_name = ctypes.windll.secur32.GetUserNameExW  # type: ignore[attr-defined]
+            get_user_name.argtypes = [ctypes.c_int, wintypes.LPWSTR, ctypes.POINTER(wintypes.ULONG)]
+            get_user_name.restype = wintypes.BOOLEAN
+            if get_user_name(name_sam_compatible, buffer, ctypes.byref(size)):
                 return buffer.value
         except Exception:
             pass

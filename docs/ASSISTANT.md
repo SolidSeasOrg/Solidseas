@@ -975,11 +975,12 @@ It follows the `ai-provider-seam` pattern:
   (a 401 body can echo part of the key), and the key and anything shaped like
   one are removed from the whole text before it is cut to 200 characters, so
   the cut cannot leave a piece of a key behind.
-- **Managed networks.** The app's `main` calls `truststore.inject_into_ssl()`
-  before anything builds an SSL context, so provider calls trust the Windows
-  certificate store and work behind a TLS-inspecting proxy; the connector also
-  builds its own context with `truststore.SSLContext` whenever `truststore` is
-  installed, and with TLS 1.2 at least. Proxies come from the environment and
+- **Managed networks.** The connector builds its TLS context with
+  `truststore.SSLContext` whenever `truststore` is installed (the standard
+  library's default context otherwise), with TLS 1.2 at least, so provider calls
+  trust the Windows certificate store and work behind a TLS-inspecting proxy.
+  Nothing else in the app makes a TLS connection, so the app does not patch
+  Python's `ssl` module as a whole (`truststore.inject_into_ssl()`). Proxies come from the environment and
   the static WinINET setting (`urllib.request.getproxies`) and are passed to
   the HTTP client explicitly, through CONNECT; a user and password in the proxy
   URL are sent as Basic proxy authentication. PAC, WPAD and NTLM proxy
@@ -1025,10 +1026,13 @@ Reading it, in `solidseas/policy.py`, following `fail-closed-machine-policy`:
   app is open applies to the next call. Tests substitute the reader with
   `policy.set_reader()`.
 
-Enforcement lives in two chokepoints and nowhere else: the provider factory,
+Enforcement lives in two chokepoints: the provider factory,
 which refuses any provider but a local Ollama under `LocalProviderOnly` and
 serves `noop` with the reason, and `start_run`, which refuses under
-`DisableAutomaticMode`. The UI only reflects the result. A search for provider
+`DisableAutomaticMode`. The window only reflects the result. The MCP server
+(`docs/MCP.md`) checks the policy as well, before the chokepoints: under
+`LocalProviderOnly` every tool refuses, since the chat's model may be a cloud
+one, and under `DisableAutomaticMode` `run_plan` refuses. A search for provider
 construction and for callers of `start_run` proves there is no other path, and
 the security review records that command. Behind the factory, every provider
 also applies `LocalProviderOnly` itself, from its own kind and address, before
@@ -1073,16 +1077,27 @@ source, `python -m solidseas_app --set-policy`).
   no more than it uses (32 hosts, 64 ids); a list is never empty (`--remove`
   removes it). A mistake anywhere writes nothing (exit code 2). Values not
   named stay as they are.
-- The key is opened in the 64-bit view, as the reader opens it. DWORDs set to 1
-  are written first, and those set to 0 or removed last, so a write that stops
-  part way has not turned a restriction off before turning the others on. Each
+- The key is opened in the 64-bit view, as the reader opens it. What only adds
+  a restriction is written first (DWORDs set to 1, and `AllowedProviderHosts`
+  removed, which leaves no extra host allowed), then the lists, and DWORDs set
+  to 0 and the other removals last, so a write that stops part way has not
+  turned a restriction off before turning the others on. Each
   change also writes `SetBy` (the account, `DOMAIN\name`) and `SetAt` (UTC).
 - The policy is then read back with `read_policy`. Every value named must read
   as asked, with no problem in any value (`Policy.error`), and `--remove-all`
   must leave no policy at all; otherwise the exit code is 1, and the output
   names what was written and how the policy reads now. Exit code 0 means it
   reads as asked. The packaged executable has no console of its own, so its
-  output shows only when piped (`| more`).
+  output shows only when piped (`| more`), and a prompt does not wait for it:
+  the exit code `%ERRORLEVEL%` or `$LASTEXITCODE` shows after a pipe is the
+  pipe's. To get SolidSeas' own, wait for the process, as in PowerShell's
+  `(Start-Process SolidSeasViewer.exe -ArgumentList ... -Verb RunAs -Wait -PassThru).ExitCode`.
+- Run it from an installation only administrators can write to (the all-users
+  install, under `C:\Program Files`). Elevated, it runs the program's own files
+  as an administrator, so a per-user install, a downloaded copy or a source
+  checkout in a folder the user can change would let any program that user runs
+  change what runs elevated. Group Policy, Intune or `reg.exe` write the same
+  values without running SolidSeas at all.
 
 The settings page is to offer "Lock for all users" (not built yet), which
 starts `SolidSeasViewer.exe --set-policy` with the `runas` verb, so UAC asks for
@@ -1093,7 +1108,11 @@ What the policy is not: it removes SolidSeas's own ability to send model data
 off the machine and to run Automatic mode. It is not a sandbox. Code a person
 approves in Review mode or the CadQuery workspace runs with the user's rights
 and can open any connection, another local program could forward requests to
-the internet, and anyone who can edit the key can undo it. Where a hard
+the internet, and anyone who can edit the key can undo it. The checks are
+SolidSeas' own code, so they bind an unchanged installation only: a per-user
+install sits in a folder its user can change, and anyone may run a copy of
+their own; install for all users under `C:\Program Files`, and use AppLocker
+or WDAC where only that copy may run. Where a hard
 guarantee is needed, pair the policy with an outbound firewall rule for the
 SolidSeas executable.
 

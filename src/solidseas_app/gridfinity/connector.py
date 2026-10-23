@@ -1378,14 +1378,21 @@ class Gridfinity:
         for n in range(1, 1000):
             base = stem if n == 1 else f"{stem} ({n})"
             names = [base + ending for _, ending in contents]
-            if not any(os.path.lexists(os.path.join(folder, name)) for name in names):
+            taken = [os.path.join(folder, name) + more for name in names for more in ("", ".part")]
+            if not any(os.path.lexists(path) for path in taken):
                 break
         else:
             raise Refused("The bins folder already holds a thousand bins of that name.")
         for (content, _), name in zip(contents, names, strict=True):
             path = os.path.join(folder, name)
             part = path + ".part"
-            with open(part, "wb") as f:
+            try:
+                f = open(part, "xb")  # never through a link or over a file planted under this name
+            except FileExistsError:
+                raise Refused(
+                    f"{name}.part appeared in the bins folder while it was being written."
+                ) from None
+            with f:
                 f.write(content)
             try:
                 if os.name == "nt":

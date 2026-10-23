@@ -874,6 +874,22 @@ def test_tools_placed_by_hand_from_the_chat_go_where_it_says(fake, home):
         assert a["pocket_mm"] == pytest.approx(b["pocket_mm"], abs=0.02)
 
 
+def test_a_part_file_already_in_the_bins_folder_is_never_written_through(fake, home):
+    g = connector(fake, home)
+    wrench, _ = saved_pair(g, home)
+    args = {"tools": [{"tool": wrench}], "depth_mm": 10, "name": "tray"}
+    shown, _ = g.call("gridfinity_preview_bin", args)
+    across, deep = shown["grid"]
+    stem = f"tray {across:g}x{deep:g}x{shown['height_units']}"
+    bins = home / "Documents" / "Gridfinity bins"
+    bins.mkdir(parents=True)
+    planted = bins / f"{stem}.stl.part"
+    planted.write_bytes(b"the person's own")
+    data, _ = g.call("gridfinity_make_bin", args)
+    assert planted.read_bytes() == b"the person's own"
+    assert data["files"] == [f"{stem} (2).stl"] and not (bins / f"{stem}.stl").exists()
+
+
 def test_a_layout_by_hand_that_does_not_fit_says_why_and_makes_nothing(fake, home):
     g = connector(fake, home)
     wrench, socket_ = saved_pair(g, home)
@@ -889,6 +905,8 @@ def test_a_layout_by_hand_that_does_not_fit_says_why_and_makes_nothing(fake, hom
         g.call("gridfinity_make_bin", {**args, "tools": off})
     with pytest.raises(Refused, match=r"past the right edge .* in a 4 x 2 bin"):
         g.call("gridfinity_make_bin", {**args, "tools": entries(packed), "grid": [4, 2]})
+    with pytest.raises(Refused, match=r"25 x 25 bin has more than the 100 cells"):
+        g.call("gridfinity_make_bin", {**args, "tools": entries(packed), "grid": [25, 25]})
     assert fake.bins == {} and made_files(home) == []
     one_only = [{"tool": wrench, "centre_mm": w["centre_mm"], "turned_deg": 0}, {"tool": socket_}]
     no_turn = [
@@ -1298,6 +1316,7 @@ def test_a_tracefinity_on_a_server_is_reached_through_an_ssh_tunnel(fake, monkey
         "ExitOnForwardFailure=yes",
         "IdentitiesOnly=yes",
         "ServerAliveInterval=30",
+        "StrictHostKeyChecking=yes",
     ):
         assert option in args, option
     assert client.page("bins", "b1") == f"http://127.0.0.1:{way.port}/bins/b1"
@@ -1334,6 +1353,26 @@ def test_the_server_is_a_host_never_an_ssh_option():
             SshTunnel(bad, 3077)
     assert SshTunnel("nas", 3077).command()[-1] == "nas"
     assert "-i" not in SshTunnel("root@nas.local", 3077).command()
+
+
+def test_ssh_is_never_one_in_the_current_folder(monkeypatch, tmp_path):
+    monkeypatch.setattr(tunnel.sys, "platform", "linux")
+    planted = tmp_path / "ssh"
+    planted.write_bytes(b"")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(tunnel.shutil, "which", lambda name: str(planted))
+    assert tunnel.system_ssh() is None
+    monkeypatch.setattr(tunnel.shutil, "which", lambda name: os.path.join(".", "ssh.BAT"))
+    assert tunnel.system_ssh() is None
+    elsewhere = tmp_path / "bin"
+    elsewhere.mkdir()
+    monkeypatch.setattr(tunnel.shutil, "which", lambda name: str(elsewhere / "ssh"))
+    assert tunnel.system_ssh() == str(elsewhere / "ssh")  # the control: one on PATH elsewhere
+    monkeypatch.setattr(tunnel.shutil, "which", lambda name: None)
+    way = SshTunnel("root@nas", free_port())
+    with pytest.raises(TunnelError, match="could not find ssh"):
+        way.ensure()
+    assert not way.running
 
 
 def test_the_tunnel_comes_from_the_settings(monkeypatch, tmp_path):

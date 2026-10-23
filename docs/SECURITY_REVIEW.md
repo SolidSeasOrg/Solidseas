@@ -10,11 +10,15 @@ commands that repeat each check.
 | Section | Covers | State |
 |---|---|---|
 | 1 | `solidseas serve`, the local REST service (Phase 1) | Reviewed on 2026-10-01, SolidSeas 0.2.0, Windows 10; a second review the same day added findings 15 to 22, and the fixes it asked for are in 0.2.1; 0.2.9 lets clients check the service before they send a token (finding 15), and 0.2.10 corrects how a client must use that check and how the check answers for a name with no token; 0.2.25 adds `/v1/bom` (provisional), which reads the component files it resolves in a worker, within the roots, and is in the route mix of `test_the_server_process_never_opens_a_document` and `test_hostile_files_get_strict_answers_in_time`; a review of its code paths in 0.2.114 found finding 26, fixed: the server resolves with lookups outside the roots off, the worker opens a component only within one of its roots (any other folder is refused there too), under the service's size and hard-link rules, and a BOM is bounded by 10,000 instances, 2,000 files opened, 60 s of reading, the route's 120 s deadline and an 8 MiB answer; 0.2.31 adds the catalog, off unless the service starts with `--catalog` (provisional): a thread that scans the roots at start and every `--catalog-rescan` seconds, with two workers of its own below normal priority under the service's memory, size and hard-link limits, into a SQLite catalog in the cache folder of the service's account (1.6), and the routes `/v1/catalog`, `/v1/where-used` and `/v1/search`, which answer from a read-only connection within a 5 s deadline that holds for the SQL and for where-used's own walk, under a 1 MiB cap, with root ids and relative paths only; `test_hostile_files_get_strict_answers_in_time` runs with the catalog on and asks where-used of every hostile file, and its walk up is bounded however a crafted tree branches (`test_the_where_used_walk_is_bounded`); it has not had a review of its own; 0.2.47 adds `--formats` (provisional, section 1.9), off unless the service starts with it: `/v1/document`, `/v1/properties`, `/v1/preview` and `/v1/list` then read the other 3D formats SolidSeas reads, in the workers, under the service's limits and the readers' own; the final code review of that work found findings 23 to 25, all fixed before release, and `test_hostile_model_files_get_strict_answers_in_time` puts every route through hostile model files; it has not had a security review of its own |
-| 2 | The desktop app: the AI connector, the script runner, the SOLIDWORKS bridge and the machine policy (Phase 5) | Comes with Phase 5, as `docs/ROADMAP.md` says |
+| 2 | The desktop app: the AI connector, the script runner, the SOLIDWORKS bridge and the machine policy (Phase 5) | Reviewed on 2026-10-23 at SolidSeas 0.2.489, by reading the code and running the tests named on Linux; the tests marked Windows and those that need SOLIDWORKS did not run for this review. Findings 34 to 58 |
+| 3 | The OCCT backend's helper, the extension packages, and lookups outside the opened folder | Reviewed on 2026-10-23 at SolidSeas 0.2.489, as section 2. Findings 59 to 67 |
 
-Apart from `solidseas serve`, the library and the command line open no socket
-and start no process other than their own worker processes. Section 1.3 shows
-the evidence, because the service is built on them.
+Apart from `solidseas serve`, the library and the command line open no socket.
+They start no process other than their own worker processes, except the OCCT
+backend's helper (section 3) when that backend is available and a file needs
+it (an IGES or BREP file opened, `solidseas convert`, `export --check`), and
+the SOLIDWORKS bridge for `python -m solidseas.swapi` (section 2). Section 1.3
+shows the evidence, because the service is built on them.
 
 ## 1. `solidseas serve`
 
@@ -62,12 +66,20 @@ deletes anything under a root. `docs/API.md` section 8 is its reference, and
 | 30 | Model files were read with the library's default bounds, which allow a scene of several gigabytes (20 million triangles of a binary STL's scene is about 3.2 GB), and a `MemoryError` outside a worker passed through as such. | Low (a worker's memory cap answered `limit_exceeded`) | Found by a later review of the readers; fixed after 0.2.406: the service reads model files within `SERVE_LIMITS` (10 million triangles, 30 million vertices, 512 MiB of named files; API 8.8), inside the 2 GiB cap, and a reader turns `MemoryError` into `limit_exceeded` (`detail.limit` `memory`) everywhere. Verified: `test_the_jobs_read_only_the_formats_and_within_the_limits_the_worker_has`, `test_running_out_of_memory_is_a_limit_error` |
 | 31 | With `--formats`, a model file in a root served without its subfolders could read the files it names (a glTF buffer, an OBJ material library, an Alibre component) from subfolders the service does not serve, and drew them into its preview; an Alibre assembly's component search, which every request reading it makes again, examined up to 50,000 entries and 5,000 candidates. | Low | Found by a later review of the readers; fixed after 0.2.406: such a root's documents read named files from their own folder only (a buffer or library below is `refused`, a preview that needs one answers 403 `path_refused`, rule `subfolder`), and `SERVE_LIMITS` bounds the component search to 5,000 entries, 500 candidates and 5 s. Verified: `test_a_root_served_without_subfolders_reads_no_file_below_a_documents_folder` |
 | 32 | `/v1/identity` answered a name with no token under a stand-in key derived from all the tokens, so an edit of the token file changed every unknown name's proof while each kept name kept its own: someone who asked about a list of names before and after an edit could tell which of them hold a token. | Low | Fixed: the stand-in is keyed by the service's identity key, a secret of its own in a file beside the token file, made on the first start that finds none and checked on every start by the token file's rules (API 8.3); an edit now changes only the proofs of the names it adds, deletes or gives a new token. Verified: `test_an_unknown_names_proof_survives_an_edit_of_the_token_file` (with the stand-in made from the tokens as its control), `test_the_service_keeps_an_unknown_names_proof_across_an_edit_of_its_tokens`, `test_the_cli_keeps_its_identity_key_beside_the_token_file`, `test_a_bad_identity_key_file_refuses_the_start`, `test_an_identity_key_file_others_can_read_refuses_the_start` |
+| 33 | Three statements of this section had stopped being true: that nothing in `src/solidseas` uses `subprocess` (the helper runner, `solidseas/helpers.py`, always has), that the service starts no process but its workers (since 0.2.430 a worker may start the OCCT helper, section 3), and that the search in 1.7 finds nothing. | - | Fixed during this review: 1.2, 1.4, 1.5, 1.6 and 1.7 say what runs, and the search says what it finds |
 
 ### 1.2 What the service is
 
 - One Python process (the server) and a fixed number of worker processes, one
   per CPU and at most 4 by default. Standard library only, plus `olefile` for
   legacy documents. Nothing is downloaded, compiled or loaded at run time.
+- With `--formats` naming `iges` or `occt_brep` (or `all`), and the OCCT
+  backend available when the service starts, each worker may start one helper
+  process: `solidseas-occt.exe` from the OCCT extension's package in the service
+  account's `%LOCALAPPDATA%\SolidSeas\extensions\occt`, or, from a source
+  checkout, the Python `SOLIDSEAS_OCCT_HELPER_PYTHON` names. Open CASCADE, which
+  is C++, reads the geometry there, from a copy of the file in the account's
+  temporary folder. Section 3 reviews it; otherwise the workers start nothing.
 - The server process checks each request and answers it; it never opens a CAD
   file. Every document is read in a worker, under a deadline and a memory cap.
   Verified: `test_the_server_process_never_opens_a_document` records every
@@ -97,7 +109,7 @@ to the server over anonymous pipes.
 | Worker processes open no sockets | Verified, this review: `Get-NetTCPConnection` and `Get-NetUDPEndpoint` for both workers of a running service showed nothing |
 | A path stored inside a document (a UNC share, a mapped network drive) is never touched, so no document can make the service connect to a server it names | Verified. `tests/test_resolve_safety.py` traps every filesystem call for planted UNC and network-drive paths, with a check that the trap works |
 | A folder under a root replaced by a link (to a share, for example) is refused before any path through it reaches the operating system | Verified: `test_an_indexed_folder_swapped_for_a_link_is_never_entered` records every `lstat`, `stat` and folder listing the service makes and finds none through the link; `test_the_workers_open_refuses_a_link_before_opening_through_it` does the same for the worker's open. Creating such a link needs write access in the root and the right to create symbolic links |
-| Workers end with the service | Verified, this review: stopping the service's process ended its workers. On Windows they share a Job Object with kill-on-close; on Linux each asks for `SIGKILL` when its parent dies (by inspection, finding 3) |
+| Workers end with the service | Verified, this review: stopping the service's process ended its workers. On Windows they share a Job Object with kill-on-close; on Linux each asks for `SIGKILL` when its parent dies (by inspection, finding 3). An OCCT helper (1.2) runs in a Job Object of its own, nested in the pool's, whose handle its worker holds, so it ends with its worker and with the pool; on Linux it asks for `SIGKILL` when its worker dies. By inspection only (section 3) |
 
 What will show up anyway, and is not the service's own connection: when a root
 is a folder on a file share, Windows' or Linux's SMB client connects to that
@@ -106,8 +118,11 @@ administrator configures are read that way.
 
 ### 1.4 What runs
 
-- No `subprocess`, `os.system`, `shell=True`, `eval`, `exec`, `pickle` or
-  `marshal` anywhere in `src/solidseas`. Verified by the grep in 1.7.
+- No `os.system`, `shell=True`, `eval`, `exec`, `pickle` or `marshal` anywhere
+  in `src/solidseas`, and `subprocess` only in the helper runner
+  (`solidseas/helpers.py`, from an argument list, never through a shell) and the
+  SOLIDWORKS bridge's client. The service reaches the helper runner only through
+  the OCCT backend, under the condition in 1.2. Verified by the grep in 1.7.
 - Worker processes are started with the `spawn` method, running the same
   interpreter. What a job may do comes from a fixed table in `solidseas.jobs`:
   nothing in a request, a document or a configuration adds a job. By
@@ -161,7 +176,10 @@ or put a link where a folder was, finding 19).
   `tests/test_hardening.py`, and `test_hostile_files_get_strict_answers_in_time`,
   which puts every crafted file of the hostile-file tests in a root and checks
   that every route answers strict JSON within its deadline. With `--formats`,
-  the other formats' parsers run in the workers too (section 1.9).
+  the other formats' parsers run in the workers too (section 1.9), and IGES and
+  BREP geometry in Open CASCADE, in the worker's helper (1.2, section 3): a crash
+  there ends the helper and costs one answer, and a hang ends at the worker's
+  deadline, which ends the helper with it.
 - **Hangs, crashes and memory bombs** cost one answer: a worker that misses its
   deadline is killed and replaced, a crash answers `worker_crashed`, and an
   allocation over the cap fails inside the worker. Verified on Windows:
@@ -191,7 +209,10 @@ or put a link where a folder was, finding 19).
 Nothing else. The service writes no log file (log lines go to standard error,
 for the service manager), keeps no cache or database but the catalog when it
 is asked for one, writes nothing under a root, and writes nothing to the
-registry. It never prints or logs a token.
+registry. With the OCCT helper (1.2), each IGES or BREP file read is copied to
+a folder of its own in the service account's temporary folder for the helper,
+and removed after it, except when the worker is killed at its deadline
+(finding 59); a worker keeps converted files in memory, at most 256 MiB. It never prints or logs a token.
 No credentials of any kind are requested, used or stored besides its own
 bearer tokens and identity key, and it never authenticates to anything.
 
@@ -200,7 +221,7 @@ bearer tokens and identity key, and it never authenticates to anything.
 From a checkout, with the development dependencies installed:
 
 ```text
-python -m pytest -q tests/test_serve_security.py tests/test_serve_identity.py tests/test_serve.py tests/test_workers.py tests/test_resolve_safety.py tests/test_hardening.py tests/test_formats_core.py tests/test_formats_mesh_hostile.py tests/test_formats_step_hostile.py tests/test_formats_alibre_hostile.py
+python -m pytest -q tests/test_serve_security.py tests/test_serve_identity.py tests/test_serve.py tests/test_serve_config.py tests/test_serve_viewer.py tests/test_workers.py tests/test_resolve_safety.py tests/test_hardening.py tests/test_formats_core.py tests/test_formats_mesh_hostile.py tests/test_formats_step_hostile.py tests/test_formats_alibre_hostile.py tests/test_occt_backend.py
 ```
 
 Expected: every test passes; on Windows the POSIX-only tests skip, and on
@@ -218,14 +239,20 @@ outbound HTTP client (`src/solidseas/ai/http.py`) for the desktop app; the
 service never imports it, and section 2 reviews it.
 
 ```text
-git grep -nE "\bsubprocess\b|os\.system|os\.popen|shell=True|import pickle|pickle\.loads|\bmarshal\b|\beval\(|\bexec\(" -- src/solidseas ":!src/solidseas/swapi"
+git grep -nE "\bsubprocess\b|os\.system|os\.popen|shell=True|import pickle|pickle\.loads|\bmarshal\b|(^|[^.[:alnum:]_])eval\(|(^|[^.[:alnum:]_])exec\(" -- "src/solidseas/*.py" ":!src/solidseas/swapi"
 ```
 
-Expected: nothing. The SOLIDWORKS bridge's client, `src/solidseas/swapi`,
-starts `SolidSeas.SwBridge.exe` (`bridge.py`) and the C# compiler that builds
-it (`build.py`) with `subprocess`, from an argument list and never through a
-shell, for conversion on a Windows desktop; the service never imports it, and
-section 2 will review the bridge.
+Expected: `src/solidseas/helpers.py` alone uses `subprocess` (its import, the
+`Popen` from an argument list with its three pipes and its window flag, and two
+`TimeoutExpired`), and `src/solidseas/nativewrite/solidcraft.py` defines a
+method named `eval`, an arithmetic reader of its own over Python's syntax tree,
+not the built-in. The search reads Python files only, so the vendored
+three.js, whose minified code calls a regular expression's `exec`, is left out.
+The SOLIDWORKS bridge's client, `src/solidseas/swapi`, starts
+`SolidSeas.SwBridge.exe` through the helper runner, and the C# compiler that
+builds it (`build.py`) with `subprocess`, from an argument list and never
+through a shell; the service never imports it, and section 2 reviews the
+bridge.
 
 ```text
 git grep -n "getfqdn" -- src
@@ -253,7 +280,7 @@ must fail.
 ### 1.8 Recommendation
 
 Suitable to run on a managed Windows PC or server, bound to loopback, with
-six conditions:
+seven conditions:
 
 1. Install Python and SolidSeas where only administrators can write, such as
    under `C:\Program Files` (finding 4).
@@ -271,6 +298,12 @@ six conditions:
    library cannot do that (API 8.16), and have clients fail closed when that
    check fails or an answer is not the service's (finding 15).
 6. Make every token with `secrets.token_urlsafe(32)` (API 8.3, finding 8).
+
+7. Leave `iges` and `occt_brep` out of `--formats` (and name format ids rather
+   than `all`) unless IGES or BREP must be served; where they are, run the
+   service as an account of its own, so the helper's program and its copies
+   sit in a profile only that account and administrators can change (section 3,
+   findings 59 to 61).
 
 On Linux, the same conditions apply, and only after the first Linux CI run
 has passed (finding 3).
@@ -375,14 +408,263 @@ bounds them:
 
 ## 2. The desktop app
 
-Comes with Phase 5. `docs/ROADMAP.md` lists what that section must cover: the
-AI connector, the script runner, the SOLIDWORKS bridge, what the app stores,
-and the machine policy.
+`SolidSeasViewer.exe` is the viewer, and with the `[ai]` extra the modeling
+assistant (`docs/ASSISTANT.md`): a Review mode that drafts code a person runs,
+an Automatic mode that carries out a validated plan on one part, a chat server
+for MCP clients (`--mcp`, `docs/MCP.md`) with the Gridfinity tools
+(`docs/GRIDFINITY.md`), and the SOLIDWORKS bridge that all of them reach
+SOLIDWORKS through. This section covers the AI connector, the script runner,
+the bridge, what the app stores and the machine policy, as `docs/ROADMAP.md`
+asks of Phase 5. Section 3 covers the extension packages and the OCCT helper.
 
-The AI connector and the machine policy exist now (provisional, `docs/API.md`
-3.23). Two searches already show their chokepoints, and
-`tests/test_ai_factory.py` repeats both on every test run (the first through
-Python's syntax tree, so an alias or a call through a table is caught too):
+### 2.1 Findings
+
+| # | Finding | Severity | Status |
+|---|---|---|---|
+| 34 | Review mode runs whatever Python the person approves, with the person's rights, and no machine policy value turns it off. `SolidSeasViewer.exe --assistant-child` is that runner's child: it reads a script from standard input and runs it, so wherever the viewer is allowed to run, an allowlist (AppLocker, WDAC) that keeps Python itself off the PC does not keep Python code off it. The Job Object caps memory, processes and time; it is not a sandbox, as `docs/ASSISTANT.md` says. | Medium | Needs a decision: a `DisableScripts` policy value that the child checks before it compiles anything, and the window before it offers Run (follow-up). Until then, allow the viewer only where its users may run code of their own |
+| 35 | `--set-policy` runs elevated from wherever SolidSeas is installed, and the installer's default is a per-user install (`PrivilegesRequired=lowest`) under the user's own profile, which any program that user runs can change. Code planted there runs as an administrator the next time one runs `--set-policy` from it, the bootloader, the Python runtime and `solidseas` itself all loading before any check could run. | Medium | Condition: run `--set-policy` only from an all-users install under `C:\Program Files`, or set the values with Group Policy, Intune or `reg.exe` (said now in `docs/ASSISTANT.md` and the user guide). The "Lock for all users" button, not built, must offer it only from such an install (follow-up) |
+| 36 | The policy is SolidSeas' own code, so it binds an unchanged installation only: in a per-user install the enforcing code sits in a folder its user can change, and anyone may run a copy of their own. | Low | Accepted, with condition: install for all users, and use AppLocker or WDAC where only that copy may run. `docs/ASSISTANT.md`, "What the policy is not", says so |
+| 37 | Under `LocalProviderOnly`, a host name in `AllowedProviderHosts` is trusted to whatever name resolution answers for it; only `localhost` is checked to resolve to loopback. A single-label name can be answered by any machine on the network segment (LLMNR, NetBIOS), and over `http://` nothing proves the server is the one meant, so the part summary and pictures go to whoever answers. | Low | Condition: list an IP address, or a full name served over HTTPS. Requiring HTTPS for a listed name under the policy is a follow-up for a decision |
+| 38 | API keys are generic credentials of the user's account: any process running as the user can read them with `CredReadW`, and a key read stays in the app's memory as a Python string. | Low | Accepted: the same holds for any per-user secret; Credential Manager keeps them off disk files, out of roaming and out of other accounts |
+| 39 | Token and cost budgets are the user's own settings (`AI.json`), not an administrator's control. | Low | Accepted: a spending limit an organisation needs belongs in the provider's own console |
+| 40 | `--set-policy` wrote the removal of `AllowedProviderHosts`, which narrows the policy, with the removals that relax it, after any DWORD set to 0, so a write that stopped part way could relax a value before narrowing this one; and its `GetUserNameExW` call had no declared types. | - | Fixed during this review: what only adds a restriction (DWORDs set to 1, and that removal) is written first, and the call is declared. Verified: `test_removing_the_extra_hosts_counts_as_a_restriction_and_comes_first`, `test_restrictions_are_written_first_and_what_relaxes_one_last` |
+| 41 | Three statements of `docs/ASSISTANT.md` and `setpolicy.py` did not match the code: that `main` calls `truststore.inject_into_ssl()` (nothing does; the connector builds its own context), that the policy is enforced in two chokepoints "and nowhere else" (the MCP server checks it too, before them), and that `--set-policy`'s exit code shows "either way" (the packaged executable has no console, a prompt does not wait for it, and after `\| more` the code a prompt shows is the pipe's). | - | Fixed during this review, in the documents. The exit code's behaviour is by inspection, not tried on Windows |
+| 42 | The chat server passed the text of a file error to the chat: `show_part` for a part whose saved file was moved or locked, and any `OSError` from a tool, sent the file's full path, with the user's name in it, to the chat's model, where `docs/MCP.md` says no path goes. | Low | Fixed during this review: the chat is told the system's reason only. Verified: `test_a_picture_that_cannot_be_made_never_names_the_file`, `test_a_failed_file_call_is_said_to_the_chat_without_its_path` |
+| 43 | A Gridfinity bin laid out by hand with a grid skipped the limit of 100 cells a bin may have, so a chat could have Tracefinity build a 25 x 25 bin of 625 cells. | Low | Fixed during this review. Verified: `test_a_layout_by_hand_that_does_not_fit_says_why_and_makes_nothing` |
+| 44 | The Tracefinity tunnel found `ssh` with `shutil.which`, which on Windows looks in the current folder first, and fell back to the bare name, which `CreateProcess` also looks for there. The chat server's current folder is wherever the MCP client starts it, often a project folder, so an `ssh.bat` in a cloned project would have run on the first Gridfinity call once a tunnel is set up. | Low | Fixed during this review: Windows' own OpenSSH client first, else one on PATH that is not in the current folder, else a plain refusal. Verified: `test_ssh_is_never_one_in_the_current_folder` |
+| 45 | The tunnel refused a server key it had not seen only through ssh's default, which a person's ssh config (`StrictHostKeyChecking accept-new` or `no`) changes. | Low | Fixed during this review: the tunnel passes `StrictHostKeyChecking=yes`. Verified: `test_a_tracefinity_on_a_server_is_reached_through_an_ssh_tunnel` |
+| 46 | A bin's temporary file (`<name>.stl.part`) was opened for writing whether or not it existed, so a file or link already under that name was written through. | Low | Fixed during this review: the name counts as taken, and the file is created only new. Verified: `test_a_part_file_already_in_the_bins_folder_is_never_written_through` |
+| 47 | The picture of a part (`show_part`, "Show the AI a picture of the part", the look after each step) is drawn by reading the part's saved file in the window's or the chat server's own process, with the library's default bounds, where section 1 reads every document in a worker. The chat can ask for it on any part open in SOLIDWORKS without the person confirming. | Low | Open: draw it in a worker with the viewer's limits (follow-up) |
+| 48 | The run journal records neither the person's answer to the confirmation box nor the planning prompt, although `docs/ASSISTANT.md` says the journal keeps the prompt that was sent: after a run, whether a plan was confirmed or started by itself is not on record. | Low | Open: journal both, or correct the document (follow-up) |
+| 49 | The script runner's child starts, then is put in its Job Object, rather than starting suspended as the bridge and the helpers do; and the memory cap is per process with no total for the job (up to 16 processes of 2 GB). The script is sent only after the child is in its job, so nothing approved runs outside it. | Low | Open: start it suspended and add a job memory total (follow-up) |
+| 50 | The chat server's confirmation box guards against the chat's model, not against other programs of the same user: an MCP client that can run commands or drive the screen as the person (Claude Code with a shell, say) could press Yes. No policy value forces "Always confirm" for chats. | Low | Accepted, with condition: on a managed PC, use chat clients that cannot act on the desktop, or leave the chat server unconfigured |
+| 51 | The tunnel's local end, 127.0.0.1 on the Tracefinity port, is shared by every account signed in to the PC, and the tunnel uses whatever already listens there. | Low | Accepted: use the tunnel on a PC one person uses at a time |
+| 52 | A frozen one-file build looked for `SolidSeas.SwBridge.exe` in a `dist` folder two levels above its package, which for a one-file build is the user's temporary folder (`%TEMP%\dist`), where any program the user runs can put one. | Low | Fixed during this review: only a source checkout looks in `dist`. Verified: `test_a_frozen_build_never_looks_for_the_bridge_in_a_dist_folder` |
+| 53 | `SOLIDSEAS_SWBRIDGE`, meant for a developer's build of the bridge, was honoured before the machine policy, so under `DisableExtensions`, or an `AllowedExtensions` without the CAD Bridge, any program it named still ran as the bridge. | Low | Fixed during this review: the policy comes first. Verified: `test_the_solidworks_bridge_comes_from_the_bridge_s_package_while_it_is_on` |
+| 54 | The CAD Bridge package's program was run without checking its files against the hashes the package was added with, which every other helper's files are checked against before each start (`docs/EXTENSIONS.md` section 6). | Low | Fixed during this review. Verified: `test_the_solidworks_bridge_comes_from_the_bridge_s_package_while_it_is_on` |
+| 55 | Neither the bridge nor the viewer is code signed, and nothing checks the bridge program beyond the protocol number in its ready line. AppLocker or WDAC can allow them by path or hash only, and every update needs allowing again. | Medium | Needs a decision: code signing with the signed installer (bead SolidSeas-fg2); until then, allow by hash or by an administrator-only path |
+| 56 | The bridge's named objects (`Local\SolidSeas-SwBridge-SolidWorks`, `Local\SolidSeas-Batch-<pid>`, `Local\SolidSeas-Live-<pid>`) have default security, so any process in the person's session can take one first: batch conversion then says another bridge is running, or a session looks held by a writer or hidden from the picker. Nothing can make the bridge attach to the wrong process. | Low | Accepted: a denial of service within the person's own session only |
+| 57 | Ending the batch bridge's Job Object also ends the `swCefSubProc` helpers of SolidSeas' own SOLIDWORKS, which share a cache in the temporary folder with the person's SOLIDWORKS; what an unclean end does to that cache is not measured. | Low | Open: measure on the PC (bead SolidSeas-d30). An availability question, not a disclosure |
+| 58 | Two protections of batch conversion have not run against a real SOLIDWORKS: the bridge's refusal to end its SOLIDWORKS while it shows a document SolidSeas did not open (its C# change was not built when it landed), and the put-back of the registry values SolidSeas' SOLIDWORKS changed. Both are tested with stand-ins only. The put-back also stops watching for another SOLIDWORKS just before it reads and writes back, so one started in that moment could have a value it just wrote put back. | Low | Open: build the bridge and run both on the PC before batch conversion is used where a person works in SOLIDWORKS |
+
+The bead behind findings 56 and 57 (SolidSeas-d30) also noted that Python put
+the bridge in its Job Object only after starting it. That is no longer so: the
+helper runner starts the bridge suspended, puts it in its job, checks that it
+is there and only then lets it run (`test_a_bridge_starts_suspended_and_runs_once_it_is_in_its_job`,
+`test_a_bridge_left_outside_its_job_is_ended_at_once`, Windows).
+
+### 2.2 What runs
+
+| Process | Started by | What it is | Bounds |
+|---|---|---|---|
+| `SolidSeasViewer.exe` | the person | the viewer, the assistant window, or the chat server (`--mcp`, over standard input and output) | the person's rights |
+| The script child (`--assistant-child`) | the assistant window, when the person presses Run | the same executable running one approved script | a Job Object with kill-on-close: 16 processes, 2 GB each by default, 300 s, Stop ends it at once; elsewhere than Windows, its own session, `RLIMIT_AS` and a death signal |
+| `SolidSeas.SwBridge.exe` | the window, the chat server, or `python -m solidseas.swapi` | a C# program that speaks to SOLIDWORKS through COM, one JSON line a request over pipes | started suspended in a Job Object with kill-on-close; a deadline per request |
+| `SLDWORKS.exe`, SolidSeas' own | the bridge, for batch conversion from the command line only | SOLIDWORKS, with no arguments | started suspended in the bridge's own Job Object with kill-on-close |
+| `ssh` | the chat server, for a Tracefinity on another machine | the system's OpenSSH client with one local forward | a Job Object with kill-on-close; `BatchMode`, `StrictHostKeyChecking=yes` |
+| Helpers of extensions (OCCT, video, SolidCraft) | the app, while the extension is on | section 3 | section 3 |
+| Explorer, the mail program, a file's own program | the viewer, on the person's command | Windows' handlers for "Show in folder", mail and Open | from an argument list, never a shell |
+
+The desktop app never starts batch conversion or SolidSeas' own SOLIDWORKS:
+those are reached from the command line only. The window and the chat server
+use the bridge's session list and its live operations on a SOLIDWORKS the
+person already runs, attaching only to a process named `SLDWORKS.exe` in the
+same Windows session through its own running-object entry, and never from a
+bridge that is not elevated to a SOLIDWORKS that is.
+
+### 2.3 Network surface
+
+The complete set of outbound connections the desktop app makes itself:
+
+| Connection | When | Evidence |
+|---|---|---|
+| HTTPS to `api.anthropic.com`, `api.openai.com` or `generativelanguage.googleapis.com` | a request to a configured cloud provider; the addresses are constants of the providers, never settings | Verified: `test_providers_are_constructed_only_in_the_factory` (only the factory builds a provider, and it passes an address to Ollama alone), `test_base_urls_are_checked` |
+| HTTP or HTTPS to the Ollama address in the AI settings (`http://127.0.0.1:11434` until changed) | a request to Ollama | Verified: `test_local_only_allows_loopback_and_listed_hosts_only`, `test_localhost_is_pinned_to_a_loopback_address`, `test_a_pinned_client_connects_to_the_address_it_resolved` |
+| An HTTP proxy, by CONNECT, for cloud providers only | when the environment or the static WinINET setting names one | Verified: `test_proxies_come_from_the_setting_and_loopback_never_uses_one` |
+| HTTP to Tracefinity on 127.0.0.1 | a Gridfinity tool call; any other host is refused when the client is made, and `localhost` is checked to resolve to loopback on every call | Verified: `test_tracefinity_is_reached_on_this_pc_only`, `test_ids_are_checked_before_they_become_part_of_a_path` |
+
+Nothing else: no update or licence check, no telemetry, no crash reporting,
+and nothing listens. The chat server speaks over standard input and output
+only, and the script child and the bridge over pipes.
+
+| Claim | Evidence |
+|---|---|
+| A provider call never follows a redirect, so a key never goes where a reply points | Verified: `test_a_redirect_is_never_followed` |
+| TLS is the operating system's trust store (`truststore`) or the standard library's default, TLS 1.2 at least, and nothing turns certificate checks off | Verified: `test_tls_comes_from_truststore_when_it_is_installed`, `test_tls_falls_back_to_the_standard_library`, and the search in 2.8 for `CERT_NONE` and the like finds nothing |
+| A key travels in a request header only, never in a URL or a body, and no key, nor a provider's answer to a 401 or 403, reaches a message or the log | Verified: `test_plan_steps_sends_the_shared_prompt_and_reads_the_reply`, `test_a_401_with_a_known_key_shows_the_key_nowhere`, `test_401_and_403_stop_at_once`, `test_a_key_the_200_character_cut_splits_is_still_hidden`, `test_provider_text_quoted_in_an_error_is_scrubbed` |
+| A reply is bounded in size, time and parsing cost | Verified: `test_a_reply_larger_than_the_cap_is_refused`, `test_a_trickling_reply_cannot_hold_the_call_open`, `test_a_server_that_never_answers_times_out`, `test_a_hostile_reply_is_read_in_linear_time` |
+| No test reaches a network | Verified: the suite's autouse `no_network` fixture fails any connection or name lookup to a host other than loopback (`tests/conftest.py`) |
+| The bridge and its Python client open no socket | By inspection, and the search in 2.8 finds no network code in the bridge |
+
+What will show up anyway, and is not SolidSeas' own connection:
+
+- **ssh.** With a Tracefinity on another machine, `ssh` connects to the server
+  the person set up, opens a listener on 127.0.0.1 at the Tracefinity port,
+  and forwards it to the same port on the server's loopback only. The setup
+  script limits the key on the server to that one forward.
+- **File shares.** Opening a file on a share makes Windows connect to that
+  server, as the person. The viewer's own lookups of a file a document names
+  never go to a UNC path or a mapped network drive (section 3.6).
+- **SOLIDWORKS itself**, which the bridge drives, may reach a licence server or
+  its activation service, the files an assembly names on shares, and web
+  content in its own embedded browser, as its installation is set up.
+- **Windows** opens the releases page (Extensions, "Get extensions") in the
+  person's browser, and a mail program sends what the person sends.
+
+### 2.4 Code execution surface
+
+**Review mode.** The model's draft goes into the console editor and nothing
+runs until the person presses Run; the editor is read-only while a script
+runs, and what runs is the text the person saw. The script runs in the child
+process of 2.2 as ordinary Python with the person's rights. It reaches
+SOLIDWORKS only through the app: each request must be one of the read-only
+queries or an operation of the closed vocabulary, checked again against the
+part's snapshot, at most 10,000 calls a script, after the one-writer lock is
+taken and a safety copy of the part is saved. Verified (tests/test_assistant_review.py):
+`test_a_draft_appears_in_the_console_and_nothing_runs_until_run`,
+`test_a_script_runs_in_a_child_process_and_reaches_solidworks_only_through_the_app`,
+`test_what_a_script_prints_is_data_never_a_protocol_line`,
+`test_a_script_over_its_memory_cap_is_stopped_by_the_cap`,
+`test_a_script_over_its_time_is_ended_and_the_next_runs`,
+`test_stop_ends_a_script_at_once`,
+`test_the_child_ignores_the_environments_python_settings`,
+`test_one_writer_holds_the_session_while_a_script_runs_and_gives_it_back`.
+The process limit of 16 and the end of a script's own children on Stop are by
+inspection.
+
+**Automatic mode** never runs free code. A plan is JSON in the closed
+vocabulary, checked by one parser against the part's snapshot (an unknown
+operation, a number that is not finite, a protected property or another
+vocabulary refuses the whole plan), and `start_run` is its only entry, which
+reads the policy, takes the writer lock and saves checkpoint 0 before step 1.
+Verified: `test_start_run_is_the_only_entry_to_automatic_mode`,
+`test_an_unknown_operation_refuses_the_plan`, `test_non_finite_values_refuse_the_plan`,
+`test_protected_properties_are_never_written`, `test_a_plan_for_another_vocabulary_is_refused`,
+`test_start_run_honours_each_result`.
+
+**The chat server.** A chat lists sessions, reads summaries, gets pictures,
+runs plans as Automatic runs, keeps or reverts its own runs, and uses the
+Gridfinity tools. It cannot run code (the runner is built by the window
+alone), name a file path (documents are ids the server makes; a photo is a
+bare name of a plain file in the photos folder; a bin's name keeps only
+letters, digits and a few marks), or choose a folder, an ssh server or an
+address. A plan that sets a dimension, suppresses or unsuppresses a feature,
+or writes a property waits for the person's Yes in a box of SolidSeas' own,
+No by default, and every plan does when "Always confirm" is on; finding 50 says
+what that box does not guard against. Every number of the hand placement
+tools is checked in code, whatever the schema says (finite, within its range,
+on every tool or none). Verified (tests/test_assistant_mcp.py and
+tests/test_gridfinity.py): `test_a_plan_that_overwrites_waits_for_the_person_on_this_pc`,
+`test_a_plan_cancelled_while_the_person_is_asked_never_starts`,
+`test_a_plan_for_a_part_changed_since_it_was_read_is_refused`,
+`test_the_policy_is_read_at_every_call`, `test_file_names_from_the_chat_stay_names`,
+`test_a_photo_is_named_by_a_plain_file_in_the_folder`,
+`test_a_bin_is_laid_out_made_and_saved_without_writing_over_a_file`,
+`test_a_layout_by_hand_that_does_not_fit_says_why_and_makes_nothing`,
+`test_tools_placed_by_hand_from_the_chat_go_where_it_says`.
+
+**The bridge** runs only its named operations, never code: no macro, no
+compiler, no process start but SOLIDWORKS for batch conversion, and no
+assembly loaded but the SOLIDWORKS interop assemblies from the installation's
+`api\redist` folder. Requests are refused past 1 MiB, with an unknown field,
+operation or argument, or with a path that is not an absolute path on a drive
+(a network path only where batch conversion was given one). Source documents
+are opened read-only, always. SOLIDWORKS writes a native part in three places
+only, each a copy to a new file: the safety copy of a live part, in the run's
+own folder; a batch check's copy; and the test session's. Exports never write
+over an existing file or over a file open in SOLIDWORKS, and live mode never
+saves, closes or ends the person's work. Its window watch only hides the
+journal-file message box of its own SOLIDWORKS. Verified by reading the C#
+source in `tests/test_swapi.py` (`test_bridge_offers_only_its_named_operations`,
+`test_bridge_never_saves_a_document_or_changes_an_option`,
+`test_save_copy_writes_export_formats_only_and_never_over_an_open_file`,
+`test_live_mode_never_ends_closes_or_saves_the_persons_work`,
+`test_the_window_watch_hides_only_the_journal_box_of_its_own_solidworks`), and
+on Windows with the bridge built (`test_real_bridge_takes_only_paths_on_a_drive`,
+`test_a_request_longer_than_the_bridge_reads_is_never_sent`). No argument from
+a model or a chat names a file, a program or a document: documents are the
+bridge's own keys for what the attached session has open, and a plan's values
+are numbers and the bridge's own references.
+
+**`--set-policy`** is dispatched before anything imports Qt, opens a document
+or reads a settings file, and runs no other process; section 2.7.
+
+**Native calls** are `ctypes` calls with declared types: `advapi32`'s
+`CredReadW`, `CredWriteW`, `CredDeleteW` and `CredFree`; `shell32`'s
+`IsUserAnAdmin` and `secur32`'s `GetUserNameExW` for `--set-policy`;
+`kernel32` for Job Objects and the writer mutex; `user32`'s `MessageBoxW` for
+the chat's confirmation box; and on Linux `prctl` in libc. No `pickle`,
+`marshal` or `eval` anywhere in the app, and one `exec`, the script child's.
+
+### 2.5 Untrusted input
+
+- **Model replies** are read by one parser in time linear in their length, at
+  most 400,000 characters, refusing numbers that are not finite; validated
+  against a schema and allowlists; never allowed to choose a file path, URL or
+  document; and shown as plain text only (`test_model_text_is_shown_as_plain_text_everywhere`).
+- **What leaves the machine** is built in one place, `build_model_summary`,
+  field by field, with names replaced by handles unless the person ticks
+  "Send my feature and property names" for the run, and never paths, property
+  values, author fields, stored previews or annotation text
+  (`docs/ASSISTANT.md`, "What leaves the machine"; `tests/test_ai_context.py`).
+- **The chat** is untrusted as a model reply is (2.4), and what a chat is told
+  never holds a path on the PC (finding 42).
+- **Part files** are read for the picture of a part in the app's own process
+  (finding 47); every other read follows the viewer's rules.
+
+### 2.6 What it stores
+
+| What | Where | Contents | Protection and how long |
+|---|---|---|---|
+| Run folders | `%LOCALAPPDATA%\SolidSeas\runs\<run id>\` (the id SolidSeas makes) | `checkpoint-<id>.sldprt`, a full copy of the person's part; the copy after each step when the look after each step is on; `journal.jsonl`, with the part's path and title, its state before and after each step (feature and dimension names, custom and configuration property values, material, equations), the plan and each look's prompt; `run.lock` | The profile's access list; `run.lock` created exclusively without following a link. Until Keep or Revert, then 7 days; the clean-up skips links, junctions and anything not a plain file (`test_a_link_in_the_runs_folder_is_never_followed`, `test_a_junction_in_the_runs_folder_is_never_followed`). Never sent to a model, never named to a chat |
+| The bridge's markers | `%LOCALAPPDATA%\SolidSeas\live-undo-<pid>.txt`, `live-lock-<pid>.txt` | A document key and an undo name | Created new, removed after use |
+| SOLIDWORKS options held during a run | `%LOCALAPPDATA%\SolidSeas\sw-options.json` | The option values changed | Until restored |
+| Usage | `%LOCALAPPDATA%\SolidSeas\usage.json`, with `usage.json.lock` | Monthly counts per provider and the holds of calls in flight, no prompt text | The profile's access list; written to a temporary file and replaced, under a cross-process lock (`test_two_processes_recording_at_once_lose_no_increment`). The last 24 months |
+| AI settings | `%APPDATA%\SolidSeas\AI.json` (roams) | Provider, model, Ollama address, budgets, prices and limits, never a key | Written through a temporary file and a rename, never through a link (`test_save_never_writes_through_a_link`) |
+| Extension settings | `%APPDATA%\SolidSeas\Extensions.json` | Which extensions are on; Gridfinity's folders, ssh server, the path of the ssh key (never the key) and Tracefinity's address | Until changed |
+| API keys | Windows Credential Manager, `SolidSeas/<provider>` | The key | The user's credential store, local to the PC (`CRED_PERSIST_LOCAL_MACHINE`), shown nowhere (`test_the_key_field_never_shows_a_stored_key`); finding 38 |
+| Gridfinity bins | the bins folder, `Documents\Gridfinity bins` unless set | The STL, 3MF and zip files made | Never written over (finding 46); kept until the person deletes them |
+| Tracefinity's library | `%LOCALAPPDATA%\SolidSeas\tracefinity\storage`, or the server's | Each photo traced, and the tools and bins made | Tracefinity's own; SolidSeas never clears it |
+| Machine policy | `HKLM\SOFTWARE\Policies\SolidSeas`, 64-bit view | The six values, `SetBy` and `SetAt` | Read only, except through `--set-policy` (2.7) |
+| SOLIDWORKS' own settings | `HKCU\Software\SolidWorks\SOLIDWORKS <year>\User Interface` and `General\Last Splash Id` | Values SolidSeas' own SOLIDWORKS changed, put back | Batch conversion from the command line only, and only when no other SOLIDWORKS ran meanwhile and the value is still what that instance left (finding 58); never any other key (`WinRegistry` refuses it) |
+| Batch outputs | the folder the person names, with `report.tsv` | Exported files, whose STEP and Parasolid headers carry the Windows user name and a machine id SOLIDWORKS writes | Never over an existing file, never into a folder holding a source document |
+
+Nothing is written to the registry but the two rows above. No credentials are
+requested, used or stored besides the providers' API keys, and the ssh key
+the Tracefinity setup script makes in the person's `.ssh` folder, which
+SolidSeas passes to ssh by its path and never reads.
+
+### 2.7 The machine policy
+
+The policy is read in `solidseas/policy.py`, fail-closed, as
+`docs/ASSISTANT.md`, "Machine policy", describes: a missing key is no policy,
+any other error turns every restriction on, a value of the wrong type or out
+of range turns its restriction on, and the registry is read again before every
+run and model call. Verified (tests/test_ai_policy.py):
+`test_a_key_that_access_is_denied_to_turns_every_restriction_on`,
+`test_any_other_error_opening_the_key_turns_every_restriction_on`,
+`test_a_wrong_type_or_out_of_range_value_turns_that_restriction_on`,
+`test_a_reader_that_raises_means_every_restriction_is_on`,
+`test_the_reader_never_checks_existence_first`,
+`test_the_real_reader_opens_the_64_bit_view_and_treats_a_missing_key_as_no_policy`,
+`test_a_policy_pushed_while_the_app_runs_applies_to_the_next_call`. Neither
+the reader nor the writer checks the key's own access list: they rely on
+Windows', under which only administrators and SYSTEM change
+`HKLM\SOFTWARE\Policies`.
+
+It is enforced in the provider factory and in `start_run`, and every provider
+checks `LocalProviderOnly` itself, from its own kind and address, before each
+call and health check, so one built some other way still fails closed
+(`test_a_provider_built_outside_the_factory_still_obeys_the_policy`,
+`test_an_ollama_built_outside_the_factory_checks_its_own_address`,
+`test_the_guard_runs_before_every_call_and_health_check`). `DisableImages` is
+applied on the one call path every provider takes
+(`test_an_administrator_can_forbid_pictures`). The chat server checks it too,
+before either chokepoint: under `LocalProviderOnly` every tool refuses, and
+under `DisableAutomaticMode` `run_plan` does. Two searches show the
+chokepoints, and `tests/test_ai_factory.py` repeats both on every test run
+(the first through Python's syntax tree, so an alias or a call through a table
+is caught too):
 
 ```text
 git grep -nE "(Anthropic|OpenAI|Gemini|Ollama|Noop)Provider\b|(CLOUD|LOCAL)_PROVIDERS|(\.|import )providers\b" -- src ":!src/solidseas/ai/providers" ":!src/solidseas/ai/factory.py"
@@ -393,21 +675,29 @@ Expected: the first looks everywhere but the providers' own package and
 `src/solidseas/ai/factory.py`, which builds them (the cloud providers through
 its `CLOUD_PROVIDERS` table), and finds only the package notes in
 `src/solidseas/ai/__init__.py` and `src/solidseas/ai/fake.py` importing the
-shared base class `ChatProvider` for the test stand-in, so nothing else names
-a provider class or table or imports the package. The earlier search, for
-`AnthropicProvider(` and the like, missed a call through a table and an aliased
-import. The second finds only the definition in
-`src/solidseas_app/assistant/automatic.py`. Behind the search, a provider
-checks the machine policy itself before every call and health check, from its
-own kind and address, so one built some other way still could not reach a
-cloud provider under `LocalProviderOnly`.
+shared base class `ChatProvider` for the test stand-in, and a docstring in
+`src/solidseas_app/assistant/aisettings.py` that names `NoopProvider`, so
+nothing else names a provider class or table or imports the package. The
+second finds the
+definition in `src/solidseas_app/assistant/automatic.py` and its two callers,
+the window (`window.py`) and the chat server (`mcp_server.py`).
 
 The app reads the policy key and never writes it, except through
 `SolidSeasViewer.exe --set-policy` (`src/solidseas_app/setpolicy.py`), which an
-administrator runs elevated as a step of its own, with no Qt and no document
-opened (`docs/ASSISTANT.md`, "Machine policy"). A third search shows it, and
-`tests/test_set_policy.py` repeats it on every test run through Python's syntax
-tree:
+administrator runs elevated as a step of its own (finding 35 says from where).
+It refuses unless `IsUserAnAdmin` says the process is elevated, checks every
+argument before anything is written, writes what only adds a restriction
+first, records `SetBy` and `SetAt`, and reads the policy back with the reader
+itself. `--remove-all` deletes the key and every value in it. Verified
+(tests/test_set_policy.py): `test_only_a_process_windows_calls_elevated_writes`,
+`test_an_elevation_check_that_fails_counts_as_no`, `test_a_usage_error_writes_nothing_and_asks_nothing`,
+`test_restrictions_are_written_first_and_what_relaxes_one_last`,
+`test_a_write_that_stops_part_way_says_what_was_written_and_how_the_policy_reads`,
+`test_a_value_that_does_not_read_back_as_written_is_a_failure`,
+`test_the_real_writer_changes_the_key_the_reader_reads_in_the_same_view`. The
+registry writes are in two files, and `tests/test_set_policy.py` repeats this
+search on every test run through Python's syntax tree
+(`test_the_policy_key_is_written_only_by_set_policy`):
 
 ```text
 git grep -nE "\b(CreateKey|CreateKeyEx|DeleteKey|DeleteKeyEx|DeleteValue|SetValue|SetValueEx|SaveKey|LoadKey|RegCreateKeyExW|RegSetValueExW|RegSetKeyValueW|RegDeleteKeyExW|RegDeleteValueW|RegDeleteTreeW)\b" -- src
@@ -418,3 +708,274 @@ opens the key in the same 64-bit view the reader uses, and
 `src/solidseas/swapi/hkcu.py`, which writes nothing but SOLIDWORKS' own settings
 under `HKEY_CURRENT_USER\Software\SolidWorks` (its `WinRegistry` refuses any other
 key) after a batch conversion, never the policy key.
+
+What the policy is not, as `docs/ASSISTANT.md` says: it removes SolidSeas' own
+ability to send model data off the PC and to run Automatic mode; it is not a
+sandbox (finding 34), it binds an unchanged installation only (finding 36), and
+anyone who can edit the key can undo it. Where a hard guarantee is needed, pair
+`LocalProviderOnly` with an outbound firewall rule for the executable.
+
+### 2.8 Repeating the checks
+
+From a checkout, with the development dependencies and the `[ai]` extra
+installed:
+
+```text
+python -m pytest -q tests/test_ai_http.py tests/test_ai_providers.py tests/test_ai_factory.py tests/test_ai_policy.py tests/test_ai_credentials.py tests/test_ai_usage.py tests/test_ai_context.py tests/test_ai_prompts.py tests/test_ai_automatic.py tests/test_set_policy.py tests/test_assistant_review.py tests/test_assistant_mcp.py tests/test_assistant_automatic.py tests/test_gridfinity.py tests/test_swapi.py tests/test_swapi_hkcu.py tests/test_extensions.py
+```
+
+Expected: every test passes; on Linux the Windows-only tests skip (Job
+Objects, Credential Manager, the registry, the built bridge), and the tests
+that start SolidSeas' own SOLIDWORKS skip unless `SOLIDSEAS_SWAPI_SOLIDWORKS=1`.
+
+```text
+git grep -nE "^\s*(import|from) (socket|ssl|http\.client|urllib\.request)\b" -- src
+```
+
+Expected: `src/solidseas/ai/http.py` (the connector's client, which
+Tracefinity's client reuses), `src/solidseas/serve/server.py` (section 1), and
+`src/solidseas_app/gridfinity/tunnel.py`, whose `socket` only checks whether
+something listens on 127.0.0.1.
+
+```text
+git grep -nE "check_hostname|CERT_NONE|_create_unverified_context|verify_mode" -- src
+```
+
+Expected: nothing.
+
+```text
+git grep -nE "subprocess\.(Popen|run)\(" -- src
+```
+
+Expected: `src/solidseas/helpers.py` (the bridge and the extension helpers),
+`src/solidseas/swapi/build.py` (the C# compiler, a developer's command),
+`src/solidseas_app/assistant/runner.py` (the script child),
+`src/solidseas_app/extensions/video_helper.py` (two, section 3),
+`src/solidseas_app/gridfinity/tunnel.py` (ssh), and in
+`src/solidseas_app/viewer/` `mail.py`, `opening.py` and `printing.py`
+(Explorer, a file's own program, SolidCraft). Every one passes an argument
+list, never a shell.
+
+```text
+git grep -nE "(^|[^.A-Za-z_])(exec|eval|compile)\(" -- "src/solidseas_app/*.py"
+```
+
+Expected: `src/solidseas_app/assistant/child.py`, the script child's `compile`
+and `exec`, and a dialog's own `exec` method in
+`src/solidseas_app/viewer/drawingsettings.py`.
+
+```text
+git grep -nE "CreateProcess\(|Process\.Start|ShellExecute|RunMacro\(|cmd\.exe|System\.Net|WebClient|HttpWebRequest|Socket|NamedPipe" -- "src/solidseas/swapi/SwBridge/*.cs"
+git grep -nE "SaveAs3\(|\.Save3\(|\.Save2\(|\.Save\(" -- "src/solidseas/swapi/SwBridge/*.cs"
+```
+
+Expected: the first finds the declaration and the one call of `CreateProcess`
+in `Native.cs` and its caller in `Operations.cs`, which starts SOLIDWORKS for
+batch conversion, and nothing of the network; the second finds the three
+copies of 2.4 (`Live.cs`, `NativeCheck.cs`) and the export in `Operations.cs`.
+
+On Windows, while the assistant window or the chat server runs:
+
+```powershell
+Get-CimInstance Win32_Process -Filter "Name='SolidSeasViewer.exe' OR Name='SolidSeas.SwBridge.exe' OR Name='ssh.exe'" |
+  Select-Object ProcessId, ParentProcessId, CommandLine
+Get-NetTCPConnection -OwningProcess <pid>   # for each
+Get-NetUDPEndpoint -OwningProcess <pid>
+```
+
+Expected: no `Listen` for any SolidSeas process; connections only to the
+provider in use (or its proxy) while a request is in flight; with a tunnel,
+`ssh.exe` listening on 127.0.0.1 at the Tracefinity port and connected to the
+server; no UDP endpoint.
+
+### 2.9 Recommendation
+
+Suitable for a managed Windows PC, with these conditions:
+
+1. Install for all users, under `C:\Program Files` (findings 35 and 36, and
+   finding 4 of section 1), and set the machine policy by Group Policy, Intune
+   or `reg.exe`, or with `--set-policy` run from that installation only.
+2. Decide on code signing (finding 55); until then, allow the viewer and the
+   bridge in AppLocker or WDAC by hash or by an administrator-only path.
+3. Decide whether its users may run code of their own (finding 34): the viewer
+   runs approved Python, and no policy value turns Review mode off yet.
+4. Where part data must not leave the PC, set `LocalProviderOnly`, list any
+   Ollama server by IP address or by a full name served over HTTPS (finding
+   37), and add an outbound firewall rule for the executable. Set
+   `DisableAutomaticMode` and `DisableImages` where those are not wanted.
+5. Configure the chat server only for chat clients that cannot act on the
+   desktop as the person (finding 50), and the Tracefinity tunnel only on a PC
+   one person uses at a time (finding 51).
+6. Before batch conversion is used on a PC where a person works in
+   SOLIDWORKS, run the bridge's refusal and the registry put-back on that PC
+   (finding 58).
+
+## 3. The OCCT backend, extension packages and lookups outside the folder
+
+Open CASCADE (OCCT) reads IGES and BREP files, converts between STEP, IGES and
+BREP (File > Convert, `solidseas convert`) and cross-checks a written STEP
+file (`export --check`), as tier 1 of `docs/OCCT.md`. In the evaluation it
+crashed on 1 in 7 damaged STEP files and 1 in 3 damaged IGES files, so it runs
+only out of process, in a helper, never in SolidSeas' own processes. It comes
+as an extension package (`docs/EXTENSIONS.md`), as do the CAD Bridge (section
+2), video export and SolidCraft.
+
+### 3.1 Findings
+
+| # | Finding | Severity | Status |
+|---|---|---|---|
+| 59 | The copy of a file the helper reads (`%TEMP%\solidseas-occt-*\in\model.*`) is removed after the request, but not when the process that made it is killed first: a REST worker at its deadline (10 to 60 s, against OCCT's measured 75 s for a large file), a crashed export process, a cancelled Convert. Nothing sweeps them, so copies of documents under a root collect in the account's temporary folder, and `docs/API.md` 8.13's "removed after the file" is then untrue. | Low | Open: sweep old staging folders when the backend first starts in a process (follow-up). Until then, condition 7 of 1.8 |
+| 60 | While the helper may start, a REST pool's process limit is set for the whole pool and allows any program, so a parser bug that ran code in one worker (finding 5) could start other programs, up to the number of workers, which `test_a_worker_cannot_start_another_process` shows impossible otherwise. They stay inside the pool's Job Object (memory cap, kill-on-close). | Low | Open: a nested Job Object per worker that allows its helper alone (follow-up). Off unless `--formats` names `iges` or `occt_brep` or `all` and the backend is available |
+| 61 | A package's files are checked before each start against the hashes of the manifest in its own folder, and the core's list of accepted packages only when the package is added. Whoever can write that folder, `%LOCALAPPDATA%\SolidSeas\extensions\<id>\`, which is any program the account runs, can replace a helper and its manifest together. A REST service run as a person's account would then start a program from that person's profile. | Low | Open: record each package's manifest hash in the accepted list, and check the installed manifest against it before each start (follow-up). Condition 7 of 1.8 |
+| 62 | `SOLIDSEAS_OCCT_HELPER_PYTHON`, a source checkout's way to name the Python that runs the helper, was honoured before the machine policy, so under `DisableExtensions`, or an `AllowedExtensions` without OCCT, the program it named still ran, in the command line and in the service. | Low | Fixed during this review: the policy comes first. Verified: `test_the_machine_policy_holds_for_a_checkouts_helper` |
+| 63 | Add from file unpacked a package for an extension the machine policy leaves off (it could not run while the policy held), where the packages that come with the viewer are refused in that case. | Low | Fixed during this review: it is refused with "Set by your administrator" and not unpacked. Verified: `test_a_package_an_administrator_left_off_is_never_unpacked` |
+| 64 | A helper started from the packaged viewer inherits its environment and DLL search order, the viewer's own unpacked folder included, where the other programs the viewer starts have both cleaned. | Low | Open: check on Windows with the first OCCT build, and clean them as for the other programs (follow-up) |
+| 65 | Add from file checks the zip and then opens it again by its path to unpack it, so a program of the same user could swap it in between. | Low | Open: check and unpack one private copy (follow-up). Only the same account can do it, and that account can already change the installed package (finding 61) |
+| 66 | No damaged IGES or BREP file has been through the service with the real helper: that a crash or a hang costs one answer is shown with a stand-in helper and by inspection, and whether the IGES reader follows external references (entity type 416) is not tested. | Low | Open: run the damaged files of the evaluation through `serve --formats iges` (follow-up) |
+| 67 | The drawing editor's lookup of a drawing's model by its stored path refused UNC paths and mapped drives but went through a link or junction on the way, so a crafted drawing on a local volume holding a folder link to a share made Windows connect to that share as the person. The viewer's own lookups stopped at such a link already (commit 18488c5). | Low | Fixed during this review: each folder on the stored path is looked at before the next, and a link stops the lookup. Verified: `test_a_stored_path_through_a_link_is_not_followed` |
+
+### 3.2 The helper
+
+- **How it starts.** Through the helper runner (`solidseas/helpers.py`):
+  `subprocess.Popen` from an argument list, never a shell; on Windows started
+  suspended, put in a Job Object of its own with kill-on-close, a memory cap
+  and no error box, checked to be in it, and only then let run. From a package
+  the program is `solidseas-occt.exe`, after `start_helper` checked that the
+  extension is on, the policy allows it and every file still has its SHA-256;
+  from a checkout, the Python `SOLIDSEAS_OCCT_HELPER_PYTHON` names runs the
+  checkout's helper module with `-I`. Memory 3072 MiB, a request at most 300 s
+  (checkout) or the manifest's `seconds`.
+- **Inside it.** It turns off Windows' error boxes and, elsewhere, core dumps,
+  caps its own memory at no more than the limit it inherited, and ends with its
+  parent. Its standard output is the null device before OCP loads, so nothing
+  Open CASCADE prints can be taken for an answer. It imports the standard
+  library and OCP only, and nothing in SolidSeas imports it; it is left out of
+  the viewer's build. Verified: `test_the_helper_imports_the_standard_library_and_ocp_only_and_nothing_imports_it`.
+- **The conversation** is JSON lines over pipes, never pickle: four requests
+  (`convert`, `check`, `version`, `shutdown`), a request line at most 4 MiB, a
+  reply at most 64 MiB. A path on a share, a link, a format outside its tables
+  or a name that is not plain ASCII is refused. Of a reply, the core keeps typed
+  numbers and short printable strings only, and a message is fixed text or an
+  exception's class name. Verified: `test_the_helper_s_conversation_holds_without_open_cascade`,
+  `test_the_core_takes_only_what_the_helper_was_told_to_write`.
+- **What it reads and writes.** Never the document itself: the bytes SolidSeas
+  already read under its own rules go to a new folder from `tempfile.mkdtemp`
+  under a fixed name (`model.igs`, `model.brep`, `model.step`), created only
+  new, so no link in the source is followed and no name from a file reaches
+  the disk. The result is read only from the one file the helper was told to
+  write, after a link check, at most 1 GiB. The folder is removed afterwards
+  (finding 59 says when not). Verified: `test_an_iges_file_reads_through_the_backend_as_a_step_model`,
+  `test_a_file_that_takes_too_long_ends_the_helper`.
+- **Network.** None: the helper opens no socket, and Open CASCADE's basic
+  readers are used, not the XCAF ones. By inspection.
+
+### 3.3 What it adds to the REST service
+
+The service's workers may start the helper only when `--formats` names
+`iges` or `occt_brep`, or `all`, and the backend is available when the service
+starts; a pip installation accepts no package of its own, so that means a
+checkout's `SOLIDSEAS_OCCT_HELPER_PYTHON` or a package the service's account
+added in the viewer. Then each worker may start one helper, which runs in a
+Job Object nested in the pool's, so the pool's 2 GiB cap per process holds for
+it, and it ends when its worker is killed at a deadline or the pool closes
+(by inspection; finding 60 says what the pool's process limit allows).
+Verified: `test_only_pools_that_read_iges_or_brep_let_their_workers_start_the_helper`,
+`test_the_rest_service_s_workers_start_the_helper_only_for_iges_and_brep`, and
+with Open CASCADE installed `test_the_rest_service_reads_iges_geometry_through_the_helper_program`.
+Up to four workers and four helpers, each held to 2 GiB, can then be running.
+Section 1.2, 1.4, 1.5, 1.6 and 1.8 say this where it applies.
+
+### 3.4 File > Convert and `export --check`
+
+File > Convert runs in the viewer's export process, a worker in a Job Object
+with kill-on-close and a memory cap, which starts the helper. The file is
+written beside the chosen one as a hidden `.part` file and renamed into place;
+the target must be outside the opened folder and the document's own folder.
+Verified (tests/test_viewer_convert.py): `test_convert_runs_in_the_export_process_and_writes_the_chosen_file`,
+`test_convert_refusals_write_nothing`. `export --check` starts the helper from
+the command line's process to read back the STEP file it wrote, and writes
+nothing. The drawing cross-check against Open CASCADE (commit 516698f) is a
+test of the suite only, in no shipped code.
+
+### 3.5 Extension packages
+
+- **What is accepted.** A package is accepted only when its zip's SHA-256 is in
+  the list the release build writes into the core (`accepted.json`); a source
+  checkout or a pip installation accepts none. Its manifest must name
+  SolidSeas as publisher and match the core's own idea of that extension, list
+  exactly the zip's files, and give each one's SHA-256. Verified (tests/test_extensions.py):
+  `test_a_package_from_another_release_or_changed_is_refused`,
+  `test_a_source_checkout_accepts_no_package`.
+- **Unpacking.** Entry names are plain (letters, digits and a few marks; no
+  `..`, drive, absolute path, device name, trailing dot or space, or two names
+  that differ only in case), no link, each at most 1 GiB at a ratio of at most
+  200 and the package at most 2 GiB and 20,000 entries; files are created only
+  new in a temporary folder renamed into place under
+  `%LOCALAPPDATA%\SolidSeas\extensions\<id>\`. Verified:
+  `test_a_package_whose_entries_leave_its_folder_or_differ_is_refused`,
+  `test_a_link_a_bomb_a_wrong_file_or_a_manifest_that_differs_is_refused`,
+  `test_the_package_folder_is_never_a_link_followed`.
+- **Running.** No package's code is imported into SolidSeas' own processes. A
+  helper starts only while its extension is on and allowed, and only after its
+  files are checked again (`test_a_packaged_extension_s_helper_runs_only_while_on_and_unchanged`,
+  `test_the_extension_s_package_and_switch_decide`); the CAD Bridge's program
+  now is too (finding 54). `DisableExtensions` and `AllowedExtensions` are read
+  at every check, and hold for Add from file (finding 63), for the packages
+  beside the viewer, and for the variables a developer sets (findings 53, 62).
+- **Not reviewed here.** The video helper (ffmpeg, from an argument list, on
+  frames SolidSeas rendered; `SOLIDSEAS_FFMPEG` names another ffmpeg) and
+  SolidCraft (its MCP tools in the chat server, and Open in SolidCraft, which
+  starts SolidCraft's program on a STEP copy outside any Job Object, so it
+  outlives the viewer; no menu calls it yet) need a review of their own.
+
+### 3.6 Lookups outside the opened folder
+
+A document names other files (an assembly its components, a drawing its
+model) by a path stored on the machine that saved it. Neither the viewer nor
+the service ever looks at a stored UNC path or a path on a mapped network
+drive, so a document cannot make SolidSeas connect to a server it names
+(`tests/test_resolve_safety.py`: `test_a_planted_unc_path_is_never_touched`,
+`test_a_mapped_network_drive_is_never_touched`, `test_only_the_gateway_touches_the_filesystem`).
+On a local fixed or removable drive, the viewer looks at a stored path outside
+the opened folder once, each folder on its way looked at before the next is
+used, and stops at a link or junction there (commit 18488c5:
+`test_a_link_on_a_stored_paths_way_is_never_gone_through`,
+`test_a_point_lookup_stops_at_a_folder_it_must_not_go_through`), so a crafted
+document on such a drive cannot reach a share through a planted link; the
+drawing editor's lookup does the same since finding 67. The service resolves
+with lookups outside the roots off (finding 26). The setting "keep the
+viewer's look for referenced files inside the opened folder"
+(`references_inside_only`, commit 072919c) makes the viewer look nowhere
+outside the opened folder at all, in its details, 3D view, prints, exports and
+drawings (`tests/test_viewer_references_inside.py`).
+
+### 3.7 Repeating the checks
+
+```text
+python -m pytest -q tests/test_occt_backend.py tests/test_extensions.py tests/test_viewer_extensions.py tests/test_viewer_convert.py tests/test_drawing_file_locate.py tests/test_resolve_safety.py tests/test_viewer_references_inside.py
+```
+
+Expected: every test passes; the tests that need Open CASCADE skip unless an
+interpreter where OCP imports is found (`SOLIDSEAS_OCCT_PYTHON`).
+
+```text
+git grep -nE "helpers_per_worker=" -- src
+git grep -nE "STEPCAFControl|IGESCAFControl|XCAF" -- src
+git grep -n "solidseas-occt-" -- src
+```
+
+Expected: the first finds the service's pool (`serve/server.py`) and the
+viewer's model pool (`viewer/modelpool.py`), each deciding it with the
+backend's `helpers_per_worker`, and a docstring in `convert/occt.py`; the
+second only a docstring in `solidseas_app/extensions/occt_helper.py`, so the
+helper uses the basic readers; the third the two staging folders in
+`convert/occt.py`, and no sweep (finding 59).
+
+### 3.8 Recommendation
+
+The helper's design holds the rules of `docs/OCCT.md` section 3: Open CASCADE
+runs only out of process, with a memory cap, a time limit and no error box, on
+a copy of the bytes SolidSeas read itself, and only what the core checked
+comes back. Suitable on a managed PC with the conditions of 2.9, and in the
+REST service with condition 7 of 1.8 (findings 59 to 61); serve IGES and BREP
+only after the damaged files have been through it (finding 66).

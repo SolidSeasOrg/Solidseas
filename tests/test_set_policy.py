@@ -183,6 +183,23 @@ def test_restrictions_are_written_first_and_what_relaxes_one_last():
     ]
 
 
+def test_removing_the_extra_hosts_counts_as_a_restriction_and_comes_first():
+    # With no AllowedProviderHosts, no host but loopback counts as local: removing the list
+    # narrows the policy, so it is written with the restrictions, before anything relaxes one.
+    key = FakeKey(
+        {"AllowedProviderHosts": (["ollama.example"], REG_MULTI_SZ), "DisableImages": (1, REG_DWORD)}
+    )
+    code, _ = run(["DisableImages=0", "--remove", "AllowedProviderHosts", "LocalProviderOnly=1"], key)
+    assert code == EXIT_OK
+    assert [w[1] for w in key.changes()] == [
+        "LocalProviderOnly",
+        "AllowedProviderHosts",
+        "DisableImages",
+        "SetBy",
+        "SetAt",
+    ]
+
+
 def test_values_not_named_stay_as_they_are():
     kept = {"DisableImages": (1, REG_DWORD), "AllowedExtensions": (["gridfinity"], REG_MULTI_SZ)}
     key = FakeKey(dict(kept))

@@ -141,7 +141,9 @@ def find_bridge(explicit: str | os.PathLike | None = None) -> Path | None:
     In order: ``explicit``; the ``SOLIDSEAS_SWBRIDGE`` environment variable;
     next to the running executable when SolidSeas is frozen (the viewer build
     puts it beside ``SolidSeasViewer.exe``); ``dist`` in a source checkout,
-    where ``scripts/build-bridge.ps1`` writes it.
+    where ``scripts/build-bridge.ps1`` writes it. A frozen build never looks in
+    ``dist``: a one-file build unpacks under the user's temporary folder, so its
+    ``dist`` would be a folder any program the user runs can write to.
     """
     if explicit:
         return Path(explicit)
@@ -154,7 +156,8 @@ def find_bridge(explicit: str | os.PathLike | None = None) -> Path | None:
         bundle = getattr(sys, "_MEIPASS", None)
         if bundle:
             candidates.append(Path(bundle) / EXE_NAME)
-    candidates.append(_HERE.parents[2] / "dist" / EXE_NAME)
+    else:
+        candidates.append(_HERE.parents[2] / "dist" / EXE_NAME)
     for c in candidates:
         if c.is_file():
             return c

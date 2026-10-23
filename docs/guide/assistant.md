@@ -161,7 +161,12 @@ SolidSeasViewer.exe --set-policy DisableAutomaticMode=1 LocalProviderOnly=1 Allo
 - The exit code is 0 when the policy reads as asked, 1 when it could not be
   written or does not read as asked, 2 for a mistake in the command, and 3
   when SolidSeas was not run as administrator. After 2 or 3 nothing is
-  written.
+  written. After `| more` the exit code a prompt shows is `more`'s; to get
+  SolidSeas' own, wait for it from PowerShell:
+  `(Start-Process SolidSeasViewer.exe -ArgumentList '--set-policy','LocalProviderOnly=1' -Verb RunAs -Wait -PassThru).ExitCode`.
+- Run it from the all-users installation, under `C:\Program Files`, never from
+  a copy in your own folders: it runs elevated, so its files must be ones only
+  administrators can change.
 
 Group Policy writes its own values again at its next refresh, so remove or
 change a value Group Policy sets in Group Policy itself.

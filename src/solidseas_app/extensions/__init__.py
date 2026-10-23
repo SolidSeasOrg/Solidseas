@@ -757,6 +757,23 @@ class HelperRefused(ExtensionError):
     package is not added, or a file in it is not the one its manifest names."""
 
 
+def _changed_file(folder: str, added: Manifest) -> str | None:
+    """The first file of an added package that is no longer the file it was added with (a
+    link, gone, or a SHA-256 other than its manifest's), or None when every one is."""
+    for name, want in (added.helper or {}).get("files", {}).items():
+        path = os.path.join(folder, *name.split("/"))
+        if os.path.islink(path) or not os.path.isfile(path) or _sha256(path) != want:
+            return name
+    return None
+
+
+def _changed_message(name: str, extension: str) -> str:
+    return (
+        f"{name} in {extension}'s package is not the file it was added with; remove the "
+        "extension and add its package again"
+    )
+
+
 def start_helper(
     extension_id: str,
     state: ExtensionState,
@@ -790,13 +807,9 @@ def start_helper(
     if found is None or found[1].helper is None:
         raise HelperRefused(f"{m.name}'s package is not added")
     folder, added = found
-    for name, want in added.helper["files"].items():
-        path = os.path.join(folder, *name.split("/"))
-        if os.path.islink(path) or not os.path.isfile(path) or _sha256(path) != want:
-            raise HelperRefused(
-                f"{name} in {m.name}'s package is not the file it was added with; remove the "
-                "extension and add its package again"
-            )
+    changed = _changed_file(folder, added)
+    if changed is not None:
+        raise HelperRefused(_changed_message(changed, m.name))
     program = os.path.join(folder, *added.helper["program"].split("/"))
     command = (launcher(program) if launcher is not None else [program]) + list(args)
     seconds = float(added.helper["seconds"])
@@ -875,22 +888,26 @@ def solidworks_bridge(
     state: ExtensionState | None = None, *, pol: policy.Policy | None = None, root: str | None = None
 ) -> tuple[str | None, str | None]:
     """Where the bridge program the app may use is, and why there is none when there is
-    not: (path, None) or (None, reason). In order: ``SOLIDSEAS_SWBRIDGE`` (a developer's
-    build); the CAD Bridge package when it is added (only while it is on); a
-    bridge beside the viewer or in a source checkout's ``dist`` (the layout before the
-    bridge became a package), unless an administrator switched extensions off."""
+    not: (path, None) or (None, reason). Nothing while an administrator's policy leaves the
+    CAD Bridge off. Otherwise, in order: ``SOLIDSEAS_SWBRIDGE`` (a developer's build); the
+    CAD Bridge package when it is added (only while it is on, and only while each of its
+    files is the one it was added with, as for every helper); a bridge beside the viewer or
+    in a source checkout's ``dist`` (the layout before the bridge became a package)."""
     from solidseas.swapi.bridge import ENV_BRIDGE, EXE_NAME, find_bridge
 
     pol = pol if pol is not None else policy.current()
-    if os.environ.get(ENV_BRIDGE):
-        return os.environ[ENV_BRIDGE], None
     if not policy.extension_allowed(pol, BRIDGE):
         return None, "Set by your administrator: the CAD Bridge is off."
+    if os.environ.get(ENV_BRIDGE):
+        return os.environ[ENV_BRIDGE], None
     state = state if state is not None else read_state()
     added = _added(BRIDGE, root)
     if added is not None:
         if not is_on(BRIDGE, state, pol=pol, root=root):
             return None, ENGINE_OFF
+        changed = _changed_file(*added)
+        if changed is not None:
+            return None, _changed_message(changed, _known(BRIDGE).name) + "."
         return os.path.join(added[0], EXE_NAME), None
     found = find_bridge()
     if found is not None and found.is_file():

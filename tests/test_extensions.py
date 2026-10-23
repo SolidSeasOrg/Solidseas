@@ -274,9 +274,17 @@ def test_the_solidworks_bridge_comes_from_the_bridge_s_package_while_it_is_on(tm
     locked = policy.Policy(extensions_disabled=True, locked=True)
     assert X.solidworks_bridge(on, pol=locked, root=root)[0] is None
     monkeypatch.setenv(bridge.ENV_BRIDGE, str(folder / "SolidSeas.SwBridge.exe"))
-    assert X.solidworks_bridge(X.ExtensionState(), pol=locked, root=root)[0] == str(
+    assert X.solidworks_bridge(X.ExtensionState(), pol=free, root=root)[0] == str(
         folder / "SolidSeas.SwBridge.exe"
     )
+    # a developer's build is a bridge too: an administrator's policy holds for it
+    path, why = X.solidworks_bridge(X.ExtensionState(), pol=locked, root=root)
+    assert path is None and "administrator" in why
+    monkeypatch.delenv(bridge.ENV_BRIDGE)
+    # a bridge changed since its package was added is never run, as for every helper
+    (tmp_path / "extensions" / "cad-bridge" / "SolidSeas.SwBridge.exe").write_bytes(b"MZ changed")
+    path, why = X.solidworks_bridge(on, pol=free, root=root)
+    assert path is None and "not the file it was added with" in why
 
 
 def test_an_install_from_before_the_bridge_was_renamed_keeps_working_and_is_migrated(tmp_path, monkeypatch):

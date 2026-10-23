@@ -72,6 +72,21 @@ def test_401_and_403_stop_at_once(server, status):
     assert "sk-" not in str(info.value) and "Incorrect" not in str(info.value), "a 401 body is never quoted"
 
 
+@pytest.mark.parametrize("status", [301, 302, 303, 307, 308])
+def test_a_redirect_is_never_followed(server, status):
+    other = FakeServer()
+    try:
+        other.script.append(Reply(200, {"ok": True}))
+        server.script.append(Reply(status, {}, {"Location": other.url + "/v1/x"}))
+        with pytest.raises(ProviderError) as info:
+            client(server).send("POST", "/v1/x", headers={"x-api-key": "sk-test-123456"}, body=b"{}")
+        assert f"status {status}" in str(info.value)
+        assert len(server.seen) == 1, "never retried"
+        assert other.seen == [], "the key never goes where a reply points"
+    finally:
+        other.close()
+
+
 def test_429_honours_retry_after_and_then_succeeds(server):
     server.script += [
         Reply(429, {}, {"Retry-After": "0"}),

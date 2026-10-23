@@ -576,6 +576,32 @@ def test_show_part_returns_a_picture_of_the_part_as_last_saved(policy_reader):
     assert refused["isError"] and picture.ADMIN_OFF in refused["content"][0]["text"]
 
 
+def test_a_picture_that_cannot_be_made_never_names_the_file(tmp_path):
+    from dataclasses import replace
+
+    from ai_support import box_snapshot
+
+    gone = tmp_path / "Projects of someone" / "secret bracket.SLDPRT"
+    live = WindowLive(block())
+    live.snapshot = lambda session, document: replace(box_snapshot(), path=str(gone))
+    s = server_on(live)
+    ready(s)
+    got = call(s, "show_part", {"document": "d1"})
+    assert got["isError"]
+    said = json.dumps(got)
+    assert "No picture of d1 could be made" in said
+    assert "someone" not in said and "secret" not in said and str(tmp_path) not in said
+
+
+def test_a_failed_file_call_is_said_to_the_chat_without_its_path(tmp_path):
+    from solidseas_app.assistant.mcp_server import _without_path
+
+    exc = FileNotFoundError(2, "No such file or directory", str(tmp_path / "private" / "a.SLDPRT"))
+    assert _without_path(exc) == "A file or system call failed: No such file or directory."
+    assert str(tmp_path) not in _without_path(PermissionError(13, "Permission denied", str(tmp_path)))
+    assert _without_path(OSError()) == "A file or system call failed: OSError."
+
+
 def test_a_run_says_each_step_as_progress_when_the_client_asks():
     s = server_on(WindowLive(block()))
     ready(s)

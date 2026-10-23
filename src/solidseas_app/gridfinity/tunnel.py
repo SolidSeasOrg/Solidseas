@@ -6,7 +6,8 @@ The person names the server in :data:`SSH_ENV` the way ssh takes it (``host``,
 with one local forward, 127.0.0.1:<port> here to 127.0.0.1:<port> on the server, the port of
 the Tracefinity address. ssh runs without a window and never asks anything (``BatchMode``:
 the key must be set up, as ``scripts/tracefinity-server.ps1`` does), never accepts a host key
-it has not seen before (the person's ``known_hosts`` decides), and ends with the MCP server
+it has not seen before (``StrictHostKeyChecking=yes``, whatever the person's ssh config says;
+their ``known_hosts`` decides), and ends with the MCP server
 (a Job Object on Windows). The tunnel opens on the first call that needs Tracefinity and
 opens again when it has dropped, after the PC slept, say.
 """
@@ -37,6 +38,28 @@ class TunnelError(RuntimeError):
     """The tunnel could not be opened: said to the chat as it is."""
 
 
+def system_ssh() -> str | None:
+    """The system's ssh client as an absolute path, or None. On Windows, the one Windows
+    ships (``System32\\OpenSSH``) when it is there; otherwise the first ``ssh`` on PATH, never
+    one in the current folder, which Windows would otherwise search first and where a
+    cloned project could hold an ``ssh.bat`` of its own."""
+    if sys.platform == "win32":
+        root = os.environ.get("SystemRoot") or r"C:\Windows"
+        shipped = os.path.join(root, "System32", "OpenSSH", "ssh.exe")
+        if os.path.isfile(shipped):
+            return shipped
+    found = shutil.which("ssh")
+    if not found or not os.path.isabs(found):
+        return None
+    try:
+        here = os.path.normcase(os.path.abspath(os.getcwd()))
+    except OSError:
+        here = None
+    if os.path.normcase(os.path.dirname(os.path.abspath(found))) == here:
+        return None
+    return found
+
+
 def listening(port: int, timeout: float = 0.2) -> bool:
     """Something accepts connections on 127.0.0.1:``port``."""
     try:
@@ -63,7 +86,7 @@ class SshTunnel:
         self.destination = destination
         self.port = port
         self.key = key
-        self._ssh = list(ssh) if ssh else [shutil.which("ssh") or "ssh"]
+        self._ssh = list(ssh) if ssh else [system_ssh() or "ssh"]
         self._lock = threading.Lock()
         self._process: subprocess.Popen | None = None
         self._said: collections.deque[str] = collections.deque(maxlen=20)
@@ -78,6 +101,7 @@ class SshTunnel:
             "ServerAliveInterval=30",
             "ServerAliveCountMax=3",
             "ConnectTimeout=10",
+            "StrictHostKeyChecking=yes",
         ):
             command += ["-o", option]
         command += ["-L", forward]
@@ -101,6 +125,11 @@ class SshTunnel:
 
     def _start(self) -> None:
         self._said.clear()
+        if not os.path.isabs(self._ssh[0]):
+            raise TunnelError(
+                "SolidSeas could not find ssh: install the OpenSSH client (Windows Settings, "
+                "Optional features) and try again."
+            )
         flags = _CREATE_NO_WINDOW if sys.platform == "win32" else 0
         try:
             process = subprocess.Popen(

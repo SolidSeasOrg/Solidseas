@@ -575,6 +575,10 @@ def place_by_hand(
     else:
         across, deep = grid
         bin_ = f"a {_units(across)} x {_units(deep)} bin"
+        if math.ceil(across) * math.ceil(deep) > MAX_CELLS:
+            raise LayoutError(
+                f"{bin_[0].upper()}{bin_[1:]} has more than the {MAX_CELLS} cells a bin may have."
+            )
         for p in placements:
             over = p.box[2] - (across * GRID - edge)
             if over > HAND_TOLERANCE:

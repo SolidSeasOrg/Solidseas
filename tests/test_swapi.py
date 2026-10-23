@@ -604,6 +604,26 @@ def test_find_bridge_order(tmp_path, monkeypatch):
         Bridge(tmp_path / "missing" / bridge.EXE_NAME)
 
 
+def test_a_frozen_build_never_looks_for_the_bridge_in_a_dist_folder(tmp_path, monkeypatch):
+    # A one-file build unpacks to %TEMP%\_MEIxxxx, so the checkout's dist two folders above
+    # the package would be %TEMP%\dist, which anything the user runs can write to.
+    monkeypatch.delenv(bridge.ENV_BRIDGE, raising=False)
+    here = tmp_path / "_MEI1234" / "solidseas" / "swapi"
+    here.mkdir(parents=True)
+    planted = tmp_path / "dist" / bridge.EXE_NAME
+    planted.parent.mkdir()
+    planted.write_bytes(b"")
+    monkeypatch.setattr(bridge, "_HERE", here)
+    monkeypatch.setattr(sys, "frozen", False, raising=False)
+    assert bridge.find_bridge() == planted  # the control: a source checkout uses its dist
+    app = tmp_path / "app"
+    app.mkdir()
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "executable", str(app / "SolidSeasViewer.exe"))
+    monkeypatch.setattr(sys, "_MEIPASS", str(tmp_path / "_MEI1234"), raising=False)
+    assert bridge.find_bridge() is None
+
+
 def test_interop_folder_follows_the_installation(tmp_path):
     assert bridge.interop_folder(tmp_path / "SLDWORKS.exe") == tmp_path / "api" / "redist"
 
