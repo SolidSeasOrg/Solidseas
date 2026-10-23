@@ -1,4 +1,4 @@
-"""``solidseas.gltf`` (``docs/API.md`` 3.26): a document's display meshes as a GLB.
+"""``solidseas.gltf`` (``docs/API.md`` 3.28): a document's display meshes as a GLB.
 
 A strict reader here, sharing no code with the writer, checks every file the writer makes
 against the parts of glTF 2.0 it uses: the frame and its alignment, accessors that point

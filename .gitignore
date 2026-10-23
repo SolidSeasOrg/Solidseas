@@ -3,6 +3,8 @@ __pycache__/
 *.py[cod]
 *.egg-info/
 build/
+# three.js ships its modules under build/; the reference viewer vendors two of them.
+!src/solidseas/serve/viewer/three/build/
 dist/
 .venv/
 .venv-installer/
