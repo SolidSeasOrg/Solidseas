@@ -57,6 +57,12 @@ while the project takes shape.
 
 ### Added
 
+- **STEP from STEP, ACIS and Alibre parts.** `solidseas export --format step`
+  writes STEP from parts read from STEP, ACIS SAB and Alibre Design files.
+  Assemblies, bodies placed away from the part's origin, and bodies or items the
+  reader could not read in full are refused with a reason (the last can be left
+  out with `--allow-partial`).
+
 - **Looks kept between runs.** What you hide or make transparent in an
   assembly's 3D view, and which sub-assemblies explode, are kept for each
   document: show another document and come back, or close the viewer and open it

@@ -3035,12 +3035,26 @@ SOLIDWORKS assembly; a body of a type not asked for is left out with its
 instances (warning `bodies_left_out`). The one exception is the transmit
 SOLIDWORKS writes for a multi-body part: one assembly placing each of its
 bodies once, at the identity, is that part, its bodies written as one product
-(`solidseas.formats.xt.bodies_in_place`). Any other
-model file raises `UnsupportedOperationError` (`not_implemented`,
-`detail.rule` `model_file`, `detail.value` its format id): a mesh file holds
-triangles, and a STEP, ACIS or Alibre Design file's bodies are not Parasolid's,
-so the viewer's 3D Print sends such a file as 3MF, saying why, and its File >
-Export STEP is off for it.
+(`solidseas.formats.xt.bodies_in_place`).
+
+A part read from a STEP file, an ACIS SAB file or an Alibre Design part
+(`solidseas.step.BODY_FILE_FORMATS`) is written from the bodies its reader
+builds, as one product named after the file, each body named as the reader
+names it, its seams cut and its checks run as a Parasolid file's are; the
+model's `source_format` is the file's format. An assembly of these formats
+raises `UnsupportedOperationError` (`detail.rule` `model_assembly`), and so
+does a STEP part whose bodies do not all lie once at its origin (a body placed
+in its product by a mapped item, or placed twice: rule `model_placed`). A body
+the reader built without some of its faces, one it could not read at all, and
+a STEP file's faceted and tessellated items (triangles, not faces) raise
+`NotRepresentableError` (rule `faces_left_out`) unless `allow_partial` leaves
+them out, with the warning `step_bodies_left_out`. The library and the
+command line write these; the viewer's File > Export STEP and 3D Print's STEP
+route do not offer them yet. Any other model file raises
+`UnsupportedOperationError` (`not_implemented`, `detail.rule` `model_file`,
+`detail.value` its format id): a mesh file holds triangles, so the viewer's 3D
+Print sends such a file as 3MF, saying why, and its File > Export STEP is off
+for it.
 
 ```python
 from solidseas import open_document
@@ -6397,8 +6411,10 @@ product for each part, its component files found as its 3MF and STL exports find
 them (3.19); an instance that cannot be written exits 1 with
 `not_representable` (rule `instances_left_out`), and with `--allow-partial` it
 is left out, listed in `skipped`, and the export exits 4. A Parasolid transmit file's part
-(`.x_t`, `.x_b`) is written the same way (3.19), `source_format` `parasolid`;
-another 3D file exits 1 with `not_implemented` (`detail.rule` `model_file`).
+(`.x_t`, `.x_b`) is written the same way (3.19), `source_format` `parasolid`,
+and so is a STEP, ACIS SAB or Alibre Design part, from the bodies its reader
+builds (3.19); another 3D file exits 1 with `not_implemented` (`detail.rule`
+`model_file`).
 The write guards are those above.
 
 `export --format step --check` (provisional) then has Open CASCADE read the file

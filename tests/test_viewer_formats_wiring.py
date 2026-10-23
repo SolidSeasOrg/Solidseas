@@ -26,7 +26,7 @@ import step_support as T
 from solidseas import cli, open_document
 from solidseas.errors import ConfigurationNotFoundError, UnsupportedOperationError
 from solidseas.formats import open_any
-from solidseas.step import MODEL_FILE_FORMATS, step_model, write_step
+from solidseas.step import BODY_FILE_FORMATS, MODEL_FILE_FORMATS, step_model, write_step
 from solidseas_app.viewer import printing, samples, stepexport
 from support import FIXTURES
 
@@ -97,8 +97,13 @@ def test_a_parasolid_file_maps_to_step_as_its_solidworks_part_does(tmp_path, tra
 
 
 def test_other_model_files_are_refused_by_the_step_export_with_their_reason():
-    assert MODEL_FILE_FORMATS == ("parasolid",) and set(MODEL_FILE_FORMATS) < set(printing.STEP_SOURCES)
-    for name, fmt in (("o02_boxA.STL", "stl"), ("o02_boxA.3mf", "3mf"), ("o02_boxA.step", "step")):
+    # The viewer offers STEP for Parasolid files; the parts other readers build bodies of
+    # (BODY_FILE_FORMATS) are written by the library and the command line only, for now.
+    assert set(MODEL_FILE_FORMATS) - set(BODY_FILE_FORMATS) == {"parasolid"} < set(printing.STEP_SOURCES)
+    with open_any(str(FIXTURES / "o02_boxA.step")) as doc:
+        m = step_model(doc)
+    assert m.source_format == "step" and m.counts["faces"] == 6 and m.exact
+    for name, fmt in (("o02_boxA.STL", "stl"), ("o02_boxA.3mf", "3mf")):
         with open_any(str(FIXTURES / name)) as doc:
             with pytest.raises(UnsupportedOperationError) as info:
                 step_model(doc)

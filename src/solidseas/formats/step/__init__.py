@@ -478,6 +478,44 @@ class StepDocument(ModelDocument):
                 out.append(BodyRef(obj.name, mb.transmit, obj.color, obj.node, mb.kind))
         return out
 
+    def part_bodies(
+        self, max_seconds: float = 30.0
+    ) -> tuple[list[tuple[str | None, BodyRef | None, int]], bool, int]:
+        """What the STEP export needs to write the file as one part: each B-rep body as
+        ``(name, body, faces left out)`` (body None when none of its faces could be built),
+        whether every B-rep item lies once, at the identity, in the frame of the products
+        holding them (so that its bodies are one part's), and how many faceted and
+        tessellated items the file holds (triangles, which no B-rep body carries)."""
+        from ..solidworks.components import IDENTITY as ORIGIN
+        from .product import _same
+
+        clock = Clock(max_seconds)
+        m = self._load(clock)
+        m.mapper.clock = clock
+        if m.plan.too_many:
+            raise self.limits.exceeded("items", f"the model places more than {self.limits.items:,} items")
+        in_place = m.plan.components == 0
+        placed: Counter = Counter()
+        for ev in self._walk(m.structure, m.children, clock, True):
+            if ev[0] != "item" or ev[4].kind not in BREP_KINDS:
+                continue
+            placed[(ev[4].rid, ev[4].kind)] += 1
+            if not _same(ev[5], ORIGIN):
+                in_place = False
+        if any(n > 1 for n in placed.values()):
+            in_place = False
+        out = []
+        for k, obj in enumerate(m.plan.objects):
+            if obj.item.kind not in BREP_KINDS:
+                continue
+            mb = self._mapped(m, k)
+            ref = (
+                None if mb.transmit is None else BodyRef(obj.name, mb.transmit, obj.color, obj.node, mb.kind)
+            )
+            out.append((obj.name, ref, max(len(mb.skipped), 1) if ref is None else len(mb.skipped)))
+        meshes = sum(1 for o in m.plan.objects if o.item.kind not in BREP_KINDS)
+        return out, in_place, meshes
+
     def _references(self, clock: Clock) -> list[ExternalReference]:
         m = self._load(clock)
         out = []

@@ -18,8 +18,10 @@ never writes a solid with a face missing. ``exact_only`` refuses approximations 
 A Parasolid transmit file opened as a model file (:mod:`solidseas.formats`, an
 ``.x_t`` or ``.x_b``) goes through the same mapper: :func:`step_model` takes its
 ``ModelDocument`` and maps the bodies of its transmit as :func:`step_transmit` does.
-Any other model file is refused with ``not_implemented`` (rule ``model_file``): its
-bodies are not Parasolid's, or it holds only triangles.
+So does a part read from a STEP, ACIS SAB or Alibre Design file, whose reader builds
+its bodies as Parasolid transmits in memory (:data:`BODY_FILE_FORMATS`). Any other
+model file is refused with ``not_implemented`` (rule ``model_file``): it holds only
+triangles.
 
 Pure Python, standard library only. Every read is bounded as ``parasolid()``
 bounds it, and the work by faces, entities, bytes and seconds.
@@ -65,8 +67,10 @@ DISPLAY_AGREEMENT = 0.01  # of the box diagonal
 MAX_LISTED = 1_000
 LEFT_OUT = ("not_asked", "unsupported_body", "hidden")  # reasons a body is left out rather than refused
 HIDDEN_MESSAGE = "hidden in SOLIDWORKS, which leaves hidden bodies out of its own STEP"
-# The model files (solidseas.formats) whose bodies the mapper takes: Parasolid transmits.
-MODEL_FILE_FORMATS = ("parasolid",)
+# The model files (solidseas.formats) whose bodies the mapper takes: Parasolid transmits, and
+# the parts of the formats whose readers build their bodies as Parasolid transmits in memory.
+BODY_FILE_FORMATS = ("step", "acis", "alibre")
+MODEL_FILE_FORMATS = ("parasolid", *BODY_FILE_FORMATS)
 
 
 @dataclass(frozen=True)
@@ -225,10 +229,13 @@ class _Job:
     """One body to map: a label, its transmit and BODY node, where it came from, and
     whether SOLIDWORKS hides it (None: not known, or not a SOLIDWORKS part's body)."""
 
-    def __init__(self, name, xt, node, kind, source, configuration, topo=None, hidden=None) -> None:
+    def __init__(
+        self, name, xt, node, kind, source, configuration, topo=None, hidden=None, label=None
+    ) -> None:
         self.name, self.xt, self.node, self.kind = name, xt, node, kind
         self.source, self.configuration, self.topo = source, configuration, topo
         self.hidden = hidden
+        self.label = label  # the body's name where its transmit names none (another reader's body)
 
 
 def _left_hidden(j: _Job, opts: Options) -> bool:
@@ -264,6 +271,8 @@ def _map(jobs: list[_Job], types, opts: Options, clock: Clock, max_faces: int):
         name = None
         if j.topo is not None:
             name = body_name(j.xt, j.topo, j.node)
+        if not name and j.label:
+            name = j.label
         if not name:
             unnamed += 1
             name = "Body" if unnamed == 1 else f"Body{unnamed}"
@@ -813,10 +822,11 @@ def step_model(
     ``InvalidArgumentError``.
 
     ``doc`` may be a model file (:mod:`solidseas.formats`): a Parasolid transmit file's
-    bodies are mapped as :func:`step_transmit` maps them, in its one configuration; any
-    other format raises ``UnsupportedOperationError`` (``not_implemented``, rule
-    ``model_file``). A transmit whose assemblies place bodies by instances is written
-    as an assembly (:func:`.assembly.transmit_assembly_model`).
+    bodies are mapped as :func:`step_transmit` maps them, in its one configuration, and
+    so are the bodies the reader of a STEP, ACIS SAB or Alibre Design part builds
+    (:func:`_bodies_file`); any other format raises ``UnsupportedOperationError``
+    (``not_implemented``, rule ``model_file``). A transmit whose assemblies place bodies
+    by instances is written as an assembly (:func:`.assembly.transmit_assembly_model`).
 
     ``split_periodic`` (as SOLIDWORKS' own "split periodic faces" option) writes a face
     that goes round a closed surface as two, cut at its seams (:mod:`.split`). A body
@@ -971,6 +981,8 @@ def _model_file(doc, configuration: str | None, *, name: str | None, **options: 
     from ..formats._source import Clock as ReadClock
     from ..formats.xt import ASSEMBLY, INSTANCE, bodies_in_place
 
+    if doc.format in BODY_FILE_FORMATS:
+        return _bodies_file(doc, configuration, name=name, **options)
     if doc.format not in MODEL_FILE_FORMATS:
         raise UnsupportedOperationError(
             "the STEP export writes Parasolid bodies, from SOLIDWORKS parts and Parasolid transmit files, "
@@ -1013,6 +1025,123 @@ def _model_file(doc, configuration: str | None, *, name: str | None, **options: 
     # SOLIDWORKS' own STEP leaves hidden bodies out; a transmit file has no such bodies to hide
     warnings = tuple(w for w in model.warnings if w.code != "step_hidden_bodies_unknown")
     return replace(model, warnings=warnings, source_format=doc.format)
+
+
+def _reader_bodies(doc, max_seconds: float) -> tuple[list[tuple[str | None, Any, int]], bool, int]:
+    """A part's bodies as its reader built them, ``(name, body or None, faces left out)``
+    each, whether they lie in the part's own frame, and how many mesh items it holds."""
+    if doc.format == "step":
+        return doc.part_bodies(max(max_seconds, 1e-3))
+    from ..formats._source import Clock as ReadClock
+
+    clock = ReadClock(doc.limits.seconds)
+    if doc.format == "acis":
+        builds = doc.builds(clock)
+        refs = doc.bodies()
+        return [(b.label, r, len(b.skipped)) for b, r in zip(builds, refs, strict=True)], True, 0
+    refs = doc.bodies() or []  # an Alibre part's one ACIS body
+    lost = len(doc.body_build(clock).skipped) if refs else 0
+    return [(r.name, r, lost) for r in refs], True, 0
+
+
+def _bodies_file(doc, configuration: str | None, *, name: str | None, **options: Any) -> StepModel:
+    """STEP of a part read from a file whose reader builds its bodies as Parasolid
+    transmits in memory (:data:`BODY_FILE_FORMATS`: a STEP, ACIS SAB or Alibre Design
+    part): those bodies, mapped as :func:`step_transmit` maps a transmit's, as one part
+    named ``name`` (default: the file's name), each body named as the reader names it.
+
+    What the reader holds of an assembly, and of a STEP part whose bodies do not all lie
+    once at the part's origin (a body placed in its product, or placed twice), is not one
+    part's bodies: they raise ``UnsupportedOperationError`` (rules ``model_assembly`` and
+    ``model_placed``). A body the reader built without some of its faces, a body it could
+    not read, and a STEP file's faceted and tessellated items (triangles, not faces)
+    cannot be written without loss: they raise ``NotRepresentableError`` (rule
+    ``faces_left_out``) unless ``allow_partial`` leaves them out and says so."""
+    from ..errors import ConfigurationNotFoundError, UnsupportedOperationError
+
+    if name is not None and not isinstance(name, str):
+        raise InvalidArgumentError("name is a string", detail={"parameter": "name"})
+    if configuration is not None and configuration != doc.active_configuration:
+        raise ConfigurationNotFoundError(f"the file has no configuration named {configuration!r}")
+    if doc.doc_type == "assembly":
+        raise UnsupportedOperationError(
+            f"the STEP export writes a {doc.format_name} part's bodies, and this file is an assembly",
+            detail={"rule": "model_assembly", "value": doc.format},
+        )
+    t0 = time.perf_counter()
+    max_seconds = _number(options["max_seconds"], "max_seconds", 0.0, 1e6)
+    found, in_place, meshes = _reader_bodies(doc, max_seconds)
+    if not in_place:
+        raise UnsupportedOperationError(
+            f"the STEP export writes a {doc.format_name} part's bodies where they lie in the part, and this "
+            "file places a body away from its product's origin, or more than once",
+            detail={"rule": "model_placed", "value": doc.format},
+        )
+    left = [
+        f"{n or 'body'} ({k} face{'' if k == 1 else 's'} not read)" for n, ref, k in found if ref is None or k
+    ]
+    if any(w.code == "bodies_left_out" for w in doc.warnings):
+        left.append("a body the reader could not read")
+    if meshes:
+        left.append(f"{meshes} faceted or tessellated items (triangles, not faces)")
+    if left and not options["allow_partial"]:
+        raise NotRepresentableError(
+            "the file's bodies cannot be written to STEP without loss, so nothing was written: "
+            + "; ".join(left[:20]),
+            detail={"rule": "faces_left_out", "value": len(left)},
+        )
+    whole = [(n, ref) for n, ref, k in found if ref is not None and not k]
+    if not whole:
+        raise NothingToExportError(
+            "nothing to export: the file holds no B-rep body the STEP export can write",
+            detail={"rule": "no_bodies"},
+        )
+    opts, types = _options(
+        options["fit_tolerance_m"],
+        options["max_deviation_m"],
+        options["exact_only"],
+        options["body_types"],
+        options["split_periodic"],
+        options["include_hidden"],
+    )
+    product_name = name or _stem(doc.name, "part")
+    jobs = []
+    for label, ref in whole:
+        topo = Topology(ref.transmit)
+        for node in topo.bodies():
+            code = topo.get(node, "body_type", 0)
+            kind = BODY_TYPES.get(code, "unknown") if isinstance(code, int) else "unknown"
+            jobs.append(_Job(product_name, ref.transmit, node, kind, "transmit", None, topo, label=label))
+    app = doc.application or {}
+    originating = " ".join(str(v) for v in (app.get("name"), app.get("version")) if v) or doc.format_name
+    warnings: list[ReaderWarning] = []
+    if left:
+        warnings.append(
+            ReaderWarning(
+                "step_bodies_left_out",
+                f"{len(left)} of the file's bodies and items cannot be written to STEP without loss and are "
+                f"left out whole, as asked: {'; '.join(left[:20])}",
+            )
+        )
+    model = _build(
+        name=product_name,
+        doc_type="part",
+        configuration=None,
+        jobs=jobs,
+        types=types,
+        opts=opts,
+        allow_partial=options["allow_partial"],
+        max_faces=_whole(options["max_faces"], "max_faces", 1),
+        max_entities=_whole(options["max_entities"], "max_entities", 1),
+        max_seconds=max_seconds,
+        t0=t0,
+        warnings=warnings,
+        originating=originating,
+    )
+    if left:
+        said = f"incomplete: {len(left)} of the file's bodies and items left out"
+        model = replace(model, partial=True, incomplete="; ".join(x for x in (model.incomplete, said) if x))
+    return replace(model, source_format=doc.format)
 
 
 # --------------------------------------------------------------------------- writing
