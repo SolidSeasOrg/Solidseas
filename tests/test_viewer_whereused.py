@@ -317,3 +317,35 @@ def test_a_catalog_the_command_line_made_keeps_its_library_roots(app, window, tm
     assert [u["path"] for u in used["users"]] == ["o08_asm_2x_boxA.SLDASM"]
     shown = _select(app, w, "o08_asm_2x_boxA.SLDASM")
     assert shown["ok"] and shown["folder_root"] == "project" and shown["data"]["users"] == []
+
+
+@needs_qt
+def test_the_notes_column_cuts_a_long_note_at_its_end_and_tips_it_whole(app):
+    """Paths in the tree are cut in the middle to keep both ends; a note is a sentence, so
+    one too long for the Notes column is cut at its end, and its tooltip holds all of it."""
+    from PySide6.QtCore import Qt
+    from PySide6.QtWidgets import QStyleOptionViewItem
+
+    from solidseas_app.viewer.whereused import NOTES_COLUMN, WhereUsedPane
+
+    pane = WhereUsedPane()
+    note = ("the quantity is not known for this configuration " * 4).strip()
+    user = {
+        "root": "project",
+        "path": "a/very/long/folder/name/top.SLDASM",
+        "relation": "component",
+        "depth": 1,
+        "via": [],
+        "warnings": [{"code": "quantity_unknown", "message": note}],
+        "uses": [],
+        "views": [],
+    }
+    pane.show_data({"users": [user], "possible": [], "name_matches": [], "counts": {"users": 1}}, "project")
+    tree = pane.tree
+    item = tree.topLevelItem(0).child(0)
+    assert item.text(NOTES_COLUMN) == note and note in item.toolTip(NOTES_COLUMN)
+    option = QStyleOptionViewItem()
+    tree.itemDelegateForColumn(NOTES_COLUMN).initStyleOption(option, tree.indexFromItem(item, NOTES_COLUMN))
+    assert option.textElideMode == Qt.TextElideMode.ElideRight
+    assert tree.textElideMode() == Qt.TextElideMode.ElideMiddle  # the paths keep both ends
+    pane.deleteLater()

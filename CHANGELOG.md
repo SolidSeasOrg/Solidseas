@@ -1891,6 +1891,9 @@ while the project takes shape.
 
 ### Fixed
 
+- **Where Used notes.** A long Where Used note is cut at its end instead of its
+  middle, and its tooltip shows all of it.
+
 - **index and serve agree on root ids.** `solidseas index FOLDER` now keeps the
   root id `serve --catalog` gave the folder, so the two no longer rename each
   other's roots and resolve every document again.

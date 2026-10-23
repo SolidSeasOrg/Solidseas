@@ -48,6 +48,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QMenu,
     QMessageBox,
+    QStyledItemDelegate,
     QTreeWidget,
     QTreeWidgetItem,
     QVBoxLayout,
@@ -217,7 +218,9 @@ class WhereUsedPane(QWidget):
         self.tree.setHeaderLabels(["File", "Configuration", "Qty", "Unsuppressed", "In BOM", "Notes"])
         self.tree.setUniformRowHeights(True)
         self.tree.setAlternatingRowColors(True)
-        self.tree.setTextElideMode(Qt.TextElideMode.ElideMiddle)
+        self.tree.setTextElideMode(Qt.TextElideMode.ElideMiddle)  # paths keep both ends
+        self._notes_delegate = NotesDelegate(self.tree)  # the notes read as text: cut at the end
+        self.tree.setItemDelegateForColumn(NOTES_COLUMN, self._notes_delegate)
         self.tree.header().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
         self.tree.header().setStretchLastSection(True)
         self.tree.headerItem().setToolTip(
@@ -339,6 +342,7 @@ class WhereUsedPane(QWidget):
                         "; ".join(notes),
                     ]
                 item = QTreeWidgetItem(values)
+                _notes_tip(item)
                 if u["root"] == own:
                     item.setData(0, REL_ROLE, u["path"])
                     item.setToolTip(0, tip(u["path"]))
@@ -350,6 +354,7 @@ class WhereUsedPane(QWidget):
             item = QTreeWidgetItem(
                 [p["path"], "", "", "", "", f"an ambiguous reference to {p['file_name'] or p['key']}"]
             )
+            _notes_tip(item)
             if p["root"] == own:
                 item.setData(0, REL_ROLE, p["path"])
             groups["possible"].append(item)
@@ -358,7 +363,7 @@ class WhereUsedPane(QWidget):
             item = QTreeWidgetItem([m["path"], "", "", "", "", f"{m['status']}: {stored}"])
             if m["root"] == own:
                 item.setData(0, REL_ROLE, m["path"])
-            item.setToolTip(5, tip(stored))
+            _notes_tip(item)
             groups["names"].append(item)
         tops = []
         for key, title in GROUPS:
@@ -379,6 +384,25 @@ class WhereUsedPane(QWidget):
         for c in range(1, 5):
             self.tree.resizeColumnToContents(c)
         self.tree.setColumnWidth(0, max(self.tree.columnWidth(0), 260))
+
+
+NOTES_COLUMN = 5
+
+
+class NotesDelegate(QStyledItemDelegate):
+    """The Notes column: notes are sentences, so one too long for the column is cut at its
+    end, where the tree cuts a path in the middle to keep both of its ends."""
+
+    def initStyleOption(self, option, index) -> None:
+        super().initStyleOption(option, index)
+        option.textElideMode = Qt.TextElideMode.ElideRight
+
+
+def _notes_tip(item: QTreeWidgetItem) -> None:
+    """The whole note of a row as its Notes cell's tooltip, for one the column cuts."""
+    text = item.text(NOTES_COLUMN)
+    if text:
+        item.setToolTip(NOTES_COLUMN, tip(text))
 
 
 # --------------------------------------------------------------------------- the controller
