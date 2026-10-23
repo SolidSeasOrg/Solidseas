@@ -505,7 +505,7 @@ service packs, is a HYPOTHESIS.
 
 | n | Release | Evidence |
 |---|---|---|
-| 17000 | SOLIDWORKS 2024 | VERIFIED (fixtures) |
+| 17000 | SOLIDWORKS 2024 | VERIFIED (19 fixtures) |
 | 9000 to 16000, multiples of 1000 | SOLIDWORKS (2007 + n / 1000) | HYPOTHESIS |
 | 8000, 7000, 6000, 5000 | 2015, 2014, 2013, 2012 | HYPOTHESIS |
 | 4700, 4400, 4100, 3800, 3400, 3100, 2800, 2500, 2200 | 2011, 2010, 2009, 2008, 2007, 2006, 2005, 2004, 2003 | HYPOTHESIS |
@@ -600,7 +600,7 @@ flags = 2, u32 count, then item size x count bytes:
 
 - Strip vertices are consecutive and expand with OpenGL triangle-strip winding.
   On fixture o02 the oriented triangle set equals SOLIDWORKS' own STL export to
-  0.1 um, with mesh volume 6.0e-6 m^3 and area 0.0022 m^2. VERIFIED (fixtures).
+  0.1 um, with mesh volume 6.0e-6 m^3 and area 0.0022 m^2. VERIFIED (1 fixture, 12 triangles).
 - Corpus: 1,944 files yield at least one table (1,765 of 3,150 parts, 56.0%;
   179 assemblies); 1,843,083 faces. Every position is finite. VERIFIED (both
   counts). The finer counts depend on the counting rule: the independent count
@@ -1530,7 +1530,7 @@ are not decoded.
   time.
 - Save As keeps the creation time: fixtures o03 to o06 carry o02's value. It
   identifies a lineage (a document and its Save As or Explorer copies), not one
-  file. VERIFIED (fixtures). A document that references another stores the
+  file. VERIFIED (5 fixtures). A document that references another stores the
   referenced file's creation time too (section 12), which is how SolidSeas tells
   a moved file from an unrelated one with the same name.
 
@@ -1860,7 +1860,7 @@ sub-assembly, or the section of its file, where the sub-assembly's active
 configuration has the same files in the same configurations down to the
 instance (`docs/API.md` 3.14). On the fixtures, o15's own blocks placed through
 o16's transforms give SOLIDWORKS' boxes of o15's two parts inside o16, and
-o16's give them when o16 is itself a sub-assembly. VERIFIED (fixtures). On the
+o16's give them when o16 is itself a sub-assembly. VERIFIED (2 fixture assemblies). On the
 corpus they add little: alone they place 564 instances inside sub-assemblies
 (338 from `FaceTessellations`, 226 from sections); the top assembly's own
 meshes hold 563 of them as well, and the part file of the other is found.
@@ -2187,7 +2187,7 @@ Parasolid and STEP files exported by SOLIDWORKS have header fields for the
 user and the machine. In the fixtures' exports SOLIDWORKS 2024 SP1 wrote
 `USER=unknown` and `MC_ID=unknown` but the processor model in `MC_MODEL`, and
 the local save time, in the Parasolid headers, and left the author and
-organisation of the STEP header empty. VERIFIED (fixtures). SolidSeas' own
+organisation of the STEP header empty. VERIFIED (5 Parasolid exports and 1 STEP export). SolidSeas' own
 Parasolid output writes `unknown` in these fields.
 
 ## 14. Per-save changes
@@ -2199,7 +2199,7 @@ key, new signatures and new decoys, and changes 6 of 41 members:
 indices; same length), `_MO_VERSION_17000/Biography` (the saved file name), and
 `docProps/ISolidWorksInformation.xml` and `swXmlContents/Features` (they embed
 the file name). The other 35 are byte-identical in decoded and stored form.
-VERIFIED (fixtures, and the same 6 and 35 in their first generation). Other
+VERIFIED (2 fixtures, 41 members; the same 6 and 35 in their first generation). Other
 pairs: o02 to o04 (properties) changes `CusProps` and `custom.xml` among 10
 members in the committed fixtures (also `3DExperienceExchange2` and
 `PMISemanticDataDB`), 8 in their first generation and 12 in another
