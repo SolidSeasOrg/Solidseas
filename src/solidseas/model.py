@@ -256,7 +256,7 @@ ERROR_CODES: dict[str, ErrorCode] = _codes(
     ErrorCode("configuration_not_found", 404, 1, False, "The document has no configuration by that name."),
     ErrorCode("stream_not_found", 404, 1, False, "The document has no stream by that name."),
     ErrorCode("no_preview", 404, 1, False, "The document stores no preview image."),
-    ErrorCode("nothing_to_export", None, 1, False, "The document holds no geometry that can be exported."),
+    ErrorCode("nothing_to_export", 404, 1, False, "The document holds no geometry that can be exported."),
     ErrorCode(
         "not_representable",
         None,

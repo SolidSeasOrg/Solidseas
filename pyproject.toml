@@ -38,6 +38,10 @@ version = { attr = "solidseas.__version__" }
 [tool.setuptools.packages.find]
 where = ["src"]
 
+# The service's reference viewer (docs/API.md 8.18): its page, script and style, and three.js.
+[tool.setuptools.package-data]
+"solidseas.serve" = ["viewer/*.*", "viewer/three/**/*"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src", "research"]

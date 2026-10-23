@@ -243,6 +243,12 @@ solidseas serve --root jobs=D:\Jobs
 A service that starts with the computer can keep its settings in a file instead:
 `solidseas serve --config serve.toml` ([API.md](../API.md) section 8.17).
 
+To look at what a service serves, start it with `--viewer` and open
+`http://127.0.0.1:8765/` in a browser on the same machine: a page lists the
+folders and files, draws a part or an assembly in 3D and shows an assembly's
+bill of materials, after you paste a token from the token file
+([API.md](../API.md) section 8.18).
+
 [SECURITY_REVIEW.md](../SECURITY_REVIEW.md) reviews the service for whoever has
 to approve it. The service's `/v1/bom`, the catalog routes (`--catalog`) and the
 other formats (`--formats`) are provisional and may change.

@@ -49,6 +49,12 @@ while the project takes shape.
 
 ### Added
 
+- **A reference web viewer.** `solidseas serve --viewer` serves a web page that
+  lists the folders and files, draws a part or an assembly in 3D, and shows an
+  assembly's bill of materials and a file's properties. Everything it loads
+  comes from the service itself. `GET /v1/mesh` answers a document's display
+  meshes as a glTF binary, and `solidseas.gltf` writes the same from Python.
+
 - **A settings file and named web origins for the REST service.** `solidseas
   serve --config FILE` reads the service's settings from a TOML file, an option
   on the command line replacing the file's setting, and refuses a file another

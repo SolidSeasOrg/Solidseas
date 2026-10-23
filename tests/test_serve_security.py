@@ -46,6 +46,7 @@ from solidseas.errors import (
     TokenFileError,
     WorkerJobError,
 )
+from solidseas.gltf import is_glb
 from solidseas.serve import (
     ROUTES,
     ServeConfig,
@@ -1417,6 +1418,7 @@ def test_hostile_files_get_strict_answers_in_time(tmp_path):
             "bom",
             "path-report",
             "preview",
+            "mesh",
         )
         answered = 0
         for name in files:
@@ -1428,11 +1430,13 @@ def test_hostile_files_get_strict_answers_in_time(tmp_path):
                 if r.headers["content-type"].startswith("application/json"):
                     env = r.json()  # strict: NaN or a bare big number would raise
                     assert env["ok"] is (r.status == 200)
-                    assert r.status != 404 or env["error"]["code"] == "no_preview"
+                    assert r.status != 404 or env["error"]["code"] in ("no_preview", "nothing_to_export")
+                elif route == "mesh":
+                    assert r.headers["content-type"] == "model/gltf-binary" and is_glb(r.body)
                 else:
                     assert route == "preview" and r.body.startswith(PNG)
                 answered += 1
-        assert answered == len(files) * len(routes) >= 90
+        assert answered == len(files) * len(routes) >= 100
         listing = running.get("list", root="h", include="properties,configurations,preview").json()["data"]
         assert listing["counts"]["entries"] == len(files)
         assert wait_for(lambda: running.server._catalog_path is not None, 120)
@@ -1858,6 +1862,7 @@ ROUTE_MIX = [
     ("bom", {"root": "jobs", "path": "o08_asm_2x_boxA.SLDASM", "type": "indented"}),
     ("preview", {"root": "jobs", "path": "o02_boxA.SLDPRT"}),
     ("path-report", {"root": "jobs", "path": "o08_asm_2x_boxA.SLDASM"}),
+    ("mesh", {"root": "jobs", "path": "o08_asm_2x_boxA.SLDASM"}),
     ("catalog", {}),
     ("where-used", {"root": "jobs", "path": "o02_boxA.SLDPRT"}),
     ("search", {"q": "boxA"}),

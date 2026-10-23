@@ -346,3 +346,17 @@ def test_the_service_runs_from_its_file_alone(tmp_path):
             proc.kill()
             proc.wait()
         proc.stdout.close()
+
+
+def test_the_viewer_is_asked_for_on_the_command_line_or_in_the_file(tmp_path, capsys, started):
+    base = _tree(tmp_path)
+    tokens = (base / "state" / "tokens").as_posix()
+    off = _write(base / "etc", f'port = 0\nworkers = 1\ntoken_file = "{tokens}"\n[roots]\njobs = "../jobs"\n')
+    on = _write(base / "etc", "viewer = true\n" + off.read_text(encoding="utf-8"), "on.toml")
+    assert cli.main(["serve", "--config", str(off)]) == 0
+    assert started[-1].viewer is False and "reference viewer" not in capsys.readouterr().out
+    assert cli.main(["serve", "--config", str(off), "--viewer"]) == 0
+    assert started[-1].viewer is True and "/viewer/ (it asks for a token)" in capsys.readouterr().out
+    assert cli.main(["serve", "--config", str(on)]) == 0
+    assert started[-1].viewer is True
+    capsys.readouterr()

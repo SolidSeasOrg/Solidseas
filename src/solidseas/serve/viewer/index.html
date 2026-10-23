@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SolidSeas viewer</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="viewer.css">
+<script type="importmap">{"imports": {"three": "./three/build/three.module.min.js", "three/addons/": "./three/examples/jsm/"}}</script>
+<script type="module" src="viewer.js"></script>
+</head>
+<body>
+<header class="bar">
+  <h1 class="title">SolidSeas viewer</h1>
+  <form id="token-form" class="token" autocomplete="off">
+    <label for="token">Token</label>
+    <input id="token" name="token" type="password" spellcheck="false" autocomplete="off" required>
+    <button type="submit">Connect</button>
+  </form>
+  <p id="status" class="status" role="status" aria-live="polite">Paste a token from the service's token file to begin.</p>
+</header>
+<main class="layout">
+  <nav class="files" aria-label="Files">
+    <label class="root-pick">Root <select id="root" disabled></select></label>
+    <ol id="crumbs" class="crumbs" aria-label="Folder"></ol>
+    <ul id="entries" class="entries"></ul>
+    <button id="more" class="more" type="button" hidden>Show more</button>
+  </nav>
+  <section class="doc" aria-labelledby="doc-name">
+    <h2 id="doc-name">No file open</h2>
+    <dl id="facts" class="facts"></dl>
+    <div class="tabs" role="tablist" aria-label="Views">
+      <button type="button" role="tab" id="tab-model" aria-controls="pane-model" aria-selected="true">3D</button>
+      <button type="button" role="tab" id="tab-bom" aria-controls="pane-bom" aria-selected="false">Bill of materials</button>
+      <button type="button" role="tab" id="tab-props" aria-controls="pane-props" aria-selected="false">Properties</button>
+    </div>
+    <div id="pane-model" class="pane" role="tabpanel" aria-labelledby="tab-model">
+      <div class="stage"><canvas id="view" class="view"></canvas></div>
+      <p id="model-note" class="note">Pick a part or an assembly to see it in 3D.</p>
+    </div>
+    <div id="pane-bom" class="pane" role="tabpanel" aria-labelledby="tab-bom" hidden>
+      <p id="bom-note" class="note">Pick an assembly to see its bill of materials.</p>
+      <table id="bom" class="table"></table>
+    </div>
+    <div id="pane-props" class="pane" role="tabpanel" aria-labelledby="tab-props" hidden>
+      <p id="props-note" class="note">Pick a file to see its custom properties.</p>
+      <table id="props" class="table"></table>
+    </div>
+  </section>
+</main>
+</body>
+</html>

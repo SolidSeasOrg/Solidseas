@@ -32,3 +32,7 @@ tests/generated/* -text
 
 # Licence texts: keep the exact bytes their publishers give, checked by tests/test_third_party_notices.py
 licenses/* -text
+
+# three.js as its publisher ships it, for the service's reference viewer: keep the exact bytes,
+# whose hashes tests/test_serve_viewer.py checks on every platform
+src/solidseas/serve/viewer/three/** -text

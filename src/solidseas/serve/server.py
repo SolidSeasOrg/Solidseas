@@ -102,7 +102,7 @@ import time
 import traceback
 from collections import deque
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 from urllib.parse import urlsplit
@@ -122,6 +122,7 @@ from ..formats import registry
 from ..formats.limits import DEFAULT_LIMITS, Limits, check_limits
 from ..formats.solidworks._io import check_folder_within
 from ..formats.solidworks.preview import PNG_SIGNATURE
+from ..gltf import GLB_MIME, is_glb
 from ..listing import Scan
 from ..resolve import Gateway, ResolutionInput, resolve_references
 from ..resolve.identity import Identity, parse_creation_time
@@ -168,6 +169,8 @@ DEFAULT_DEADLINES: dict[str, float] = {
     # the assembly's own reading and the resolution in this process
     "bom": 120.0,
     "catalog": 5.0,
+    # a part stored without a display mesh is drawn from its bodies, which may take 30 s
+    "mesh": 60.0,
 }
 DEFAULT_CAPS: dict[str, int] = {
     "document": 1 << 20,
@@ -178,6 +181,8 @@ DEFAULT_CAPS: dict[str, int] = {
     "list": 8 << 20,
     "preview": 16 << 20,
     "catalog": 1 << 20,
+    # a GLB: the triangle cap of solidseas.gltf keeps one near 40 MB
+    "mesh": 64 << 20,
 }
 SECURITY_HEADERS = (
     ("X-Content-Type-Options", "nosniff"),
@@ -224,6 +229,8 @@ class ServeConfig:
     worker_memory_mb: int | None = 2048
     max_file_bytes: int = 256 << 20
     in_flight: int = 16
+    # /v1/mesh answers of up to 64 MiB being read at once, within in_flight
+    mesh_in_flight: int = 2
     max_connections: int = 64
     read_timeout: float = 10.0
     idle_timeout: float = 5.0
@@ -252,6 +259,8 @@ class ServeConfig:
     # ("https://intranet.example"); kept in the form browsers send (parse_origin). Empty by
     # default: then any Origin header from another site is refused (docs/API.md 8.4).
     allow_origins: tuple[str, ...] = ()
+    # Serve the reference viewer's page and files under /viewer/ (docs/API.md 8.18).
+    viewer: bool = False
 
     def __post_init__(self) -> None:
         if not isinstance(self.roots, Roots) or not len(self.roots):
@@ -279,6 +288,7 @@ class ServeConfig:
         for name in (
             "workers",
             "in_flight",
+            "mesh_in_flight",
             "max_connections",
             "max_requests_per_connection",
             "max_auth_failures",
@@ -315,6 +325,71 @@ class ServeConfig:
                     "a root: set SOLIDSEAS_CACHE_DIR to a folder outside the roots",
                     detail={"parameter": "catalog"},
                 )
+
+
+# --------------------------------------------------------------------------- the reference viewer
+VIEWER_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "viewer")
+# A fixed type for each kind of file the viewer has, never one guessed from the system.
+_VIEWER_TYPES = {
+    ".html": "text/html; charset=utf-8",
+    ".js": "text/javascript; charset=utf-8",
+    ".css": "text/css; charset=utf-8",
+    "": "text/plain; charset=utf-8",  # three.js's LICENSE
+}
+_IMPORT_MAP = re.compile(rb'<script type="importmap">(.*?)</script>', re.S)
+# The page's own policy: its scripts, styles and data from this origin only, its inline
+# import map by hash, images as data: URLs (the listing's thumbnails), nothing framed.
+VIEWER_CSP = (
+    "default-src 'none'; script-src 'self' {hashes}; style-src 'self'; img-src 'self' data:; "
+    "connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+)
+
+
+@dataclass(frozen=True)
+class StaticFile:
+    """A file of the reference viewer, read once when the service starts."""
+
+    body: bytes
+    content_type: str
+    etag: str
+    csp: str | None = None
+
+
+def load_viewer(folder: str = VIEWER_DIR) -> dict[str, StaticFile]:
+    """The reference viewer's files by the path each is served at, read now: the page
+    at ``/viewer/`` with :data:`VIEWER_CSP`, holding the hash of its import map, and
+    every other file at ``/viewer/`` and its path in the viewer's folder. Raises
+    :class:`~solidseas.errors.InvalidArgumentError` when the files are not there."""
+    files: dict[str, StaticFile] = {}
+    for where, dirs, names in os.walk(folder):  # no link to a folder is followed
+        dirs.sort()
+        for name in sorted(names):
+            ext = os.path.splitext(name)[1].lower()
+            if ext not in _VIEWER_TYPES or (not ext and name != "LICENSE"):
+                continue
+            path = os.path.join(where, name)
+            if os.path.islink(path):
+                continue
+            with open(path, "rb") as fh:
+                body = fh.read()
+            rel = os.path.relpath(path, folder).replace(os.sep, "/")
+            etag = '"' + hashlib.sha256(body).hexdigest()[:32] + '"'
+            files["/viewer/" + rel] = StaticFile(body, _VIEWER_TYPES[ext], etag)
+    page = files.pop("/viewer/index.html", None)
+    if page is None:
+        raise InvalidArgumentError(
+            "the reference viewer's files are not installed", detail={"parameter": "viewer"}
+        )
+    hashes = " ".join(
+        "'sha256-" + base64.b64encode(hashlib.sha256(m).digest()).decode("ascii") + "'"
+        for m in _IMPORT_MAP.findall(page.body)
+    )
+    files["/viewer/"] = replace(page, csp=VIEWER_CSP.format(hashes=hashes))
+    return files
+
+
+def _viewer_path(path: str) -> bool:
+    return path in ("/", "/viewer") or path.startswith("/viewer/")
 
 
 _ORIGIN_HOST = re.compile(r"[a-z0-9._-]{1,253}\Z")
@@ -513,6 +588,14 @@ ROUTES: dict[str, Route] = {
             deadline="path_report",
             cap="path_report",
         ),
+        Route(
+            "/v1/mesh",
+            None,
+            {"root": _ROOT, "path": _FILE, "configuration": _CONFIGURATION},
+            job="display_glb",
+            deadline="mesh",
+            cap="mesh",
+        ),
         Route("/v1/catalog", "catalog", {}, deadline="catalog", cap="catalog"),
         Route(
             "/v1/where-used",
@@ -551,7 +634,10 @@ _JOB_PARAMS = {
     "/v1/bom": (),  # Server.bom passes its own
     "/v1/preview": ("prefer", "nested"),
     "/v1/path-report": (),
+    "/v1/mesh": ("configuration",),
 }
+# The routes that answer with bytes rather than JSON, by the name their ETag carries.
+_BINARY = {"/v1/preview": "preview", "/v1/mesh": "mesh"}
 # A model file's job and parameters on the routes that read model files (provisional); every
 # other document route answers not_implemented for one.
 _MODEL_JOBS = {
@@ -630,6 +716,7 @@ class Server:
         self._pool = pool
         self._own_pool = pool is None
         self._slots = threading.BoundedSemaphore(config.in_flight)
+        self._mesh_slots = threading.BoundedSemaphore(config.mesh_in_flight)
         self._active: dict[int, threading.Thread] = {}
         self._active_cv = threading.Condition()
         self._failures: dict[str, deque] = {}
@@ -652,6 +739,7 @@ class Server:
         self.host, self.port = self.httpd.server_address[:2]
         self._identity_addresses = {parse_identity_address(t) for t in config.identity_addresses}
         self.allow_origins = frozenset(config.allow_origins)
+        self.viewer_files = load_viewer() if config.viewer else None
         self._allowed = self._host_allowlist()
 
     # ------------------------------------------------------------------ life cycle
@@ -885,6 +973,24 @@ class Server:
         answer.not_modified_for(if_none_match)
         return answer
 
+    def viewer_answer(self, path: str, raw_query: str, if_none_match: str | None) -> "_Answer":
+        """A file of the reference viewer (``--viewer``): ``/`` and ``/viewer`` send the
+        browser to ``/viewer/``, the page; its files need no token, take no parameter
+        and are the ones the service read when it started."""
+        parse_query(raw_query, {})  # any parameter is one the viewer does not take
+        if path in ("/", "/viewer"):
+            answer = _Answer()
+            answer.status, answer.content_type = 308, None
+            answer.headers.append(("Location", "/viewer/"))
+            return answer
+        f = (self.viewer_files or {}).get(path)
+        if f is None:
+            raise ServiceError("not_found", "the viewer has no file there", detail={"rule": "route"})
+        answer = _Answer(etag=f.etag)
+        answer.content_type, answer.body, answer.csp = f.content_type, f.body, f.csp
+        answer.not_modified_for(if_none_match)
+        return answer
+
     def _ready(self, root_id: str) -> _RootState:
         s = self._by_id.get(root_id)
         if s is None:
@@ -971,6 +1077,17 @@ class Server:
             self._slots.release()
 
     @contextlib.contextmanager
+    def mesh_slot(self):
+        """One of the few /v1/mesh answers read at once: each may hold tens of MiB."""
+        if not self._mesh_slots.acquire(blocking=False):
+            message = "too many 3D models are being read; try again shortly"
+            raise ServiceError("busy", message, detail={"rule": "mesh_in_flight"})
+        try:
+            yield
+        finally:
+            self._mesh_slots.release()
+
+    @contextlib.contextmanager
     def active(self):
         t = threading.current_thread()
         with self._active_cv:
@@ -1053,7 +1170,7 @@ class Server:
         if q.get("nested") is not None:
             source["nested"] = q["nested"]
         resolve = route.path == "/v1/references" and q.get("resolve")
-        kind = kind_name or "preview"
+        kind = kind_name or _BINARY[route.path]
         version = model.KINDS[kind_name].schema_version if kind_name else 1
         tag = self.etag(kind, version, s.id, loc.rel, loc.size, loc.mtime_ns, canonical)
         answer = _Answer(source=source, etag=tag, cap=self.config.response_caps[route.cap])
@@ -1066,10 +1183,12 @@ class Server:
         params.update({k: q[k] for k in job_params if q.get(k) is not None})
         if resolve:
             params["resolution_input"] = True
-        with self.slot():
+        with self.slot(), self.mesh_slot() if route.path == "/v1/mesh" else contextlib.nullcontext():
             result = self.call(job, params, deadline, answer.cap)
             if route.path == "/v1/preview":
                 return answer.image(result.payload or b"")
+            if route.path == "/v1/mesh":
+                return answer.glb(result.payload or b"")
             data = result.data
             if resolve:
                 if not isinstance(data, dict) or "references" not in data:
@@ -1316,6 +1435,7 @@ class _Answer:
         self.code: str | None = None
         self.detail: dict[str, Any] = {}
         self.close = False
+        self.csp: str | None = None  # a policy of its own (the viewer's page), else the service's
 
     def not_modified_for(self, header: str | None) -> bool:
         if not header or not self.etag:
@@ -1346,6 +1466,19 @@ class _Answer:
             raise ServiceError(
                 "response_too_large", "the image exceeds its size limit", detail={"limit": self.cap}
             )
+        self.body = data
+        return self
+
+    def glb(self, data: bytes) -> "_Answer":
+        """A document's 3D model as the worker wrote it, served only when its bytes have a
+        GLB's frame (``solidseas.gltf.is_glb``) and fit the route's cap."""
+        if not is_glb(data):
+            raise WorkerCrashedError("the 3D model is not a glTF binary")
+        if self.cap is not None and len(data) > self.cap:
+            raise ServiceError(
+                "response_too_large", "the 3D model exceeds its size limit", detail={"limit": self.cap}
+            )
+        self.content_type = GLB_MIME
         self.body = data
         return self
 
@@ -1660,7 +1793,7 @@ class _Handler(BaseHTTPRequestHandler):
         try:
             self.send_response(answer.status)
             for k, v in SECURITY_HEADERS:
-                self.send_header(k, v)
+                self.send_header(k, answer.csp if k == "Content-Security-Policy" and answer.csp else v)
             self.send_header("X-Request-Id", getattr(self, "_rid", "-"))
             if answer.content_type:
                 self.send_header("Content-Type", answer.content_type)
@@ -1761,10 +1894,17 @@ class _Handler(BaseHTTPRequestHandler):
     def _guard(self) -> None:
         self._check_host()
         origins = self.headers.get_all("Origin") or []
-        # A page of an origin the service was started to allow may call it (CORS, 8.4);
-        # any other Origin, and any Fetch Metadata of another site, is a page elsewhere.
+        # A page of an origin the service was started to allow may call it (CORS, 8.4),
+        # and so may the reference viewer's own page, of this very origin, when the service
+        # serves it (8.18); any other Origin, and any Fetch Metadata of another site, is a
+        # page elsewhere.
         allowed = len(origins) == 1 and origins[0] in self.app.allow_origins
-        if origins and not allowed:
+        own = (
+            self.app.viewer_files is not None
+            and len(origins) == 1
+            and origins[0].lower() == "http://" + (self.headers.get("Host") or "").lower()
+        )
+        if origins and not (allowed or own):
             raise ServiceError("forbidden_origin", "cross-site browser requests are refused")
         site = self.headers.get("Sec-Fetch-Site")
         if site is not None and site.strip().lower() not in ("none", "same-origin") and not allowed:
@@ -1791,23 +1931,11 @@ class _Handler(BaseHTTPRequestHandler):
             try:
                 self._guard()
                 route_path, _, raw_query = self.path.partition("?")
-                route = ROUTES.get(route_path)
-                if route is not None:
-                    self._route = route.path
-                if route is None or route.auth:
-                    self._authenticate()
-                if route is None:
-                    raise ServiceError("not_found", "no such route", detail={"rule": "route"})
-                if "root" in route.params:  # until the query parses, the source is what it names
-                    answer.source = requested_location(raw_query, nested="nested" in route.params)
-                q, canonical = parse_query(raw_query, route.params)
-                if q.get("root") in app._by_id:
-                    self._root = q["root"]
-                if "root" in route.params:  # an error names what was asked for, as the CLI does
-                    answer.source = {"root": q["root"], "path": q["path"]}
-                    if q.get("nested") is not None:
-                        answer.source["nested"] = q["nested"]
-                answer = self._answer(route, q, canonical)
+                if app.viewer_files is not None and _viewer_path(route_path):
+                    self._route = "/viewer"
+                    answer = app.viewer_answer(route_path, raw_query, self.headers.get("If-None-Match"))
+                else:
+                    answer = self._route_answer(route_path, raw_query, answer)
             except Exception as exc:
                 if (
                     isinstance(exc, (ServiceError, InvalidArgumentError))
@@ -1823,6 +1951,28 @@ class _Handler(BaseHTTPRequestHandler):
                     )
                 answer.error(exc)
             self._send(answer, head=head)
+
+    def _route_answer(self, route_path: str, raw_query: str, answer: _Answer) -> _Answer:
+        """The answer of a route under ``/v1``. ``answer`` is the one an error is given
+        on: it learns the request's ``source`` as soon as the query names it."""
+        app = self.app
+        route = ROUTES.get(route_path)
+        if route is not None:
+            self._route = route.path
+        if route is None or route.auth:
+            self._authenticate()
+        if route is None:
+            raise ServiceError("not_found", "no such route", detail={"rule": "route"})
+        if "root" in route.params:  # until the query parses, the source is what it names
+            answer.source = requested_location(raw_query, nested="nested" in route.params)
+        q, canonical = parse_query(raw_query, route.params)
+        if q.get("root") in app._by_id:
+            self._root = q["root"]
+        if "root" in route.params:  # an error names what was asked for, as the CLI does
+            answer.source = {"root": q["root"], "path": q["path"]}
+            if q.get("nested") is not None:
+                answer.source["nested"] = q["nested"]
+        return self._answer(route, q, canonical)
 
     def _answer(self, route: Route, q: dict[str, Any], canonical) -> _Answer:
         app = self.app

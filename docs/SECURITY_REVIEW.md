@@ -167,7 +167,9 @@ or put a link where a folder was, finding 19).
   allocation over the cap fails inside the worker. Verified on Windows:
   `test_a_slow_crashing_or_greedy_file_is_contained` and `tests/test_workers.py`.
 - **What goes back out.** A preview is served only after the service checked it
-  is a PNG, or built the BMP itself; no route serves HTML, SVG or XML; every
+  is a PNG, or built the BMP itself, and a 3D model only after it checked the
+  GLB's frame (section 1.10); no route serves HTML, SVG or XML (the reference
+  viewer's page, with `--viewer`, is the one HTML answer, section 1.10); every
   response carries `nosniff`, a `default-src 'none'` CSP and
   `Cross-Origin-Resource-Policy: same-origin`. Error answers never carry the
   reader's own message, which can hold a path, and the log never holds a path,
@@ -326,6 +328,50 @@ format ids). What that adds, and what bounds it:
   a path on the machine, and that nothing outside the root is drawn. The
   per-format hostile tests (`tests/test_formats_*_hostile.py`) bound each
   reader.
+
+### 1.10 3D models and the reference viewer (`/v1/mesh`, `--viewer`)
+
+Both are provisional and new; they have not had a review of their own. What
+bounds them:
+
+- **`/v1/mesh`** reads one document in a worker, as every route does, and opens
+  no other file and lists no folder: a part's display mesh or its own bodies,
+  an assembly's own stored meshes with no root to search and no file opened
+  (`max_files` 0), the component files beside it included. Verified:
+  `test_an_assembly_whose_meshes_are_in_its_part_files_opens_none_of_them`,
+  `test_the_server_process_never_opens_a_document` (the route is in its mix),
+  `test_hostile_files_get_strict_answers_in_time` (every hostile file through
+  the route: a GLB with its frame checked, or strict JSON, in time).
+- **What it sends** is a GLB the worker wrote: the server checks its frame
+  (`is_glb`) and its 64 MiB cap before serving it as `model/gltf-binary`, with
+  the service's headers, and a worker's answer that is not one answers 500
+  (`test_only_a_checked_glb_is_served`). Its JSON holds instance and component
+  names and file keys, never a path on the machine. A part is held to 1,000,000
+  triangles and 256 MiB of display data; at most two answers are read at once,
+  so their memory stays bounded (`test_mesh_answers_past_their_own_limit_answer_busy`).
+- **The viewer is off by default**; without `--viewer`, `/` and `/viewer/`
+  answer as unknown routes (`test_the_viewer_is_off_unless_asked_for`). On,
+  its fixed set of files is read at start from the package, served without a
+  token, with no parameter, under fixed content types, after the Host check
+  (`test_the_viewer_serves_nothing_else`, `test_the_viewer_needs_the_host_check_and_takes_only_get`).
+  Its page's policy allows scripts from the service and its import map by hash
+  alone, and connections to the service alone (`test_the_page_is_served_with_its_own_policy`,
+  `test_the_viewer_loads_nothing_from_anywhere_else`); its script writes no
+  markup from what the service answers and keeps the token in memory, sent
+  with `credentials: "omit"` and `redirect: "error"`
+  (`test_the_viewer_never_builds_markup_from_what_the_service_says`). With the
+  viewer on, an `Origin` that is the service's own passes the check of API 8.4,
+  and no other (`test_the_pages_own_origin_may_call_the_routes`). Checked once
+  by hand in headless Chromium against copies of the fixtures: no console
+  error, no policy violation, and no request to anything but the service.
+- **three.js** is vendored as published (0.185.1, MIT), its hashes pinned
+  against the npm package (`test_the_vendored_three_js_is_the_published_release_unchanged`).
+  It runs in the browser only; the service never runs it.
+- **The condition.** A page is served by whatever holds the port, so a program
+  that takes a stopped service's port could serve a page asking for the token
+  (finding 15's case, for a person rather than a program), and the page cannot
+  check the service as a client does. API 8.18 therefore says to use the viewer
+  on a machine one person uses, with a token of its own.
 
 ## 2. The desktop app
 

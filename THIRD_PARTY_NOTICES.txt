@@ -30,10 +30,23 @@ Where the licence texts are:
 1. The library
 --------------
 
-The source and the wheel hold SolidSeas' own code only, with LICENSE and NOTICE. Its one
-required dependency, olefile, and the optional extras are installed by pip from their own
-publishers, so SolidSeas does not redistribute them; their licences apply to whoever installs
-them and are listed here for reference.
+The source and the wheel hold SolidSeas' own code, with LICENSE and NOTICE, and one
+third-party component, carried for the REST service's reference viewer (solidseas serve
+--viewer, docs/API.md 8.18), which the service sends to a browser as it is:
+
+  Component                   Version     Licence (SPDX)                 Text
+  three.js                    0.185.1     MIT                            three.js-LICENSE.txt
+
+The files are the release's own, unchanged, in src/solidseas/serve/viewer/three with its
+LICENSE beside them (the copyright notice and permission notice the MIT licence asks to
+travel with them): build/three.core.min.js, build/three.module.min.js and, from
+examples/jsm, controls/OrbitControls.js, loaders/GLTFLoader.js,
+utils/BufferGeometryUtils.js and utils/SkeletonUtils.js. tests/test_serve_viewer.py checks
+each against the published package. SolidSeas Viewer (section 2) does not carry them.
+
+Its one required dependency, olefile, and the optional extras are installed by pip from their
+own publishers, so SolidSeas does not redistribute them; their licences apply to whoever
+installs them and are listed here for reference.
 
   Package                     Version     Licence (SPDX)                 Needed for
   olefile                     >=0.47      BSD-2-Clause                   always (legacy OLE files)

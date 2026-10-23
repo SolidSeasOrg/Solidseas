@@ -29,8 +29,10 @@ What it covers:
   conversion through SolidSeas' own SOLIDWORKS on Windows (3.22,
   provisional), the AI connector with the machine policy (3.23,
   provisional), the drawing core (3.24, provisional), an assembly's
-  Parasolid as one transmit (3.25, provisional), and a file's versions from Git or
-  from snapshots, with what changed between two of them (3.26, provisional);
+  Parasolid as one transmit (3.25, provisional), a file's versions from Git or
+  from snapshots, with what changed between two of them (3.26, provisional), and
+  a document's display meshes as a glTF binary for a web page (3.28,
+  provisional);
 - the JSON kinds `document_summary`, `properties`, `configurations`,
   `components`, `references` (with resolution results, 5.10), `bom`, `path_report`,
   `listing`, `streams`, `file_written`, `parasolid_result`, `export_result`, `batch_summary`,
@@ -41,7 +43,8 @@ What it covers:
   (section 7);
 - the REST service, `solidseas serve` (section 8), how to run it as a
   background service (8.14), how a client checks it before sending its
-  token (8.16), and its configuration file (8.17);
+  token (8.16), its configuration file (8.17) and its reference viewer
+  (8.18);
 - the error codes and warning codes;
 - how to read the JSON from JavaScript (section 6), recipes in Python, curl
   and TypeScript (section 10), and troubleshooting (section 11).
@@ -418,7 +421,7 @@ its bases, so existing `except` clauses catch exactly what they caught before.
 | `StreamNotFoundError` | `SolidSeasError`, `KeyError` | `stream_not_found` |
 | `ConfigurationNotFoundError` | `SolidSeasError`, `KeyError` | `configuration_not_found` |
 | `NoPreviewError` | `SolidSeasError`, `LookupError` | `no_preview`: the caller needed a preview and the file stores none |
-| `NothingToExportError` | `SolidSeasError`, `LookupError` | `nothing_to_export`: an export (3.17, 3.19) of a document with nothing to export; provisional |
+| `NothingToExportError` | `SolidSeasError`, `LookupError` | `nothing_to_export`: an export (3.17, 3.19) of a document with nothing to export, or a 3D model (3.26, `/v1/mesh`) of one with nothing to draw; provisional |
 | `NotRepresentableError` | `SolidSeasError`, `ValueError` | `not_representable`: a STEP export (3.19) refused geometry it cannot write without loss; `bodies` lists each body refused with its reason; provisional |
 | `PathRefusedError` | `SolidSeasError`, `ValueError` | `path_refused`; `detail["rule"]` names the rule |
 | `LinkRefusedError` | `PathRefusedError` | `link_refused` |
@@ -1329,7 +1332,7 @@ class WorkerPool:
   an error envelope, never an exception: the job's own error (a damaged file, a
   missing configuration), `timeout` or `worker_crashed`.
 - `call(job, params)` is the lower level: it returns a `WorkerResult` with the
-  job's JSON `data` and, for an image, its bytes as `payload`, and raises
+  job's JSON `data` and, for an image or a 3D model, its bytes as `payload`, and raises
   `WorkerTimeoutError`, `WorkerCrashedError` or `WorkerJobError`, whose `code`
   and `detail` are those of the error inside the worker.
 - `jobs` (provisional) adds entries to the pool's job table, each a job name
@@ -1338,7 +1341,7 @@ class WorkerPool:
   configuration file can add a job. The viewer's own jobs
   (`solidseas_app.viewer.modeljobs`) and the tests' slow and crashing jobs come
   in this way. A job function returns JSON data, or `(data, payload)` for an
-  image.
+  image or a 3D model.
 - `formats` and `limits` (provisional) hold every model-file job (3.20) of the
   pool's workers: `formats` (`"all"`, ids, or None for every format) are the only
   formats a job reads a file as, so a file whose content is another is refused
@@ -4907,6 +4910,72 @@ partial part, leaves those out. Numbers are in the recording's `units` (`mm`, `c
 CadQuery is the optional `[cad]` extra. Nothing else in the library imports it, the viewer's
 executable leaves it out, and the translation was checked against CadQuery 2.8.0: each model
 in `tests/test_cadquery_models.py` keeps exactly CadQuery's own material.
+### 3.28 3D models for a web page: `solidseas.gltf` (provisional)
+
+A document's display meshes as one glTF 2.0 binary (GLB), the file a 3D view in
+a browser loads (three.js's `GLTFLoader`, Babylon.js, `<model-viewer>`). It is
+what the service's `/v1/mesh` answers (8.6) and its reference viewer draws
+(8.18).
+
+```python
+from solidseas import open_document
+from solidseas.gltf import display_glb
+
+with open_document("D:/Jobs/Example/frame.SLDASM") as doc:
+    summary, glb = display_glb(doc)            # or display_glb(doc, "Long")
+print(summary["instances"], summary["skipped"], len(glb))
+```
+
+```python
+def display_glb(doc, configuration=None, *, max_triangles=1_000_000,
+                max_bytes=256 << 20, max_triangles_drawn=20_000_000,
+                max_instances=10_000, body_seconds=30.0) -> tuple[dict, bytes]
+```
+
+- **It reads the document alone**, from the display data it stores, and opens
+  no other file and lists no folder, whatever the document names. A part gives
+  its display mesh (`Document.mesh()`, what SOLIDWORKS last drew), or, when it
+  stores none for the configuration asked for (another than the active one, or
+  none at all), the triangles of its own bodies (3.15), within `body_seconds`.
+  An assembly gives `display_geometry` (3.14) with the `assembly` and `nested`
+  sources and no roots: every instance whose mesh the assembly stores, for
+  itself or in a document stored inside it, placed where `display_geometry`
+  places it. An instance whose mesh only its own part file holds is listed as
+  skipped, with the box the assembly stores for it, so a page can draw a box in
+  its place. On the development corpus the assembly's own meshes drew 5,016 of
+  the 5,392 instances the four stored sources placed (3.14), so the GLB of an
+  assembly can show a few parts fewer than the desktop viewer, which reads the
+  component files too.
+- **The file.** One glTF mesh per display mesh, shared by every node (instance)
+  that uses it, each with its placement as a column-major `matrix`; metres, Y
+  up, as SOLIDWORKS stores them and glTF expects them. Indices are 16-bit when a
+  mesh has at most 65,536 vertices, else 32-bit. Normals are written when every
+  face of a mesh stores them, else left out (a loader then shades flat), and
+  each mesh has a double-sided material of its own colour, since display meshes
+  are drawn face by face and are not always closed. A node's `extras` hold the
+  instance's `id`, `file` (its file key, C7) and `configuration`; the scene's
+  `extras.solidseas` the summary, `units` (`"m"`) and `skipped_listed` (at most
+  1,000: `id`, `name`, `file`, `reason` as in 3.14, `message`, and `box`, the
+  placed box as `[[x, y, z], [x, y, z]]` in metres, or null).
+- **The summary**: `doc_type`, `configuration`, `source` (`display_mesh` or
+  `bodies` for a part, `display_data` for an assembly; an open set), `meshes`,
+  `instances`, `skipped`, `triangles` (each mesh once), `triangles_drawn` (each
+  instance its mesh's), `truncated` (the limits that left instances out) and
+  `bytes`.
+- **Limits.** A part past `max_triangles` or whose display data passes
+  `max_bytes` raises `SldLimitError` (`limit_exceeded`). An assembly's
+  instances past a limit are skipped with the limit as their reason, as 3.14
+  says. A drawing, a part with neither a display mesh nor bodies, and an
+  assembly that shows no part raise `NothingToExportError`
+  (`nothing_to_export`, `detail.rule` `drawing`, `no_mesh` or `no_instances`).
+- `write_glb(meshes, nodes, extras=...)` writes a GLB of `GlbMesh` and
+  `GlbNode` objects from anywhere, refusing a mesh or node glTF cannot hold
+  (`InvalidArgumentError`): positions or normals that are not finite, indices
+  past the vertices, a matrix that is not 16 finite numbers. `is_glb(data)`
+  checks a GLB's frame, which the service does before it serves one. A test
+  reads every file the writer makes with a reader of its own and checks the
+  glTF rules it relies on, and another loads the service's answer with
+  three.js's own `GLTFLoader` in Node.
 
 ## 4. JSON encoding
 
@@ -5162,8 +5231,8 @@ The codes are in section 3.5.
 | `permission_denied` | 403 | 1 | no |
 | `output_refused`, `bind_refused`, `token_file_refused`, `identity_key_refused` | | 3 | no |
 | `address_unavailable` | | 1 | no |
-| `nothing_to_export`, `not_representable` | | 1 | no |
-| `not_found`, `configuration_not_found`, `stream_not_found`, `no_preview` | 404 | 1 | no |
+| `not_representable` | | 1 | no |
+| `not_found`, `configuration_not_found`, `stream_not_found`, `no_preview`, `nothing_to_export` | 404 | 1 | no |
 | `root_not_found` | 404 | | no |
 | `not_in_catalog` | 404 | 1 | no |
 | `method_not_allowed` | 405 | | no |
@@ -6118,7 +6187,7 @@ it.
 | `sldprt DESIGN` | `-o FILE` (or a folder that exists; default: the design's name with `.SLDPRT` in the current folder), `--allow-partial`, `--allow-source-dir`; never replaces a file, so no `--force` | `sldprt_written` (provisional) |
 | `list FOLDER` | `--formats solidworks\|all\|IDS` (default `solidworks`), `--recursive`, `--include properties,configurations`, `--preview none`, `meta` (default) or `inline`, `--max-depth N`, `--limit N`, `--max-examined N`, `--timeout SECONDS`, `--file-timeout SECONDS` (default 30), `--memory-mb N` (default 2048), `--in-process` | `listing` |
 | `batch FOLDER -o DIR` | `--no-recurse`, `--no-preview`, `--no-parasolid`, `--text`, `--configuration NAME`, `--allow-partial`, `--other-configurations` and `--include-hidden` (assemblies), `--max-mb N`, `--jobs N` (1 to 64, default 1), `--file-timeout SECONDS` (default 300), `--memory-mb N` (default 2048), `--in-process`, `--max-examined N`, `--force`, `--allow-source-dir` | `batch_summary` |
-| `serve` | `--root ID=DIR` (repeatable), `--library ID=DIR`, `--port N` (default 8765; 0 picks a free port), `--bind ADDRESS` (default 127.0.0.1), `--token-file PATH`, `--identity-key-file PATH`, `--workers N`, `--allow-remote`, `--allowed-host NAME`, `--identity-address ADDRESS:PORT` (repeatable), `--allow-origin ORIGIN` (repeatable), `--config FILE`, `--catalog`, `--catalog-rescan SECONDS` (default 300), `--formats solidworks\|all\|IDS` (default `solidworks`) | `serve_started`, one compact line when it is ready; then it serves until stopped (section 8) |
+| `serve` | `--root ID=DIR` (repeatable), `--library ID=DIR`, `--port N` (default 8765; 0 picks a free port), `--bind ADDRESS` (default 127.0.0.1), `--token-file PATH`, `--identity-key-file PATH`, `--workers N`, `--allow-remote`, `--allowed-host NAME`, `--identity-address ADDRESS:PORT` (repeatable), `--allow-origin ORIGIN` (repeatable), `--config FILE`, `--viewer`, `--catalog`, `--catalog-rescan SECONDS` (default 300), `--formats solidworks\|all\|IDS` (default `solidworks`) | `serve_started`, one compact line when it is ready; then it serves until stopped (section 8) |
 | `index FOLDER...` | `--root ID=DIR`, `--library DIR` or `ID=DIR` (each repeatable), `--catalog NAME`, `--db FILE` or `--in-project`, `--formats IDS`, `--hash all\|duplicates\|none`, `--no-previews`, `--part-number-property NAME`, `--workers N` (default 2), `--file-timeout SECONDS` (default 30), `--timeout SECONDS` | `catalog_scan` (provisional) |
 | `where-used FILE` | `--configuration NAME`, `--direct`, `--max-depth N` (default 32), `--catalog NAME`, `--db FILE` or `--in-project` | `where_used` (provisional) |
 | `search TEXT...` | `--sort relevance\|name\|modified`, `--limit N` (1 to 500, default 100), `--cursor C`, `--catalog NAME`, `--db FILE` or `--in-project` | `catalog_search` (provisional) |
@@ -6468,7 +6537,7 @@ solidseas serve [--config FILE] --root ID=DIR [--root ID=DIR ...] [--library ID=
                 [--port 8765] [--bind 127.0.0.1] [--token-file PATH] [--identity-key-file PATH]
                 [--workers N] [--allow-remote --allowed-host NAME ...]
                 [--identity-address ADDRESS:PORT ...] [--allow-origin ORIGIN ...]
-                [--catalog [--catalog-rescan SECONDS]] [--json]
+                [--catalog [--catalog-rescan SECONDS]] [--viewer] [--json]
 ```
 
 - `--config` reads these settings from a TOML file, and an option given on
@@ -6753,6 +6822,7 @@ as HTTP/1.1 with every header of 8.11, and the connection is closed.
 | `/v1/bom` | `root`\*, `path`\*, `configuration`, `type` (`top`, `parts` or `indented`; default `top`), `columns` (property names, comma-separated), `part_number_property` | `bom` (provisional) | 120 s | 8 MiB |
 | `/v1/preview` | `root`\*, `path`\*, `prefer` (`png` or `dib`), `nested`, `render` (`auto`, `never` or `always`) | the image, `image/png` or `image/bmp` | 10 s | 16 MiB |
 | `/v1/path-report` | `root`\*, `path`\* | `path_report` | 30 s | 8 MiB |
+| `/v1/mesh` | `root`\*, `path`\*, `configuration` | the 3D model, `model/gltf-binary` (provisional) | 60 s | 64 MiB |
 | `/v1/catalog` | none | `catalog` (provisional), with the roots' paths left out | 5 s | 1 MiB |
 | `/v1/where-used` | `root`\*, `path`\*, `configuration`, `direct` | `where_used` (provisional) | 5 s | 1 MiB |
 | `/v1/search` | `q`\* (the search text of 3.18, at most 1,000 characters), `limit` (1 to 500, default 100), `cursor`, `sort` (`relevance`, `name` or `modified`) | `catalog_search` (provisional) | 5 s | 1 MiB |
@@ -6830,6 +6900,15 @@ as HTTP/1.1 with every header of 8.11, and the connection is closed.
   nearest users that fit, with `truncated` true and `counts` still counting
   them all, so a fastener used by thousands of assemblies still gets an
   answer. The ETag is taken from the answer.
+- **`/v1/mesh`** (provisional) answers the GLB of 3.28: what the document
+  shows, from the display data it stores, read in a worker that opens no other
+  file. A GLB is served only after the service checked its frame itself
+  (`is_glb`), like an image (8.11). A drawing, an empty part or an assembly
+  that shows no part answers 404 `nothing_to_export`, a part past the triangle
+  limit 422 `limit_exceeded`, a model file 501 `not_implemented` (rule
+  `model_file`). Its `ETag` comes from the file's `stat`, as for any one
+  document. At most two are read at once (`ServeConfig.mesh_in_flight`), since
+  each may hold tens of MiB; more answer 503 `busy`, rule `mesh_in_flight`.
 - `/v1/path-report` holds the very values a file would reveal (account names,
   server names, project folders): it needs a token like every route but
   `/v1/health`, and none of it is logged.
@@ -6923,6 +7002,7 @@ Each route accepts exactly the parameters in its row of 8.6
 | Requests per connection | 100 | the connection is closed after the answer |
 | Open connections | 64 | 503 `busy`, then closed after at most 0.1 s of reading what the client sent |
 | Requests reading documents at once | 16 | 503 `busy`, `Retry-After: 2` |
+| `/v1/mesh` answers read at once, within those | 2 | 503 `busy`, rule `mesh_in_flight` |
 | Worker processes | one per CPU, at most 4 (`--workers`) | requests wait for a free one, within their deadline |
 | Memory per worker | 2 GiB | 422 `limit_exceeded` |
 | Reading a model file | the library's bounds (3.20.2), but 10,000,000 triangles, 30,000,000 vertices and 512 MiB of files a document names, so a scene stays inside a worker's memory (a binary STL's scene takes about 158 bytes a triangle), and an Alibre assembly's component search, made again by every request that reads it, examines 5,000 entries, reads 500 candidates and takes 5 s at most (`SERVE_LIMITS`; `ServeConfig.limits` changes them) | 422 `limit_exceeded`, `detail.limit` the bound; a component search that stops early says `truncated` |
@@ -6998,7 +7078,8 @@ request is answered as HTTP/1.1, 8.6) and:
 - `X-Request-Id`, the id the log line carries
 
 JSON is `application/json; charset=utf-8`, compact and ASCII-only. No route
-serves HTML, SVG or XML. Answers to a page of an origin named with
+serves HTML, SVG or XML; with `--viewer`, the reference viewer's page is HTML
+with a policy of its own (8.18). Answers to a page of an origin named with
 `--allow-origin` also carry the CORS headers of 8.4.
 
 ### 8.12 Logging
@@ -7047,8 +7128,9 @@ reach the path report.
 - Return an absolute path, a token or the reader's exception text. A model
   file's `references` give where a file was found relative to the document's
   folder, and a path that is not is sent as null.
-- Serve HTML, SVG or XML, send CORS headers to an origin it was not started
-  to allow (8.4), or accept a credential in a URL.
+- Serve HTML, SVG or XML (but the reference viewer's page, with `--viewer`,
+  8.18), send CORS headers to an origin it was not started to allow (8.4), or
+  accept a credential in a URL.
 - Parse a CAD file in the server process, or unpickle anything from a worker.
 
 `docs/SECURITY_REVIEW.md` section 1 reviews these claims, marks each verified
@@ -7521,6 +7603,7 @@ std = "/srv/cad/library"
 | `allowed_hosts`, `identity_addresses`, `allow_origins` | a list of texts | `--allowed-host`, `--identity-address`, `--allow-origin` |
 | `catalog_rescan` | seconds, above 0 | `--catalog-rescan` |
 | `formats` | text, or a list of format ids | `--formats` |
+| `viewer` | `true` or `false` | `--viewer` |
 
 - A path that is not absolute is taken from the file's own folder.
 - An option given on the command line replaces that setting of the file, and
@@ -7541,6 +7624,43 @@ std = "/srv/cad/library"
 - Its values are then checked as the options are, all before the token file
   is touched: a remote bind without its settings exits 3 (`bind_refused`), an
   origin or identity address that is not one exits 2.
+
+### 8.18 The reference viewer
+
+`solidseas serve --viewer` (`viewer = true` in the configuration file) also
+serves a small web page that shows what the routes give: the folders and files
+of each root with their thumbnails, a part or an assembly drawn in 3D from its
+display mesh (`/v1/mesh`, drawn with three.js), an assembly's bill of
+materials (`/v1/bom`) and a file's custom properties (`/v1/properties`). It is
+a reference for a page of your own, and a quick look at what a service serves.
+
+- Open `http://127.0.0.1:8765/` (or `/viewer/`) in a browser on the same
+  machine and paste a token from the token file. The page keeps the token in
+  its memory only and sends it in the `Authorization` header of its requests,
+  to its own origin and nowhere else; reloading the page forgets it.
+- Everything the page loads is served by the service itself: the page, its
+  script and style, and three.js 0.185.1 as its publisher ships it (MIT,
+  `THIRD_PARTY_NOTICES.txt` section 1). Nothing comes from a CDN, so it works
+  with no network. The page's files need no token and take no parameter (400
+  for one); they are read when the service starts and answer with an `ETag`.
+- **Its own policy.** The page is the service's one HTML answer. It carries
+  `Content-Security-Policy: default-src 'none'; script-src 'self'
+  'sha256-...'; style-src 'self'; img-src 'self' data:; connect-src 'self';
+  base-uri 'none'; form-action 'none'; frame-ancestors 'none'`, where the hash
+  is its import map's, so scripts come from the service alone and the page
+  connects to nothing else; the other answers keep the policy of 8.11. The
+  page writes what the service answers as text, never as markup.
+- **Its own origin.** A browser sends the page's origin with its module
+  scripts. With `--viewer`, an `Origin` that is the service's own
+  (`http://` and the request's `Host`) passes the check of 8.4; every other
+  origin is still refused, and no CORS header is sent for it.
+- **Where to use it.** A page is served by whatever holds the port, and a
+  stopped service's port is anyone's (8.2): a page another program serves
+  there could ask for the token too, and the page cannot check the service as
+  a client does (8.16). Use the viewer on a machine you alone use, open it only
+  from a service you started, and give it a token of its own (8.3), which you
+  can delete when you are done. Without `--viewer` nothing of this is served,
+  and `/` and `/viewer/` answer as any unknown route does.
 
 ## 9. Stability policy and deprecations
 
@@ -7630,6 +7750,10 @@ provisional item can change at any commit. It is:
   warning codes `history_incomplete`, `lfs_not_fetched` and `measures_incomplete`.
 - The service's configuration file (8.17, `serve --config`) and its CORS for
   named origins (`serve --allow-origin`, 8.4), while they are new.
+- 3D models for a web page, while they are new: `solidseas.gltf` (3.28), the
+  route `/v1/mesh` with the job `display_glb`, the rule `mesh_in_flight`,
+  `ServeConfig.mesh_in_flight`, and the reference viewer (`serve --viewer`,
+  8.18), its page and files.
 - SOLIDWORKS through SolidSeas' own instance (3.22), while the bridge is new:
   `solidseas.swapi` and its modules, `python -m solidseas.swapi` with its
   options, exit codes and `report.tsv`, and the operations, protocol and error

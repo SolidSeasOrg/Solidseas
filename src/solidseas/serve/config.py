@@ -55,6 +55,7 @@ KEYS: dict[str, str] = {
     "catalog": "bool",
     "catalog_rescan": "seconds",
     "formats": "formats",
+    "viewer": "bool",
 }
 
 

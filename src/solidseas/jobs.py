@@ -267,6 +267,18 @@ def path_report(params: dict[str, Any]) -> dict[str, Any]:
         return model.build_path_report(doc)
 
 
+def display_glb(params: dict[str, Any]) -> tuple[dict[str, Any], bytes]:
+    """What the document shows, as a GLB (:func:`solidseas.gltf.display_glb`), with its
+    summary: from the display data the document stores itself, so no other file is
+    opened and no folder listed, whatever the document names."""
+    from .gltf import GLB_MIME
+    from .gltf import display_glb as build
+
+    with _open(params) as doc:
+        summary, data = build(doc, _param(params, "configuration", (str,)))
+    return {"mime": GLB_MIME, **summary}, data
+
+
 def _formats(params: dict[str, Any]) -> list[str] | None:
     from .formats import registry
 
@@ -557,6 +569,7 @@ __all__ = [
     "components",
     "configurations",
     "configure",
+    "display_glb",
     "document_summary",
     "identities",
     "listing_entry",

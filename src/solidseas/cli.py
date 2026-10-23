@@ -1997,6 +1997,7 @@ def _serve_settings(args: argparse.Namespace) -> dict[str, Any]:
         "catalog": args.catalog,
         "catalog_rescan": args.catalog_rescan,
         "formats": args.formats,
+        "viewer": args.viewer,
     }
     defaults = {
         "port": 8765,
@@ -2008,6 +2009,7 @@ def _serve_settings(args: argparse.Namespace) -> dict[str, Any]:
         "catalog": False,
         "catalog_rescan": 300.0,
         "formats": registry.SOLIDWORKS,
+        "viewer": False,
     }
     settings = {k: v if v is not None else file.get(k, defaults.get(k)) for k, v in given.items()}
     projects = _root_args(args.root, "project", "--root") if args.root else file.get("roots", [])
@@ -2065,6 +2067,7 @@ def cmd_serve(args: argparse.Namespace) -> int:
         identity_key=identity_key,
         identity_addresses=tuple(s["identity_addresses"]),
         allow_origins=tuple(s["allow_origins"]),
+        viewer=s["viewer"],
     )
     server = Server(config)  # binds: a port in use stops here (address_unavailable)
     configure_logging()
@@ -2085,6 +2088,8 @@ def cmd_serve(args: argparse.Namespace) -> int:
         if key_created:
             _say("created the identity key file, the service's own secret for /v1/identity (never printed)")
         _say("clients send Authorization: Bearer <token>, with a token from the token file")
+        if config.viewer:
+            _say(f"the reference viewer: {data['url'].removesuffix('v1/')}viewer/ (it asks for a token)")
     sys.stdout.flush()
     run_until_signalled(server)  # ends the process
     return EXIT_OK  # pragma: no cover
@@ -4008,6 +4013,13 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="IDS",
         help="which files the service reads: solidworks (default), all, or comma-separated format ids "
         "such as stl,3mf",
+    )
+    sp.add_argument(
+        "--viewer",
+        action="store_true",
+        default=None,
+        help="serve the reference web viewer at /viewer/: the file list, a part or assembly in 3D and the "
+        "BOM, in a browser on this machine",
     )
     def add_catalog_choice(sp: argparse.ArgumentParser) -> None:
         g = sp.add_mutually_exclusive_group()

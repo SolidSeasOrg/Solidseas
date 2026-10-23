@@ -222,3 +222,17 @@ def test_each_library_from_python_has_its_own_licence_where_the_spec_names_one()
     for name in named:
         assert (ROOT / "licenses" / name).is_file(), name
         assert name in notices, name
+
+
+def test_the_library_notices_the_three_js_its_viewer_carries():
+    """The service's reference viewer carries three.js in the wheel (THIRD_PARTY_NOTICES.txt
+    section 1): the row names the vendored release, and its licence text is the one shipped
+    beside the files."""
+    vendored = ROOT / "src" / "solidseas" / "serve" / "viewer" / "three"
+    core = (vendored / "build" / "three.core.min.js").read_text("utf-8")[:400]
+    revision = re.search(r'const \w+="(\d+)"', core).group(1)
+    text = notices()
+    library = text[text.index("1. The library\n---") : text.index("2. SolidSeas Viewer (")]
+    row = rf"^\s*three\.js\s+0\.{revision}\.\d+\s+MIT\s+three\.js-LICENSE\.txt$"
+    assert re.search(row, library, re.M)
+    assert (LICENCES / "three.js-LICENSE.txt").read_bytes() == (vendored / "LICENSE").read_bytes()
