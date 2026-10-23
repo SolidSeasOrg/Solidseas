@@ -18,7 +18,7 @@ Each package is a folder built under build\extensions\<id> and zipped by
               "ffmpeg -version" shows --enable-gpl or --enable-nonfree. The licence files in that
               folder, the output of "ffmpeg -version" (its configure flags) and -FfmpegSource,
               where the exact source of that build is, are carried as the package's notices.
-  solidcraft  solidcraft-cli.exe from SolidCraft's portable Windows zip (MIT or Apache-2.0),
+  solidcraft  solidcraft-cli.exe and solidcraft.exe from SolidCraft's portable Windows zip (MIT or Apache-2.0),
               the release pinned below and checked by its SHA-256, with its licence files.
               -SolidCraftZip names a copy already downloaded; otherwise it is downloaded.
   occt        solidseas-occt.exe, the OCCT backend's helper (src\solidseas_app\extensions\occt_helper.py
@@ -218,7 +218,7 @@ try {
         Reset-Folder $unpacked
         Expand-Archive -LiteralPath $zip -DestinationPath $unpacked
         $top = Join-Path $unpacked "solidcraft-$solidCraftVersion-windows-x64-portable"
-        foreach ($name in @('solidcraft-cli.exe') + $solidCraftLicences) {
+        foreach ($name in @('solidcraft-cli.exe', 'solidcraft.exe') + $solidCraftLicences) {
             $file = Join-Path $top $name
             # A package without its licence texts must not be built (MIT, Apache-2.0 and the
             # third-party licences all travel with the program).
@@ -228,7 +228,7 @@ try {
         # The licence texts are notices on the Extensions page; the third-party list, 800 KB, is
         # a file of the package that the notice points to.
         $pointer = Join-Path $work 'solidcraft-third-party.txt'
-        'The licences of the third-party code in solidcraft-cli.exe are in THIRD-PARTY-LICENSES.txt in this package.' |
+        'The licences of the third-party code in solidcraft-cli.exe and solidcraft.exe are in THIRD-PARTY-LICENSES.txt in this package.' |
             Set-Content -LiteralPath $pointer -Encoding UTF8
         $notices = @('NOTICE', 'LICENSE-MIT', 'LICENSE-APACHE' | ForEach-Object { Join-Path $folder $_ }) + @($pointer)
         Invoke-Package 'solidcraft' $folder $notices 4096

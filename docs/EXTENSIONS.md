@@ -287,8 +287,14 @@ SolidCraft's files stay in one folder of SolidSeas' own (`SolidCraft` in SolidSe
 folder): SolidCraft is started with that folder alone and refuses the rest, and SolidSeas
 refuses first any call that names a path outside it, so SolidCraft never reads or writes beside
 a SOLIDWORKS file. `crash_reports` is not listed, as it can show paths from anywhere on the PC.
-Later: Open in SolidCraft, the shown model exported as STEP into that folder and opened in
-SolidCraft's own program to edit a copy (its package would then carry `solidcraft.exe` too).
+Open in SolidCraft edits a copy of the shown model in SolidCraft's own program: the package
+now carries `solidcraft.exe` too, and `solidcraft.open_copy` writes the model as STEP to a
+new file in that folder (never over a file, never beside the SOLIDWORKS file; a STEP file is
+copied), checks the package as a helper is checked, and starts the program with the file,
+on its own as 3D Print starts a slicer, so it outlives SolidSeas. SolidCraft opens a STEP
+file as a design whose Import base feature later features build on, and keeps the STEP in
+the design. The viewer's menu item for it, and the check with SolidCraft on Windows, are
+still to come.
 
 ## 10. Order of work
 

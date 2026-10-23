@@ -12,11 +12,20 @@ started with that folder alone (``--allow-path``) and refuses the rest, and ever
 call names is checked here first too, so SolidCraft never reads or writes beside a
 SOLIDWORKS file. ``crash_reports``, which can show paths from anywhere on the PC, is not
 listed.
+
+:func:`open_copy` is the plumbing of Open in SolidCraft: the shown model written as STEP
+to a new file in that folder, then started in SolidCraft's own program
+(``solidcraft.exe``, :func:`desktop_program`, checked as a helper is), which opens a STEP
+file as a design with an Import base feature to edit. The program runs on its own, as
+the slicer of 3D Print does, and outlives SolidSeas; the viewer has no menu item for it
+yet.
 """
 
 from __future__ import annotations
 
 import os
+import re
+import shutil
 import threading
 from collections.abc import Callable, Mapping
 from typing import Any
@@ -125,6 +134,104 @@ class SolidCraft:
             helper, self._helper = self._helper, None
         if helper is not None:
             helper.close(timeout=10)
+
+
+# --------------------------------------------------------------------------- Open in SolidCraft
+DESKTOP = "solidcraft.exe"  # SolidCraft's own program, beside solidcraft-cli.exe in the package
+_UNSAFE = re.compile(r'[\x00-\x1f<>:"/\\|?*]+')
+
+
+def desktop_program(state=None, *, pol=None, root: str | None = None) -> str:
+    """SolidCraft's own program in the extension's package, checked as a helper is
+    before it starts (:func:`solidseas_app.extensions.start_helper`): only while the
+    extension is on, its package added and every file of it the one its manifest names.
+    Raises :class:`~solidseas_app.extensions.HelperRefused` in words otherwise, and for a
+    package that carries no desktop program."""
+    from . import HelperRefused, _added, _sha256, is_on
+
+    state = state if state is not None else read_state()
+    if not is_on("solidcraft", state, pol=pol, root=root):
+        raise HelperRefused("SolidCraft is off; switch it on in Tools > Extensions")
+    found = _added("solidcraft", root)
+    if found is None or found[1].helper is None:
+        raise HelperRefused("SolidCraft's package is not added")
+    folder, added = found
+    files = added.helper["files"]
+    if DESKTOP not in files:
+        raise HelperRefused(
+            "SolidCraft's package has no solidcraft.exe; add the SolidCraft package of this SolidSeas release"
+        )
+    for name, want in files.items():
+        path = os.path.join(folder, *name.split("/"))
+        if os.path.islink(path) or not os.path.isfile(path) or _sha256(path) != want:
+            raise HelperRefused(
+                f"{name} in SolidCraft's package is not the file it was added with; remove the "
+                "extension and add its package again"
+            )
+    return os.path.join(folder, DESKTOP)
+
+
+def copy_path(stem: str, folder: str | None = None) -> str:
+    """A name for a new STEP file of ``stem`` in SolidCraft's folder (:func:`workspace`):
+    ``stem.step``, else ``stem (2).step`` and so on, never a file that is there."""
+    folder = folder or workspace()
+    clean = _UNSAFE.sub("_", stem).strip(" .")[:120] or "model"
+    for n in range(1, 10000):
+        name = f"{clean}.step" if n == 1 else f"{clean} ({n}).step"
+        path = os.path.join(folder, name)
+        if not os.path.lexists(path):
+            return path
+    raise Refused(f"SolidCraft's folder already holds too many copies of {clean}")
+
+
+def open_copy(
+    path: str,
+    opened: str,
+    *,
+    within: str | None = None,
+    nested: tuple[str, ...] = (),
+    configuration: str | None = None,
+    allow_partial: bool = False,
+    program: str | None = None,
+    export: Callable[[dict], dict] | None = None,
+    launch: Callable[[str, str], None] | None = None,
+    folder: str | None = None,
+) -> dict:
+    """Open in SolidCraft (``docs/EXTENSIONS.md`` section 9): the part or assembly at
+    ``path`` (in the opened folder ``opened``, ``nested`` and ``configuration`` as the
+    viewer shows it) written as STEP to a new file in SolidCraft's folder, then that file
+    started in SolidCraft's own program (``program``: :func:`desktop_program`), where it
+    becomes a design whose Import base feature can be edited. A STEP file is copied
+    instead. Nothing is written beside the document. ``export`` runs the export's
+    request (:func:`solidseas_app.viewer.printing.export_in_process`) and ``launch``
+    starts the program (:func:`solidseas_app.viewer.printing.launch`); tests stand in
+    for both. Returns the export's result, with ``data["opened"]`` once the program was
+    started."""
+    from solidseas_app.viewer import printing, reading
+
+    program = program or desktop_program()
+    target = copy_path(reading.export_stem(path, tuple(nested)), folder)
+    if not nested and os.path.splitext(path)[1].lower() in (".step", ".stp"):
+        with open(path, "rb") as src, open(target, "xb") as out:
+            shutil.copyfileobj(src, out, 1 << 20)
+        result: dict = {"ok": True, "data": {"file": target, "bytes": os.path.getsize(target)}}
+    else:
+        request = {
+            "job": "step",
+            "path": path,
+            "folder": opened,
+            "within": within,
+            "nested": tuple(nested),
+            "configuration": configuration,
+            "target": target,
+            "overwrite": False,
+            "allow_partial": allow_partial,
+        }
+        result = (export or printing.export_in_process)(request)
+    if result.get("ok"):
+        (launch or printing.launch)(program, result["data"]["file"])
+        result["data"]["opened"] = True
+    return result
 
 
 def _start_helper(folder: str) -> Any:

@@ -251,6 +251,7 @@ as long as any release offers a video package built from it.
   Component                   Licence                        Text
   solidcraft-cli.exe 0.11.1   MIT OR Apache-2.0              LICENSE-MIT, LICENSE-APACHE,
                                                              NOTICE (SolidCraft's)
+  solidcraft.exe 0.11.1       MIT OR Apache-2.0              the same
   Its Rust dependencies       permissive (MIT, Apache-2.0,   THIRD-PARTY-LICENSES.txt
                               BSD, ISC, Zlib, Unicode-3.0,
                               BSL-1.0, CDLA-Permissive-2.0,
