@@ -180,6 +180,13 @@ materials, where files go and how Email PDF sends. The first drawing asks for
 what only you can answer. The pages sit under Drawings in the
 [Settings window](settings.md).
 
+**Standard and Units** chooses ASME (the default) or ISO, and the projection:
+as the standard says (third angle for ASME, first angle for ISO), or first or
+third angle whichever standard you use. An ISO drawing places its views in first
+angle, shows the first-angle symbol and says TOLERANCING ISO 8015 in its
+tolerance block. Its sheets, title block, lettering and tolerance notes still
+follow the ASME layout; the ISO forms of those come later.
+
 ## From the command line
 
 ```bash

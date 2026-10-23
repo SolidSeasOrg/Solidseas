@@ -1,6 +1,6 @@
 # Drawings to ISO
 
-Status: design, 2026-10-22. `docs/DRAWINGS.md`
+Status: design, 2026-10-22, with its first slice built. `docs/DRAWINGS.md`
 section 2 left ISO drawings to stage 4 (Q6); this page is that stage's design,
 in slices a bead each.
 
@@ -71,7 +71,7 @@ Nothing about which dimensions a part needs changes: the planner's requirements,
 graphs, datums and schemes are the same under both, and so are the checks of
 section 20.1 apart from the rows named below.
 
-## Slice 1: the switch and the projection (the first to build)
+## Slice 1: the switch and the projection (built)
 
 - `settings.Standard`: `profile` takes `asme` or `iso`; `projection` takes
   `standard`, `first` or `third`; `standards.projection(settings)` gives the angle

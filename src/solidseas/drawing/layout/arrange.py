@@ -8,7 +8,9 @@
    band's tracks stand apart by their texts, since unidirectional text is
    horizontal (C19). Leader items reserve room to the view's right (C20).
 2. **Arrangement.** Third angle: the front anchors; the top above it and the right
-   to its right, aligned on their shared axis; the gap between two views the sum of
+   to its right, aligned on their shared axis (first angle, for ISO or when the
+   Settings choose it: the top below and the right to the left, each view on the far
+   side from where it is seen, :data:`FIRST_ANGLE`); the gap between two views the sum of
    their facing bands and two text heights. The group is centred in the drawing
    area beside the title column, or above it. The isometric goes in the free area
    left, at full scale or smaller (C25). An isometric the user put on a sheet of its
@@ -34,6 +36,9 @@ SIDES = ("below", "above", "left", "right")
 LEADER_ROOM = 16.0  # a leader and its shoulder, beside the widest text block
 DATUM_CLEAR = 1.5  # mm between a datum feature symbol and the first row of dimensions past it
 ISO_FACTORS = (1.0, 0.75, 0.5, 0.35)  # the isometric's scale against the sheet's, tried in turn (C25)
+# where each projected view stands against the front, by projection angle
+THIRD_ANGLE = (("top", "above"), ("bottom", "below"), ("right", "right"), ("left", "left"))
+FIRST_ANGLE = (("top", "below"), ("bottom", "above"), ("right", "left"), ("left", "right"))
 
 
 @dataclass
@@ -372,9 +377,11 @@ def arrange(
     def depth(v: str, side: str) -> float:
         return _depth(all_bands[v], datum_rooms.get(v, {}), side)
 
-    # the front at the origin, the others around it on their shared axes
+    # the front at the origin, the others around it on their shared axes: in third angle
+    # each on the side it is seen from, in first angle on the far side (ISO 5456-2)
     placed = {base}
-    order = [("top", "above"), ("bottom", "below"), ("right", "right"), ("left", "left")]
+    first_angle = standards.projection(getattr(ctx, "settings", None)) == "first"
+    order = FIRST_ANGLE if first_angle else THIRD_ANGLE
     for name, where in order:
         v = names.get(name)
         if v is None or v in placed:
@@ -395,8 +402,9 @@ def arrange(
             s.origin = (x, 0.0)
         placed.add(v)
     back = names.get("back")
-    if back is not None and names.get("right") is not None:
-        r = names["right"]
+    beside = names.get("left" if first_angle else "right")  # the view the rear stands beyond
+    if back is not None and beside is not None:
+        r = beside
         s = slots[back]
         s.origin = (ext(r).x1 + depth(back, "left") + 2 * h - s.box.x0, 0.0)
         placed.add(back)

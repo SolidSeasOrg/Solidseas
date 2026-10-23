@@ -82,6 +82,11 @@ while the project takes shape.
 
 ### Added
 
+- **Drawings to ISO.** Drawing Settings > Standard and Units chooses ASME or
+  ISO, and the projection angle. An ISO drawing places its views in first angle,
+  shows the first-angle symbol and states TOLERANCING ISO 8015. Its sheets,
+  title block and lettering still follow the ASME layout for now.
+
 - **The isometric on a sheet of its own.** Drawing > Isometric on Its Own Sheet
   puts the isometric view, with an assembly's balloons, on a second sheet, and
   back again; `solidseas drawing new --isometric-sheet` does the same. When an

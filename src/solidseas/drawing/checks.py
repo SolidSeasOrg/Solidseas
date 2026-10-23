@@ -491,11 +491,12 @@ def _r1_symbol(s: _In, out: _Out) -> None:
             ("Lay Out Again",),
         )
         return
+    angle = standards.projection(s.settings)
     for p in symbols:
-        if p.angle != "third":
+        if p.angle != angle:
             out.add(
                 "R1.symbol",
-                f"the projection symbol shows {p.angle}-angle projection; an ASME drawing is third angle",
+                f"the projection symbol shows {p.angle}-angle projection; the drawing is {angle} angle",
                 "projection",
                 ("Lay Out Again",),
             )
@@ -583,12 +584,15 @@ def _r1_aligned(s: _In, out: _Out) -> None:
         bc, bp = boxes.get(spec.id), boxes.get(parent.id)
         if bc is None or bp is None:
             continue
-        side = (_dot(dc, rp), _dot(dc, up))
+        # third angle: on the side the view is seen from; first angle: on the far side
+        angle = standards.projection(s.settings)
+        sign = 1.0 if angle == "third" else -1.0
+        side = (sign * _dot(dc, rp), sign * _dot(dc, up))
         (cx, cy), (px, py) = bc.centre(), bp.centre()
         if side[0] * (cx - px) < -_SLACK or side[1] * (cy - py) < -_SLACK:
             out.add(
                 "R1.aligned",
-                f"{spec.id} stands on the wrong side of {parent.id} for third-angle projection",
+                f"{spec.id} stands on the wrong side of {parent.id} for {angle}-angle projection",
                 spec.id,
                 ("Lay Out Again",),
             )
@@ -858,7 +862,7 @@ def _r3_tolerance(s: _In, out: _Out) -> None:
                     "tolerance",
                     ("Lay Out Again",),
                 )
-        if "Y14.5" not in text:
+        if standards.INTERPRETATION_KEYS[standards.profile_of(s.settings)] not in text:
             out.add(
                 "R3.tolerance",
                 "the tolerance block does not name the standard the dimensions are interpreted by",
@@ -2259,7 +2263,8 @@ def _r13_plusminus(s: _In, out: _Out) -> None:
     out.add(
         "R13.plusminus",
         f"{_plural(len(pm), 'location')} {'is' if len(pm) == 1 else 'are'} toleranced plus and minus; "
-        "Y14.5-2018 discourages plus/minus tolerances between features",
+        f"{standards.PLUS_MINUS_SOURCE[standards.profile_of(s.settings)]} discourages plus/minus "
+        "tolerances between features",
         "R13.plusminus",
         ("Use the Datum Scheme",),
         level="information" if s.process == "printed" else None,

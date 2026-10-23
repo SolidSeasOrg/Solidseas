@@ -55,7 +55,9 @@ sheet or scale is kept as it is.
   symbol then finds no clear place and the sheet is automatic, the next sheet that
   fits the views with the room at the same scale or larger is laid out too, and
   taken when it has fewer conflicts.
-- Third angle: the front anchors, the top above it and the right to its right on
+- Third angle (first angle for an ISO drawing or when Drawing Settings choose it,
+  each projected view then on the far side of the front from where it is seen,
+  `arrange.FIRST_ANGLE`, docs/drawings/iso.md): the front anchors, the top above it and the right to its right on
   their shared axes, the gap between two views their facing bands (or datum
   symbols) and two text heights. The group is centred beside the title column, or above it. The
   isometric goes in the free area left, at full scale or smaller (C25).

@@ -1630,6 +1630,7 @@ class _Run:
             company=self.settings.company,
             logo=self.logo,
             logo_sha=self.logo_sha,
+            projection=standards.projection(self.settings),
         )
 
     def paint_stamps(self, pen: Pen, f: sheet.SheetFrame) -> list:

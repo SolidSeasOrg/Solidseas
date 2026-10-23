@@ -170,7 +170,18 @@ PAGES: tuple[Page, ...] = (
         "Standard and Units",
         "",
         (
-            Field("standard", "profile", "Standard", "choice", (("asme", "ASME"),)),
+            Field("standard", "profile", "Standard", "choice", (("asme", "ASME Y14.5"), ("iso", "ISO"))),
+            Field(
+                "standard",
+                "projection",
+                "Projection",
+                "choice",
+                (
+                    ("standard", "As the standard says (ASME third angle, ISO first angle)"),
+                    ("first", "First angle"),
+                    ("third", "Third angle"),
+                ),
+            ),
             Field("standard", "units", "Units", "choice", _UNITS),
             Field(
                 "standard",

@@ -1101,7 +1101,7 @@ class _Reader:
                 found["parts_list"] = types.parts_list_text(spec_from_json(raw["parts_list"]))
             except InvalidArgumentError as exc:
                 self.problem("options.parts_list", exc, "the default parts list is used")
-        if raw.get("profile", "asme") != "asme":
+        if raw.get("profile", "asme") not in standards.PROFILES:
             self.problem("options.profile", "it is not a profile this SolidSeas draws", "ASME is used")
         kw: dict[str, Any] = {}
         for k, v in found.items():

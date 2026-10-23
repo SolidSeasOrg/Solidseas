@@ -286,7 +286,7 @@ and questions Q12 and Q13 answered.
 
 The ISO profile (first angle, ISO 7200 with STATUS, ISO 2768 with ISO 8015,
 aligned text, comma decimals, the ISO 13715 edge symbol), designed in six slices
-in `docs/drawings/iso.md`;
+in `docs/drawings/iso.md`, the first (the switch and the projection) built;
 chain dimensioning;
 hole tables; mesh sources with "REFERENCE ONLY - NOT FOR MANUFACTURE";
 `dwg-blends` (recognising `BLENDED_EDGE` faces as blends with a radius);

@@ -241,7 +241,7 @@ def tolerance_block(ctx: Context, note_numbers: dict[str, int] | None = None) ->
         lines.append("TOLERANCES: " + "  ".join(rows))
         angle = numbers.angle_text(ctx.settings.tolerances.angle, 1)
         lines.append(f"ANGLES {standards.SYMBOL_PLUS_MINUS}{angle}")
-    lines.append(standards.INTERPRETATION)
+    lines.append(standards.interpretation(ctx.settings))
     return tuple(lines)
 
 

@@ -188,6 +188,36 @@ BASIC_MAX_PLACES = {"in": 4, "mm": 3}
 
 INTERPRETATION = "DIMENSIONING AND TOLERANCING PER ASME Y14.5-2018"
 
+# --------------------------------------------------------------------------- the standard
+
+PROFILES = ("asme", "iso")  # the drawing standards (docs/drawings/iso.md)
+ANGLES = ("first", "third")  # projection angles (ASME Y14.3, ISO 5456-2)
+STANDARD_ANGLE = {"asme": "third", "iso": "first"}
+# The statement naming how the dimensions are read, once in the tolerance block, and the
+# words R3.tolerance looks for in it (the ISO wording verify).
+INTERPRETATIONS = {"asme": INTERPRETATION, "iso": "TOLERANCING ISO 8015"}
+INTERPRETATION_KEYS = {"asme": "Y14.5", "iso": "ISO 8015"}
+# What R13.plusminus names as discouraging plus/minus between features (ISO's verify).
+PLUS_MINUS_SOURCE = {"asme": "Y14.5-2018", "iso": "the ISO GPS system (ISO 14405-2)"}
+
+
+def profile_of(settings) -> str:
+    """The drawing standard ``settings`` name: ``asme`` unless they name another known one."""
+    profile = getattr(getattr(settings, "standard", None), "profile", "asme")
+    return profile if profile in PROFILES else "asme"
+
+
+def projection(settings) -> str:
+    """The projection angle in force under ``settings``, ``first`` or ``third``: the
+    standard's own unless the settings choose one."""
+    chosen = getattr(getattr(settings, "standard", None), "projection", "standard")
+    return chosen if chosen in ANGLES else STANDARD_ANGLE[profile_of(settings)]
+
+
+def interpretation(settings) -> str:
+    """The tolerance block's statement of the standard the dimensions are read by."""
+    return INTERPRETATIONS[profile_of(settings)]
+
 # --------------------------------------------------------------------------- ISO 2768-1
 
 ISO2768_CLASSES = ("f", "m", "c", "v")
@@ -471,6 +501,7 @@ SYMBOL_DEPTH = "↧"
 SYMBOL_WORDS = {SYMBOL_COUNTERBORE: "CBORE", SYMBOL_COUNTERSINK: "CSK", SYMBOL_DEPTH: "DEEP"}
 
 __all__ = [
+    "ANGLES",
     "ANGLE_BLOCK",
     "BASIC_MAX_PLACES",
     "CHARACTERISTICS",
@@ -478,6 +509,11 @@ __all__ = [
     "INCH",
     "INCH_BLOCK",
     "INTERPRETATION",
+    "INTERPRETATIONS",
+    "INTERPRETATION_KEYS",
+    "PLUS_MINUS_SOURCE",
+    "PROFILES",
+    "STANDARD_ANGLE",
     "ISO2768_CLASSES",
     "LINES",
     "LINE_STYLES",
@@ -514,8 +550,11 @@ __all__ = [
     "iso2768_angle_minutes",
     "iso2768_linear",
     "iso2768_radius",
+    "interpretation",
     "next_revision",
     "parse_scale",
+    "profile_of",
+    "projection",
     "revision_letters",
     "scale_factor",
     "scale_text",

@@ -73,9 +73,9 @@ file-only mode does without the model.
 
 | Id | Looks at | Level | File alone |
 |---|---|---|---|
-| R1.aligned | each projected view's placement against its parent's: the shared sheet axis within 0.01 mm, the same scale, on the third-angle side | error | skipped |
+| R1.aligned | each projected view's placement against its parent's: the shared sheet axis within 0.01 mm, the same scale, on the side the drawing's projection angle puts it (third angle for ASME, first for ISO, or as Drawing Settings choose) | error | skipped |
 | R1.scale | the title block's SCALE against the sheet's scale; each orthographic view's scale, or a label that states its own | error | the title block only (which view is the isometric or a detail is the plan's to say) |
-| R1.symbol | the projection symbol: present, once, third angle | error | runs |
+| R1.symbol | the projection symbol: present, once, of the drawing's projection angle | error | runs |
 | R2.units | the units statement: present, once (the tolerance block and the notes), naming the drawing's unit | error | runs |
 | R2.format | each shown value as painted: leading zeros by unit, decimals equal to the precision under the block, basic boxed with no tolerance, references in parentheses, angles with the degree sign, ±, deviations and limits by 10.8 | error | runs |
 | R2.rounding | each value toleranced by the block or an explicit band: how far the value as shown is from the record's model value, as a share of the band; the message says whether the model value lies inside the band | warning above 10 %, error above 50 % | runs |

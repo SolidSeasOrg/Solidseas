@@ -216,8 +216,10 @@ def title_block(
     company,
     logo: bytes | None,
     logo_sha: str = "",
+    projection: str = "third",
 ) -> list:
-    """Paint the title block in ``area`` and return its annotations."""
+    """Paint the title block in ``area`` and return its annotations; its projection
+    symbol shows ``projection``, the drawing's angle."""
     t = standards.TEXT[unit]
     x0, y0, x1, y1 = area.x0, area.y0, area.x1, area.y1
     w, h = area.width, area.height
@@ -311,9 +313,14 @@ def title_block(
         ty -= line_h * 1.35
     out.append(D.ToleranceBlock((x0 + 1.0, y1 - line_h - 1.2), tuple(tolerance_lines)))
     pb = pen.projection_symbol(
-        split - proj * 2.05, tol_box.y0 + 1.5, proj * 0.75, layer="title", owner="projection"
+        split - proj * 2.05,
+        tol_box.y0 + 1.5,
+        proj * 0.75,
+        angle=projection,
+        layer="title",
+        owner="projection",
     )
-    out.append(D.ProjectionSymbol((pb.x0, pb.y0), proj * 0.75, "third"))
+    out.append(D.ProjectionSymbol((pb.x0, pb.y0), proj * 0.75, projection))
     # approval rows: name and date, empty until signed (DRAWN is signed when made)
     n = max(1, len(rows))
     bottom_h = h * 0.2

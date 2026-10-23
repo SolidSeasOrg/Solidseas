@@ -307,10 +307,13 @@ class People:
 
 @dataclass(frozen=True)
 class Standard:
-    profile: str = _f("asme", _one_of("asme"))
+    profile: str = _f("asme", _one_of(*standards.PROFILES))
     units: str = _f("part", _one_of("part", "in", "mm"))
     unit_for_unstated: str | None = _f(None, _optional(_one_of("in", "mm")))
     upper_case_notes: bool = _f(True, _flag)
+    # the projection angle: the standard's own (third angle for ASME, first for ISO), or
+    # first or third whatever the standard (docs/drawings/iso.md)
+    projection: str = _f("standard", _one_of("standard", *standards.ANGLES))
 
 
 @dataclass(frozen=True)
@@ -659,9 +662,14 @@ def _fold(name: str) -> str:
 
 
 def default_settings(profile: str = "asme") -> DrawingSettings:
-    """The defaults of ``profile`` (ASME in stage 1)."""
-    if profile != "asme":
-        raise InvalidArgumentError("profile must be 'asme' in this release", detail={"parameter": "profile"})
+    """The defaults of ``profile``: ASME's, or ISO's (millimetres, for parts that state
+    no unit too, and the standard's first-angle projection; docs/drawings/iso.md)."""
+    if profile not in standards.PROFILES:
+        raise InvalidArgumentError(
+            f"profile must be one of {', '.join(standards.PROFILES)}", detail={"parameter": "profile"}
+        )
+    if profile == "iso":
+        return DrawingSettings(standard=Standard(profile="iso", units="mm", unit_for_unstated="mm"))
     return DrawingSettings()
 
 
