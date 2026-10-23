@@ -1283,8 +1283,12 @@ class Server:
                 raise WorkerCrashedError("the worker's answer was not what the job returns")
             payload = None
             if got["doc_type"] == "assembly":
-                res = self._resolution(loc, got.get("resolution_input"), deadline)
+                reads: list[int] = []
+                res = self._resolution(loc, got.get("resolution_input"), deadline, reads)
                 payload = bom_mod.resolution_payload(res)
+                # the documents resolution opened here count as the BOM's, as when the BOM
+                # resolves its own files in Python or the CLI
+                payload["identity_reads"] = sum(reads)
             params = {
                 **base,
                 "configuration": q.get("configuration"),
@@ -1307,7 +1311,7 @@ class Server:
         """The ``references`` data ``refs`` with the resolution of :meth:`_resolution`."""
         return model.attach_resolution(refs, self._resolution(loc, inp, deadline))
 
-    def _resolution(self, loc: Located, inp: Any, deadline: float):
+    def _resolution(self, loc: Located, inp: Any, deadline: float, reads: list[int] | None = None):
         """Resolution in this process from the worker's reading (C10): every root walked
         again for this request, as Python's ``resolve_references`` walks them on each call,
         so files moved or copied since the service started are found where they are now;
@@ -1355,6 +1359,8 @@ class Server:
             gateway=gateway,
             skip_unavailable_roots=True,
         )
+        if reads is not None:
+            reads.append(gateway.identity_reads)
         return res
 
     def listing(

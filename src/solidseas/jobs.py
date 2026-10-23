@@ -239,7 +239,7 @@ def bom(params: dict[str, Any]) -> dict[str, Any]:
             raise InvalidArgumentError(
                 "an assembly's BOM job needs the resolution", detail={"parameter": "resolution"}
             )
-        return model.build_bom(
+        data = model.build_bom(
             doc,
             configuration=_param(params, "configuration", (str,)),
             bom_type=_param(params, "type", (str,)),
@@ -250,6 +250,12 @@ def bom(params: dict[str, Any]) -> dict[str, Any]:
             allow_outside_roots=False,
             opener=lambda path, within: _open({"path": path, "within": within}),
         )
+    # The documents the server opened to read their identity while it resolved the files
+    # are files opened for this BOM too, as they are when the BOM resolves its own.
+    reads = payload.get("identity_reads") if payload is not None else None
+    if isinstance(reads, int) and not isinstance(reads, bool) and 0 <= reads <= 1_000_000:
+        data["counts"]["files_opened"] += reads
+    return data
 
 
 def preview(params: dict[str, Any]) -> tuple[dict[str, Any], bytes]:
