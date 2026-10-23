@@ -1986,12 +1986,13 @@ def test_a_component_found_outside_the_opened_folder_prints_next_to_its_file(pri
 
 
 @needs_qt
-def test_a_component_found_through_a_junction_outside_the_opened_folder_is_never_written_through(
+def test_a_component_behind_a_junction_outside_the_opened_folder_is_never_reached(
     printer, tmp_path, no_drive_q
 ):
-    """Reference resolution may find a component outside the opened folder through a
-    junction above its folder (the system follows it): the print goes to the temporary
-    folder, and the status line says why, as for a junction inside the opened folder."""
+    """A component whose place outside the opened folder lies through a junction (or a
+    symbolic link) above its folder is not looked for through it (reference resolution
+    stops at the link, docs/API.md C2): it is not found, its 3D Print entry is off, and
+    nothing is written next to it."""
     from builders import part_with_creation_time
 
     new, real = tmp_path / "New", tmp_path / "Real"
@@ -1999,6 +2000,7 @@ def test_a_component_found_through_a_junction_outside_the_opened_folder_is_never
     (new / "Proj").mkdir(parents=True)
     _link_folder(real, new / "lib")
     (real / "sub" / "p.SLDPRT").write_bytes(part_with_creation_time(1_700_000_000))
+    assert (new / "lib" / "sub" / "p.SLDPRT").is_file()  # control: the link really leads to it
     (new / "Proj" / "asm.SLDASM").write_bytes(
         _crafted_assembly(["Q:\\Old\\lib\\sub\\p.SLDPRT"], folder_at_save="Q:\\Old\\Proj\\")
     )
@@ -2006,14 +2008,12 @@ def test_a_component_found_through_a_junction_outside_the_opened_folder_is_never
     d = p.window.details
     p.open(new / "Proj", "asm.SLDASM")
     menu = d.component_menu(d.instance_item("c2-1"))
-    outcome = p.choose(_entry(menu, "3D Print p.SLDPRT"))
-    assert outcome["ok"] and outcome["place"] == printing.TEMP and outcome["fallback"] == printing.LINKED
-    assert outcome["model_folder"] == str(new / "lib" / "sub")
-    assert sorted(os.listdir(real / "sub")) == ["p.SLDPRT"]
-    said = p.window.statusBar().currentMessage()
-    assert said.startswith(f"Saved {outcome['file']} in the temporary folder, not next to the model, as ")
-    assert printing.LINKED in said
+    entry = _entry(menu, "3D Print p.SLDPRT")
+    assert entry.text() == "3D Print p.SLDPRT (not found)" and not entry.isEnabled()
+    assert sorted(os.listdir(real / "sub")) == ["p.SLDPRT"] and p.outcomes == []
     menu.deleteLater()
+    if os.name == "nt":
+        os.rmdir(new / "lib")  # the junction alone; its target's files stay
 
 
 def _virtual_in_sub(folder: Path, *, stored: bool = True) -> None:
