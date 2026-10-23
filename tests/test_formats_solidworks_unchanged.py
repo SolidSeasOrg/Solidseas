@@ -6,7 +6,8 @@ and once with the ``src`` of :data:`BASE`, the last commit before model files jo
 this line of history (the tip of the STEP prints, whose export added
 ``export_result.step``), taken from git into a temporary folder. With the fields the
 model-file work added removed (the listing's ``model`` and ``counts.unsupported``,
-``export_result.source_format`` and ``file_written.source``), and a property's
+``export_result.source_format`` and ``file_written.source``, and ``export_result.check`` while
+it is null), and a property's
 ``date`` (its calendar day, 0.2.122) with them, and the parts that
 differ from run to run evened out (the package version, output folders, timings),
 the JSON is identical. A 3MF names the package version too, so its size is left out
@@ -103,6 +104,10 @@ def _even(value, out: str):
             drop = drop | {"source"}
         if {"expression", "linked"} <= set(value):  # a property: its day was added since
             drop = drop | {"date"}
+        if "output" in value and "format" in value and value.get("check") is None:
+            # export_result's check (Open CASCADE reading the file back, export --check) was
+            # added since; it is null unless asked for
+            drop = drop | {"check"}
         if value.get("format") == "3mf" and "bytes" in value:
             # A 3MF names the package version that wrote it, which every commit bumps, so
             # its compressed size moves by a few bytes; its members are compared instead.
