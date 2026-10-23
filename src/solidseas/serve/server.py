@@ -67,10 +67,12 @@ meets them:
     with the service's limits), so a scan and the requests never wait for each
     other's workers; a request never starts a scan. The catalog indexes the
     formats the service reads (``formats``), no more. ``/v1/catalog``,
-    ``/v1/where-used`` and ``/v1/search`` answer from it on a read-only
-    connection, with a deadline that holds for the SQL and for where-used's own
-    walk, and only with root ids and relative paths; a where-used answer over
-    the size cap keeps the nearest users that fit and says ``truncated``. Before
+    ``/v1/where-used``, ``/v1/search``, ``/v1/duplicates``, ``/v1/missing`` and
+    ``/v1/changes`` answer from it on a read-only connection, with a deadline that
+    holds for the SQL and for where-used's own walk, and only with root ids and
+    relative paths; a where-used answer over the size cap keeps the nearest users
+    that fit and says ``truncated``, and a page of duplicates, missing references
+    or changes over it holds fewer rows, its cursor continuing from there. Before
     the first scan has finished they answer 503 ``busy``, and without
     ``--catalog`` 403 ``feature_disabled``.
 11. **Logging.** One line per request: time, request id, client (the token's
@@ -621,9 +623,40 @@ ROUTES: dict[str, Route] = {
             deadline="catalog",
             cap="catalog",
         ),
+        Route(
+            "/v1/duplicates",
+            "duplicates",
+            {
+                "names": Param("bool", default=False),
+                "limit": Param("int", low=1, high=500, default=100),
+                "cursor": Param("cursor"),
+            },
+            deadline="catalog",
+            cap="catalog",
+        ),
+        Route(
+            "/v1/missing",
+            "missing_references",
+            {"limit": Param("int", low=1, high=500, default=100), "cursor": Param("cursor")},
+            deadline="catalog",
+            cap="catalog",
+        ),
+        Route(
+            "/v1/changes",
+            "catalog_changes",
+            {
+                "since": Param("text", max_len=64),
+                "limit": Param("int", low=1, high=500, default=100),
+                "cursor": Param("cursor"),
+            },
+            deadline="catalog",
+            cap="catalog",
+        ),
     )
 }
-CATALOG_KINDS = ("catalog", "where_used", "catalog_search")
+# The catalog's pages: a page over the route's size cap is asked for again with fewer rows.
+_CATALOG_PAGES = ("duplicates", "missing_references", "catalog_changes")
+CATALOG_KINDS = ("catalog", "where_used", "catalog_search", *_CATALOG_PAGES)
 # the worker job's parameters, from the route's query parameters
 _JOB_PARAMS = {
     "/v1/document": ("nested",),
@@ -923,8 +956,11 @@ class Server:
     def catalog_answer(
         self, route: Route, q: dict[str, Any], canonical, if_none_match: str | None
     ) -> "_Answer":
-        """``/v1/catalog``, ``/v1/where-used`` and ``/v1/search``: read-only queries of the
-        catalog, bounded by the route's deadline (the query is interrupted past it)."""
+        """``/v1/catalog``, ``/v1/where-used``, ``/v1/search``, ``/v1/duplicates``,
+        ``/v1/missing`` and ``/v1/changes``: read-only queries of the catalog, bounded by
+        the route's deadline (the query is interrupted past it). A page of the last three
+        over the route's size cap is asked for again with half as many rows, down to one,
+        so its ``next_cursor`` still continues where it stops."""
         from .. import catalog
 
         if not self.config.catalog:
@@ -958,6 +994,8 @@ class Server:
                             indirect=not q["direct"],
                             max_seconds=max(0.001, deadline - time.monotonic()),
                         )
+                    elif route.kind in _CATALOG_PAGES:
+                        data = self._catalog_page(cat, route.kind, q, answer.cap)
                     else:
                         data = cat.search(q["q"], sort=q["sort"], limit=q["limit"], cursor=q.get("cursor"))
                 except Exception as exc:
@@ -990,6 +1028,24 @@ class Server:
         answer.content_type, answer.body, answer.csp = f.content_type, f.body, f.csp
         answer.not_modified_for(if_none_match)
         return answer
+
+    @staticmethod
+    def _catalog_page(cat, kind: str, q: dict[str, Any], cap: int | None) -> dict[str, Any]:
+        """One page of ``duplicates``, ``missing_references`` or ``catalog_changes``, with
+        as many rows as fit in ``cap``: an answer over it is asked for again with half the
+        rows (the cursors count rows, so the next page starts where this one stops); one
+        row over it is left to the size check, which refuses it."""
+        limit = q["limit"]
+        while True:
+            if kind == "duplicates":
+                data = cat.duplicates(names=q["names"], limit=limit, cursor=q.get("cursor"))
+            elif kind == "missing_references":
+                data = cat.missing_references(limit=limit, cursor=q.get("cursor"))
+            else:
+                data = cat.changes(since=q.get("since"), limit=limit, cursor=q.get("cursor"))
+            if cap is None or limit == 1 or len(model.dumps(model.envelope(kind, data))) <= cap:
+                return data
+            limit = max(1, limit // 2)
 
     def _ready(self, root_id: str) -> _RootState:
         s = self._by_id.get(root_id)

@@ -1866,6 +1866,9 @@ ROUTE_MIX = [
     ("catalog", {}),
     ("where-used", {"root": "jobs", "path": "o02_boxA.SLDPRT"}),
     ("search", {"q": "boxA"}),
+    ("duplicates", {"names": "1"}),
+    ("missing", {}),
+    ("changes", {"since": "1d"}),
 ]
 
 

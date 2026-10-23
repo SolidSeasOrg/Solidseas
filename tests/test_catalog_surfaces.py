@@ -302,6 +302,67 @@ def test_the_service_answers_from_its_catalog(capsys, tmp_path):
         running.close()
 
 
+def test_the_service_pages_duplicates_missing_references_and_changes(tmp_path):
+    """``/v1/duplicates``, ``/v1/missing`` and ``/v1/changes`` give what Python gives on the
+    same catalog, a page at a time; a page over the route's size cap holds fewer rows,
+    and its cursor goes on from there, so every row still comes, once."""
+    import shutil
+
+    root = tmp_path / "served"
+    copy_documents(root)
+    shutil.copy2(root / "o02_boxA.SLDPRT", root / "o02_boxA copy.SLDPRT")  # a group of duplicates
+    running = Running({"fx": root}, catalog=True)
+    try:
+        assert wait_for(lambda: running.server._catalog_path is not None, 120)
+        with catalog.open(Roots([Root("fx", str(root))]), mode="r") as cat:
+            for route, kind, params, python in (
+                ("duplicates", "duplicates", {"names": "1"}, lambda: cat.duplicates(names=True, limit=100)),
+                ("missing", "missing_references", {}, lambda: cat.missing_references(limit=100)),
+                ("changes", "catalog_changes", {"since": "7d"}, lambda: cat.changes(since="7d", limit=100)),
+            ):
+                r = running.get(route, **params)
+                body = json.loads(r.body)
+                assert r.status == 200 and body["source"] is None, (route, r.body[:300])
+                assert check(body, kind) == python(), route
+            groups = cat.duplicates()["groups"]
+            assert [sorted(f["path"] for f in g["files"]) for g in groups] == [
+                ["o02_boxA copy.SLDPRT", "o02_boxA.SLDPRT"]
+            ]
+            every = cat.changes(limit=500)["events"]
+            assert len(every) >= 20
+            first = check(json.loads(running.get("changes", limit=3).body), "catalog_changes")
+            assert first["events"] == every[:3] and first["next_cursor"]
+            then = check(
+                json.loads(running.get("changes", limit=3, cursor=first["next_cursor"]).body),
+                "catalog_changes",
+            )
+            assert then["events"] == every[3:6]
+        # Over the size cap: shorter pages, which still give every event once, in order.
+        whole = running.get("changes", limit=500)
+        running.server.config.response_caps["catalog"] = len(whole.body) // 3
+        got, cursor = [], None
+        for _ in range(100):
+            params = {"limit": 500, **({"cursor": cursor} if cursor else {})}
+            page = check(json.loads(running.get("changes", **params).body), "catalog_changes")
+            assert 0 < len(page["events"]) < len(every)
+            got += page["events"]
+            cursor = page["next_cursor"]
+            if not cursor:
+                break
+        assert got == every
+        for route, params, status_code, code in (
+            ("changes", {"limit": "501"}, 400, "invalid_argument"),
+            ("changes", {"since": "soon"}, 400, "invalid_argument"),
+            ("missing", {"cursor": "nope"}, 400, "invalid_argument"),
+            ("duplicates", {"extra": "1"}, 400, "unknown_parameter"),
+        ):
+            r = running.get(route, **params)
+            assert (r.status, json.loads(r.body)["error"]["code"]) == (status_code, code), (route, params)
+        assert running.get("missing", token=None).status == 401
+    finally:
+        running.close()
+
+
 def test_the_service_catalog_indexes_the_formats_the_service_reads(tmp_path):
     from solidseas_app.viewer import samples
 

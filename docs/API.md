@@ -5153,9 +5153,9 @@ renaming or retyping one, or changing its meaning, does. The API version is 1.
 | `catalog_scan` | 1 | built, provisional | `index` | |
 | `where_used` | 1 | built, provisional | `where-used` | `/v1/where-used` |
 | `catalog_search` | 1 | built, provisional | `search` | `/v1/search` |
-| `duplicates` | 1 | built, provisional | `duplicates` | |
-| `missing_references` | 1 | built, provisional | `missing` | |
-| `catalog_changes` | 1 | built, provisional | `changes` | |
+| `duplicates` | 1 | built, provisional | `duplicates` | `/v1/duplicates` |
+| `missing_references` | 1 | built, provisional | `missing` | `/v1/missing` |
+| `catalog_changes` | 1 | built, provisional | `changes` | `/v1/changes` |
 | `model_summary` | 1 | built, provisional | `info` (a model file) | `/v1/document` (a model file) |
 | `drawing_result` | 1 | built, provisional | `drawing` (every action) | |
 | `sldprt_written` | 1 | built, provisional | `sldprt` | |
@@ -5978,19 +5978,19 @@ references) carries `doc_type` and `format`: the format id it was read as
   and `matched`: `name`, `numbers`, `properties`, `configurations` or `folder`
   for the words, and each filter used, such as `pn:`), `next_cursor` and
   `truncated`.
-- **`duplicates`** (`duplicates`): `groups` (`sha256`, `size`, `wasted_bytes`,
+- **`duplicates`** (`duplicates`, `/v1/duplicates`): `groups` (`sha256`, `size`, `wasted_bytes`,
   `files`), `name_groups` (null unless asked for: `name`, `versions`, `files`
   with their `sha256` and `size`, paged with the groups), `counts` (`groups`,
   `files`, `wasted_bytes`, `name_groups`: all of them, whatever the page),
   `hash_pending` and `next_cursor`.
-- **`missing_references`** (`missing`): `documents` (the referencing
+- **`missing_references`** (`missing`, `/v1/missing`): `documents` (the referencing
   document, and its `references`: `key`, `file_name`, `stored_path`, `status`,
   `rule`, `confidence`, `identity`, `candidates`, `name_matches` (how many
   files of that name the catalog holds) and `warnings`), `counts` (`documents`,
   `missing`, `ambiguous`, `embedded_not_found`, `low_confidence`),
   `within_roots` (always true: missing within the indexed folders) and
   `next_cursor`.
-- **`catalog_changes`** (`changes`): `since` and `events` (`time_utc`, `scan`,
+- **`catalog_changes`** (`changes`, `/v1/changes`): `since` and `events` (`time_utc`, `scan`,
   `kind`, `root`, `path`, `previous_root`, `previous_path`, `size`, `sha256`,
   `previous_sha256`), newest first, and `next_cursor`.
 
@@ -6928,6 +6928,9 @@ as HTTP/1.1 with every header of 8.11, and the connection is closed.
 | `/v1/catalog` | none | `catalog` (provisional), with the roots' paths left out | 5 s | 1 MiB |
 | `/v1/where-used` | `root`\*, `path`\*, `configuration`, `direct` | `where_used` (provisional) | 5 s | 1 MiB |
 | `/v1/search` | `q`\* (the search text of 3.18, at most 1,000 characters), `limit` (1 to 500, default 100), `cursor`, `sort` (`relevance`, `name` or `modified`) | `catalog_search` (provisional) | 5 s | 1 MiB |
+| `/v1/duplicates` | `names`, `limit` (1 to 500, default 100), `cursor` | `duplicates` (provisional) | 5 s | 1 MiB |
+| `/v1/missing` | `limit` (1 to 500, default 100), `cursor` | `missing_references` (provisional) | 5 s | 1 MiB |
+| `/v1/changes` | `since` (`7d`, `12h`, `2w` or a date), `limit` (1 to 500, default 100), `cursor` | `catalog_changes` (provisional) | 5 s | 1 MiB |
 
 - `source` in the envelope is `{"root", "path"}`, the path in its on-disk
   spelling, plus `nested` when it was given. An error envelope's `source` names
@@ -7001,7 +7004,9 @@ as HTTP/1.1 with every header of 8.11, and the connection is closed.
   `not_in_catalog` otherwise). A where-used answer over the size cap keeps the
   nearest users that fit, with `truncated` true and `counts` still counting
   them all, so a fastener used by thousands of assemblies still gets an
-  answer. The ETag is taken from the answer.
+  answer. A page of `/v1/duplicates`, `/v1/missing` or `/v1/changes` over the
+  size cap holds fewer rows than `limit`, and its `next_cursor` goes on from
+  the last row it holds. The ETag is taken from the answer.
 - **`/v1/mesh`** (provisional) answers the GLB of 3.28: what the document
   shows, from the display data it stores, read in a worker that opens no other
   file. A GLB is served only after the service checked its frame itself
@@ -7821,8 +7826,8 @@ provisional item can change at any commit. It is:
   `changes`, `catalog`, `catalogs` and `clear-index`; the kinds `catalog`,
   `catalog_list`, `catalog_cleared`, `catalog_scan`, `where_used`,
   `catalog_search`, `duplicates`, `missing_references` and `catalog_changes`;
-  the routes `/v1/catalog`, `/v1/where-used` and `/v1/search` with `serve
-  --catalog` and `--catalog-rescan`; the error codes `not_in_catalog` and
+  the routes `/v1/catalog`, `/v1/where-used`, `/v1/search`, `/v1/duplicates`,
+  `/v1/missing` and `/v1/changes` with `serve --catalog` and `--catalog-rescan`; the error codes `not_in_catalog` and
   `catalog_incompatible` with `NotInCatalogError`, `CatalogIncompatibleError`
   and `BusyError`; the rules `catalog_locked`, `catalog_scanning`,
   `no_free_worker`, `not_a_catalog`, `too_new`, `damaged` and

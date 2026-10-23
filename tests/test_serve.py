@@ -97,6 +97,9 @@ def test_every_json_answer_matches_its_schema(srv):
             ("catalog", {}),
             ("where-used", {"root": "jobs", "path": "o02_boxA.SLDPRT"}),
             ("search", {"q": "boxA"}),
+            ("duplicates", {"names": "1"}),
+            ("missing", {}),
+            ("changes", {"since": "1d"}),
         ):
             env = cataloged.get(route, **params).json()
             kinds.append(env["kind"])

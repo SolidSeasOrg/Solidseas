@@ -77,6 +77,10 @@ while the project takes shape.
 
 ### Added
 
+- **Duplicates, missing references and changes over REST.** `solidseas serve
+  --catalog` now answers /v1/duplicates, /v1/missing and /v1/changes, a page at
+  a time.
+
 - **Parts from a sub-assembly's own file on the Components tab.** When an
   assembly does not list a sub-assembly's components, the Components tab now
   lists the parts the 3D view read from the sub-assembly's own file, under its

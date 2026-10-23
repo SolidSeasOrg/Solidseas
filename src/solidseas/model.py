@@ -4215,7 +4215,7 @@ KINDS: dict[str, KindSpec] = {
             (),
             build_duplicates,
             ("duplicates",),
-            None,
+            "/v1/duplicates",
         ),
         _kind(
             "missing_references",
@@ -4224,7 +4224,7 @@ KINDS: dict[str, KindSpec] = {
             ("warning",),
             build_missing_references,
             ("missing",),
-            None,
+            "/v1/missing",
         ),
         _kind(
             "catalog_changes",
@@ -4233,7 +4233,7 @@ KINDS: dict[str, KindSpec] = {
             (),
             build_catalog_changes,
             ("changes",),
-            None,
+            "/v1/changes",
         ),
         _kind(
             "drawing_result",
