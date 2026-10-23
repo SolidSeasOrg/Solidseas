@@ -395,6 +395,18 @@ def test_a_datum_symbol_under_a_band_stands_clear_of_its_texts():
     assert b.view == "v-1"  # in its own view, the front
 
 
+@pytest.mark.parametrize("seed", [2, 64])
+def test_a_band_frame_is_placed_clear_of_the_tracks_painted_after_it(seed):
+    """These blocks' slot widths stand in a band with a position frame beside the value,
+    reaching past its own track. Placed before the next track was painted, the frame
+    looked clear and that track's text was then painted over it. Frames now go once
+    every band stands, and find a clear spot."""
+    result = _block_run(seed).orchestrated.result
+    frames = [a for a in of(result.sheet, D.FeatureControlFrame) if a.owner.endswith("-frame")]
+    assert frames
+    assert _conflicts(result) == []
+
+
 def _datum_run(seed: int, n: int, sheet: str):
     import drawing_golden_support as G
     from solidseas.drawing import pipeline

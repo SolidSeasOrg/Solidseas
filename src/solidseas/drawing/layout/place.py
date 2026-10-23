@@ -618,6 +618,7 @@ class _Run:
     def paint_bands(self) -> None:
         h = self.h
         gap = standards.DIMENSIONS.extension_gap
+        framed = []  # (dimension, its annotation, its text) of each linear dimension with a frame
         for v, s in self.arr.slots.items():
             if s.spec.kind == "isometric":
                 continue
@@ -691,7 +692,12 @@ class _Run:
                     )
                     self.annotations.append(ann)
                     if pd.frame is not None:
-                        self._linear_frame(pd, ann, text)
+                        framed.append((pd, ann, text))
+        # The frames go once every band's texts and lines stand, so that none is put where
+        # the text of a track painted after its own then goes (a frame beside its text
+        # reaches past its own track).
+        for pd, ann, text in framed:
+            self._linear_frame(pd, ann, text)
 
     def _free(self, box: Box) -> bool:
         """Whether a dimension's text may stand at ``box``: no text or view there."""

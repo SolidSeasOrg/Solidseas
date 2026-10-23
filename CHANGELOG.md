@@ -1896,6 +1896,9 @@ while the project takes shape.
 
 ### Fixed
 
+- **Position frames beside a dimension.** A position frame beside a dimension's
+  value is no longer covered by a dimension in the next row.
+
 - **A dimension's value and a datum symbol.** A dimension's value no longer
   stands on a datum feature symbol placed between its view and the dimensions on
   that side.
