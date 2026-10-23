@@ -1778,7 +1778,11 @@ polyline keeps within the chord tolerance and that distance.
 The STEP export's own sampler (3.19) keeps every sample. A torus's (u, v) is
 scaled by its largest `|R + r cos v|` over the face, so a torus whose major
 radius is under its minor one is triangulated where it
-runs inside its axis. A boundary point is placed on its surface by Newton,
+runs inside its axis. Such a torus (a revolved arc whose centre lies off the axis
+by less than its radius: a dome, a lemon) meets its axis where `R + r cos v` is
+nought, at `v = ±acos(-R / r)`, and those are its poles: a face whose loop wraps
+it once with one of them beyond it is a cap, as on a sphere, where it was refused
+as `seam_configuration`. A boundary point is placed on its surface by Newton,
 from the point before it or, at the start of a loop, from the surface's
 nearest control points; a place found within the chord tolerance (or twice
 its edge's tolerance) is taken at once, and one farther is the nearest of

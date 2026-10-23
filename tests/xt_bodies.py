@@ -335,6 +335,22 @@ def torus_band(R: float, r: float, v0: float, v1: float) -> XtTransmit:
     return b.body([lo, hi], body_type=3)
 
 
+def torus_dome(R: float = 0.003, r: float = 0.005, up: bool = True) -> XtTransmit:
+    """A dome on a disc: the part of a torus whose major radius is under its minor one
+    from its equator (a circle of radius R + r at z = 0) to where it meets its axis, a
+    pole, above (``up``) or below. The dome rises to r above the disc and dips back to
+    r sin(acos(-R / r)) at the axis."""
+    b = XtBuilder()
+    rim = b.edge(b.circle((0, 0, 0), Z, X, R + r))
+    if up:
+        b.face(b.torus((0, 0, 0), Z, R, r, X), "+", [[(rim, "+")]])
+        b.face(b.plane((0, 0, 0), Z, X), "-", [[(rim, "-")]])
+    else:
+        b.face(b.torus((0, 0, 0), Z, R, r, X), "+", [[(rim, "-")]])
+        b.face(b.plane((0, 0, 0), Z, X), "+", [[(rim, "+")]])
+    return b.body([rim])
+
+
 def hairpin_sheet(L: float = 0.02, gap: float = 5e-4, H: float = 0.01, hole: float = 0.002) -> XtTransmit:
     """A sheet folded into a hairpin: one B-spline face, flat pieces of degree 1, its
     near wall the plane y = 0 from x = 0 to L, a bridge at x = L, and its far wall the

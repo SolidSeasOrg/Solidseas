@@ -388,6 +388,31 @@ def test_synthetic_solids_come_out_closed_with_their_volume_and_area(name):
     assert abs(finer["volume"] / volume - 1) < abs(m["volume"] / volume - 1) + 1e-12
 
 
+@pytest.mark.parametrize("up", [True, False], ids=["up", "down"])
+@pytest.mark.parametrize("R", [0.003, 0.005, -0.002], ids=["apple", "horn", "lemon"])
+def test_a_dome_on_a_torus_that_meets_its_axis_is_capped_at_its_pole(R, up):
+    """A torus whose major radius is at most its minor one meets its axis where
+    R + r cos v is nought: those are its poles, and a face whose loop wraps it once with
+    such a point beyond it is a cap. Without them it failed as seam_configuration (one
+    loop wraps the surface and there is no pole beyond it)."""
+    r = 0.005
+    t = tessellate_transmit(xt_bodies.torus_dome(R, r, up), chord_m=1e-5)
+    vp = math.acos(-R / r)
+    n = 20_000
+    volume = math.pi * sum(
+        (R + r * math.cos(v)) ** 2 * r * math.cos(v) * vp / n for v in (vp * (k + 0.5) / n for k in range(n))
+    )
+    area = 2 * math.pi * r * (R * vp + r * math.sin(vp)) + math.pi * (R + r) ** 2
+    m = t.measures()
+    assert t.reasons == {} and t.closed is True and not any(t.checks.values())
+    assert m["volume"] == pytest.approx(volume, rel=6e-3)
+    assert m["area"] == pytest.approx(area, rel=5e-3)
+    S = surfaces.Torus((0, 0, 0), (0, 0, 1), R, r, (1, 0, 0))
+    for v_pole, point in S.poles:
+        assert math.hypot(point[0], point[1]) == 0.0
+        assert S.closest(point, None, 1e-9, 1e-9) == (None, v_pole, pytest.approx(0.0, abs=1e-12))
+
+
 def test_unwrap_keeps_every_point_of_a_run_at_a_pole():
     """Boundary samples within a collapsed row's reach are pole points with ids of their
     own, which the next face uses too: each stays, in order along the pole line."""

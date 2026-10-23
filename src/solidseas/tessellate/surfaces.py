@@ -518,6 +518,16 @@ class Torus(Revolved):
             raise FaceFailed("bad_geometry", "a torus's radii are out of range")
         self._frame(A, X)
         self.C, self.R, self.r = C, R, r
+        # A torus whose major radius is at most its minor one (a revolved arc whose centre
+        # lies off the axis by less than its radius: a dome, a lemon) meets its axis where
+        # R + r cos v is nought: poles at v = +-acos(-R / r), one at pi when R = r.
+        if R <= r:
+            vp = math.acos(max(-1.0, min(1.0, -R / r)))
+            top = add(C, mul(self.A, r * math.sin(vp)))
+            if vp >= math.pi - 1e-12:
+                self.poles = ((math.pi, top),)
+            else:
+                self.poles = ((-vp, sub(C, mul(self.A, r * math.sin(vp)))), (vp, top))
 
     def d1(self, u, v):
         cu, su_, cv, sv_ = math.cos(u), math.sin(u), math.cos(v), math.sin(v)
@@ -529,6 +539,10 @@ class Torus(Revolved):
         return p, du, dv
 
     def closest(self, p, hint, tol, ptol, clock=None, near=None):
+        vp = self.pole_at(p, ptol)
+        if vp is not None:  # where a torus that meets its axis does
+            x, y, h = self._local(p, self.C)
+            return None, vp, abs(math.hypot(math.hypot(x, y) - self.R, h) - self.r)
         x, y, h = self._local(p, self.C)
         rho = math.hypot(x, y)
         if rho <= ptol:

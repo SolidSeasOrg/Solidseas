@@ -1860,6 +1860,9 @@ while the project takes shape.
 
 ### Fixed
 
+- **Domes and lemon shapes.** Domes and lemon shapes made by revolving an arc
+  whose centre lies off the axis are drawn; they used to be left as holes.
+
 - **Smooth shading along small fillets.** Small fillets along long curved edges
   are shaded smoothly: the triangles along their edges no longer tilt up to 60
   degrees away from the surface.
