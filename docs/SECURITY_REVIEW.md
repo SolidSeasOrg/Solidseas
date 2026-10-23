@@ -602,7 +602,7 @@ the chat's confirmation box; and on Linux `prctl` in libc. No `pickle`,
   most 400,000 characters, refusing numbers that are not finite; validated
   against a schema and allowlists; never allowed to choose a file path, URL or
   document; and shown as plain text only (`test_model_text_is_shown_as_plain_text_everywhere`).
-- **What leaves the machine** is built in one place, `build_model_summary`,
+- **What leaves the machine** is built in one place, `solidseas.ai.context.build_model_summary`,
   field by field, with names replaced by handles unless the person ticks
   "Send my feature and property names" for the run, and never paths, property
   values, author fields, stored previews or annotation text
