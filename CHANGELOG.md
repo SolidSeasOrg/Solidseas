@@ -1921,6 +1921,15 @@ while the project takes shape.
 
 ### Fixed
 
+- **The machine policy holds for checkouts' helpers and extension packages.** An
+  administrator's DisableExtensions or AllowedExtensions now holds for a bridge
+  named by SOLIDSEAS_SWBRIDGE and an OCCT helper named by
+  SOLIDSEAS_OCCT_HELPER_PYTHON; the CAD Bridge's program is checked against its
+  package before it runs, as every other extension's helper is; Add from file
+  refuses a package for an extension your administrator has left off rather than
+  unpacking it; and a drawing no longer finds its model through a link or
+  junction on the model's stored path.
+
 - **The projection symbol on ASME drawings.** ASME drawings showed the
   first-angle projection symbol in the title block. They now show the
   third-angle symbol.

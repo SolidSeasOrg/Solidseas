@@ -277,6 +277,12 @@ class ExtensionsDialog(QDialog):
             return False
         try:
             checked = X.check_package(path, accepted=self.accepted)
+            if not policy.extension_allowed(self.pol(), checked.manifest.id):
+                # as for the packages beside the viewer: nothing an administrator left off is unpacked
+                self.warn(
+                    "Add Extension", f"Set by your administrator: {checked.manifest.name} is off on this PC."
+                )
+                return False
             X.add_package(checked, root=self.root)
         except (X.ExtensionError, OSError) as exc:
             self._say(str(exc))
@@ -284,9 +290,7 @@ class ExtensionsDialog(QDialog):
             return False
         m = checked.manifest
         self.refresh()
-        if policy.extension_allowed(self.pol(), m.id) and self.ask(
-            "Add Extension", f"{m.name} {m.version} is added. Switch it on now?"
-        ):
+        if self.ask("Add Extension", f"{m.name} {m.version} is added. Switch it on now?"):
             self.switch(m.id, True)
         self.changed.emit()
         return True

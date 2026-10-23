@@ -94,6 +94,32 @@ def test_the_stored_path_is_looked_at_after_the_relative_one(tmp_path):
     assert [c.how for c in both.candidates] == ["relative", "stored"] and both.found.how == "stored"
 
 
+def test_a_stored_path_through_a_link_is_not_followed(tmp_path):
+    # A folder on the stored path's way swapped for a link (to a share, say) is never gone
+    # through, as the viewer's own lookups outside the opened folder never are.
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    (elsewhere / "bracket.SLDPRT").write_bytes(PART)
+    drawings = tmp_path / "drawings"
+    drawings.mkdir()
+    try:
+        (tmp_path / "linked").symlink_to(elsewhere, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("this system makes no symbolic links here")
+    real = L.find_model(
+        drawings / "1234.ssdrw", model(relative=None, stored=str(elsewhere / "bracket.SLDPRT"))
+    )
+    assert real.found.how == "stored"  # the control: the same file by its own path
+    found = L.find_model(
+        drawings / "1234.ssdrw", model(relative=None, stored=str(tmp_path / "linked" / "bracket.SLDPRT"))
+    )
+    assert found.candidates == () and found.skipped == (("stored", L.LINK_ON_STORED_PATH),)
+    gone = L.find_model(
+        drawings / "1234.ssdrw", model(relative=None, stored=str(tmp_path / "gone" / "bracket.SLDPRT"))
+    )
+    assert gone.candidates == () and gone.skipped == ()  # a folder that is not there is only not found
+
+
 def test_a_windows_stored_path_is_not_a_path_of_another_system(tmp_path):
     found = L.find_model(
         tmp_path / "x.ssdrw", model(relative=None, stored="C:\\parts\\bracket.SLDPRT"), windows=False

@@ -79,7 +79,9 @@ lists and the notices) and, when added, Remove.
 - **Add from file** takes the package the person downloaded (a zip). The core checks it before
   anything runs: the zip's SHA-256 must be one the core accepts for that extension (section 7);
   every entry must stay inside the extension's folder (no `..`, no absolute path, no link) and
-  within size limits; the manifest must match the core's. Then it unpacks it into
+  within size limits; the manifest must match the core's. A package for an extension the
+  machine policy leaves off (`DisableExtensions`, or outside `AllowedExtensions`) is refused
+  with "Set by your administrator" and not unpacked. Then it unpacks it into
   `%LOCALAPPDATA%\SolidSeas\extensions\<id>\`, writing a temporary folder first and renaming it
   into place, and asks whether to switch it on.
 - **Packages that come with the viewer** are added when it starts: each zip in a
@@ -224,8 +226,8 @@ and Open CASCADE's notices (beads SolidSeas-3he, SolidSeas-7r8 and SolidSeas-e2z
   and adaptive area, `docs/OCCT.md` section 5). Its standard output points at the null
   device before OCP loads, it shows no error box and writes no dump, and elsewhere than
   Windows it caps its own memory (`--memory-mb`) and ends with its parent.
-- **The backend** (`solidseas.convert.occt`) finds the helper: `SOLIDSEAS_OCCT_HELPER_PYTHON`
-  in a source checkout (an interpreter where OCP imports, running the checkout's helper
+- **The backend** (`solidseas.convert.occt`) finds the helper, only while the machine policy
+  allows the extension: `SOLIDSEAS_OCCT_HELPER_PYTHON` in a source checkout (an interpreter where OCP imports, running the checkout's helper
   module with `-I`), else the package, through `start_helper`, only while the extension is
   on and allowed, and every file still has its SHA-256. It keeps one helper per process,
   started on first use, and a new one after a crash or a timeout. Each file goes as a copy

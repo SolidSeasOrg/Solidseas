@@ -293,7 +293,8 @@ looks, in order, at:
    it (every component passes `solidseas.resolve`'s checks: no `..`, no stream,
    no device name; no anchor; no link on the way);
 2. the stored path, only on a local drive: never a UNC path or a mapped network
-   drive, and nothing there is touched;
+   drive, and nothing there is touched; each folder on its way is looked at
+   before the next is used, and a link or junction among them stops the lookup;
 3. the catalog, when one is given, by SHA-256 and then by name.
 
 Each candidate carries its hash and whether it matches the drawing's. A file

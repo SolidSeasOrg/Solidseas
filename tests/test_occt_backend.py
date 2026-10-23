@@ -302,6 +302,22 @@ def _occt_package(tmp_path, program: bytes) -> Path:
     return Path(package.build_package("occt", str(folder), str(tmp_path / "zips"), memory_mb=3072))
 
 
+def test_the_machine_policy_holds_for_a_checkouts_helper(standin, fresh):
+    assert fresh.unavailable() is None and occt.helpers_per_worker(("iges",)) == 1  # the control
+    for pol in (
+        policy.Policy(extensions_disabled=True, locked=True),
+        policy.Policy(allowed_extensions=("video",)),
+    ):
+        previous = policy.set_reader(lambda pol=pol: pol)
+        try:
+            fresh._checked = None
+            assert fresh.unavailable() == occt.NOT_ALLOWED
+            assert occt.helpers_per_worker(("iges",)) == 0
+        finally:
+            policy.set_reader(previous)
+    fresh._checked = None
+
+
 def test_the_extension_s_package_and_switch_decide(tmp_path, monkeypatch, fresh):
     monkeypatch.setenv("SOLIDSEAS_CACHE_DIR", str(tmp_path / "cache"))
     monkeypatch.setenv("OCCT_STANDIN_STEP", str(STEP_FIXTURE))

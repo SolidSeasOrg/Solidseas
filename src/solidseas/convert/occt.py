@@ -139,6 +139,9 @@ class OcctBackend(Backend):
         return reason
 
     def _why_not(self) -> str | None:
+        pol = policy.current()
+        if not policy.extension_allowed(pol, EXTENSION):
+            return NOT_ALLOWED  # before ENV_PYTHON too: an administrator's policy holds for a checkout
         python = os.environ.get(ENV_PYTHON, "").strip()
         if python:
             if not os.path.isfile(python):
@@ -149,9 +152,6 @@ class OcctBackend(Backend):
         app = _app()
         if app is None:
             return NO_APP
-        pol = policy.current()
-        if not policy.extension_allowed(pol, EXTENSION):
-            return NOT_ALLOWED
         if app.added_manifest(EXTENSION) is None:
             return NOT_ADDED
         if not app.is_on(EXTENSION, app.read_state(), pol=pol):

@@ -77,6 +77,19 @@ def test_a_package_this_core_does_not_accept_is_refused_with_the_reason(app, tmp
 
 
 @needs_qt
+def test_a_package_an_administrator_left_off_is_never_unpacked(app, tmp_path):
+    pkg = _package(tmp_path)
+    for pol in (
+        policy.Policy(extensions_disabled=True, locked=True),
+        policy.Policy(allowed_extensions=("gridfinity",), locked=True),
+    ):
+        d = _dialog(tmp_path, pol=lambda pol=pol: pol, accepted=_accept(pkg), ask_file=lambda: str(pkg))
+        assert not d.add_from_file() and "Set by your administrator" in d.warned[-1]
+        assert not os.path.exists(tmp_path / "extensions" / "video") and d.asked == []
+        d.deleteLater()
+
+
+@needs_qt
 def test_an_administrator_s_lock_shows_on_every_switch(app, tmp_path):
     d = _dialog(tmp_path, pol=lambda: policy.Policy(extensions_disabled=True, locked=True))
     assert all(not s.isEnabled() and not s.isChecked() for s in d.switches.values())

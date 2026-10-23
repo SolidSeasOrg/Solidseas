@@ -112,6 +112,9 @@ def _inside(path: str, folder: str, mod) -> bool:
         return False
 
 
+LINK_ON_STORED_PATH = "a folder on the stored path is a link, which SolidSeas never follows"
+
+
 def _no_links(folder: str, parts: list[str]) -> bool:
     """Whether no folder from ``folder`` down to the file's folder is a link."""
     import stat
@@ -127,6 +130,25 @@ def _no_links(folder: str, parts: list[str]) -> bool:
         if stat.S_ISLNK(st.st_mode) or attrs & 0x400:
             return False
     return True
+
+
+def _through_link(anchor: str, parts: list[str]) -> bool:
+    """Whether a folder on the way from ``anchor`` down to the file's folder is a link or a
+    junction, each one looked at with ``lstat`` before the next is used (a folder that is
+    not there stops the walk: nothing through it can be found either)."""
+    import stat
+
+    path = anchor
+    for p in parts[:-1]:
+        path = os.path.join(path, p)
+        try:
+            st = os.lstat(path)
+        except OSError:
+            return False
+        attrs = int(getattr(st, "st_file_attributes", 0) or 0)
+        if stat.S_ISLNK(st.st_mode) or attrs & 0x400:
+            return True
+    return False
 
 
 def catalog_lookup(by_sha256: Mapping[str, Iterable[str]], by_name: Mapping[str, Iterable[str]]):
@@ -228,6 +250,8 @@ def find_model(
                     why = "the stored path is on a mapped network drive, which SolidSeas never looks at"
                 elif kind not in LOCAL_DRIVES:
                     why = "the stored path is not on a drive of this computer"
+                elif real_fs and _through_link(sp.anchor + "\\", [*sp.folder, sp.name]):
+                    why = LINK_ON_STORED_PATH
                 else:
                     path = sp.anchor + "\\" + "\\".join((*sp.folder, sp.name))
         else:
@@ -237,6 +261,8 @@ def find_model(
                 comps = [c for c in stored.split("/") if c]
                 if not comps or any(names.component_problem(c) is not None for c in comps):
                     why = "the stored path is not one SolidSeas looks at"
+                elif real_fs and _through_link("/", comps):
+                    why = LINK_ON_STORED_PATH
                 else:
                     path = "/" + "/".join(comps)
         if why is not None:

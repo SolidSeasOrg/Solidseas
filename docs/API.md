@@ -4152,10 +4152,10 @@ work here now (`unavailable()`, None when it can) and converts a file in memory
 file's `data`, its `format` and the backend's `report`). The one backend so far
 is `occt` (`solidseas.convert.occt`): Open CASCADE, run in the helper program of
 the OCCT backend extension (`docs/EXTENSIONS.md` section 9, `docs/OCCT.md`
-tier 1), never in this process. It is available when
-`SOLIDSEAS_OCCT_HELPER_PYTHON` names a Python where OCP imports (a source
-checkout), or when the extension's package is added, it is switched on and the
-machine policy allows it; `unavailable(format_id)` gives the words otherwise.
+tier 1), never in this process. It is available while the machine policy
+allows the extension and either `SOLIDSEAS_OCCT_HELPER_PYTHON` names a Python
+where OCP imports (a source checkout), or the extension's package is added and
+switched on; `unavailable(format_id)` gives the words otherwise.
 
 While it is available, `open_model` and `open_any` open `iges` and `occt_brep`
 files as an `OcctDocument` (`solidseas.formats.occt`). Its head is read in pure
@@ -7225,7 +7225,9 @@ reach the path report.
   only writes are its own token file and identity key file (8.3), each on the
   first start that finds none, besides the catalog in the cache folder with
   `--catalog` and, for an IGES or BREP file read through the OCCT backend, the
-  copy its helper reads in a temporary folder, removed after the file.
+  copy its helper reads in a temporary folder, removed after the file (a
+  worker killed at its deadline leaves its copy behind, `docs/SECURITY_REVIEW.md`
+  finding 59).
 - Follow a link, junction, mount point or hard link out of a root, or go
   through one: every component of a path is checked before the next is used.
   Nor does it read a cloud placeholder. With `--formats`, this holds for the
