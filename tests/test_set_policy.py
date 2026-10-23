@@ -476,8 +476,11 @@ REGISTRY_WRITES = frozenset(
 
 def test_the_policy_key_is_written_only_by_set_policy():
     """The search the security review records: nothing in src names a registry call that
-    writes but the writer of ``--set-policy``, in any form (an attribute, a name, an
-    import)."""
+    writes, in any form (an attribute, a name, an import), but the writer of
+    ``--set-policy`` and ``solidseas.swapi.hkcu``, which puts back only the values
+    SolidSeas' own SOLIDWORKS changed under ``HKEY_CURRENT_USER\\Software\\SolidWorks``
+    and refuses any other key (AGENTS.md, SolidSeas-1k3); neither of the others writes
+    the policy key."""
     import ast
 
     hits = []
@@ -493,4 +496,4 @@ def test_the_policy_key_is_written_only_by_set_policy():
                 names = [a.name for a in node.names]
             if REGISTRY_WRITES.intersection(names):
                 hits.append(rel)
-    assert sorted(set(hits)) == ["solidseas_app/setpolicy.py"]
+    assert sorted(set(hits)) == ["solidseas/swapi/hkcu.py", "solidseas_app/setpolicy.py"]

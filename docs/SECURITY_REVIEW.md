@@ -413,5 +413,8 @@ tree:
 git grep -nE "\b(CreateKey|CreateKeyEx|DeleteKey|DeleteKeyEx|DeleteValue|SetValue|SetValueEx|SaveKey|LoadKey|RegCreateKeyExW|RegSetValueExW|RegSetKeyValueW|RegDeleteKeyExW|RegDeleteValueW|RegDeleteTreeW)\b" -- src
 ```
 
-Expected: only `src/solidseas_app/setpolicy.py`, whose `WindowsPolicyKey`
-opens the key in the same 64-bit view the reader uses.
+Expected: two files. `src/solidseas_app/setpolicy.py`, whose `WindowsPolicyKey`
+opens the key in the same 64-bit view the reader uses, and
+`src/solidseas/swapi/hkcu.py`, which writes nothing but SOLIDWORKS' own settings
+under `HKEY_CURRENT_USER\Software\SolidWorks` (its `WinRegistry` refuses any other
+key) after a batch conversion, never the policy key.
