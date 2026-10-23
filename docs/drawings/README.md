@@ -24,6 +24,7 @@ describe what is built. Everything here is provisional until the first release.
 | [editor.md](editor.md) | the drawing editor | yes |
 | [assemblies.md](assemblies.md) | drawings of assemblies: the parts list and item balloons | yes |
 | [turned.md](turned.md) | turned (lathe) parts: which parts are turned, their profile view, datums, diameters and runout | in part (stage 2) |
+| [iso.md](iso.md) | drawings to ISO as well as ASME: the switch, what differs, the six slices | design |
 
 ## What is built
 

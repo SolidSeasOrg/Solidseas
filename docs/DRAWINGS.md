@@ -103,7 +103,7 @@ machined (milled) and 3D printed parts.
 | General tolerances | Inch: .X ±.030, .XX ±.010, .XXX ±.005, angles ±0.5°. Millimetre: a decimal block, X ±0.5, X.X ±0.2, X.XX ±0.05, angles ±0.5°, with ISO 2768-m as an option | default stands (Q2) |
 | Unit when the part states none | Guessed from round numbers and always confirmed in the wizard; inch when it cannot tell | default stands (Q3) |
 | Sign-off | Rows DRAWN, CHECKED, APPROVED; CHECKED and APPROVED required to release; one person may sign two rows with a warning; first revision A | default stands (Q4) |
-| ISO drawings | Later (stage 4); ASME only at first | default stands (Q6) |
+| ISO drawings | Later (stage 4); ASME only at first. The stage 4 design is `docs/drawings/iso.md`, built a slice at a time | default stands (Q6) |
 | DXF checking programs | The user installs LibreCAD and DWG TrueView on the PC if they want the DXFs checked there. No session downloads or installs anything without the user's explicit permission | default stands (Q9) |
 | Standards | Buying ASME Y14.5-2018, Y14.1-2020 and Y14.35 is the user's decision. Until then every verify item stays marked, and the docs say "follows ASME practice as summarised", never "conforms to" | default stands (Q10) |
 | Small items | The Adobe font-metrics notice (APAFML) goes in `NOTICE`; the drawing file extension is `.ssdrw` | default stands (Q11) |
@@ -285,7 +285,9 @@ and questions Q12 and Q13 answered.
 ### 3.7 Stage 4: later, a bead each
 
 The ISO profile (first angle, ISO 7200 with STATUS, ISO 2768 with ISO 8015,
-aligned text, comma decimals, the ISO 13715 edge symbol); chain dimensioning;
+aligned text, comma decimals, the ISO 13715 edge symbol), designed in six slices
+in `docs/drawings/iso.md`;
+chain dimensioning;
 hole tables; mesh sources with "REFERENCE ONLY - NOT FOR MANUFACTURE";
 `dwg-blends` (recognising `BLENDED_EDGE` faces as blends with a radius);
 DXF R12; SVG export; REST routes and `ssdrw_summary`; free-pick Add Dimension;
@@ -620,7 +622,7 @@ decoded further. On Linux the CLI accepts a logo in that form only.
 |---|---|
 | Company | legal name, up to four address lines, phone, email or web, logo, CAGE code (optional), proprietary statement (an editable default in our own words), whether DO NOT SCALE DRAWING is printed |
 | People and approvals | a list of people (name and initials, typed; nothing read from Windows); the approval rows the company uses (default DRAWN, CHECKED, APPROVED; ENGR, MFG and QA available); which rows Release requires (default CHECKED and APPROVED); whether one person may sign two rows (default yes, with a warning); date format (ISO 2026-10-04 or US 10/04/2026); the first revision mark (default A) |
-| Standard | profile (ASME in stage 1); units (the part's own, inch, millimetre); the unit for parts that state none (asked on first use); upper-case notes |
+| Standard | profile (ASME, or ISO as `docs/drawings/iso.md` builds it); projection (as the standard: third angle for ASME, first for ISO; or first or third); units (the part's own, inch, millimetre); the unit for parts that state none (asked on first use); upper-case notes |
 | Sheets | default size (automatic, A to E), orientation, zones, the scales offered |
 | Title block sources | the property names read for part number, drawing number, title, revision, model revision, material and finish (preset to common names); title style (noun first); weight shown or not |
 | Tolerances | inch block (.X, .XX, .XXX, angles); millimetre block (X, X.X, X.XX, angles) or an ISO 2768 class; the precision per role (envelope, step, width, hole size, hole location, basic); the bands shown to the user |
@@ -2537,7 +2539,7 @@ scale and clear of other annotation; and anything not dimensioned is listed and
 covered by the model-governs note. It does not promise functional correctness:
 the generator cannot know which faces mate or how the part is inspected.
 
-**ISO profile parameters (stage 4), for reference:** first angle by default
+**ISO profile parameters (stage 4, designed in `docs/drawings/iso.md`), for reference:** first angle by default
 (third selectable); A4 to A0; a 20 mm left border and 10 mm elsewhere; 50 mm
 zone fields; lines 0.5 and 0.25 mm (A4, A3) or 0.7 and 0.35 mm (A2 up); text
 3.5 mm, letters 7 mm; aligned text above the line; count prefix `4×`; ISO 2768

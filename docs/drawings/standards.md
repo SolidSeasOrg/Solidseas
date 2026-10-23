@@ -120,7 +120,7 @@ scale and clear of other annotation; and anything not dimensioned is listed and
 covered by the model-governs note. It does not promise functional correctness:
 the generator cannot know which faces mate or how the part is inspected.
 
-**ISO profile parameters (stage 4), for reference:** first angle by default
+**ISO profile parameters (stage 4, designed in `docs/drawings/iso.md`), for reference:** first angle by default
 (third selectable); A4 to A0; a 20 mm left border and 10 mm elsewhere; 50 mm
 zone fields; lines 0.5 and 0.25 mm (A4, A3) or 0.7 and 0.35 mm (A2 up); text
 3.5 mm, letters 7 mm; aligned text above the line; count prefix `4×`; ISO 2768
