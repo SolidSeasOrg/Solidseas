@@ -85,6 +85,8 @@ from .errors import (
     OutputRefusedError,
     StreamNotFoundError,
     UnsupportedOperationError,
+    VersionNotFoundError,
+    VersionUnavailableError,
     WorkerCrashedError,
 )
 from .export import EXPORT_FORMATS
@@ -349,7 +351,17 @@ def _human(exc: BaseException) -> str:
         return f"not found: {exc.filename or exc}"
     if isinstance(exc, LockedFileError):
         return f"the file is locked by another program: {exc}"
-    if isinstance(exc, (OutputRefusedError, InvalidArgumentError, NoPreviewError, UnsupportedOperationError)):
+    if isinstance(
+        exc,
+        (
+            OutputRefusedError,
+            InvalidArgumentError,
+            NoPreviewError,
+            UnsupportedOperationError,
+            VersionNotFoundError,
+            VersionUnavailableError,
+        ),
+    ):
         return str(exc)
     if isinstance(exc, KeyboardInterrupt):
         return "interrupted"
@@ -3048,6 +3060,179 @@ def cmd_schema(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+# --------------------------------------------------------------------------- versions
+def _store_options(args: argparse.Namespace) -> dict[str, Any]:
+    return {"project": args.project, "store": args.store}
+
+
+def _when(text: str | None) -> str:
+    return text[:16].replace("T", " ") if text else "-"
+
+
+def _version_label(v: dict[str, Any]) -> str:
+    return "working copy" if v["kind"] == "working" else v["id"][:12]
+
+
+def _say_warnings(warnings: list[dict[str, Any]]) -> None:
+    for w in warnings:
+        _say(f"note: {w['message']}")
+
+
+def cmd_history(args: argparse.Namespace) -> int:
+    data = model.build_file_history(
+        args.path,
+        source=args.history_source,
+        max_commits=args.max_commits,
+        hashes=args.hashes,
+        **_store_options(args),
+    )
+    if args.json:
+        return _emit(args, "file_history", data)
+    git = data["git"]
+    if git is not None:
+        branch = f"branch {git['branch']}" if git["branch"] else "no branch checked out"
+        _say(f"{git['path']} in the Git repository at {git['work_tree']} ({branch})")
+    else:
+        _say(f"{data['file']['name']}: snapshots in {data['store']['path']}")
+    working = {
+        "changed": "changed, not committed" if git is not None else "changed since the newest snapshot",
+        "new": "not committed yet" if git is not None else "no snapshot yet",
+    }.get(data["working"]["state"], "")
+    for v in data["versions"]:
+        if v["kind"] == "working":
+            _say(f"v{v['number']:<4}{'working copy':<14}{_when(v['time_utc'])}  {working}")
+            continue
+        who = f"{v['author']}: " if v["author"] else ""
+        what = v["subject"] or ""
+        extra = ""
+        if v["status"] == "deleted":
+            extra = " (deleted)"
+        elif not v["available"]:
+            extra = " (not on this machine)"
+        _say(f"v{v['number']:<4}{_version_label(v):<14}{_when(v['time_utc'])}  {who}{what}{extra}".rstrip())
+    if data["working"]["state"] == "missing":
+        _say("the file does not exist now")
+    if not data["versions"]:
+        _say("no versions yet: take one with solidseas snapshot FILE, or commit the file")
+    _say_warnings(data["warnings"])
+    if data["truncated"]:
+        _say(f"the history stops after {git['commits_walked']:,} commits (--max-commits)")
+    return EXIT_OK
+
+
+def cmd_snapshot(args: argparse.Namespace) -> int:
+    data = model.build_snapshot_taken(args.path, note=args.note, **_store_options(args))
+    if args.json:
+        return _emit(args, "snapshot_taken", data)
+    s = data["snapshot"]
+    name = data["file"]["name"]
+    if data["new"]:
+        _say(f"took snapshot v{s['number']} ({s['id']}) of {name} in {data['store']['path']}")
+    else:
+        _say(f"{name} is unchanged since snapshot v{s['number']} ({s['id']}): nothing new was stored")
+    return EXIT_OK
+
+
+def _number(value: float) -> str:
+    return f"{value:,.6g}" if abs(value) < 1e6 else f"{value:,.0f}"
+
+
+def _say_geometry_change(c: dict[str, Any]) -> str:
+    m = c["measure"]
+    a, b = c["from"], c["to"]
+    words = {
+        "volume_mm3": ("volume", " mm3"),
+        "area_mm2": ("area", " mm2"),
+        "size_x_mm": ("size in x", " mm"),
+        "size_y_mm": ("size in y", " mm"),
+        "size_z_mm": ("size in z", " mm"),
+        "min_x_mm": ("lowest x", " mm"),
+        "min_y_mm": ("lowest y", " mm"),
+        "min_z_mm": ("lowest z", " mm"),
+    }
+    label, unit = words.get(m, (m.replace("_", " "), ""))
+    text = f"{label} {_number(a)}{unit} -> {_number(b)}{unit}"
+    if m in ("volume_mm3", "area_mm2") and a:
+        text += f" ({(b - a) / abs(a):+.2%})"
+    return text
+
+
+def _say_property(p: dict[str, Any] | None) -> str:
+    if p is None:
+        return "-"
+    if p["type"] == "text":
+        return f'"{p["value"] if p["value"] is not None else p["text"] or ""}"'
+    return str(p["text"] if p["text"] is not None else p["value"])
+
+
+def cmd_diff(args: argparse.Namespace) -> int:
+    data = model.build_version_diff(
+        args.path,
+        args.older,
+        args.newer,
+        source=args.history_source,
+        measure=not args.no_measures,
+        max_seconds=args.timeout,
+        **_store_options(args),
+    )
+    if args.json:
+        return _emit(args, "version_diff", data)
+    a, b = data["from"], data["to"]
+    _say(
+        f"{data['file']['name']}: v{a['number']} ({_version_label(a)}, {_when(a['time_utc'])}) to "
+        f"v{b['number']} ({_version_label(b)}, {_when(b['time_utc'])})"
+    )
+    if data["same_content"]:
+        _say("the two versions are the same file")
+    props = data["properties"]
+    if any(props.values()):
+        _say("properties")
+        for p in props["added"]:
+            where = f" ({p['configuration']})" if p["configuration"] else ""
+            _say(f"  + {p['name']}{where} = {_say_property(p['to'])}")
+        for p in props["removed"]:
+            where = f" ({p['configuration']})" if p["configuration"] else ""
+            _say(f"  - {p['name']}{where} (was {_say_property(p['from'])})")
+        for p in props["changed"]:
+            where = f" ({p['configuration']})" if p["configuration"] else ""
+            _say(f"  ~ {p['name']}{where}: {_say_property(p['from'])} -> {_say_property(p['to'])}")
+    cfgs = data["configurations"]
+    if cfgs["added"] or cfgs["removed"]:
+        _say("configurations")
+        for name in cfgs["added"]:
+            _say(f"  + {name}")
+        for name in cfgs["removed"]:
+            _say(f"  - {name}")
+    changes = [c for c in data["document"]["changes"] if c["field"] != "preview"]
+    if changes:
+        _say("document")
+        for c in changes:
+            where = f" ({c['configuration']})" if c["configuration"] else ""
+            _say(f"  {c['field'].replace('_', ' ')}{where}: {c['from'] or '(none)'} -> {c['to'] or '(none)'}")
+    g = data["geometry"]
+    if g["compared"]:
+        _say("geometry")
+        for row in g["configurations"]:
+            name = row["configuration"] or "the model"
+            words = {
+                "unchanged": "unchanged",
+                "changed": "changed",
+                "added": "added",
+                "removed": "removed",
+                "not_stored": "not stored in either version",
+                "not_compared": "not compared: one version does not store its bodies",
+            }.get(row["status"], row["status"])
+            _say(f"  {name}: {words}")
+            for c in row["changes"]:
+                _say(f"    {_say_geometry_change(c)}")
+            if row["status"] == "changed" and not row["changes"]:
+                _say("    no difference in its counts or measures")
+    elif g["reason"]:
+        _say(f"geometry: not compared ({g['reason'].replace('_', ' ')})")
+    _say_warnings(data["warnings"])
+    return EXIT_OK
+
+
 # --------------------------------------------------------------------------- command table
 @dataclass(frozen=True)
 class Command:
@@ -3096,6 +3281,9 @@ COMMANDS: dict[str, Command] = {
         Command("clear-index", "catalog_cleared", "none", cmd_clear_index),
         Command("serve", "serve_started", "none", cmd_serve),
         Command("drawing", "drawing_result", "path", cmd_drawing),
+        Command("history", "file_history", "path", cmd_history),
+        Command("snapshot", "snapshot_taken", "path", cmd_snapshot),
+        Command("diff", "version_diff", "path", cmd_diff),
         Command("version", "version", "none", cmd_version),
         Command("schema", None, "none", cmd_schema),
     )
@@ -3952,6 +4140,88 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument("path", metavar="DRAWING", help="a .ssdrw file (never changed)")
     ap = action("settings", "the effective Drawing Settings and every value that fell back to its default")
     settings_flag(ap)
+
+    def add_store_choice(sp: argparse.ArgumentParser) -> None:
+        where = sp.add_mutually_exclusive_group()
+        where.add_argument(
+            "--project",
+            metavar="DIR",
+            default=None,
+            help="use the snapshot store of this project folder (DIR/.solidseas/history), which must "
+            "hold the file",
+        )
+        where.add_argument(
+            "--store",
+            metavar="DIR",
+            default=None,
+            help="use the snapshot store in this folder instead of yours",
+        )
+
+    def add_source(sp: argparse.ArgumentParser) -> None:
+        sp.add_argument(
+            "--source",
+            dest="history_source",  # args.source is the envelope's
+            choices=("auto", "git", "snapshots"),
+            default="auto",
+            help="where the history comes from: git inside a repository and snapshots elsewhere (auto, the "
+            "default), or the one named",
+        )
+
+    sp = add(
+        "history",
+        "the versions of a file: from Git inside a repository, else from its snapshots",
+        target="none",
+    )
+    sp.add_argument("path", metavar="FILE", help="the file (opened read-only)")
+    add_source(sp)
+    add_store_choice(sp)
+    sp.add_argument(
+        "--max-commits",
+        type=_positive_int,
+        default=20_000,
+        metavar="N",
+        help="stop looking through Git's history after this many commits (default 20,000)",
+    )
+    sp.add_argument(
+        "--hashes", action="store_true", help="also give the SHA-256 of every Git version (reads each one)"
+    )
+    sp = add(
+        "snapshot",
+        "keep a copy of a file as it is now in your snapshot store, never beside the file unless "
+        "--project names its project",
+        target="none",
+    )
+    sp.add_argument("path", metavar="FILE", help="the file (opened read-only)")
+    add_store_choice(sp)
+    sp.add_argument("--note", metavar="TEXT", default=None, help="a note kept with the snapshot")
+    sp = add(
+        "diff",
+        "what changed between two versions of a file: its properties, configurations, document and geometry",
+        target="none",
+    )
+    sp.add_argument("path", metavar="FILE", help="the file (opened read-only)")
+    sp.add_argument(
+        "older",
+        nargs="?",
+        metavar="OLDER",
+        help="a version: working, latest, vN or an id from solidseas history (default: the version "
+        "before NEWER)",
+    )
+    sp.add_argument("newer", nargs="?", metavar="NEWER", help="a version (default: the newest one)")
+    add_source(sp)
+    add_store_choice(sp)
+    sp.add_argument(
+        "--no-measures",
+        action="store_true",
+        help="compare changed geometry by its counts alone, without measuring volume, area and size",
+    )
+    sp.add_argument(
+        "--timeout",
+        type=_positive_float,
+        default=60.0,
+        metavar="SECONDS",
+        help="time for measuring the geometry of both versions (default 60)",
+    )
     add("version", "the SolidSeas version, API version and each JSON kind's schema version", target="none")
     sp = add("schema", "print the JSON Schema of a kind's envelope, or list the kinds", target="none")
     sp.add_argument("kind", nargs="?", help="a JSON kind, such as document_summary or listing")

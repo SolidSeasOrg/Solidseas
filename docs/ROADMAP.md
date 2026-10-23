@@ -174,9 +174,18 @@ Open CASCADE backends remain.
   (provisional): `solidseas.bom`, the `bom` command and `/v1/bom` match
   SOLIDWORKS' own top-level and indented tables on fixture o19, and the
   viewer's BOM tab shows and exports them.
-- Git-aware history, with snapshots for folders outside git.
-- Version timeline with previews and property and geometry diffs.
-- Git LFS guidance for repositories that store CAD files.
+- Git-aware history, with snapshots for folders outside git. Built
+  (provisional, `docs/VERSIONS.md`): `solidseas.versions` and the `history` and
+  `snapshot` commands, Git read in pure Python with no program run, and
+  snapshots kept in the user's data folder, or in a project's folder when it is
+  named.
+- Version timeline with previews and property and geometry diffs. The
+  differences are built (provisional): `diff` and `versions.compare` report
+  properties, configurations, the document and each configuration's geometry
+  (a B-rep fingerprint, and volume, area and size where it changed). The
+  viewer's timeline with previews is to come.
+- Git LFS guidance for repositories that store CAD files. LFS files are read
+  from the local LFS objects; the guidance itself is to come.
 
 Done when: the app shows an assembly's BOM and a part's version history with
 what changed between versions.

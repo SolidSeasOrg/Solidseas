@@ -307,6 +307,9 @@ ERROR_CODES: dict[str, ErrorCode] = _codes(
     ErrorCode(
         "drawing_released", None, 3, False, "The drawing is released: start a revision before changing it."
     ),
+    # Versions (docs/VERSIONS.md), provisional: the library and the command line, no REST route yet.
+    ErrorCode("version_not_found", 404, 1, False, "The file has no version by that name."),
+    ErrorCode("version_unavailable", 409, 1, False, "That version's content is not on this machine."),
 )
 
 # The only keys `detail` may carry: structured facts that are safe on every surface.
@@ -342,6 +345,32 @@ RULE_MESSAGES: dict[tuple[str, str], str] = {
         "needs_extension",
     ): "SolidSeas reads this file's format through an extension that is not added or not switched on.",
     ("not_implemented", "model_file"): "This operation is not available for this file's format yet.",
+    # versions (docs/VERSIONS.md)
+    ("damaged_file", "git_object"): "The Git repository's objects or references are damaged.",
+    ("damaged_file", "snapshot_object"): "A stored snapshot is damaged: its content does not match its hash.",
+    (
+        "format_not_supported",
+        "reftable",
+    ): "The Git repository keeps its references in the reftable format, which SolidSeas does not read yet.",
+    (
+        "format_not_supported",
+        "repository_extension",
+    ): "The Git repository uses a format or extension SolidSeas does not read.",
+    (
+        "format_not_supported",
+        "pack_index_version",
+    ): "The Git repository has a pack index SolidSeas does not read.",
+    (
+        "version_unavailable",
+        "lfs_object_missing",
+    ): "That version is stored with Git LFS and its content was not fetched to this machine.",
+    (
+        "version_unavailable",
+        "object_missing",
+    ): "That version is not in this clone of the repository (a shallow or partial clone).",
+    ("version_unavailable", "snapshot_missing"): "That snapshot's stored copy is no longer in the store.",
+    ("version_unavailable", "deleted"): "That commit deleted the file: the version has no content.",
+    ("busy", "file_changing"): "The file changed while it was read. Try again once it is saved.",
 }
 
 
@@ -1952,6 +1981,29 @@ def build_duplicates(cat, **options: Any) -> dict[str, Any]:
 def build_missing_references(cat, **options: Any) -> dict[str, Any]:
     """``missing_references`` data (``Catalog.missing_references``)."""
     return cat.missing_references(**options)
+
+
+def build_file_history(path, **options: Any) -> dict[str, Any]:
+    """``file_history`` data (provisional, ``docs/API.md`` 3.26): the versions of the file
+    at ``path``, from Git or from snapshots (:func:`solidseas.versions.history`)."""
+    from . import versions
+
+    return to_json_data(versions.history(path, **options))
+
+
+def build_snapshot_taken(path, **options: Any) -> dict[str, Any]:
+    """``snapshot_taken`` data (provisional): :func:`solidseas.versions.snapshot`."""
+    from . import versions
+
+    return to_json_data(versions.snapshot(path, **options))
+
+
+def build_version_diff(path, older=None, newer=None, **options: Any) -> dict[str, Any]:
+    """``version_diff`` data (provisional): what changed between two versions of the file
+    at ``path`` (:func:`solidseas.versions.compare`)."""
+    from . import versions
+
+    return to_json_data(versions.compare(path, older, newer, **options))
 
 
 def build_catalog_changes(cat, **options: Any) -> dict[str, Any]:
@@ -3724,6 +3776,159 @@ _DRAWING_SCHEMA = _obj(
     }
 )
 
+# --------------------------------------------------------------------------- versions (provisional)
+# docs/VERSIONS.md and docs/API.md 5.19: a file's history, a snapshot taken, and the
+# differences between two versions.
+_SHA256_N = {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"}
+_DEFS["version"] = _obj(
+    {
+        "number": _INT,
+        "id": _STR,
+        "kind": {"type": "string", "description": "commit, snapshot or working (an open set)"},
+        "status": {"type": ["string", "null"], "description": "a commit's: added, modified or deleted"},
+        "time_utc": _STR_N,
+        "authored_utc": _STR_N,
+        "author": _STR_N,
+        "subject": _STR_N,
+        "size": _INT_N,
+        "sha256": _SHA256_N,
+        "git_blob": _STR_N,
+        "lfs": _obj({"oid": _SHA256, "size": _INT}, nullable=True),
+        "available": _BOOL,
+    },
+    description="One version of a file: a commit that changed it, a snapshot, or the working copy.",
+)
+_DEFS["versioned_file"] = _obj({"name": _STR, "path": _STR})
+_DEFS["geometry_summary"] = _obj(
+    {
+        "stored": _BOOL,
+        "bodies": _obj({k: _INT for k in ("solid", "sheet", "wire", "general")}, nullable=True),
+        "hidden_bodies": _INT_N,
+        "faces": _INT_N,
+        "edges": _INT_N,
+        "vertices": _INT_N,
+        "triangles": _INT_N,
+        "fingerprint": _SHA256_N,
+        "measures": _obj(
+            {
+                "measured": _BOOL,
+                "reason": _STR_N,
+                "volume_mm3": _NUM_N,
+                "area_mm2": _NUM_N,
+                "box_mm": _obj(
+                    {"min": _arr(_NUM), "max": _arr(_NUM), "size": _arr(_NUM)},
+                    nullable=True,
+                ),
+                "closed": _BOOL_N,
+                "complete": _BOOL,
+                "chord_mm": _NUM_N,
+            },
+            nullable=True,
+        ),
+    },
+    nullable=True,
+)
+_FILE_HISTORY_SCHEMA = _obj(
+    {
+        "file": _ref("versioned_file"),
+        "source": {"type": "string", "description": "git or snapshots"},
+        "git": _obj(
+            {
+                "work_tree": _STR,
+                "path": _STR,
+                "branch": _STR_N,
+                "head": _STR_N,
+                "object_format": _STR,
+                "shallow": _BOOL,
+                "partial": _BOOL,
+                "commits_walked": _INT,
+            },
+            nullable=True,
+        ),
+        "store": _obj({"location": _STR, "path": _STR}, nullable=True),
+        "working": _obj(
+            {
+                "state": {"type": "string", "description": "unchanged, changed, new or missing"},
+                "size": _INT_N,
+                "modified_utc": _STR_N,
+                "mtime_ns": {"type": ["string", "null"], "pattern": "^-?[0-9]+$"},
+                "sha256": _SHA256_N,
+            }
+        ),
+        "versions": _arr(_ref("version")),
+        "truncated": _BOOL,
+        "warnings": _arr(_ref("warning")),
+    }
+)
+_SNAPSHOT_TAKEN_SCHEMA = _obj(
+    {
+        "file": _ref("versioned_file"),
+        "store": _obj({"location": _STR, "path": _STR}),
+        "new": _BOOL,
+        "snapshot": _ref_n("version"),
+        "versions": _INT,
+    }
+)
+_DEFS["document_brief"] = _obj(
+    {"format": _STR_N, "type": _STR_N, "saved_version": _STR_N, "configurations": _INT, "properties": _INT}
+)
+_VERSION_DIFF_SCHEMA = _obj(
+    {
+        "file": _ref("versioned_file"),
+        "source": _STR,
+        "from": _ref("version"),
+        "to": _ref("version"),
+        "same_content": _BOOL,
+        "document": _obj(
+            {
+                "from": _ref("document_brief"),
+                "to": _ref("document_brief"),
+                "changes": _arr(_obj({"field": _STR, "configuration": _STR_N, "from": _STR_N, "to": _STR_N})),
+            }
+        ),
+        "properties": _obj(
+            {
+                k: _arr(
+                    _obj(
+                        {
+                            "configuration": _STR_N,
+                            "name": _STR,
+                            "from": _ref_n("property"),
+                            "to": _ref_n("property"),
+                        }
+                    )
+                )
+                for k in ("added", "removed", "changed")
+            }
+        ),
+        "configurations": _obj(
+            {"added": _arr(_STR), "removed": _arr(_STR), "active": _obj({"from": _STR_N, "to": _STR_N})}
+        ),
+        "geometry": _obj(
+            {
+                "compared": _BOOL,
+                "reason": _STR_N,
+                "configurations": _arr(
+                    _obj(
+                        {
+                            "configuration": _STR_N,
+                            "status": {
+                                "type": "string",
+                                "description": "unchanged, changed, added, removed, not_stored or "
+                                "not_compared",
+                            },
+                            "from": _ref("geometry_summary"),
+                            "to": _ref("geometry_summary"),
+                            "changes": _arr(_obj({"measure": _STR, "from": _NUM, "to": _NUM})),
+                        }
+                    )
+                ),
+            }
+        ),
+        "warnings": _arr(_ref("warning")),
+    }
+)
+
 
 @dataclass(frozen=True)
 class KindSpec:
@@ -4028,6 +4233,33 @@ KINDS: dict[str, KindSpec] = {
             ("drawing",),
             None,
         ),
+        _kind(
+            "file_history",
+            "SolidSeas file history",
+            _FILE_HISTORY_SCHEMA,
+            ("versioned_file", "version", "warning"),
+            build_file_history,
+            ("history",),
+            None,
+        ),
+        _kind(
+            "snapshot_taken",
+            "SolidSeas snapshot taken",
+            _SNAPSHOT_TAKEN_SCHEMA,
+            ("versioned_file", "version"),
+            build_snapshot_taken,
+            ("snapshot",),
+            None,
+        ),
+        _kind(
+            "version_diff",
+            "SolidSeas differences between two versions",
+            _VERSION_DIFF_SCHEMA,
+            ("versioned_file", "version", "document_brief", "property", "geometry_summary", "warning"),
+            build_version_diff,
+            ("diff",),
+            None,
+        ),
         _kind("error", "SolidSeas error", _ERROR_SCHEMA, (), error_info, (), None),
     )
 }
@@ -4101,6 +4333,7 @@ __all__ = [
     "build_document_summary",
     "build_drawing_result",
     "build_export_result",
+    "build_file_history",
     "build_file_written",
     "build_health",
     "build_identity",
@@ -4114,8 +4347,10 @@ __all__ = [
     "build_roots",
     "build_serve_started",
     "build_sldprt_written",
+    "build_snapshot_taken",
     "build_streams",
     "build_version",
+    "build_version_diff",
     "clean_text",
     "component_file_data",
     "component_node_data",

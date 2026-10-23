@@ -120,6 +120,46 @@ writes it. Parts like these open in SOLIDWORKS 2024 with their feature tree and
 rebuild when you change a depth; other versions have not been tried, so open an
 important one there before you rely on it.
 
+### A file's versions
+
+`solidseas history` lists the versions of a file, newest first, and
+`solidseas diff` says what changed between two of them (provisional, API.md 3.26):
+
+```bash
+solidseas history D:\Jobs\Example\bracket.SLDPRT             # its versions, newest first
+solidseas diff D:\Jobs\Example\bracket.SLDPRT                 # what changed in the newest version
+solidseas diff D:\Jobs\Example\bracket.SLDPRT v2 working      # what changed since version 2
+solidseas snapshot D:\Jobs\Example\bracket.SLDPRT --note "sent for quote"
+```
+
+In a Git repository the versions are the commits that changed the file.
+SolidSeas reads the repository's own files, so it does not need Git installed, it
+never runs a program the repository's settings name, and it never downloads
+anything. A file kept with Git LFS is read from what Git LFS has already
+downloaded to your PC; a version that is not there is listed as not on this
+machine, and `git lfs fetch` brings it.
+
+Anywhere else, the versions are the snapshots you take with `solidseas snapshot`:
+a copy of the file as it is now, kept in your own data folder
+(`%LOCALAPPDATA%\SolidSeas\history` on Windows), never beside the file. Add
+`--project D:\Jobs\Example` to keep them in that project's `.solidseas\history`
+folder instead, so everyone who opens the project finds them. A snapshot of a file
+that has not changed since its last one stores nothing new.
+
+When the file on disk differs from its newest commit or snapshot, it is listed on
+top as the working copy. Name a version as `history` lists it: `v1` is the
+oldest, `working` the file on disk, `latest` the newest commit or snapshot, or
+give the first few characters of a commit or snapshot id.
+
+`diff` compares what the file holds, not its bytes, because SOLIDWORKS writes
+different bytes each time it saves, even when nothing changed: the custom and
+configuration properties, the configurations, the material, the units, the
+SOLIDWORKS version that saved it, and for a part the geometry of each
+configuration. Geometry that is the same in both versions is reported unchanged;
+when it differs, SolidSeas measures both versions and lists what changed, such as
+the number of bodies, faces and edges, the volume, the area and the size.
+Assemblies and drawings are compared on everything but their geometry for now.
+
 ## Other 3D formats
 
 SolidSeas also reads 3D files of other formats (provisional, API.md 3.20): STL,

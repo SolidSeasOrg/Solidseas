@@ -37,6 +37,18 @@ while the project takes shape.
 
 ### Added
 
+- **A file's versions, and what changed between them.** `solidseas history FILE`
+  lists a file's versions, newest first. Inside a Git repository these are the
+  commits that changed it; SolidSeas reads them without running Git or any
+  program the repository's settings name, and reads Git LFS files from what is
+  already downloaded. Elsewhere they are snapshots you take with `solidseas
+  snapshot FILE`, kept in your own data folder, or in the project's .solidseas
+  folder with `--project DIR`, never beside the file. `solidseas diff FILE
+  [OLDER] [NEWER]` says what changed between two versions: properties,
+  configurations, material, units, the saving SOLIDWORKS version, and for a part
+  each configuration's geometry. The library offers the same through
+  `solidseas.versions` (provisional).
+
 - **A second opinion on a STEP export.** `solidseas export FILE --format step
   --check` has Open CASCADE read the new STEP file back. It says whether the
   file holds what was written, closed and valid, and gives Open CASCADE's volume

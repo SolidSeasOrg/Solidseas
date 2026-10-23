@@ -291,6 +291,25 @@ class DrawingReleasedError(InvalidArgumentError):
     code = "drawing_released"
 
 
+# --------------------------------------------------------------------------- versions (provisional)
+# A file's history and its versions (solidseas.versions, docs/VERSIONS.md).
+class VersionNotFoundError(SolidSeasError, LookupError):
+    """The file has no version by that name: a commit id, a snapshot id, ``vN`` or
+    ``working`` that names none of the versions its history lists (``detail["parameter"]``
+    names the argument)."""
+
+    code = "version_not_found"
+
+
+class VersionUnavailableError(SolidSeasError, LookupError):
+    """A version's content is not on this machine (``detail["rule"]``): an LFS object that
+    was not fetched (``lfs_object_missing``), an object a shallow or partial clone left out
+    (``object_missing``), a snapshot whose stored copy is gone (``snapshot_missing``), or a
+    commit that deleted the file (``deleted``). Nothing is ever fetched to find it."""
+
+    code = "version_unavailable"
+
+
 # --------------------------------------------------------------------------- warnings
 # Every code a reader or builder emits, with what it means. Codes are an open set:
 # a consumer treats an unknown code as "other". docs/API.md lists the same codes.
@@ -444,6 +463,16 @@ WARNING_CODES.update(
 )
 
 
+# Versions (docs/VERSIONS.md, docs/API.md 3.26)
+WARNING_CODES.update(
+    {
+        "history_incomplete": "the repository is a shallow or partial clone: its history stops early",
+        "lfs_not_fetched": "versions stored with Git LFS whose content is not on this machine",
+        "measures_incomplete": "a version's volume, area or box could not be measured whole in time",
+    }
+)
+
+
 class SolidSeasDeprecationWarning(DeprecationWarning):
     """Emitted when a deprecated SolidSeas name is used. ``docs/API.md`` section 9 lists
     what is deprecated and what replaces it."""
@@ -521,6 +550,8 @@ __all__ = [
     "TokenFileError",
     "UnknownFormatError",
     "UnsupportedOperationError",
+    "VersionNotFoundError",
+    "VersionUnavailableError",
     "WorkerCrashedError",
     "WorkerJobError",
     "WorkerTimeoutError",

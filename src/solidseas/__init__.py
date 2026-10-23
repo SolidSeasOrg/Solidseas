@@ -12,7 +12,7 @@ SOLIDWORKS (``open_model``, ``open_any``; provisional). ``docs/API.md``
 documents them.
 """
 
-__version__ = "0.2.434"
+__version__ = "0.2.435"
 
 from .errors import (  # noqa: E402  (__version__ comes first: submodules may import it)
     AddressUnavailableError,
@@ -48,6 +48,8 @@ from .errors import (  # noqa: E402  (__version__ comes first: submodules may im
     TokenFileError,
     UnknownFormatError,
     UnsupportedOperationError,
+    VersionNotFoundError,
+    VersionUnavailableError,
     WorkerCrashedError,
     WorkerJobError,
     WorkerTimeoutError,
@@ -96,6 +98,8 @@ __all__ = [
     "TokenFileError",
     "UnknownFormatError",
     "UnsupportedOperationError",
+    "VersionNotFoundError",
+    "VersionUnavailableError",
     "WorkerCrashedError",
     "WorkerJobError",
     "WorkerTimeoutError",

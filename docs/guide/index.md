@@ -33,7 +33,8 @@ https://solidseas.app.
 
 ## Using SolidSeas from another system
 
-- [The command line and the REST service](command-line.md).
+- [The command line and the REST service](command-line.md), including
+  [a file's versions](command-line.md#a-files-versions) from Git or from snapshots.
 - [The Python library](python-library.md).
 
 ## Working on SolidSeas
@@ -57,7 +58,8 @@ routes change only under the stability policy in [API.md](../API.md) section 9.
 [ROADMAP.md](../ROADMAP.md) has the phases and [ARCHITECTURE.md](../ARCHITECTURE.md)
 how it fits together. [DRAWINGS.md](../DRAWINGS.md) specifies drawings made from
 3D parts (a SolidSeas drawing file, a PDF and a DXF), now provisional in the
-command line and the viewer ([docs/drawings](../drawings/README.md)), and
+command line and the viewer ([docs/drawings](../drawings/README.md)),
+[VERSIONS.md](../VERSIONS.md) a file's versions and what changed between them, and
 [OCCT.md](../OCCT.md) records how SolidSeas uses Open CASCADE.
 
 ## Reference documents

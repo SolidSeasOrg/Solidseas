@@ -8,7 +8,8 @@ test in any module can start a slicer: a 3D Print button pressed by a test that
 does not stand in for the launcher fails instead. The service's test modules also
 use ``outbound_guard``, which refuses any connection to a host other than
 loopback while they run. A third keeps every catalog (``solidseas.catalog``) a
-test makes in a temporary cache folder, never in the user's.
+test makes in a temporary cache folder, never in the user's, and a fourth every
+snapshot (``solidseas.versions``) in a temporary data folder.
 
 For the AI connector (``docs/ASSISTANT.md``, "Tests the design requires"): no
 test reaches a network, because ``connect`` and ``getaddrinfo`` fail for any
@@ -236,6 +237,40 @@ def catalogs_stay_out_of_the_real_cache(tmp_path_factory):
             os.environ["SOLIDSEAS_CACHE_DIR"] = saved
     after = _real_catalogs()[1]
     assert after <= before, f"a test wrote a catalog into the real cache folder {folder}"
+
+
+def _real_snapshots() -> tuple[str, set[str]]:
+    """The user's real snapshot store, worked out as solidseas.versions would without
+    SOLIDSEAS_DATA_DIR, and the files whose snapshots it keeps."""
+    if os.name == "nt":
+        base = os.environ.get("LOCALAPPDATA") or os.path.join(os.path.expanduser("~"), "AppData", "Local")
+        folder = os.path.join(base, "SolidSeas", "history", "files")
+    else:
+        base = os.environ.get("XDG_DATA_HOME") or os.path.join(os.path.expanduser("~"), ".local", "share")
+        folder = os.path.join(base, "solidseas", "history", "files")
+    try:
+        return folder, set(os.listdir(folder))
+    except OSError:
+        return folder, set()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def snapshots_stay_out_of_the_real_data_folder(tmp_path_factory):
+    """No test writes a snapshot (solidseas.versions) into the user's data folder: the store
+    every test uses by default is below a temporary folder (SOLIDSEAS_DATA_DIR), and the real
+    store gains no file during the run."""
+    folder, before = _real_snapshots()
+    saved = os.environ.get("SOLIDSEAS_DATA_DIR")
+    os.environ["SOLIDSEAS_DATA_DIR"] = str(tmp_path_factory.mktemp("solidseas-data"))
+    try:
+        yield
+    finally:
+        if saved is None:
+            os.environ.pop("SOLIDSEAS_DATA_DIR", None)
+        else:
+            os.environ["SOLIDSEAS_DATA_DIR"] = saved
+    after = _real_snapshots()[1]
+    assert after <= before, f"a test wrote a snapshot into the real data folder {folder}"
 
 
 @pytest.fixture(autouse=True)

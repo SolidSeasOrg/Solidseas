@@ -28,14 +28,15 @@ What it covers:
   (3.20, provisional), previews rendered from a model (3.21, provisional),
   conversion through SolidSeas' own SOLIDWORKS on Windows (3.22,
   provisional), the AI connector with the machine policy (3.23,
-  provisional), the drawing core (3.24, provisional), and an assembly's
-  Parasolid as one transmit (3.25, provisional);
+  provisional), the drawing core (3.24, provisional), an assembly's
+  Parasolid as one transmit (3.25, provisional), and a file's versions from Git or
+  from snapshots, with what changed between two of them (3.26, provisional);
 - the JSON kinds `document_summary`, `properties`, `configurations`,
   `components`, `references` (with resolution results, 5.10), `bom`, `path_report`,
   `listing`, `streams`, `file_written`, `parasolid_result`, `export_result`, `batch_summary`,
   `version`, `health`, `identity`, `roots`, `serve_started` and `error`, built by
-  `solidseas.model` (section 5), the catalog's kinds (5.15, provisional) and
-  `model_summary` (5.16, provisional);
+  `solidseas.model` (section 5), the catalog's kinds (5.15, provisional),
+  `model_summary` (5.16, provisional) and the versions' kinds (5.19, provisional);
 - the command line, with `--json` on every command and the exit codes
   (section 7);
 - the REST service, `solidseas serve` (section 8), how to run it as a
@@ -438,6 +439,8 @@ its bases, so existing `except` clauses catch exactly what they caught before.
 | `DrawingTooComplexError` | `SldLimitError` | `drawing_too_complex`: a part or drawing past a bound of `DrawingLimits`, `detail["limit"]` naming it (3.24); provisional |
 | `ModelNotFoundError` | `InvalidArgumentError` | `model_not_found`: a drawing's model is not where the drawing says, or only changed files were found (`detail["rule"]` `model_not_found`, 3.24); provisional |
 | `DrawingReleasedError` | `InvalidArgumentError` | `drawing_released`: a RELEASED drawing refused a change until a revision is started (`detail["rule"]` `drawing_released`, 3.24); provisional |
+| `VersionNotFoundError` | `SolidSeasError`, `LookupError` | `version_not_found`: a version name that names none of the file's versions, or a comparison of a file with fewer than two (`detail["parameter"]` names the argument, 3.26); provisional |
+| `VersionUnavailableError` | `SolidSeasError`, `LookupError` | `version_unavailable`: a version whose content is not on this machine (`detail["rule"]`: `lfs_object_missing`, `object_missing`, `snapshot_missing` or `deleted`, 3.26); provisional |
 
 Outside that tree, `FileNotFoundError`, `NotADirectoryError` and
 `IsADirectoryError` map to `not_found`, `PermissionError` to
@@ -574,6 +577,14 @@ subsection of 3.20:
 | `colors_ignored` | Colours the file stores were not kept: too many for one object, or a convention SolidSeas does not read |
 | `text_truncated` | A name, property or metadata value was longer than `text_bytes` and was cut |
 | `component_not_found` | A component the document places could not be found or read; it is left out of the scene |
+
+A file's versions (3.26, provisional) add these:
+
+| Code | Meaning |
+|---|---|
+| `history_incomplete` | The repository is a shallow or partial clone: the history stops where its commits end |
+| `lfs_not_fetched` | Versions stored with Git LFS whose content is not on this machine; `git lfs fetch` brings them |
+| `measures_incomplete` | A version could not be measured whole within the time limit: its volume, area and box were not compared |
 
 ### 3.6 Folder listings: `scan`
 
@@ -4721,6 +4732,88 @@ def write_parasolid(model, path, format=None, *, overwrite=False) -> tuple[str, 
   hold no SOLIDWORKS export of an assembly, and these files have not been
   loaded in a Parasolid kernel.
 
+### 3.26 Versions: `solidseas.versions` (provisional)
+
+A file's versions and what changed between two of them. Inside a Git repository the
+history comes from Git, read from the repository's own files in pure Python: no
+program runs, whatever the repository's configuration names, and nothing is fetched.
+Anywhere else it comes from SolidSeas' snapshots, which are taken only when asked.
+`docs/VERSIONS.md` is the design.
+
+```python
+from solidseas import versions
+
+h = versions.history("D:/Jobs/Example/bracket.SLDPRT")       # file_history data
+for v in h["versions"]:                                       # newest first
+    print(v["number"], v["kind"], v["id"][:12], v["time_utc"], v["subject"])
+s = versions.snapshot("D:/Jobs/Example/bracket.SLDPRT", note="sent for quote")   # snapshot_taken
+d = versions.compare("D:/Jobs/Example/bracket.SLDPRT")       # version_diff: the newest two versions
+d = versions.compare("D:/Jobs/Example/bracket.SLDPRT", "v2", "working")
+with versions.open_version("D:/Jobs/Example/bracket.SLDPRT", "v2") as doc:
+    image = doc.preview()                                     # any document call, on that version
+```
+
+```python
+versions.history(path, *, source="auto", project=None, store=None, max_commits=20_000,
+                 hashes=False) -> dict                                     # file_history
+versions.snapshot(path, *, project=None, store=None, note=None, max_file_bytes=None) -> dict
+                                                                           # snapshot_taken
+versions.compare(path, older=None, newer=None, *, source="auto", project=None, store=None,
+                 measure=True, max_seconds=60.0, max_commits=20_000,
+                 max_file_bytes=512 MiB) -> dict                           # version_diff
+versions.read_version(path, version, **history_options) -> bytes
+versions.open_version(path, version, **history_options) -> Document | ModelDocument
+versions.timeline(path, **history_options) -> Timeline     # the versions as objects; close it
+versions.data_dir() -> str                                  # where the user's snapshots are kept
+```
+
+- **Where the history comes from.** `source="auto"` reads Git when the file is inside
+  a repository's work tree and Git has a version of it, else the snapshots; `"git"`
+  and `"snapshots"` force one (`"git"` outside a repository is `invalid_argument`).
+  The versions are listed newest first and numbered from the oldest (`v1`); the
+  working copy is listed on top (`kind` `working`) when it differs from the newest
+  version or Git has none, and `working.state` says `unchanged`, `changed`, `new` or
+  `missing`.
+- **Git.** The versions are the commits reachable from `HEAD` that changed the file,
+  as `git log -- <path>` lists them with its default history simplification; a
+  commit that deleted the file has `status` `deleted` and no content. Loose and packed
+  objects, the SHA-1 and SHA-256 object formats, linked worktrees, separate git
+  folders, alternates, shallow clones (warning `history_incomplete`), partial clones
+  (versions whose objects are not here have `available` false) and Git LFS pointers
+  (read from the local LFS objects; one not fetched has `available` false and the
+  warning `lfs_not_fetched`) are read. References in the reftable format, an unknown
+  extension of repository format 1 and a pack index of version 1 are
+  `format_not_supported` (rules `reftable`, `repository_extension`,
+  `pack_index_version`); objects that do not decode are `damaged_file` (rule
+  `git_object`). The walk stops after `max_commits` commits (`truncated`). `hashes`
+  reads every version that is not an LFS pointer to give its `sha256`.
+- **Snapshots.** `snapshot` copies the file, read-only, into the user's store
+  (`data_dir()/history`: `%LOCALAPPDATA%\SolidSeas\history` on Windows,
+  `$XDG_DATA_HOME/solidseas/history` elsewhere, `SOLIDSEAS_DATA_DIR` replacing the
+  base), into `<project>/.solidseas/history` only when `project` names the project
+  (the file must lie inside it: `path_refused`, rule `outside_project`), or into the
+  folder `store` names. Nothing is written beside the file otherwise, and nothing
+  through a link (`link_refused`). A file whose content is that of its newest
+  snapshot stores nothing new (`new` false); a file that changes while it is copied
+  is `busy` (rule `file_changing`). A stored copy that no longer matches its hash is
+  `damaged_file` (rule `snapshot_object`).
+- **Naming versions.** `working`, `latest` (the newest stored version), `vN`, or an id
+  (a commit or snapshot id, or at least four of its leading hex digits that name one
+  version). A name that matches none is `version_not_found` (`detail.parameter`
+  names the argument). A version whose content is not on this machine is
+  `version_unavailable`: rule `lfs_object_missing`, `object_missing` (a shallow or
+  partial clone), `snapshot_missing` or `deleted`.
+- **Comparing.** Without names `compare` compares the newest version with the one
+  before it; with `older` alone, that version with the newest; with `newer` alone,
+  that version with the one before it. Both versions are read whole (at most
+  `max_file_bytes` each, `file_too_large` above) and opened from their bytes. Geometry
+  is compared per configuration of a part, once for a model file: equal fingerprints
+  are `unchanged`, and where they differ both versions are measured (volume, area and
+  box of the shown solid bodies), together within `max_seconds`; `measure=False`
+  compares counts alone. A version not measured whole in time is not compared on its
+  measures (warning `measures_incomplete`). Assemblies and drawings are compared on
+  the document, properties and configurations. Section 5.19 has the fields.
+
 ## 4. JSON encoding
 
 ### 4.1 Envelope
@@ -4803,6 +4896,9 @@ renaming or retyping one, or changing its meaning, does. The API version is 1.
 | `model_summary` | 1 | built, provisional | `info` (a model file) | `/v1/document` (a model file) |
 | `drawing_result` | 1 | built, provisional | `drawing` (every action) | |
 | `sldprt_written` | 1 | built, provisional | `sldprt` | |
+| `file_history` | 1 | built, provisional | `history` | |
+| `snapshot_taken` | 1 | built, provisional | `snapshot` | |
+| `version_diff` | 1 | built, provisional | `diff` | |
 
 `/v1/preview` is the one route that answers with an image instead of a kind.
 `model_summary` stands in for `document_summary` on `info` and `/v1/document`
@@ -4948,7 +5044,11 @@ The codes are in section 3.5.
   SolidSeas knows but cannot read yet), `needs_extension` (`format_not_supported`: a
   format SolidSeas reads or writes only through an extension that is not added or
   not on, 3.20.10) and `model_file` (`not_implemented`: an
-  operation for SOLIDWORKS documents asked of another 3D file). A `timeout`
+  operation for SOLIDWORKS documents asked of another 3D file). The versions
+  (3.26) add `git_object` and `snapshot_object` (`damaged_file`), `reftable`,
+  `repository_extension` and `pack_index_version` (`format_not_supported`),
+  `lfs_object_missing`, `object_missing`, `snapshot_missing` and `deleted`
+  (`version_unavailable`) and `file_changing` (`busy`). A `timeout`
   from a worker pool that had no worker free before the deadline carries the
   rule `no_free_worker` with the code's own message.
 - `detail` holds only structured, safe facts, under these keys: `stream`,
@@ -4986,6 +5086,14 @@ The codes are in section 3.5.
 | `interrupted` | | 130 | no |
 | `drawing_invalid`, `drawing_too_complex`, `model_not_found` | | 1 | no |
 | `drawing_released` | | 3 | no |
+| `version_not_found` | 404 | 1 | no |
+| `version_unavailable` | 409 | 1 | no |
+
+The two version codes (3.26, provisional) come from the library and the command
+line; the service has no versions route yet. `version_not_found`: a version name
+(`working`, `latest`, `vN`, an id) that names none of the file's versions, or a
+comparison of a file with fewer than two. `version_unavailable`: the version's
+content is not on this machine (`detail.rule` says why); nothing is fetched.
 
 The four drawing codes (`docs/DRAWINGS.md` 14, provisional) come only from the
 library and the command line (`solidseas drawing`, `docs/drawings/cli.md`); the
@@ -5752,6 +5860,85 @@ without SOLIDWORKS (section 7.1).
 | `unsupported` | The items of `left_out` that were left out only because `--allow-partial` was given; without it the design would have been refused |
 | `partial` | True when `unsupported` is not empty; the command then exits 4 |
 
+### 5.19 The versions' kinds (v1, provisional)
+
+Section 3.26 says how each is worked out; `solidseas schema KIND` gives every field.
+
+**`version`**, one entry of a history, in all three kinds:
+
+```json
+{"number": 3, "id": "54a5a9819b3f0f9d4e6a1c2b3d4e5f6a7b8c9d0e", "kind": "commit", "status": "modified",
+ "time_utc": "2026-10-05T10:00:00Z", "authored_utc": "2026-10-05T10:00:00Z", "author": "A. Designer",
+ "subject": "Make it 31 mm tall", "size": 45944, "sha256": null,
+ "git_blob": "9c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d", "lfs": null, "available": true}
+```
+
+| Field | Meaning |
+|---|---|
+| `number` | Its place in the history, 1 the oldest; the working copy, when listed, comes after the newest stored version |
+| `id` | A commit id, a snapshot id (12 hex digits), or `working` |
+| `kind` | `commit`, `snapshot` or `working` (an open set) |
+| `status` | A commit's: `added`, `modified` or `deleted` (then it has no content); null otherwise |
+| `time_utc` | When the commit was made, the snapshot taken, or the working copy last modified |
+| `authored_utc`, `author` | A commit's author time and name (never the e-mail address); null otherwise |
+| `subject` | A commit message's first line, or a snapshot's note |
+| `size`, `sha256` | The content's size and SHA-256 where known: always for snapshots, the working copy and LFS versions, for other commits with `hashes` or once compared |
+| `git_blob` | A commit's blob id (the pointer's, for an LFS version) |
+| `lfs` | A Git LFS version's pointer: `oid` (SHA-256) and `size`; null otherwise |
+| `available` | Whether the content is on this machine |
+
+**`file_history`** (`history`): `file` (`name`, `path`), `source` (`git` or
+`snapshots`), `git` (`work_tree`, `path` in the repository, `branch` or null for a
+detached head, `head`, `object_format`, `shallow`, `partial`, `commits_walked`; null
+for snapshots), `store` (`location`: `data`, `project` or `folder`, and `path`; null
+for Git), `working` (`state`: `unchanged`, `changed`, `new` or `missing`, with `size`,
+`modified_utc`, `mtime_ns` and `sha256`), `versions` (newest first), `truncated` and
+`warnings`.
+
+**`snapshot_taken`** (`snapshot`): `file`, `store`, `new` (false when the file was as
+its newest snapshot and nothing was stored), `snapshot` (that snapshot's `version`) and
+`versions` (how many snapshots the file has).
+
+**`version_diff`** (`diff`):
+
+```json
+{"file": {"name": "bracket.SLDPRT", "path": "D:\\Jobs\\Example\\bracket.SLDPRT"}, "source": "git",
+ "from": {"number": 1, "kind": "commit", "...": "..."}, "to": {"number": 2, "kind": "working", "...": "..."},
+ "same_content": false,
+ "document": {"from": {"format": "solidworks", "type": "part", "saved_version": "SOLIDWORKS 2024",
+                       "configurations": 1, "properties": 3},
+              "to": {"...": "..."},
+              "changes": [{"field": "material", "configuration": "Default", "from": null, "to": "1060 Alloy"}]},
+ "properties": {"added": [{"configuration": null, "name": "PartNo", "from": null, "to": {"name": "PartNo", "...": "..."}}],
+                "removed": [], "changed": []},
+ "configurations": {"added": ["OracleAlt"], "removed": [], "active": {"from": "Default", "to": "Default"}},
+ "geometry": {"compared": true, "reason": null, "configurations": [
+   {"configuration": "Default", "status": "changed",
+    "from": {"stored": true, "bodies": {"solid": 1, "sheet": 0, "wire": 0, "general": 0}, "hidden_bodies": 0,
+             "faces": 6, "edges": 12, "vertices": 8, "triangles": null, "fingerprint": "ef600fe5...",
+             "measures": {"measured": true, "reason": null, "volume_mm3": 6000.0, "area_mm2": 2200.0,
+                          "box_mm": {"min": [0, 0, 0], "max": [10, 20, 30], "size": [10, 20, 30]},
+                          "closed": true, "complete": true, "chord_mm": 0.0374}},
+    "to": {"...": "..."},
+    "changes": [{"measure": "volume_mm3", "from": 6000.0, "to": 6200.0},
+                {"measure": "size_z_mm", "from": 30.0, "to": 31.0}]}]},
+ "warnings": []}
+```
+
+| Field | Meaning |
+|---|---|
+| `from`, `to` | The two versions compared, as `version` entries with their `sha256` |
+| `same_content` | Whether the two are the same bytes |
+| `document.from`, `document.to` | Each version's format, type, the SOLIDWORKS release that saved it, and how many configurations and file properties it has |
+| `document.changes` | Each field that differs: `type`, `format`, `saved_version`, `units.system`, `units.length`, `units.mass`, `units.angle`, `units.scale_m`, `title`, `subject`, `author`, `keywords`, `comments`, `active_configuration`, `material` (a configuration's, or a model file's), `comment` (a configuration's) and `preview` (the stored image's SHA-256). `from` and `to` are text or null |
+| `properties` | `added`, `removed` and `changed` properties: `configuration` (null for a file property), `name`, and each side's `property` object (5.3) or null |
+| `configurations` | The configurations `added` and `removed` by name, and the `active` one on each side |
+| `geometry.compared`, `geometry.reason` | False with a reason when geometry is not compared: `assembly`, `drawing`, `different_types` or `no_geometry` (an open set) |
+| `geometry.configurations` | One row per configuration (`configuration` null for a model file): `status` (`unchanged`, `changed`, `added`, `removed`, `not_stored`, `not_compared`), each side's geometry summary, and the `changes` of a changed one |
+| geometry summary | `stored` (false when the version stores no bodies for it), body counts by type, `hidden_bodies`, `faces`, `edges`, `vertices`, `triangles` (a mesh file's), `fingerprint`, and `measures` once measured: `volume_mm3`, `area_mm2`, `box_mm` (`min`, `max`, `size`), `closed`, `complete`, `chord_mm` (the tessellation's tolerance), or `measured` false with a `reason` (`max_seconds`, `no_solid_bodies`) |
+| `changes` | Each count or measure that differs: `solid_bodies`, `sheet_bodies`, `wire_bodies`, `general_bodies`, `hidden_bodies`, `faces`, `edges`, `vertices`, `triangles`, `volume_mm3`, `area_mm2`, `size_x_mm`, `size_y_mm`, `size_z_mm`, `min_x_mm`, `min_y_mm`, `min_z_mm`. Measures are compared only when both versions were measured whole |
+| `warnings` | The history's warnings and `measures_incomplete` |
+
 ## 6. Reading the JSON in JavaScript and TypeScript
 
 `JSON.parse` turns every number into a double, which keeps an integer exactly
@@ -5845,6 +6032,9 @@ it.
 | `catalogs` | | `catalog_list` (provisional) |
 | `clear-index [FOLDER]` | `--all`, `--catalog NAME`, `--db FILE` or `--in-project` | `catalog_cleared` (provisional) |
 | `drawing ACTION` | `new PART`, `export DRAWING`, `update DRAWING`, `check DRAWING_OR_PART`, `show DRAWING`, `settings`, each with the options of `docs/drawings/cli.md`; `new`, `export` and `update` write under `--out DIR` (or next to the drawing) under the write guards | `drawing_result` (provisional, section 5.17) |
+| `history FILE` | `--source auto\|git\|snapshots` (default `auto`), `--project DIR` or `--store DIR`, `--max-commits N` (default 20,000), `--hashes` | `file_history` (provisional, section 5.19) |
+| `snapshot FILE` | `--project DIR` or `--store DIR`, `--note TEXT`; writes only into the snapshot store (3.26) | `snapshot_taken` (provisional) |
+| `diff FILE [OLDER] [NEWER]` | versions named `working`, `latest`, `vN` or by id; `--source auto\|git\|snapshots`, `--project DIR` or `--store DIR`, `--no-measures`, `--timeout SECONDS` (default 60) | `version_diff` (provisional) |
 | `version` | | `version` |
 | `schema [KIND]` | `--data` | none: prints the JSON Schema of the kind's envelope (of its `data` alone with `--data`), or with no KIND the list of kinds |
 
@@ -6102,7 +6292,7 @@ and a root that does not exist exits 1 (`not_found`).
 | Exit | Meaning | Error codes |
 |---|---|---|
 | 0 | Success | |
-| 1 | Failed: the document could not be read, something asked for is absent, the service could not listen, or an internal error | `permission_denied`, `address_unavailable`, `not_found`, `configuration_not_found`, `stream_not_found`, `no_preview`, `not_in_catalog`, `nothing_to_export`, `not_representable`, `placeholder_file`, `unknown_format`, `format_not_supported`, `damaged_file`, `limit_exceeded`, `file_too_large`, `locked`, `internal`, `worker_crashed`, `not_implemented`, `busy`, `root_unavailable`, `timeout`, `drawing_invalid`, `drawing_too_complex`, `model_not_found` |
+| 1 | Failed: the document could not be read, something asked for is absent, the service could not listen, or an internal error | `permission_denied`, `address_unavailable`, `not_found`, `configuration_not_found`, `stream_not_found`, `no_preview`, `not_in_catalog`, `nothing_to_export`, `not_representable`, `placeholder_file`, `unknown_format`, `format_not_supported`, `damaged_file`, `limit_exceeded`, `file_too_large`, `locked`, `internal`, `worker_crashed`, `not_implemented`, `busy`, `root_unavailable`, `timeout`, `drawing_invalid`, `drawing_too_complex`, `model_not_found`, `version_not_found`, `version_unavailable` |
 | 2 | Usage: the arguments are wrong | `invalid_argument`, `unknown_parameter`, `duplicate_parameter` |
 | 3 | Refused by a safety rule | `path_refused`, `link_refused`, `feature_disabled`, `output_refused`, `bind_refused`, `token_file_refused`, `catalog_incompatible`, `drawing_released` |
 | 4 | Partial: a folder listing or batch run finished, and at least one item failed (for a batch, also a folder that could not be read, a walk cut short by its limits, or an assembly's Parasolid that left out components); a reference resolution whose folder index a limit cut short; an incomplete path report; an incomplete bill of materials; an export that left out instances of an assembly; an assembly's Parasolid that left out components (`--allow-partial`); a STEP export that left bodies out (`--allow-partial`); a native part that left features out (sldprt with `--allow-partial`); a catalog index run in which a file could not be read, or that a limit or a cancel stopped; or a `drawing check` that found an error-level check (with `--strict`, a warning too) or a model that is not the drawing's | |
@@ -7209,6 +7399,12 @@ provisional item can change at any commit. It is:
   `render`; and the warning codes of 3.5's model-file table and 3.20.
 - Native parts, while the generator is new: the `sldprt` command with its
   options, the kind `sldprt_written` and the rule `native_write`.
+- Versions (3.26), while they are new: `solidseas.versions` and its modules; the
+  commands `history`, `snapshot` and `diff`; the kinds `file_history`,
+  `snapshot_taken` and `version_diff`; the error codes `version_not_found` and
+  `version_unavailable` with `VersionNotFoundError` and `VersionUnavailableError`;
+  the rules of 3.26; the snapshot store's layout and `SOLIDSEAS_DATA_DIR`; and the
+  warning codes `history_incomplete`, `lfs_not_fetched` and `measures_incomplete`.
 - SOLIDWORKS through SolidSeas' own instance (3.22), while the bridge is new:
   `solidseas.swapi` and its modules, `python -m solidseas.swapi` with its
   options, exit codes and `report.tsv`, and the operations, protocol and error

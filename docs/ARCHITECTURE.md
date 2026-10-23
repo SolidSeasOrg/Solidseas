@@ -229,9 +229,23 @@ jobs.
   LFS for CAD files, because binary CAD files do not delta-compress and bloat
   ordinary repositories.
 - Anywhere else, including cloud-synced folders, SolidSeas keeps its own
-  content-addressed snapshots in `.solidseas/history`.
+  content-addressed snapshots: in the user's data folder by default, and in the
+  project's `.solidseas/history` only when the caller names the project, as the
+  safety rules in `AGENTS.md` require of anything written beside a source.
 - Either way a version carries its preview, properties and a geometry
   fingerprint, so the timeline can show what changed between two versions.
+
+Built, provisionally (`docs/VERSIONS.md`, `docs/API.md` 3.26): the library and the
+`history`, `snapshot` and `diff` commands. Git is read in pure Python from the
+repository's own files (`gitrepo`): no program runs, whatever the repository's
+configuration names, and nothing is fetched; a version's history is what
+`git log -- <path>` lists. The snapshot store (`snapstore`) is plain files, an
+object per distinct content and a record per snapshot, none ever rewritten, so it
+needs no lock. Two versions are compared on what they hold (`versiondiff`): the
+document summary every surface builds, properties, configurations, and per
+configuration a canonical fingerprint of the B-rep that a re-save does not change,
+with volume, area and box measured where the fingerprints differ. The viewer's
+timeline, previews in it and the Git LFS guidance come next.
 
 ### 5. Conversion: `solidseas.convert`
 
