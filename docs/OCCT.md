@@ -291,10 +291,9 @@ of 175 corpus parts differed from SOLIDWORKS' volume by 37 %, 48 %, 58 % and
 now left out (`include_hidden`, `--include-hidden` write them), and the four
 parts match SOLIDWORKS within 1.5e-4. 20 imported bodies carry no mark; a part
 with several solids, some unmarked, still writes them all and warns
-`step_hidden_bodies_unknown`. **Left:** the fix is in the STEP export only. The
-tessellator does not read the mark, so hidden bodies are still tessellated and
-still appear in the 3D view and in 3MF and STL prints; only 3D Print's STEP
-route sends just the shown bodies. A part that shows only sheets beside a
+`step_hidden_bodies_unknown`. 3MF and STL prints have since left hidden bodies
+out too (`include_hidden` of `tessellate_document`, off for prints). **Left:**
+the 3D view still draws hidden bodies. A part that shows only sheets beside a
 hidden solid is exported as its sheets, as SOLIDWORKS exports it; one such
 part, of 19 sheets (manifest row 89), then stops at the export's 300 s limit.
 
@@ -346,7 +345,12 @@ in). Of the 20 corpus STEP files with voids that OCCT measures, 14 had a void
 inside out. 10 now read right, step#38 and step#1389 among them, which now
 agree with OCCT throughout. 4 still have one: step#32, step#1098, step#1099
 and step#1104, each of which also has faces skipped or folded or mesh edges
-used twice the same way in the oracle's comparison.
+used twice the same way in the oracle's comparison. A synthetic file shows how
+the two can go together: a void stored facing out of its cavity is turned when
+its shell is closed, but a void shell that lost a face is not closed, its
+volume means little, and it is left as it is (a 30 mm cube with a 10 mm void
+then reads 27,333 mm³ instead of 26,000, warned only `solids_not_closed`).
+Whether that is what the four files have is for a corpus run to say.
 
 ### 7.2 Folded, overlapping triangles (bug)
 
@@ -499,7 +503,7 @@ beside each.
 | 4 | Mesh self-checks: closed solids, shell signs, folds (7.4) | P2 | added; the prints of step#1149 and step#1251 stay open, and 13 files have more mesh edges used twice the same way (4 a few more open ones) than before the fixes |
 | 5 | Opt-in OCCT oracle tests (tier 0) | P2 | added |
 | 6 | STEP export: split closed faces at their seams (6.1) | P2 | fixed: cut as SOLIDWORKS cuts them; the seams OCCT adds went from 587 in 65 corpus files to 6 in 6; the leftovers of 6.1 remain |
-| 7 | STEP export: leave hidden bodies out (6.2) | P2 | fixed for the STEP export; unmarked imported bodies are still all written, with the warning; the tessellator still includes hidden bodies, so they still appear in the 3D view and in 3MF and STL prints; row 89, sheets beside a hidden solid and now exported as its sheets, stops at the export's 300 s limit |
+| 7 | STEP export: leave hidden bodies out (6.2) | P2 | fixed for the STEP export and for 3MF and STL prints; unmarked imported bodies are still all written, with the warning; the 3D view still draws hidden bodies; row 89, sheets beside a hidden solid and now exported as its sheets, stops at the export's 300 s limit |
 | 8 | Tessellate Parasolid blend faces (7.9) | P2 | fixed: 3,185 of 4,280 rolling-blend faces drawn on 222 corpus parts; their prints are slower (median 6.4 s against 4.4 s) |
 | 9 | IGES import and export through an optional OCCT backend (tier 1, under SolidSeas-e2z) | P2 | built (tier 1): IGES and BREP read and written through the OCCT backend extension; its package's first Windows build remains |
 | 10 | Explain the body only SolidSeas seemed to draw (7.5) | P3 | answered (7.5) |
