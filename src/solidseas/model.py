@@ -3396,6 +3396,7 @@ _SCAN_COUNTS = (
     "hashed",
     "hash_pending",
     "resolved_documents",
+    "verified",
 )
 _CATALOG_SCAN_SCHEMA = _obj(
     {

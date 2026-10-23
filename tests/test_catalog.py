@@ -793,6 +793,32 @@ def test_a_scan_writes_nothing_into_the_scanned_folder(tmp_path, pool):
     assert _tree_state(folder) == before
 
 
+def test_verify_finds_a_file_rewritten_in_place_with_its_time_put_back(scanned, pool):
+    """Same size, same modification time, same file id: the listing cannot tell. A scan
+    with verify hashes it again, reads it again, resolves again the documents that use it
+    and records the change; a scan without verify, or of files that did not change, does
+    not."""
+    cat, folder = scanned
+    path = folder / "o02_boxA.SLDPRT"
+    st = path.stat()
+    data = bytearray(path.read_bytes())
+    data[-1] ^= 0xFF  # other bytes, the same length
+    with open(path, "r+b") as fh:  # in place: the file id stays
+        fh.write(data)
+    os.utime(path, ns=(st.st_atime_ns, st.st_mtime_ns))
+    assert path.stat().st_size == st.st_size and path.stat().st_ino == st.st_ino
+    plain = _check("catalog_scan", cat.scan(pool=pool))
+    assert plain["counts"]["changed"] == 0 and plain["counts"]["verified"] == 0
+    checked = _check("catalog_scan", cat.scan(pool=pool, verify=True))
+    c = checked["counts"]
+    assert c["verified"] >= 19 and c["changed"] == 1 and c["read_ok"] + c["read_errors"] == 1
+    assert c["resolved_documents"] > 0
+    (event,) = [e for e in cat.changes()["events"] if e["kind"] == "changed"]
+    assert event["path"] == "o02_boxA.SLDPRT" and event["previous_sha256"] != event["sha256"]
+    again = _check("catalog_scan", cat.scan(pool=pool, verify=True))
+    assert again["counts"]["changed"] == 0 and again["counts"]["read_ok"] == 0
+
+
 def test_a_scan_of_a_home_folder_leaves_the_catalogs_folders_out(tmp_path, monkeypatch):
     """A root that holds SolidSeas' cache folder (a home folder, say): the walk does not go
     into the cache folder, where the catalog itself lives, nor into an in-project

@@ -2719,7 +2719,8 @@ if __name__ == "__main__":                    # documents are read in worker pro
 ```python
 catalog.open(roots=None, *, location="cache", name=None, db=None, cache_dir=None, mode="w") -> Catalog
 Catalog.scan(*, pool=None, workers=2, hash=None, previews=True, file_timeout=30.0,
-             max_seconds=None, max_file_bytes=None, progress=None, cancel=None) -> dict   # catalog_scan
+             max_seconds=None, max_file_bytes=None, progress=None, cancel=None,
+             verify=False) -> dict                                                        # catalog_scan
 Catalog.status(*, paths=True) -> dict                                                     # catalog
 Catalog.where_used(root, path, *, configuration=None, indirect=True, max_depth=32,
                    max_seconds=None) -> dict                                              # where_used
@@ -2879,7 +2880,10 @@ so readers see rows as they arrive:
    gives a file id (Linux and macOS), its file id too; nothing else is looked
    at, and an unchanged file is never opened. So a file rewritten in place with
    its size and modification time put back is not noticed, its hash and what
-   was read of it included, until either changes. A changed one is read again
+   was read of it included, until either changes, unless the scan is asked to
+   `verify` (`index --verify`): then every file that looks unchanged and holds
+   a hash is hashed again before the read (counted in `verified`), and one
+   whose bytes differ is a changed file. A changed one is read again
    and its hash dropped. A file freed to a cloud placeholder, or brought back,
    with the same size and time keeps what was read of it (a placeholder is
    never read). A path new to the catalog is matched to a row that vanished in
@@ -5939,7 +5943,7 @@ references) carries `doc_type` and `format`: the format id it was read as
   walked, `documents`, `truncated_reason`), `removed_roots`, `counts` (`seen`,
   `added`, `changed`, `unchanged`, `moved`, `removed`, `stale`, `read_ok`,
   `read_errors`, `not_solidworks`, `pending`, `hashed`, `hash_pending`,
-  `resolved_documents`), `seconds` per phase and in all, the first 100 `errors`
+  `resolved_documents`, `verified`), `seconds` per phase and in all, the first 100 `errors`
   (`root`, `path`, an error object), `truncated`, `truncated_reason` and
   `cancelled`.
 - **`where_used`** (`where-used`, `/v1/where-used`):
@@ -6290,7 +6294,7 @@ it.
 | `list FOLDER` | `--formats solidworks\|all\|IDS` (default `solidworks`), `--recursive`, `--include properties,configurations`, `--preview none`, `meta` (default) or `inline`, `--max-depth N`, `--limit N`, `--max-examined N`, `--timeout SECONDS`, `--file-timeout SECONDS` (default 30), `--memory-mb N` (default 2048), `--in-process` | `listing` |
 | `batch FOLDER -o DIR` | `--no-recurse`, `--no-preview`, `--no-parasolid`, `--text`, `--configuration NAME`, `--allow-partial`, `--other-configurations` and `--include-hidden` (assemblies), `--max-mb N`, `--jobs N` (1 to 64, default 1), `--file-timeout SECONDS` (default 300), `--memory-mb N` (default 2048), `--in-process`, `--max-examined N`, `--force`, `--allow-source-dir` | `batch_summary` |
 | `serve` | `--root ID=DIR` (repeatable), `--library ID=DIR`, `--port N` (default 8765; 0 picks a free port), `--bind ADDRESS` (default 127.0.0.1), `--token-file PATH`, `--identity-key-file PATH`, `--workers N`, `--allow-remote`, `--allowed-host NAME`, `--identity-address ADDRESS:PORT` (repeatable), `--allow-origin ORIGIN` (repeatable), `--config FILE`, `--viewer`, `--catalog`, `--catalog-rescan SECONDS` (default 300), `--formats solidworks\|all\|IDS` (default `solidworks`) | `serve_started`, one compact line when it is ready; then it serves until stopped (section 8) |
-| `index FOLDER...` | `--root ID=DIR`, `--library DIR` or `ID=DIR` (each repeatable), `--catalog NAME`, `--db FILE` or `--in-project`, `--formats IDS`, `--hash all\|duplicates\|none`, `--no-previews`, `--part-number-property NAME`, `--workers N` (default 2), `--file-timeout SECONDS` (default 30), `--timeout SECONDS` | `catalog_scan` (provisional) |
+| `index FOLDER...` | `--root ID=DIR`, `--library DIR` or `ID=DIR` (each repeatable), `--catalog NAME`, `--db FILE` or `--in-project`, `--formats IDS`, `--hash all\|duplicates\|none`, `--no-previews`, `--verify`, `--part-number-property NAME`, `--workers N` (default 2), `--file-timeout SECONDS` (default 30), `--timeout SECONDS` | `catalog_scan` (provisional) |
 | `where-used FILE` | `--configuration NAME`, `--direct`, `--max-depth N` (default 32), `--catalog NAME`, `--db FILE` or `--in-project` | `where_used` (provisional) |
 | `search TEXT...` | `--sort relevance\|name\|modified`, `--limit N` (1 to 500, default 100), `--cursor C`, `--catalog NAME`, `--db FILE` or `--in-project` | `catalog_search` (provisional) |
 | `duplicates` | `--names`, `--limit N`, `--cursor C`, `--catalog NAME`, `--db FILE` or `--in-project` | `duplicates` (provisional) |

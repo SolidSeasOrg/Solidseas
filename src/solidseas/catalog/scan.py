@@ -238,8 +238,10 @@ class Scanner:
         max_file_bytes: int = DEFAULT_MAX_FILE_BYTES,
         progress: Callable[[str, int, int], None] | None = None,
         cancel: threading.Event | None = None,
+        verify: bool = False,
     ) -> None:
         self.cat = cat
+        self.verify = verify
         self.con = cat.con
         self.pool = pool
         self.workers = workers
@@ -280,6 +282,7 @@ class Scanner:
                 "hashed",
                 "hash_pending",
                 "resolved_documents",
+                "verified",
             ),
             0,
         )
@@ -364,6 +367,10 @@ class Scanner:
             self.seconds["walk"] = time.monotonic() - t
             try:
                 t = time.monotonic()
+                if self.verify and not self._over():
+                    self._verify_phase()
+                self.seconds["hash"] = time.monotonic() - t
+                t = time.monotonic()
                 if not self._over():
                     self._read_phase()
                 self.seconds["read"] = time.monotonic() - t
@@ -374,7 +381,7 @@ class Scanner:
                 t = time.monotonic()
                 if not self._over():
                     self._hash_phase()
-                self.seconds["hash"] = time.monotonic() - t
+                self.seconds["hash"] += time.monotonic() - t
             finally:
                 if self._own_pool is not None:
                     self._own_pool.close()
@@ -1382,13 +1389,15 @@ class Scanner:
         except Exception as exc:
             return "error", exc
 
-    def _hash_phase(self) -> None:
-        rows = self._hash_rows()
+    def _hash_each(self, rows: list[tuple], take: Callable[[tuple, str], None]) -> int:
+        """Hash ``rows`` (``(id, root, rel, size, mtime_ns, ...)``) in the pool, calling
+        ``take(row, sha256)`` in this thread for each hash that holds: the file did not
+        change while it was read and still has the size and time of its row. How many."""
         total = len(rows)
         if not total:
-            return
+            return 0
         pool = self._pool()
-        done = hashed = 0
+        done = taken = 0
         it = iter(rows)
         workers = getattr(pool, "workers", self.workers)
         with cf.ThreadPoolExecutor(max_workers=workers) as ex:
@@ -1400,7 +1409,7 @@ class Scanner:
                     if row is None:
                         exhausted = True
                         break
-                    running[ex.submit(self._hash_one, pool, row)] = row
+                    running[ex.submit(self._hash_one, pool, row[:5])] = row
                 if not running:
                     break
                 finished, _ = cf.wait(list(running), timeout=BATCH_SECONDS, return_when=cf.FIRST_COMPLETED)
@@ -1424,17 +1433,60 @@ class Scanner:
                         and mtime == row[4]
                     ):
                         self._begin()
-                        self.con.execute(
-                            "UPDATE files SET sha256 = ?, hash_size = ?, hash_mtime_ns = ? WHERE id = ? "
-                            "AND size = ? AND mtime_ns = ?",
-                            (sha, row[3], row[4], row[0], row[3], row[4]),
-                        )
+                        take(row, sha)
                         self._tx_n += 1
-                        hashed += 1
+                        taken += 1
                 self._commit()
                 self._report("hash", done, total)
         self._commit(force=True)
-        self.counts["hashed"] = hashed
+        return taken
+
+    def _hash_phase(self) -> None:
+        def take(row: tuple, sha: str) -> None:
+            self.con.execute(
+                "UPDATE files SET sha256 = ?, hash_size = ?, hash_mtime_ns = ? WHERE id = ? "
+                "AND size = ? AND mtime_ns = ?",
+                (sha, row[3], row[4], row[0], row[3], row[4]),
+            )
+
+        self.counts["hashed"] += self._hash_each(self._hash_rows(), take)
+
+    def _verify_phase(self) -> None:
+        """With ``verify``: hash again each file the walk found unchanged that holds a
+        hash of its present size and time. A file rewritten in place with its time put
+        back (which the listing cannot tell, on Windows, where it gives no file id, nor
+        anywhere when the file id stays) has other bytes: it is a changed file, read
+        again in this scan, its references and the documents naming it resolved again,
+        with a ``changed`` event. Counted in ``verified`` and, when they differ,
+        ``changed``."""
+        if not self.available:
+            return
+        roots = sorted(self.available)
+        marks = ",".join("?" * len(roots))
+        rows = self.con.execute(
+            "SELECT id, root, rel, size, mtime_ns, sha256, name FROM files WHERE kind = 'file' AND stale = 0 "
+            "AND sha256 IS NOT NULL AND hash_size IS size AND hash_mtime_ns IS mtime_ns "
+            f"AND state <> 'pending' AND seen_scan = ? AND changed_scan <> ? AND root IN ({marks}) "
+            "ORDER BY root, rel",
+            (self.scan_id, self.scan_id, *roots),
+        ).fetchall()
+
+        def take(row: tuple, sha: str) -> None:
+            fid, db, rel, size, mtime, old, name = row
+            if sha == old:
+                return
+            self.con.execute(
+                "UPDATE files SET state = 'pending', changed_scan = ?, sha256 = ?, hash_size = ?, "
+                "hash_mtime_ns = ?, error_code = NULL, error_retryable = NULL, error_count = 0 "
+                "WHERE id = ? AND size = ? AND mtime_ns = ?",
+                (self.scan_id, sha, size, mtime, fid, size, mtime),
+            )
+            self._event("changed", fid, db, rel, size=size, sha256=sha, previous_sha256=old)
+            self.counts["changed"] += 1
+            self.counts["unchanged"] -= 1
+            self._resolve_naming([fold(name)])
+
+        self.counts["verified"] = self._hash_each(rows, take)
 
     # ------------------------------------------------------------------ the end
     def _finish(self, state: str) -> dict[str, Any]:

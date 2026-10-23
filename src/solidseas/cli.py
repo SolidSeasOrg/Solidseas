@@ -2221,6 +2221,7 @@ def cmd_index(args: argparse.Namespace) -> int:
             workers=args.workers,
             hash=args.hash,
             previews=not args.no_previews,
+            verify=args.verify,
             file_timeout=args.file_timeout,
             max_seconds=args.timeout,
         )
@@ -4068,6 +4069,11 @@ def build_parser() -> argparse.ArgumentParser:
         "(default: all on a local drive, duplicates on a share)",
     )
     sp.add_argument("--no-previews", action="store_true", help="keep no preview images in the catalog")
+    sp.add_argument(
+        "--verify",
+        action="store_true",
+        help="hash every file that looks unchanged again, and read again one whose bytes differ",
+    )
     sp.add_argument(
         "--formats",
         default=None,

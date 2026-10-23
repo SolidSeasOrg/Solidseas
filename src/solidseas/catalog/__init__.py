@@ -514,6 +514,7 @@ class Catalog:
         max_file_bytes: int | None = None,
         progress: Callable[[str, int, int], None] | None = None,
         cancel: threading.Event | None = None,
+        verify: bool = False,
     ) -> dict[str, Any]:
         """Scan the roots and bring the catalog up to date (:mod:`.scan`); returns the
         ``catalog_scan`` data. ``pool`` is a :class:`~solidseas.workers.WorkerPool` to read
@@ -521,7 +522,10 @@ class Catalog:
         below normal priority for the scan. ``hash`` is ``all``, ``duplicates`` or ``none``
         (None: the catalog's setting, else ``all`` on a local drive and ``duplicates`` on a
         share). ``progress(phase, done, total)`` is called as it goes; ``cancel`` (an
-        event) and ``max_seconds`` stop it between files, keeping what was committed."""
+        event) and ``max_seconds`` stop it between files, keeping what was committed.
+        ``verify`` hashes again every file that looks unchanged and has a hash, and reads
+        again one whose bytes differ: a file rewritten in place with its modification time
+        put back is noticed only so."""
         from .scan import DEFAULT_MAX_FILE_BYTES, HASH_POLICIES, Scanner
 
         self._writable()
@@ -557,6 +561,7 @@ class Catalog:
                     max_file_bytes=limit,
                     progress=progress,
                     cancel=cancel,
+                    verify=bool(verify),
                 ).run()
 
         try:

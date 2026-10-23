@@ -77,6 +77,11 @@ while the project takes shape.
 
 ### Added
 
+- **A verifying catalog scan.** `solidseas index --verify` (and
+  `Catalog.scan(verify=True)`) hashes files that look unchanged again and reads
+  again any whose contents changed, which catches a file rewritten with its
+  modification time put back.
+
 - **Duplicates, missing references and changes over REST.** `solidseas serve
   --catalog` now answers /v1/duplicates, /v1/missing and /v1/changes, a page at
   a time.
