@@ -45,9 +45,10 @@ from PySide6.QtWidgets import (
 )
 
 from .. import extensions as X
+from . import experimental
 from .animation import SIZES, AnimationOptions, OptionsError, frames, with_format
 
-MENU_TEXT = "Save Animation..."
+MENU_TEXT = experimental.tagged("Save Animation...", experimental.extension_stage("video"))
 MENU_TIP = "Save a clip of the model turning, exploding and collapsing, as MP4 or an animated GIF"
 
 

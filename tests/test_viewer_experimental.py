@@ -106,3 +106,15 @@ def test_the_menus_and_the_extensions_page_carry_the_tag(window, tmp_path):
         assert page.experimental_note.text() == E.extensions_note()
     finally:
         page.deleteLater()
+
+
+@needs_qt
+def test_extension_fronts_carry_their_extension_tag(window):
+    from solidseas_app.viewer import animationaction, convertaction
+    from solidseas_app.viewer import experimental as E
+
+    assert convertaction.TEXT == E.tagged("Con&vert...", E.extension_stage("occt"))
+    assert window.act_convert.text() == "Con&vert... (In development)"
+    assert animationaction.MENU_TEXT == E.tagged("Save Animation...", E.extension_stage("video"))
+    assert animationaction.MENU_TEXT == "Save Animation... (Experimental)"
+

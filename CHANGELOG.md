@@ -8,6 +8,10 @@ while the project takes shape.
 
 ### Changed
 
+- **Extension features say how finished they are.** File > Convert now shows
+  "(In development)" and Save Animation shows "(Experimental)", the same tags
+  the Extensions page gives the OCCT backend and the video extension.
+
 - **Drawings move to a larger sheet when they would clash.** When a drawing's
   sheet size is automatic and the drawing still has text over text, or a
   dimension with no clear place, SolidSeas lays it out again on the next larger

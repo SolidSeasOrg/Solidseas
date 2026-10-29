@@ -23,11 +23,11 @@ from typing import Any
 
 from PySide6.QtWidgets import QFileDialog
 
-from . import convertfile, reading
+from . import convertfile, experimental, reading
 from .stepaction import StepController
 
 TITLE = convertfile.TITLE
-TEXT = "Con&vert..."
+TEXT = experimental.tagged("Con&vert...", experimental.extension_stage("occt"))
 TIP = (
     "Write the model as IGES, BREP or STEP through the OCCT backend extension (Open CASCADE), "
     "to a file you choose"
