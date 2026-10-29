@@ -99,27 +99,32 @@ packages in that folder, which the viewer adds, switched off, the first time it
 starts (see [EXTENSIONS.md](../EXTENSIONS.md)).
 
 `.github/workflows/release.yml` runs the same script on GitHub's Windows runner
-when a release is published, installs the result, runs the self-test below on
-the installed viewer, uninstalls it, and attaches the installer to the release.
-It builds no extension packages: those are built and attached by hand, as the
-checklist below says. A viewer accepts only the packages of its own release,
-so the packages and the viewer must come from the same commit. The OCCT
-backend's package is not offered yet.
+when a release is published. It first downloads the extension packages attached
+to the release, checks each against the release's `SHA256SUMS.txt`, and builds
+the viewer and the installer to accept exactly those packages. It then installs
+the result, runs the self-test below on the installed viewer, uninstalls it, and
+attaches the installer, the single-file viewer and `BUNDLED-FILES.txt` to the
+release. It builds no extension packages: those are built on a Windows PC and
+attached by hand, as the checklist below says. A release with none attached
+gives a viewer that accepts none. The OCCT backend's package is not offered
+yet.
 
 ## Making a release
 
-1. Build the extension packages and the viewer from one commit:
-   `scripts\build-viewer.ps1 -Venv .venv -WithExtensions` (with `-FfmpegFolder`,
-   `-FfmpegSource` and, if you have it, `-SolidCraftZip`) runs
-   `scripts\build-extensions.ps1` first, then builds the viewer.
-2. Accept the packages into `src\solidseas_app\extensions\accepted.json`.
-   `build-extensions.ps1` writes it from the packages it built; check that it
-   lists each one before the viewer is built.
-3. Build the installer with the same packages:
-   `scripts\build-installer.ps1 -ExtensionsFolder dist\extensions`.
-4. Attach to the release the installer, `SolidSeasViewer.exe`, the extension
-   zips from `dist\extensions`, the viewer's `BUNDLED-FILES.txt` and
-   `SHA256SUMS.txt`.
+1. Build the extension packages from the release's commit:
+   `scripts\build-extensions.ps1 -Venv .venv` (with `-FfmpegFolder`, `-FfmpegSource` and,
+   if you have it, `-SolidCraftZip`). It writes the zips and their
+   `SHA256SUMS.txt` to `dist\extensions`.
+2. Draft the release on GitHub for that commit's tag, and attach the zips and
+   `dist\extensions\SHA256SUMS.txt`. Attach that file, which lists only the
+   zips, rather than `dist\SHA256SUMS.txt`: the workflow builds its own viewer,
+   so a viewer hash from your build would not match.
+3. Publish the release. The release workflow checks the zips, builds the
+   viewer and the installer to accept them, tests the installed viewer and
+   attaches the installer, `SolidSeasViewer.exe` and `BUNDLED-FILES.txt`.
+4. If you attach packages after publishing, run the workflow again by hand for
+   the tag (Actions > Release installer > Run workflow), so the viewer accepts
+   them.
 5. Publish the Qt source release, `qt-6.12.0-source`, with the Qt and Qt for
    Python source archives that `THIRD_PARTY_NOTICES.txt` names, if it is not
    there yet. When the bundled Qt version changes, publish a new one under the
