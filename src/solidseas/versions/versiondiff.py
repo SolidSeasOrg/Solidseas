@@ -248,6 +248,12 @@ def _no_measures(reason: str) -> dict[str, Any]:
     }
 
 
+def _ran_out(result) -> str | None:
+    """``max_seconds`` when the time limit cut ``result`` (a tessellation or a scene)
+    short, else None."""
+    return "max_seconds" if result is not None and "max_seconds" in result.truncated else None
+
+
 def _measure_part(doc, configuration: str | None, deadline: float) -> dict[str, Any]:
     """Volume, area and box of a part configuration's shown solid bodies."""
     from ..tessellate import tessellate_document
@@ -257,7 +263,8 @@ def _measure_part(doc, configuration: str | None, deadline: float) -> dict[str, 
         return _no_measures("max_seconds")
     t = tessellate_document(doc, configuration, body_types=("solid",), include_hidden=False, max_seconds=left)
     if t is None or not t.counts.get("bodies"):
-        return _no_measures("no_solid_bodies")
+        # a read the time ran out in has no bodies yet: that is the time, not the part
+        return _no_measures(_ran_out(t) or "no_solid_bodies")
     m = t.measures()
     complete = not t.truncated and not t.counts.get("faces_skipped") and not t.counts.get("bodies_skipped")
     return {
@@ -281,7 +288,7 @@ def _measure_model(doc, deadline: float, *, bodies: bool) -> dict[str, Any]:
         return _no_measures("max_seconds")
     scene = doc.scene(prefer="bodies" if bodies else "display", body_types=("solid",), max_seconds=left)
     if not scene.items:
-        return _no_measures("no_solid_bodies")
+        return _no_measures(_ran_out(scene) or "no_solid_bodies")
     volume = area = 0.0
     low = [math.inf] * 3
     high = [-math.inf] * 3

@@ -10,6 +10,8 @@ import pytest
 from jsonschema_subset import validate
 from solidseas import model, open_document, versions
 from solidseas.formats.solidworks.parasolid import compare_brep
+from solidseas.tessellate import topology
+from solidseas.versions import versiondiff
 from solidseas.versions.versiondiff import Side, body_fingerprint, compare_sides
 from support import fixture_path
 
@@ -181,6 +183,33 @@ def test_measuring_is_optional_and_bounded():
     row = geometry(d)["Default"]
     assert row["to"]["measures"] == {**row["to"]["measures"], "measured": False, "reason": "max_seconds"}
     assert [w["code"] for w in d["warnings"]] == ["measures_incomplete"]
+
+
+def test_a_read_stopped_by_the_time_limit_says_so_whatever_the_clock(monkeypatch):
+    """The comparison's own clock does not move (Windows' monotonic clock ticks every
+    15.6 ms), so its first look at the deadline finds time left; the read of the bodies
+    then runs out on a clock that moves a second each look. The part is measured as
+    stopped by the time, not as one without solid bodies."""
+
+    class Still:
+        @staticmethod
+        def monotonic():
+            return 1000.0
+
+    class Racing:
+        now = 0.0
+
+        @classmethod
+        def perf_counter(cls):
+            cls.now += 1.0
+            return cls.now
+
+    monkeypatch.setattr(versiondiff, "time", Still)
+    monkeypatch.setattr(topology, "time", Racing)
+    d = diff("o02_boxA.SLDPRT", "o07_boxB_h31.SLDPRT", max_seconds=0.5)
+    for side in ("from", "to"):
+        measures = geometry(d)["Default"][side]["measures"]
+        assert (measures["measured"], measures["reason"]) == (False, "max_seconds")
 
 
 def test_compare_through_a_history_and_its_schema(tmp_path):

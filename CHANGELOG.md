@@ -406,6 +406,11 @@ while the project takes shape.
 
 ### Fixed
 
+- **Out of time, not "no solid bodies".** Comparing two versions with a short
+  time limit now says the time ran out when it stopped while reading a part's
+  bodies, instead of saying the part has no solid bodies. This showed on
+  Windows, whose clock moves in larger steps.
+
 - **Security fixes from the desktop review.** A chat is no longer told the full
   path of a part's file when a picture of it cannot be made or a file call
   fails; a Gridfinity bin laid out by hand on a grid you give is held to the
