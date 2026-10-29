@@ -32,12 +32,16 @@ def journal(folder) -> list[dict]:
         return [json.loads(line) for line in f]
 
 
-def files(folder) -> dict[str, tuple[bytes, float]]:
+def files(folder) -> dict[str, tuple[bytes | int, float]]:
     out = {}
     for name in os.listdir(folder):
         path = os.path.join(folder, name)
+        st = os.stat(path)
+        if name == LOCK_NAME:  # Windows refuses reads of the range a holder has locked: its size
+            out[name] = (st.st_size, st.st_mtime)
+            continue
         with open(path, "rb") as f:
-            out[name] = (f.read(), os.stat(path).st_mtime)
+            out[name] = (f.read(), st.st_mtime)
     return out
 
 

@@ -339,7 +339,12 @@ def test_a_node_fetch_is_served(srv):
     no Origin or Sec-Fetch-Site: the browser checks must let it through."""
     env = {**os.environ, "SOLIDSEAS_PORT": str(srv.port), "SOLIDSEAS_TOKEN": TOKEN}
     done = subprocess.run(
-        ["node", "--input-type=module", "-e", NODE_FETCH], capture_output=True, text=True, timeout=60, env=env
+        ["node", "--input-type=module", "-e", NODE_FETCH],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        timeout=60,
+        env=env,
     )
     assert done.returncode == 0, done.stderr[-2000:]
     assert json.loads(done.stdout) == {"status": 200, "kind": "components", "children": 2, "revalidated": 304}
@@ -648,6 +653,7 @@ def test_the_cli_runs_without_standard_streams(tmp_path):
         env=env,
         creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if WINDOWS else 0,
     )
+
     def read_token() -> str | None:
         # The file shows up before the service has finished writing it, and on Windows
         # it cannot be opened until the service closes it, so wait for a token in it.

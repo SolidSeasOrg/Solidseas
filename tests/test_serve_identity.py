@@ -735,7 +735,9 @@ def _documented_typescript(tmp_path: Path, driver: str = ONCE, *, recipe: str = 
 
 def _node(module: Path, port: int, token: str) -> dict:
     env = {**os.environ, "SOLIDSEAS_PORT": str(port), "SOLIDSEAS_TOKEN": token}
-    done = subprocess.run(["node", str(module)], capture_output=True, text=True, timeout=60, env=env)
+    done = subprocess.run(
+        ["node", str(module)], capture_output=True, text=True, encoding="utf-8", timeout=60, env=env
+    )
     assert done.returncode == 0, done.stderr[-2000:]
     return json.loads(done.stdout.strip().splitlines()[-1])
 
@@ -832,7 +834,12 @@ def test_the_typescript_client_never_reuses_a_connection_from_before_the_service
     module = _documented_typescript(tmp_path, EACH_LINE)
     env = {**os.environ, "SOLIDSEAS_PORT": str(port), "SOLIDSEAS_TOKEN": OTHER_TOKEN}
     node = subprocess.Popen(
-        ["node", str(module)], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True, env=env
+        ["node", str(module)],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        text=True,
+        encoding="utf-8",
+        env=env,
     )
 
     def fetch() -> dict:

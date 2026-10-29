@@ -235,7 +235,12 @@ def test_the_pages_own_origin_may_call_the_routes(srv):
     r = srv.request("/v1/version", headers=own)
     assert r.status == 200 and "access-control-allow-origin" not in r.headers  # same origin: no CORS
     assert srv.request("/viewer/viewer.js", token=None, headers=own).status == 200  # a module script
-    for other in (f"http://localhost:{srv.port}", f"http://127.0.0.1:{srv.port + 1}", "null", "https://evil.example"):
+    for other in (
+        f"http://localhost:{srv.port}",
+        f"http://127.0.0.1:{srv.port + 1}",
+        "null",
+        "https://evil.example",
+    ):
         r = srv.request("/v1/version", headers={"Origin": other})
         assert r.status == 403 and r.json()["error"]["code"] == "forbidden_origin", other
 
@@ -329,7 +334,11 @@ def test_three_js_reads_what_the_route_answers(plain, tmp_path):
     model = tmp_path / "model.glb"
     model.write_bytes(plain.get("mesh", root="jobs", path="o16_asm_features.SLDASM").body)
     done = subprocess.run(
-        ["node", str(tmp_path / "check.mjs"), str(model)], capture_output=True, text=True, timeout=60
+        ["node", str(tmp_path / "check.mjs"), str(model)],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        timeout=60,
     )
     assert done.returncode == 0, done.stderr[-2000:]
     got = json.loads(done.stdout.strip().splitlines()[-1])

@@ -71,11 +71,12 @@ std = "library"
     assert s["port"] == 9001 and s["workers"] == 2 and s["catalog"] is True and s["allow_remote"] is False
     assert s["catalog_rescan"] == 60.0 and s["formats"] == "stl,3mf"
     assert s["token_file"] == os.path.normpath(str(folder / "state" / "serve-tokens"))  # from its folder
-    assert s["identity_key_file"] == os.path.normpath("/var/lib/solidseas/key")
+    # A path from the root keeps the config file's drive on Windows, as os.path.join gives it.
+    assert s["identity_key_file"] == os.path.normpath(os.path.join(folder, "/var/lib/solidseas/key"))
     assert s["allowed_hosts"] == ["solidseas"] and s["identity_addresses"] == ["127.0.0.1:18765"]
     assert [(r.id, r.role, r.path) for r in s["roots"]] == [
         ("jobs", "project", os.path.normpath(str(tmp_path / "jobs"))),
-        ("archive", "project", os.path.normpath("/srv/archive")),
+        ("archive", "project", os.path.normpath(os.path.join(folder, "/srv/archive"))),
     ]
     assert [(r.id, r.role) for r in s["libraries"]] == [("std", "library")]
     assert load_serve_config(_write(tmp_path / "empty", "")) == {}  # nothing set is fine

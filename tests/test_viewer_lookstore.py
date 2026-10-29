@@ -121,6 +121,8 @@ def test_the_file_names_no_path_or_document(tmp_path):
         b"[" * 100_000,  # nested past what the parser takes
         "{é".encode("latin-1"),  # not UTF-8
     ],
+    # short ids: the deep one as its own id is longer than Windows lets PYTEST_CURRENT_TEST be
+    ids=["not-json", "a-list", "version-2", "documents-not-a-list", "nested-too-deep", "not-utf-8"],
 )
 def test_a_damaged_or_foreign_file_is_taken_as_empty_and_replaced(tmp_path, data):
     path = tmp_path / "ViewerLooks.json"

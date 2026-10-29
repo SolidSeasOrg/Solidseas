@@ -328,7 +328,7 @@ def test_a_copy_that_cannot_be_removed_keeps_the_folder_whole(tmp_path, monkeypa
 def test_only_run_folders_directly_in_the_runs_folder_are_looked_at(tmp_path):
     root = tmp_path / "runs"
     run = ended_run(root)
-    for name in ("notes", "20261001-120000-0123ABCD", "20261001-1200-0123abcd", "x20261001-120000-0123abcd"):
+    for name in ("notes", "20261001-120000-4567ABCD", "20261001-1200-0123abcd", "x20261001-120000-0123abcd"):
         (root / name).mkdir()
         (root / name / "keep.txt").write_text("mine")
     (root / "20261001-120000-0000000f").write_text("a file named like a run")
@@ -336,7 +336,7 @@ def test_only_run_folders_directly_in_the_runs_folder_are_looked_at(tmp_path):
     nested = ended_run(root / "20261001-120000-00000012", "20261001-120000-00000013")
     assert automatic.clean_old_runs(str(root), now=time.time() + LATER) == 1
     assert not run.exists()
-    for name in ("notes", "20261001-120000-0123ABCD", "20261001-1200-0123abcd", "x20261001-120000-0123abcd"):
+    for name in ("notes", "20261001-120000-4567ABCD", "20261001-1200-0123abcd", "x20261001-120000-0123abcd"):
         assert (root / name / "keep.txt").read_text() == "mine"
     assert (root / "20261001-120000-0000000f").read_text() == "a file named like a run"
     assert contents(deeper) and contents(nested)  # a folder holding a folder is not a run's: it stays

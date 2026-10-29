@@ -57,6 +57,11 @@ for name, frag_depth, highp in (("far", True, True), ("medium", True, False), ("
         v.set_view("front")
         app.processEvents()
         v.grabFramebuffer()
+        if v.renderer is None:  # no context of the kind asked for, or no renderer on it: stop here
+            es = bool(v.context() and v.context().isOpenGLES())
+            out[f"{name} {instanced}"] = {"es": es, "made": False, "error": v.error}
+            print(json.dumps(out))
+            raise SystemExit(0)
         r = {"es": v.context().isOpenGLES(), "rank_far": v.renderer.rank_far}
 
         def at(p):
@@ -82,12 +87,14 @@ print(json.dumps(out))
 @pytest.mark.parametrize("es", [False, True], ids=["desktop OpenGL", "OpenGL ES"])
 def test_a_transparent_part_ranks_at_the_far_side_of_its_box_every_way(es):
     out = run_gl(_GL_RANKS, env={"SOLIDSEAS_TEST_GLES": "1"} if es else {})
-    if es and not out["far True"]["es"]:
-        pytest.skip("no OpenGL ES context can be made here")
+    first = out["far True"]
+    if es and not first["es"]:
+        why = first.get("error") or "the context made is desktop OpenGL"
+        pytest.skip(f"no OpenGL ES context can be made here ({why})")
     for name in ("far", "medium", "stencil"):
         for instanced in ("True", "False"):
             r = out[f"{name} {instanced}"]
-            assert r["error"] is None and r["es"] == es, r
+            assert r.get("made", True) and r["error"] is None and r["es"] == es, r
             assert r["rank_far"] == (name != "stencil"), r
             # Opaque, the housing is picked everywhere it is drawn, at its near side.
             assert r["opaque"] == {
