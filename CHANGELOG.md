@@ -23,6 +23,8 @@ while the project takes shape.
   fillet of constant radius on all four edges of a box along its depth, and a
   fillet on the edge of a hole cut through the box, on its far face. Other
   fillets are still refused, each with a reason that says what is supported.
+  Parts with a fillet have not been opened in SOLIDWORKS yet, and the command
+  says so when it writes one.
 
 - **Every sheet in the New Drawing preview.** The New Drawing preview pages
   through every sheet of a drawing with Previous Sheet and Next Sheet (Ctrl+Page
@@ -103,9 +105,9 @@ while the project takes shape.
   .json file; the part then needs neither CadQuery nor SOLIDWORKS to make. Each
   feature is listed by the CadQuery call that made it. Calls SolidSeas does not
   translate yet, such as fillet, are named, and `--allow-partial` leaves them
-  out. Today a part can hold what the generator writes: rectangles on the Front
-  Plane extruded up and one hole through all. CadQuery stays the optional cad
-  extra.
+  out. From CadQuery a part can hold rectangles on the Front Plane extruded up
+  and, on a part of a single box, one hole through all; CadQuery's fillet is
+  not translated yet. CadQuery stays the optional cad extra.
 
 - **A file's versions, and what changed between them.** `solidseas history FILE`
   lists a file's versions, newest first. Inside a Git repository these are the
@@ -157,17 +159,20 @@ while the project takes shape.
   them and the extrusion depth editable in SOLIDWORKS; the command lists each
   feature with its name in your design. A part with one box can also have one
   round hole cut through it, and opens in SOLIDWORKS 2024 with the hole in
-  place. The part also gets the design's file properties (text, numbers, dates
-  and yes or no values), which SOLIDWORKS shows on the Custom tab of File >
-  Properties, and `--property NAME=VALUE` adds a text property, such as a part
-  number, as you write it. A design that needs anything else, such as a fillet,
-  is refused with every such item listed, and nothing is written. With
-  `--allow-partial` the part is written without them, every item left out is
-  listed, and the command exits 4. It never replaces a file, and `--json` prints
-  the new `sldprt_written` result. SolidSeas reads each part back before writing
-  it. Parts like these open in SOLIDWORKS 2024 with their feature tree and
-  rebuild when you change a depth; other versions have not been tried, so check
-  an important one there before you rely on it.
+  place. Such a part can also have fillets on the box's edges along its depth
+  and on the hole's far edge (see Fillets in parts made without SOLIDWORKS). The
+  part also gets the design's file properties (text, numbers, dates and yes or
+  no values), which SOLIDWORKS shows on the Custom tab of File > Properties, and
+  `--property NAME=VALUE` adds a text property, such as a part number, as you
+  write it. A design that needs anything else, such as a fillet on other edges
+  or a second hole, is refused with every such item listed, and nothing is
+  written. With `--allow-partial` the part is written without them, every item
+  left out is listed, and the command exits 4. It never replaces a file, and
+  `--json` prints the new `sldprt_written` result. SolidSeas reads each part
+  back before writing it. Parts like these without a fillet open in SOLIDWORKS
+  2024 with their feature tree and rebuild when you change a depth; other
+  versions have not been tried, so check an important one there before you rely
+  on it.
 
 - **A run SolidSeas did not get to finish is offered again.** If SolidSeas
   closed during an Automatic run, or before you chose Keep or Revert, the
@@ -205,31 +210,24 @@ while the project takes shape.
 - **IGES and BREP files, with the OCCT backend extension.** SolidSeas now reads
   IGES files (`.igs`, `.iges`) and Open CASCADE's BREP files (`.brep`) through
   the OCCT backend extension, a package you add in Tools > Extensions and switch
-  on. With it on, they open in the viewer and on the command line as STEP files
-  do: the 3D view, thumbnails, Export for 3D Printing, 3D Print and the index
-  all take them. An IGES file's loose surfaces are sewn into solids where they
-  meet within 0.01 mm; the ones that stay open are shown as surfaces, and a
-  warning says how many. The file's unit, the program that wrote it, its author
-  and its date come from its own header. Without the extension these files are
-  listed greyed, and the viewer, the command line and the error say what to add.
-  Open CASCADE runs only in the extension's own program, on a copy of each file;
-  a file that makes it stop fails on its own. The extension is marked In
-  development.
+  on, when a release offers it. With it on, they open in the viewer and on the
+  command line as STEP files do: the 3D view, thumbnails, Export for 3D
+  Printing, 3D Print and the index all take them. An IGES file's loose surfaces
+  are sewn into solids where they meet within 0.01 mm; the ones that stay open
+  are shown as surfaces, and a warning says how many. The file's unit, the
+  program that wrote it, its author and its date come from its own header.
+  Without the extension these files are listed greyed, and the viewer, the
+  command line and the error say what to add. Open CASCADE runs only in the
+  extension's own program, on a copy of each file; a file that makes it stop
+  fails on its own. The extension is marked In development.
 - **`solidseas convert` writes IGES, BREP and STEP.** With the OCCT backend
-  extension on, `solidseas convert FILE --format iges|brep|step -o OUT` writes
-  an IGES, BREP or STEP file, a SOLIDWORKS part or assembly, or a Parasolid
-  file in another of those formats, in millimetres. A SOLIDWORKS document or a
-  Parasolid file goes through the STEP SolidSeas writes of it. IGES is written
-  in BRep mode, so solids stay solids, with a header that names no one. The
-  output follows the export's rules (`--force`, `--allow-source-dir`), and
-  `--json` prints a `file_written` document.
-- **The OCCT backend's package.** `scripts\build-extensions.ps1 -Only occt
-  -OcctSource URL` builds `occt-<version>.zip`: the helper with Python and OCP
-  7.9.3.1 (Open CASCADE 7.9.3, without VTK) from a wheel pinned by its SHA-256,
-  and the licences of everything it carries, Open CASCADE's LGPL 2.1 with its
-  exception, OCP's Apache License and each library the wheel brings
-  (`THIRD_PARTY_NOTICES.txt` section 3.4). The build stops for a library it has
-  no licence for, or a helper that does not start.
+  extension on (when a release offers it), `solidseas convert FILE --format
+  iges|brep|step -o OUT` writes an IGES, BREP or STEP file, a SOLIDWORKS part or
+  assembly, or a Parasolid file in another of those formats, in millimetres. A
+  SOLIDWORKS document or a Parasolid file goes through the STEP SolidSeas writes
+  of it. IGES is written in BRep mode, so solids stay solids, with a header that
+  names no one. The output follows the export's rules (`--force`,
+  `--allow-source-dir`), and `--json` prints a `file_written` document.
 
 - **Assemblies in a batch get their Parasolid file too.** `solidseas batch`
   used to write Parasolid files for parts only. It now writes each assembly in
@@ -395,7 +393,16 @@ while the project takes shape.
   that SOLIDWORKS while it shows a document SolidSeas did not open, such as one
   you opened in it while it ran. It shows that SOLIDWORKS on your screen
   instead, says so in the log, and ends it once you have saved and closed the
-  document.
+  document. This takes effect with the next CAD Bridge package, since the
+  bridge built from this version has not been compiled or run yet.
+
+- **The video package's ffmpeg, built from source.** The ffmpeg in the video
+  export package is now built from FFmpeg 9.0.2's source, its signature
+  checked, under the LGPL and with only what Save Animation uses: PNG frames
+  in, GIF out, and MP4 out through Windows' own H.264 encoder (h264_mf) or as
+  MPEG-4 part 2. It holds no GPL or nonfree part and no OpenH264. Its source,
+  signature and build script are published as the `ffmpeg-9.0.2-source`
+  release, and `THIRD_PARTY_NOTICES.txt` names what is linked into it.
 
 ### Fixed
 
@@ -565,6 +572,12 @@ while the project takes shape.
 - **Hole callouts keep their space in SVG.** A callout such as "6X Ø4.50
   THRU" no longer runs together as "6X Ø4.50THRU" when a drawing is shown as
   SVG.
+
+- **The exit code of an assistant script that ends its own process.** When a
+  script you approved in the modeling assistant ended its own process, a slow
+  PC could report exit code 0 whatever code the script ended with. The
+  assistant now waits for the process to finish exiting and reports its real
+  exit code.
 
 ## [0.2.361] - 2026-10-19
 
@@ -776,7 +789,7 @@ while the project takes shape.
   clip zooms out once, as far as the most exploded frame needs.
 
 - **Extensions.** Tools > Extensions lists what SolidSeas can add beyond its
-  core: Gridfinity bins, the SOLIDWORKS engine, video export and the OCCT
+  core: Gridfinity bins, the CAD Bridge, video export and the OCCT
   backend. Switch each on or off; one that comes as a package is added from a
   file you download (Get extensions... opens the page where they are), checked
   before anything in it is unpacked, and removed again from the same page.
@@ -785,7 +798,7 @@ while the project takes shape.
   `DisableExtensions`, or allow only some with `AllowedExtensions`. The
   packages themselves come in later releases. Gridfinity's folders, its
   Tracefinity address and its server are set from its Settings... there; the
-  environment variables a chat's settings name still come first. The SOLIDWORKS engine follows its switch too: once its package is added,
+  environment variables a chat's settings name still come first. The CAD Bridge follows its switch too: once its package is added,
   live mode and the SOLIDWORKS chat tools are there only while it is on.
 
 - **Simplified, complex or fully defined drawings.** The New Drawing wizard's
@@ -2036,8 +2049,8 @@ while the project takes shape.
 ### Changed
 
 - **A new home.** SolidSeas now lives in the SolidSeas organisation on GitHub,
-  at https://github.com/SolidSeas/SolidSeas, starting from a fresh history. Releases,
-  issues and the wiki are there. The SOLIDWORKS test documents, which carry the
+  at https://github.com/SolidSeas/SolidSeas, starting from a fresh history. Releases
+  and issues are there. The SOLIDWORKS test documents, which carry the
   name of the account that made them, are kept in a private repository and are
   fetched for the tests that need them.
 
