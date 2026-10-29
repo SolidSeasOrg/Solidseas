@@ -61,13 +61,12 @@ for name, frag_depth, highp in (("far", True, True), ("medium", True, False), ("
             ctx = v.context()
             es = bool(ctx and ctx.isOpenGLES())
             said = None
-            try:  # the driver's renderer and version, to say which context this was
-                v.makeCurrent()
-                f = ctx.functions()
-                said = " / ".join(str(f.glGetString(k) or "") for k in (0x1F01, 0x1F02))
-                v.doneCurrent()
-            except Exception as e:  # noqa: BLE001
-                said = repr(e)
+            if ctx is not None:  # the context's format only: a GL call on it can crash the driver
+                fmt = ctx.format()
+                said = (
+                    f"{fmt.renderableType().name} {fmt.majorVersion()}.{fmt.minorVersion()}"
+                    f" {fmt.profile().name}, valid {ctx.isValid()}"
+                )
             out[f"{name} {instanced}"] = {"es": es, "made": False, "error": v.error, "gl": said}
             print(json.dumps(out))
             raise SystemExit(0)
@@ -102,7 +101,8 @@ def test_a_transparent_part_ranks_at_the_far_side_of_its_box_every_way(es):
         pytest.skip(f"no OpenGL ES context can be made here ({why})")
     if es and not first.get("made", True) and first.get("error") is None:
         # Seen on a desktop NVIDIA driver: an OpenGL ES context is made, yet the view starts
-        # no renderer on it and says nothing. The viewer never asks for OpenGL ES there.
+        # no renderer on it and says nothing (and a GL call on it crashes). The viewer never
+        # asks for OpenGL ES there.
         pytest.skip(f"the 3D view starts no renderer on this OpenGL ES context ({first.get('gl')})")
     for name in ("far", "medium", "stencil"):
         for instanced in ("True", "False"):
