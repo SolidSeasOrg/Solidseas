@@ -3,9 +3,10 @@ Copyright 2026 SolidSeas
 
 This product is licensed under the Apache License, Version 2.0. See LICENSE.
 
-The third-party software that SolidSeas distributes in SolidSeas Viewer and its extension
-packages, with what each licence asks, is listed in THIRD_PARTY_NOTICES.txt; the licence
-texts are in the licenses folder.
+The third-party software that SolidSeas distributes, with what each licence asks, is listed
+in THIRD_PARTY_NOTICES.txt: three.js (MIT) in the library, for the REST service's reference
+viewer, and the components of SolidSeas Viewer and its extension packages. The licence texts
+are in the licenses folder.
 
 Trademarks
 ----------

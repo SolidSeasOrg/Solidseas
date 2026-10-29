@@ -13,8 +13,8 @@ SolidSeas is distributed in three forms, each covered below:
   1. The library: the Python package solidseas, from source or as a wheel.
   2. SolidSeas Viewer: SolidSeasViewer.exe, one Windows program built with PyInstaller.
   3. The extension packages: cad-bridge-<version>.zip, video-<version>.zip,
-     solidcraft-<version>.zip and occt-<version>.zip, added from the viewer's Extensions
-     page.
+     solidcraft-<version>.zip and, when a release offers it, occt-<version>.zip, added from
+     the viewer's Extensions page.
 
 Where the licence texts are:
 
@@ -165,9 +165,9 @@ Source code. The exact source of the Qt and Qt for Python versions in the progra
     requirements/build-windows.txt: https://pypi.org/project/PySide6-Essentials/6.12.0/ and
     https://pypi.org/project/shiboken6/6.12.0/
 
-Copies of these two source archives are also attached to each SolidSeas release on GitHub
-(https://github.com/SolidSeas/SolidSeas/releases), beside the program, for as long
-as that release is offered.
+Copies of these two source archives are published as the release qt-6.12.0-source on GitHub
+(https://github.com/SolidSeas/SolidSeas/releases/tag/qt-6.12.0-source), which stays for as
+long as any release offers a program built with Qt 6.12.0.
 
 If any of these stops being available, ask for the source by opening an issue at
 https://github.com/SolidSeas/SolidSeas/issues and it will be provided at no charge
@@ -276,6 +276,8 @@ licences that includes the LGPL or the GPL, the permissive choice applies.
 
 3.4 occt-<version>.zip (the OCCT backend)
 
+This section applies when a release offers the OCCT backend package; no release offers it yet.
+
 The OCCT backend package of SolidSeas makes use of facilities provided by the Open CASCADE
 Technology software.
 
@@ -287,6 +289,9 @@ Technology software.
   OCP 7.9.3.1 (_internal\OCP, Apache-2.0                     OCP-LICENSE.txt
   from cadquery-ocp-novtk
   7.9.3.1.1)
+  cadquery-ocp-proxy          Apache-2.0                     licenses/LICENSE
+  7.9.3.1.1 (records which
+  OCP build is installed)
   Open CASCADE Technology     LGPL-2.1-only WITH             LGPL-2.1.txt,
   7.9.3 (the TK*.dll          OCCT-exception-1.0             OCCT_LGPL_EXCEPTION.txt
   libraries)
@@ -300,6 +305,10 @@ Technology software.
   Microsoft Visual C++ and    Microsoft Distributable Code   OCP-third-party.txt
   OpenMP runtimes (msvcp140,  (not open source)
   vcomp140), from the wheel
+
+cadquery-ocp-proxy, which requirements/occt-helper.txt pins beside the OCP wheel, is a small
+Python package that records which OCP build is installed; its wheel declares the Apache License 2.0 and carries no licence
+file of its own, so the package's licenses/LICENSE (the same licence) covers it.
 
 The helper (src/solidseas_app/extensions/occt_helper.py) is SolidSeas' own code. It runs as a
 program of its own that SolidSeas starts and talks to over JSON lines; SolidSeas never loads
