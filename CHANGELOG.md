@@ -8,6 +8,9 @@ while the project takes shape.
 
 ### Changed
 
+- **The web viewer is marked provisional.** The help for `solidseas serve
+  --viewer` now says the reference web viewer is provisional.
+
 - **The ISO choice says what it changes.** In Drawing Settings, the ISO standard
   reads "ISO (first angle views, ASME sheet)": so far it changes only the
   projection to first angle, and the sheet, title block and lettering still

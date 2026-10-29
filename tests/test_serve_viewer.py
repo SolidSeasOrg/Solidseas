@@ -344,3 +344,14 @@ def test_three_js_reads_what_the_route_answers(plain, tmp_path):
         assert all(abs(a - b) < 1e-9 for a, b in zip(m["world"], inst.matrix(), strict=True))
         assert m["normals"] and m["triangles"] == g.meshes[inst.mesh].triangles
     assert got["extras"]["instances"] == 12 and got["extras"]["units"] == "m"
+
+
+def test_the_viewer_flag_says_it_is_provisional():
+    import argparse
+
+    from solidseas import cli
+
+    parser = cli.build_parser()
+    (sub,) = [a for a in parser._actions if isinstance(a, argparse._SubParsersAction)]
+    (flag,) = [a for a in sub.choices["serve"]._actions if "--viewer" in a.option_strings]
+    assert "reference web viewer" in flag.help and "(provisional)" in flag.help

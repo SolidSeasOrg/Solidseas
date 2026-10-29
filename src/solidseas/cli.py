@@ -4036,8 +4036,8 @@ def build_parser() -> argparse.ArgumentParser:
         "--viewer",
         action="store_true",
         default=None,
-        help="serve the reference web viewer at /viewer/: the file list, a part or assembly in 3D and the "
-        "BOM, in a browser on this machine",
+        help="serve the reference web viewer at /viewer/ (provisional): the file list, a part or assembly in "
+        "3D and the BOM, in a browser on this machine",
     )
     def add_catalog_choice(sp: argparse.ArgumentParser) -> None:
         g = sp.add_mutually_exclusive_group()
