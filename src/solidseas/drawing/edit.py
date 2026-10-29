@@ -163,11 +163,12 @@ def adopt(
     (``done``, an ``orchestrate.Orchestrated``) kept beside it for editing. The
     pipeline calls this after its assemble stage: the plan stage lays the sheet out
     before the drawing's records exist, so the revision row and DRAWN's date are filled
-    here, from the same plan, within the run's ``limits``."""
+    here, from the same plan, within the run's ``limits``. The sheet is the drawing's
+    own from then on, so the plan stage's word on why it took a larger sheet is kept."""
     live = Live(source, model, features, tuple(done.views), _view_key(drawing.options))
     live.planned, live.key = done.raw or done.planned, _plan_key(drawing)
     _keep(drawing.id, live)
-    return relayout(drawing, limits=limits)[0]
+    return relayout(drawing, limits=limits, chosen=done.result)[0]
 
 
 def attach(
@@ -496,11 +497,13 @@ def _apply(drawing: types.Drawing, planned: Any) -> tuple[Any, list[DimensionRec
 
 
 def relayout(
-    drawing: types.Drawing, *, limits: DrawingLimits = DEFAULT_LIMITS
+    drawing: types.Drawing, *, limits: DrawingLimits = DEFAULT_LIMITS, chosen: Any = None
 ) -> tuple[types.Drawing, tuple]:
     """``drawing`` laid out again from its model with its records applied (see the
     module notes), its invalidated signatures cleared, and its checks. Every operation
-    ends here; the viewer calls it after Use Current Drawing Settings."""
+    ends here; the viewer calls it after Use Current Drawing Settings. ``chosen`` is the
+    layout that chose the drawing's sheet (:func:`adopt`): its word on why a larger sheet
+    was taken (``L.sheet``) is kept among the checks while the sheet is that one."""
     from . import orchestrate
     from .pipeline import STAGES, resolve
 
@@ -561,7 +564,12 @@ def relayout(
     )
     if out.status != release.RELEASED:
         out, _cleared = release.invalidate(out)
-    checks = _run_checks(out, done.planned, done.result)
+    result = done.result
+    if chosen is not None and getattr(out.sheet, "name", None) == chosen.sheet.name:
+        said = [c for c in chosen.checks if c.code == "L.sheet"]
+        if said and not any(c.code == "L.sheet" for c in result.checks):
+            result = replace(result, checks=[*result.checks, *said])
+    checks = _run_checks(out, done.planned, result)
     out = replace(out, checks=checks)
     return out, checks
 

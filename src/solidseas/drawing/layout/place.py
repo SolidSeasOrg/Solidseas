@@ -209,6 +209,7 @@ class _Run:
         measure=False,
         forced=None,
         apart=(),
+        after=None,
     ):
         self.sheets = sheets  # the most sheets the first and its parts list's may take
         # with ``measure``, why an item is placed with a conflict, on its check (.measure)
@@ -216,6 +217,7 @@ class _Run:
         self.steps = M.Steps()
         self.room_kept = True  # whether the arrangement kept the datum symbols their room
         self.forced = forced  # a choice of sheet, scale and arrangement to lay out on (roomier)
+        self.after = after  # an automatic sheet size whose larger sizes alone are tried (layout)
         # the plans of the sheets after the first that hold views standing apart from the
         # front (layout's view sheets), in order; a long parts list's sheets come after them
         self.apart = tuple(apart)
@@ -322,7 +324,10 @@ class _Run:
         tried = []
         first_fit = None
         smallest = self.smallest_span()
-        for name in sheet.sheet_order(self.options, self.settings):
+        order = sheet.sheet_order(self.options, self.settings)
+        if self.after in order:
+            order = order[order.index(self.after) + 1 :] or order[-1:]
+        for name in order:
             f = self.sheet_frame(name)
             for sc in sheet.scale_order(self.options, self.settings):
                 factor = standards.scale_factor(sc)
@@ -1739,12 +1744,21 @@ def layout(
     signed: dict[str, tuple[str, str]] | None = None,
     sheets: int = DEFAULT_LIMITS.sheets,
     measure: bool = False,
+    seconds: float | None = None,
 ) -> LayoutResult:
     """Lay a plan out on a sheet (11); the views the drawing puts on sheets after the
     first (``options.view_sheets``) on those, and after them the sheets an assembly's
     parts list too long for the first goes on to (11.7), at most ``sheets`` in all. With
     ``measure`` each check of an item placed with a conflict, or of text over text, says
-    how layout came to it (:mod:`.measure`), which changes nothing on the sheet."""
+    how layout came to it (:mod:`.measure`), which changes nothing on the sheet.
+
+    A drawing on an automatic sheet that still has a hard conflict (:func:`hard_conflicts`)
+    is laid out again on each larger size in turn, while one is left and the best layout
+    so far has a conflict. The one with the fewest is kept, the smaller sheet on a tie,
+    and an ``L.sheet`` check says why a larger sheet was taken. A retry starts only while
+    the time spent so far and that of the last layout stay within ``seconds`` (no bound
+    when None). A sheet the drawing or the Settings fix is never laid out again."""
+    t0 = time.perf_counter()
     groups = sheet_views(planned.plan, options, sheets)
     on_first = planned
     if groups:
@@ -1752,7 +1766,7 @@ def layout(
         on_first = on_sheet(planned, {s.id for s in planned.plan.views if s.id not in moved}, first=True)
     apart = tuple(on_sheet(planned, set(group), first=False) for group in groups)
 
-    def run(forced=None) -> tuple[_Run, LayoutResult]:
+    def run(forced=None, after=None) -> tuple[_Run, LayoutResult]:
         made = _Run(
             on_first,
             options,
@@ -1768,6 +1782,7 @@ def layout(
             measure=measure,
             forced=forced,
             apart=apart,
+            after=after,
         )
         return made, made.run()
 
@@ -1781,7 +1796,51 @@ def layout(
             _again, retried = run(better)
             if _collisions(retried) < _collisions(result):
                 result = retried
-    return result
+    return _larger_sheets(result, run, options, settings, t0, seconds)
+
+
+# The layout checks that are hard conflicts: text over text, an item with no clear place
+# (R11.collisions), and text outside the border or in a reserved block (R8.sheet).
+HARD_CODES = ("L.overlap", "L.placement", "L.outside", "L.reserved")
+
+
+def hard_conflicts(checks) -> int:
+    """How many of a layout's checks are hard conflicts (:data:`HARD_CODES`)."""
+    return sum(1 for c in checks if c.code in HARD_CODES)
+
+
+def _larger_sheets(result: LayoutResult, run, options, settings, t0: float, seconds) -> LayoutResult:
+    """``result``, or the layout on a larger automatic sheet with fewer hard conflicts
+    and an ``L.sheet`` check saying so (:func:`layout`)."""
+    if options.sheet != "auto" or settings.sheets.size != "auto":
+        return result
+    order = sheet.sheet_order(options, settings)
+    first = result.frame.name
+    best, fewest = result, hard_conflicts(result.checks)
+    name, last = first, result.seconds
+    while fewest and name in order[:-1]:
+        if seconds is not None and time.perf_counter() - t0 + last > seconds:
+            break
+        _made, again = run(after=name)
+        if again.frame.name not in order or order.index(again.frame.name) <= order.index(name):
+            break  # no larger size was laid out
+        name, last = again.frame.name, again.seconds
+        n = hard_conflicts(again.checks)
+        if n < fewest:
+            best, fewest = again, n
+    if best is result:
+        return result
+    before = hard_conflicts(result.checks)
+    word = "conflict" if before == 1 else "conflicts"
+    note = C.LayoutCheck(
+        "L.sheet",
+        f"laid out on the {best.frame.name} sheet rather than the {first} sheet: on {first} it had "
+        f"{before} hard {word} (text over text, or with no clear place), on {best.frame.name} "
+        f"{fewest or 'none'}",
+        "",
+        "information",
+    )
+    return replace(best, checks=[*best.checks, note])
 
 
 def _collisions(result: LayoutResult) -> int:
@@ -1831,4 +1890,14 @@ def on_sheet(planned: Planned, views: set[str], *, first: bool) -> Planned:
     return Planned(kept, planned.detail)
 
 
-__all__ = ["APART", "LayoutResult", "attach", "layout", "on_sheet", "severity", "sheet_views"]
+__all__ = [
+    "APART",
+    "HARD_CODES",
+    "LayoutResult",
+    "attach",
+    "hard_conflicts",
+    "layout",
+    "on_sheet",
+    "severity",
+    "sheet_views",
+]

@@ -23,6 +23,15 @@ paper, else the next sheet. When no sheet does better the first fit is kept and
 the cramped span is reported, with Add Detail View as the fix. A drawing's own
 sheet or scale is kept as it is.
 
+When the layout on an automatic sheet still has a hard conflict (`L.overlap`,
+`L.placement`, `L.outside` or `L.reserved`), `layout` lays it out again on the
+next larger size, and on each size after that while the best so far still has
+one. It keeps the layout with the fewest, the smaller sheet on a tie, and adds an
+`L.sheet` check (R8.sheet, information) naming both sheets and their counts. A
+clean layout is never repeated, a sheet the drawing or Drawing Settings fix is
+never retried, and a retry starts only while the time spent so far and that of
+the last layout stay within the layout's bound.
+
 ## Bands and arrangement
 
 `layout.arrange` (11.1):

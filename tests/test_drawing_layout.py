@@ -324,15 +324,17 @@ def test_where_nothing_is_clear_a_leader_crosses_a_line_rather_than_cover_text()
     assert over_text > over_line == through_text > across_leader > clear
 
 
-def _crowded_plate(seed: int, n: int):
+def _crowded_plate(seed: int, n: int, sheet: str = "auto"):
     """A seeded plate of ``n`` holes drawn through the pipeline as the corpus sweep draws a
-    part (auto sheet and scale): some 60 dimensions round one crowded front view."""
+    part (auto sheet and scale unless ``sheet`` names one): some 60 dimensions round one
+    crowded front view."""
     import drawing_golden_support as G
     from solidseas.drawing import pipeline
 
     xt, truth = P.random_plate(seed, n)
     stage = G.source_stage("random_plate", xt, truth)
-    run = pipeline.run(None, options=DrawingOptions(), settings=G.settings(), stages={"source": stage})
+    options = DrawingOptions(sheet=sheet)
+    run = pipeline.run(None, options=options, settings=G.settings(), stages={"source": stage})
     return run.orchestrated.result
 
 
@@ -343,12 +345,13 @@ def _no_clear_place(result) -> list[str]:
 def test_a_callout_with_no_clear_place_at_first_looks_again_and_finds_one(monkeypatch):
     """Two callouts of this plate find no clear place among the usual leader angles and
     lengths, in their usual order; the closer look between those angles and lengths, and
-    the pass that places them first, find each one a place that is clear."""
+    the pass that places them first, find each one a place that is clear. Without them
+    the plate would go to a larger sheet, so it is held on its own B sheet here."""
     got = _crowded_plate(4, 25)
-    assert _no_clear_place(got) == []
+    assert got.sheet.name == "B" and _no_clear_place(got) == []
     assert not [c for c in got.checks if c.code in ("L.overlap", "L.leader")]
     monkeypatch.setattr(place, "LEADER_EXTRA", 0)  # no closer look and no further passes
-    assert _no_clear_place(_crowded_plate(4, 25))
+    assert _no_clear_place(_crowded_plate(4, 25, "B"))
     monkeypatch.undo()
     assert to_svg(_crowded_plate(4, 25).sheet) == to_svg(got.sheet)  # the same sheet every time
 
@@ -432,6 +435,116 @@ def test_a_datum_symbol_with_no_room_takes_the_next_sheet_rather_than_collide():
     fixed = _datum_run(7, 28, "B").orchestrated.result
     assert (fixed.sheet.name, fixed.scale) == ("B", (1, 1))
     assert {c.owner for c in fixed.checks if c.code == "L.placement"} >= {"datum-A"}
+
+
+def _sheets_laid(monkeypatch) -> list:
+    """Record the sheet size each layout of the first sheet starts after (None for the
+    first layout, a size for a layout on a larger automatic sheet)."""
+    seen = []
+    plain = place._Run.run
+
+    def run(self):
+        seen.append(self.after)
+        return plain(self)
+
+    monkeypatch.setattr(place._Run, "run", run)
+    return seen
+
+
+def _hard(result) -> int:
+    return place.hard_conflicts(result.checks)
+
+
+def test_a_drawing_with_hard_conflicts_is_laid_out_again_on_a_larger_sheet(monkeypatch):
+    """Without the datum symbols' own retry, this plate's views fit a B sheet at 1:1 with
+    datum A and two callouts placed over other text. Its sheet is automatic, so it is laid
+    out again on C, where nothing collides, and C is kept, the drawing saying why. The
+    retry stops at the first clean sheet."""
+    monkeypatch.setattr(place._Run, "roomier", lambda self, name, sc: None)
+    seen = _sheets_laid(monkeypatch)
+    auto = _datum_run(7, 28, "auto")
+    result = auto.orchestrated.result
+    assert result.sheet.name == "C" and _hard(result) == 0
+    assert [a for a in seen if a] == ["B"]  # C is clean: no layout after it
+    (note,) = [c for c in result.checks if c.code == "L.sheet"]
+    assert note.severity == "information"
+    assert note.message.startswith("laid out on the C sheet rather than the B sheet: on B it had ")
+    assert note.message.endswith(", on C none")
+    (said,) = [c for c in auto.drawing.checks if c.code == "R8.sheet" and "rather than" in c.message]
+    assert said.level == "information" and said.fixes == ("Sheet and Scale",)
+    assert not [c for c in auto.drawing.checks if c.code == "R11.collisions"]
+    seen.clear()
+    assert to_svg(_datum_run(7, 28, "auto").orchestrated.result.sheet) == to_svg(result.sheet)
+    assert [a for a in seen if a] == ["B"]  # the same sheet every time
+
+
+def test_a_sheet_the_user_fixed_is_never_laid_out_again(monkeypatch):
+    """The same plate on a B sheet chosen in the drawing, or in Drawing Settings, keeps B
+    with its conflicts reported: no larger sheet is tried."""
+    import drawing_golden_support as G
+    from solidseas.drawing import pipeline
+
+    monkeypatch.setattr(place._Run, "roomier", lambda self, name, sc: None)
+    seen = _sheets_laid(monkeypatch)
+    fixed = _datum_run(7, 28, "B").orchestrated.result
+    assert fixed.sheet.name == "B" and _hard(fixed) > 0
+    assert not [c for c in fixed.checks if c.code == "L.sheet"]
+    settings = G.settings()
+    settings = S.with_value(settings, "sheets", "size", "B")
+    xt, truth = P.random_plate(7, 28)
+    stage = G.source_stage("random_plate", xt, truth)
+    run = pipeline.run(None, options=DrawingOptions(), settings=settings, stages={"source": stage})
+    result = run.orchestrated.result
+    assert result.sheet.name == "B" and _hard(result) > 0
+    assert not [c for c in result.checks if c.code == "L.sheet"]
+    assert set(seen) == {None}
+
+
+def test_a_clean_drawing_is_laid_out_once(monkeypatch):
+    """A drawing with no hard conflict keeps its sheet and is never laid out again."""
+    seen = _sheets_laid(monkeypatch)
+    _p, r = laid()
+    assert (r.sheet.name, _hard(r)) == ("B", 0)
+    got = _crowded_plate(4, 25)
+    assert _hard(got) == 0
+    assert set(seen) == {None}
+    assert not [c for c in [*r.checks, *got.checks] if c.code == "L.sheet"]
+
+
+def test_a_larger_sheet_is_kept_only_with_fewer_hard_conflicts(monkeypatch):
+    """Each larger size is laid out in turn while the best so far collides; one with as
+    many conflicts as a smaller sheet loses to it, and the largest size ends the search."""
+
+    class _Frame:
+        def __init__(self, name):
+            self.name = name
+
+    def made(name, n):
+        checks = [place.C.LayoutCheck("L.overlap", "x", f"d-{i}") for i in range(n)]
+        return place.LayoutResult(None, checks, frozenset(), _Frame(name), 0.0, (1, 1))
+
+    tied = {"C": 2, "D": 2, "E": 2}
+    calls = []
+
+    def run(forced=None, after=None):
+        nxt = "ABCDE"["ABCDE".index(after) + 1]
+        calls.append(nxt)
+        return None, made(nxt, tied[nxt])
+
+    first = made("B", 2)
+    options, settings = DrawingOptions(), S.DrawingSettings()
+    kept = place._larger_sheets(first, run, options, settings, time.perf_counter(), None)
+    assert kept is first and calls == ["C", "D", "E"]
+    calls.clear()
+    tied.update(D=1, E=0)
+    kept = place._larger_sheets(first, run, options, settings, time.perf_counter(), None)
+    assert kept.frame.name == "E" and calls == ["C", "D", "E"]
+    assert kept.checks[-1].message.endswith(
+        "on B it had 2 hard conflicts (text over text, or with no clear place), on E none"
+    )
+    calls.clear()
+    kept = place._larger_sheets(first, run, options, settings, time.perf_counter(), 0.0)
+    assert kept is first and calls == []  # no time left for a retry
 
 
 def test_a_datum_with_no_clear_place_in_its_view_is_drawn_in_another_and_recorded_there():

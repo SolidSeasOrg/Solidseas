@@ -1428,7 +1428,16 @@ insists on stays, flagged as an error.
    radii and callouts are left out). Features that stay cramped are reported
    with "Add Detail View" and "Sheet and Scale" as the fixes; on a sheet the
    user chose, views that fit at no scale are reported as needing a larger
-   sheet. Frozen after the first save.
+   sheet. When the drawing laid out on an automatic sheet still has a hard
+   conflict (text over text, an item with no clear place, text outside the
+   border or in a block), it is laid out again on the next larger size, and
+   on the next after that while the best layout so far still has one, up to
+   the largest. The layout with the fewest hard conflicts is kept, the smaller
+   sheet on a tie, and an information check under R8.sheet says which sheet
+   was taken instead of which and how many conflicts each had. A clean drawing
+   is laid out once, a sheet the drawing or Drawing Settings name is never laid
+   out again, and a retry starts only while the layout's time bound has room
+   for one more layout. Frozen after the first save.
 
 ### 11.2 Painting
 

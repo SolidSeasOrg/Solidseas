@@ -189,6 +189,7 @@ def run(
             status=status,
             signed=signed,
             sheets=limits.sheets,
+            seconds=limits.seconds_layout - (time.perf_counter() - t1),
         )
 
     raw = planned

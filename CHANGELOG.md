@@ -8,6 +8,15 @@ while the project takes shape.
 
 ### Changed
 
+- **Drawings move to a larger sheet when they would clash.** When a drawing's
+  sheet size is automatic and the drawing still has text over text, or a
+  dimension with no clear place, SolidSeas lays it out again on the next larger
+  sheet, and on larger sizes after that until the drawing is clear or the
+  largest size is reached. It keeps the sheet with the fewest conflicts, the
+  smaller one when two are equal, and the drawing's checks say which sheet was
+  used and why. A sheet size you chose in the drawing or in Drawing Settings is
+  never changed.
+
 - **A continuation title block on later sheets.** The sheets after a drawing's
   first carry a short continuation title block (size, CAGE, drawing number,
   revision, scale and SHEET n OF m) in place of the full one, so a long parts

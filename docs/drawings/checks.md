@@ -51,6 +51,7 @@ value. The layout's own checks are kept under the ids they belong to:
 | `L.leader` (outside 15 to 75 degrees) | R11.leaders | warning |
 | `L.cramped` (Add Detail View) | R12.views | warning |
 | `L.characters` (a character the font lacks) | R10.text | error |
+| `L.sheet` (a larger automatic sheet taken to clear hard conflicts) | R8.sheet | information |
 
 A layout check this list does not know yet is kept under its own code and level,
 never dropped.

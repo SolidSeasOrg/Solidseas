@@ -123,8 +123,13 @@ LAYOUT_CODES = {
     "L.placement": "R11.collisions",
     "L.cramped": "R12.views",
     "L.characters": "R10.text",
+    "L.sheet": "R8.sheet",
 }
+# The layout checks whose level is not their id's: a larger automatic sheet taken to clear
+# hard conflicts is said, not failed.
+_LAYOUT_LEVELS = {"L.sheet": "information"}
 _LAYOUT_FIXES = {
+    "L.sheet": ("Sheet and Scale",),
     "L.overlap": ("Move",),
     "L.outside": ("Move",),
     "L.reserved": ("Move",),
@@ -2602,7 +2607,14 @@ def _layout_checks(s: _In, out: _Out) -> None:
             level = c.severity if c.severity in LEVELS else "warning"
             out.items.append(Check(c.code, level, c.message, c.owner or c.code))
             continue
-        out.add(code, c.message, c.owner or code, _LAYOUT_FIXES.get(c.code, ()), other=c.other)
+        out.add(
+            code,
+            c.message,
+            c.owner or code,
+            _LAYOUT_FIXES.get(c.code, ()),
+            level=_LAYOUT_LEVELS.get(c.code),
+            other=c.other,
+        )
 
 
 # --------------------------------------------------------------------------- assemblies
