@@ -1,6 +1,6 @@
 # Extensions
 
-Status: being built. The catalog, the on/off state, the two policy values, the package checks, the Extensions page (Tools > Extensions) and the helper runner are built (`solidseas_app.extensions`, `solidseas.helpers`, `solidseas.policy`), with Gridfinity behind its switch, the CAD Bridge taken from its package, Play and Save Animation with the video helper, and the OCCT backend: its helper, the `occt` backend of `solidseas.convert` that finds it, and its package's build step (section 9), whose first Windows build is still to be run; the Windows packages and the release packaging are still to come. The user asked on 2026-10-14 for "an extensions section that
+Status: being built. The catalog, the on/off state, the two policy values, the package checks, the Extensions page (Tools > Extensions) and the helper runner are built (`solidseas_app.extensions`, `solidseas.helpers`, `solidseas.policy`), with Gridfinity behind its switch, the CAD Bridge taken from its package, Play and Save Animation with the video helper, and the OCCT backend: its helper, the `occt` backend of `solidseas.convert` that finds it, and its package's build step (section 9), whose first Windows build is still to be run. Extension packages are attached to a release beside the installer, by hand (Making a release in `docs/guide/building.md`), and a viewer accepts only the packages of its own release; the OCCT backend's package is not offered yet. The user asked on 2026-10-14 for "an extensions section that
 will allow us to integrate new modules like the tracefinity or video export so we can
 pick/choose without making a gigantic app". They chose how a package gets onto a PC (a file
 they download, added from the Extensions page, with a link in the program to where the
@@ -92,7 +92,8 @@ lists and the notices) and, when added, Remove.
   outside `AllowedExtensions`. The installer, `SolidSeas-Setup-<version>.exe`, puts the
   packages it was built with (`scripts\build-installer.ps1 -ExtensionsFolder`) in the
   `SolidSeas extensions` folder beside the viewer, so they arrive this way; it replaces that
-  folder's zips on each install that carries packages. The release installer carries none yet.
+  folder's zips on each install that carries packages. The release checklist
+  (`docs/guide/building.md`, Making a release) builds the installer with the release's packages.
 - **Remove** deletes that extension's own folder, after asking, and only that folder.
 - **Update** is Add from file with a newer package: the new version is unpacked beside the old
   one, which is removed once the new helper has answered.

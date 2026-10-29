@@ -116,8 +116,8 @@ Each `--property NAME=VALUE` adds a text property, or replaces the design's
 property of that name, so you can stamp a part number on the part as you write
 it.
 
-If the design needs anything else, such as a fillet, a second hole or a sketch
-on another plane, nothing is written and the message lists every item. With
+If the design needs anything else, such as a fillet on other edges, a second
+hole or a sketch on another plane, nothing is written and the message lists every item. With
 `--allow-partial` the part is written without them, the command lists what was
 left out, and it ends with exit code 4 so a script can tell. A file that is
 already there is never replaced, and the part is not written next to the design
@@ -256,8 +256,11 @@ bill of materials, after you paste a token from the token file
 ([API.md](../API.md) section 8.18).
 
 [SECURITY_REVIEW.md](../SECURITY_REVIEW.md) reviews the service for whoever has
-to approve it. The service's `/v1/bom`, the catalog routes (`--catalog`) and the
-other formats (`--formats`) are provisional and may change.
+to approve it. The service's `/v1/bom`, `/v1/mesh`, the catalog routes
+(`--catalog`, among them `/v1/duplicates`, `/v1/missing` and `/v1/changes`), the
+other formats (`--formats`) and the reference viewer (`--viewer`) are provisional
+and may change. So are the commands `history`, `snapshot`, `diff`, `sldprt`,
+`convert` and `export` (with its `--check`).
 
 With `--formats` naming IGES or BREP (`--formats all`, or
 `--formats solidworks,iges,occt_brep`), the service reads those files through the

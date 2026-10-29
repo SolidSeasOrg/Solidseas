@@ -14,6 +14,13 @@ beside it, and the same installer named `SolidSeas-Setup.exe`, so a link to
 the latest release's `SolidSeas-Setup.exe` always gets the newest version. GitHub Releases also has the single-file `SolidSeasViewer.exe`,
 which runs without installing anything: look for it among a release's files.
 
+The installer and `SolidSeasViewer.exe` are not code signed yet, so the first
+time you run one, Windows SmartScreen may show "Windows protected your PC" and
+name the publisher as unknown. To run it anyway, click More info, check that the
+file is the one you downloaded from the releases page (its SHA-256 should match
+the `.sha256` file beside it), then click Run anyway. Windows remembers the
+choice for that file.
+
 What the installer does:
 
 - It installs the one-folder build of SolidSeas Viewer for you alone by
@@ -33,6 +40,18 @@ The single-file `SolidSeasViewer.exe` (about 25 MB, no console window) unpacks
 itself into a temporary folder each time it starts. The installed one-folder
 form starts faster, and its Qt and Qt for Python libraries can be replaced in
 place, as `THIRD_PARTY_NOTICES.txt` section 2.2 explains.
+
+## Extension packages
+
+Some features, such as video export and the CAD Bridge, come as extension
+packages: zip files attached to each release beside the installer. Download
+the ones you want from the same release as your SolidSeas Viewer, open Tools >
+Extensions, choose Add from file, pick the zip and switch the extension on.
+SolidSeas accepts only the packages of its own release, so after you upgrade,
+download the packages again from the new release. Get extensions on that page
+opens the releases page for you. When the installer carries packages, they are
+already listed there, switched off. The OCCT backend's package is not offered
+yet.
 
 ## The library and command line, from source
 

@@ -42,8 +42,9 @@ of these formats.
 ## IGES and BREP files
 
 SolidSeas reads IGES files, and the BREP files of Open CASCADE, through the OCCT
-backend extension. It is a package you add once: get it from the releases page
-(Tools > Extensions > Get extensions), choose Add from file, and switch it on.
+backend extension, when a release offers it; no release offers it yet. It is a
+package you add once: get it from the releases page (Tools > Extensions > Get
+extensions), choose Add from file, and switch it on.
 Until then these files are listed greyed, whether or not View > Show > Files
 SolidSeas Cannot Read is on: their Status says Needs the OCCT backend, their
 Overview says what to add, and the status bar counts them. Once you switch it

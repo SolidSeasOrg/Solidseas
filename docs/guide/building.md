@@ -96,12 +96,34 @@ viewer, and compiles `packaging\SolidSeas.iss` into
 `dist\SolidSeas-Setup-<version>.exe` and its `.sha256` file. With
 `-ExtensionsFolder dist\extensions` the installer also carries the extension
 packages in that folder, which the viewer adds, switched off, the first time it
-starts (see [EXTENSIONS.md](../EXTENSIONS.md)). The release build carries none
-yet.
+starts (see [EXTENSIONS.md](../EXTENSIONS.md)).
 
 `.github/workflows/release.yml` runs the same script on GitHub's Windows runner
 when a release is published, installs the result, runs the self-test below on
 the installed viewer, uninstalls it, and attaches the installer to the release.
+It builds no extension packages: those are built and attached by hand, as the
+checklist below says. A viewer accepts only the packages of its own release,
+so the packages and the viewer must come from the same commit. The OCCT
+backend's package is not offered yet.
+
+## Making a release
+
+1. Build the extension packages and the viewer from one commit:
+   `scripts\build-viewer.ps1 -Venv .venv -WithExtensions` (with `-FfmpegFolder`,
+   `-FfmpegSource` and, if you have it, `-SolidCraftZip`) runs
+   `scripts\build-extensions.ps1` first, then builds the viewer.
+2. Accept the packages into `src\solidseas_app\extensions\accepted.json`.
+   `build-extensions.ps1` writes it from the packages it built; check that it
+   lists each one before the viewer is built.
+3. Build the installer with the same packages:
+   `scripts\build-installer.ps1 -ExtensionsFolder dist\extensions`.
+4. Attach to the release the installer, `SolidSeasViewer.exe`, the extension
+   zips from `dist\extensions`, the viewer's `BUNDLED-FILES.txt` and
+   `SHA256SUMS.txt`.
+5. Publish the Qt source release, `qt-6.12.0-source`, with the Qt and Qt for
+   Python source archives that `THIRD_PARTY_NOTICES.txt` names, if it is not
+   there yet. When the bundled Qt version changes, publish a new one under the
+   new version and update the notices to match.
 
 ## The viewer's self-test
 

@@ -18,9 +18,11 @@ SolidSeas is a Python toolkit that ships two ways:
   previews and pull metadata from `.sldprt` and `.sldasm` files. It needs no
   SOLIDWORKS installation and runs on Linux and Windows.
 - **A desktop app** that manages a folder of CAD files: project structure,
-  previews, properties, bills of materials, version history, conversion to
-  Parasolid, STEP, STL and 3MF, a one-click 3D Print button for your slicer,
-  and a modeling assistant that works alongside your own SOLIDWORKS installation.
+  previews, properties, bills of materials, conversion to Parasolid, STEP, STL
+  and 3MF, a one-click 3D Print button for your slicer, and a modeling
+  assistant that works alongside your own SOLIDWORKS installation. A file's
+  versions are on the command line for now (`solidseas history`, `snapshot`
+  and `diff`).
 
 Website: https://solidseas.app
 
@@ -33,11 +35,16 @@ Website: https://solidseas.app
 - **Preview:** SolidSeas Viewer, the desktop app.
 - **Experimental:** drawings and extensions, which may still change from one
   release to the next.
-- **Research:** writing native `.sldprt` files without SOLIDWORKS
-  (`solidseas.nativewrite`). SOLIDWORKS opens its test parts as editable
-  native features; it is not in the viewer and covers one extruded rectangle
-  so far; [docs/NATIVE_SLDPRT_WRITER.md](docs/NATIVE_SLDPRT_WRITER.md) has where
-  it stands.
+- **Provisional:** writing native `.sldprt` files without SOLIDWORKS.
+  `solidseas sldprt` writes a part from a SolidCraft design, a SolidSeas design
+  file or a recorded CadQuery model: corner rectangles on the Front Plane
+  extruded blind, one round hole through a single box, and fillets on the box's
+  edges along its depth and on the hole's far edge. Parts without fillets open
+  in SOLIDWORKS 2024 with their feature tree; parts with a fillet have not been
+  opened in SOLIDWORKS yet. It is not in the viewer.
+  [The command line](docs/guide/command-line.md#solidworks-parts-from-a-design)
+  says what it writes, and
+  [docs/NATIVE_SLDPRT_WRITER.md](docs/NATIVE_SLDPRT_WRITER.md) has the research.
 
 [docs/ROADMAP.md](docs/ROADMAP.md) has the phases.
 
@@ -94,7 +101,7 @@ Experimental or In development tag beside their menu entries. Their results may
 be incomplete or wrong, and they may change between versions. Experimental:
 drawings (check every drawing before you use it; until one is released its PDF
 and DXF carry the PRELIMINARY stamp), the modeling assistant, and the
-Gridfinity, video export, SolidCraft and SOLIDWORKS engine extensions. In
+Gridfinity, video export, SolidCraft and CAD Bridge extensions. In
 development: the OCCT backend extension. Please report problems at
 https://github.com/SolidSeas/SolidSeas/issues.
 [The viewer](docs/guide/viewer.md#experimental-features) has the full list.

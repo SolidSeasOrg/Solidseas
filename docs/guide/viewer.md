@@ -41,13 +41,16 @@ https://github.com/SolidSeas/SolidSeas/issues.
   Drawing Settings, switched on by default; turn them off under Settings >
   Drawings, and check every drawing before you use it; until a drawing is
   released its PDF and DXF carry the PRELIMINARY stamp), the modeling
-  assistant, and the Gridfinity, video export, SolidCraft and SOLIDWORKS engine
+  assistant, and the Gridfinity, video export, SolidCraft and CAD Bridge
   extensions.
 - **In development:** the OCCT backend extension, which reads IGES and BREP
   files ([Every 3D format](formats.md#iges-and-brep-files)).
-- **On the command line,** `solidseas drawing` and the REST service's
-  `/v1/bom`, the catalog routes (`--catalog`) and the other formats
-  (`--formats`) are provisional and may change too.
+- **On the command line,** `solidseas drawing`, `history`, `snapshot`,
+  `diff`, `sldprt`, `convert` and `export` (with its `--check`), and the REST
+  service's `/v1/bom`, `/v1/mesh`, the catalog routes (`--catalog`, among them
+  `/v1/duplicates`, `/v1/missing` and `/v1/changes`), the other formats
+  (`--formats`) and the reference viewer (`serve --viewer`) are provisional and
+  may change too.
 
 ## The window
 
