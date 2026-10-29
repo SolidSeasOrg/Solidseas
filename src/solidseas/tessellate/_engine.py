@@ -18,7 +18,7 @@ from dataclasses import dataclass
 
 from ..formats.solidworks.mesh import FaceTess, Mesh
 from . import checks
-from ._vec import cross, dot, norm, sub, wrap_near
+from ._vec import cos, cross, dot, norm, sub, tan, wrap_near
 from .blend import Blends
 from .domain import Builder, area
 from .edges import EdgeSampler
@@ -743,7 +743,7 @@ class Engine:
                             continue
                         q = S.point(uu, vv)
                         mesh.insert_in(dom.add(uu, vv, pts.add(q)), k)
-        cos_a = math.cos(opts.angle)
+        cos_a = cos(opts.angle)
         normals: dict[int, tuple | None] = {}
         on_pole = _pole_test(S)
 
@@ -861,7 +861,7 @@ class Engine:
         of the edge's length."""
         P = self.pts.p
         u, v, pid, xy = dom.u, dom.v, dom.pid, dom.xy
-        k = 1.0 / math.tan(self.opts.angle)
+        k = 1.0 / tan(self.opts.angle)
         widths: dict[tuple[int, int], float] = {}
         incident: dict[int, list[tuple[int, int]]] = {}
         for a, b in fixed:

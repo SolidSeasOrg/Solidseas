@@ -16,7 +16,7 @@ edge's samples allow (a small fillet along a long arc), the edge is sampled fine
 
 import math
 
-from ._vec import TWO_PI, dist, step_angle, unit
+from ._vec import TWO_PI, atan2, dist, step_angle, unit
 from .curves import BCurve, Conic, Curve, Line, Polyline, SPCurve, Trimmed
 from .topology import (
     BLEND_BOUND,
@@ -333,7 +333,7 @@ class EdgeSampler:
                 mid = ((pa[0] + pb[0]) * 0.5, (pa[1] + pb[1]) * 0.5, (pa[2] + pb[2]) * 0.5)
                 dev = dist(pm, mid)
                 half = 0.5 * dist(pa, pb)
-                bend = 2.0 * math.atan2(dev, half) if half > 0.0 else (math.pi if dev > 0.0 else 0.0)
+                bend = 2.0 * atan2(dev, half) if half > 0.0 else (math.pi if dev > 0.0 else 0.0)
                 if depth < MAX_DEPTH and (dev > chord or (bend > angle and 2.0 * half > near)):
                     stack.append((tm, pm, depth + 1))
                     continue

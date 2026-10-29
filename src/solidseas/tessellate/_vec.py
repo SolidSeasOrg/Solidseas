@@ -67,4 +67,52 @@ def step_angle(radius: float, chord: float, angle: float) -> float:
     r = abs(radius)
     if r <= chord:
         return angle
-    return min(angle, 2.0 * math.acos(1.0 - chord / r))
+    return min(angle, 2.0 * acos(1.0 - chord / r))
+
+
+# The trigonometry the mesher uses, the same on every platform. The C libraries Python
+# runs on (glibc on Linux, the Microsoft runtime on Windows) round a sine, a cosine or an
+# arctangent the opposite way now and then, a difference in the last bit. The mesher's
+# choices (where to add a point, which diagonal to flip) turn on ties that symmetry makes,
+# so one last bit was enough to give the same part a different mesh, and a drawing's
+# silhouettes from it, on Windows. Each result is rounded to 40 bits of mantissa (a
+# relative 1e-12, far below any tolerance the mesher works to), so two libraries' answers
+# one last bit apart round to the same number unless the exact value sits within that
+# bit of a rounding boundary, which is about one call in four thousand of those that
+# differ at all. Square roots and hypot are exact or Python's own, and need none of this.
+# An angle every library gives exactly (none, a right angle, a straight one) is kept as
+# it is, so tests such as "this is a half turn" still hold.
+_MANTISSA = float(2**40)
+_EXACT_ANGLES = (0.0, 0.5 * math.pi, math.pi)
+
+
+def stable(x: float) -> float:
+    """``x`` with its mantissa rounded to 40 bits; zero, infinities and NaN unchanged."""
+    if x == 0.0 or not math.isfinite(x):
+        return x
+    m, e = math.frexp(x)
+    return math.ldexp(round(m * _MANTISSA) / _MANTISSA, e)
+
+
+def sin(x: float) -> float:
+    return stable(math.sin(x))
+
+
+def cos(x: float) -> float:
+    return stable(math.cos(x))
+
+
+def tan(x: float) -> float:
+    return stable(math.tan(x))
+
+
+def _angle(r: float) -> float:
+    return r if abs(r) in _EXACT_ANGLES else stable(r)
+
+
+def acos(x: float) -> float:
+    return _angle(math.acos(x))
+
+
+def atan2(y: float, x: float) -> float:
+    return _angle(math.atan2(y, x))

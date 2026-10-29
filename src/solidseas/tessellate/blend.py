@@ -60,7 +60,7 @@ import math
 from collections import Counter
 
 from . import nurbs
-from ._vec import add, dist, dot, mul, norm, sub
+from ._vec import add, atan2, cos, dist, dot, mul, norm, sin, sub
 from .curves import BCurve, Polyline, Trimmed
 from .fit import MAX_POINTS, QUARTERS, FitFailed, Foot, dedupe, fit_nodes, hermite_mid, refine
 from .surfaces import BSurface
@@ -168,14 +168,14 @@ def arc_row(centre, f0, f1, nseg: int):
     yn = _unit(y)
     if yn is None or norm(y) < 1e-9 * r:
         return None
-    ang = math.atan2(dot(b, yn), dot(b, x))
+    ang = atan2(dot(b, yn), dot(b, x))
     if not 0.0 < ang < math.pi:
         return None
     seg = ang / nseg
-    w = math.cos(seg / 2.0)
+    w = cos(seg / 2.0)
 
     def pt(t, rr):
-        return add(centre, add(mul(x, rr * math.cos(t)), mul(yn, rr * math.sin(t))))
+        return add(centre, add(mul(x, rr * cos(t)), mul(yn, rr * sin(t))))
 
     cps = []
     for k in range(nseg):

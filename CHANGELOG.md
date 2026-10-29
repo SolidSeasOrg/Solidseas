@@ -406,6 +406,11 @@ while the project takes shape.
 
 ### Fixed
 
+- **The same mesh on Windows and Linux.** A part's mesh, and the drawings, 3D
+  views and exports made from it, now come out the same on both. A sine or
+  cosine that the two systems rounded a hair differently could change a curved
+  face's triangles, and with them a drawing's silhouette lines.
+
 - **Out of time, not "no solid bodies".** Comparing two versions with a short
   time limit now says the time ran out when it stopped while reading a part's
   bodies, instead of saying the part has no solid bodies. This showed on

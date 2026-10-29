@@ -13,7 +13,7 @@ curve's natural direction times that sense.
 import math
 
 from . import nurbs
-from ._vec import TWO_PI, add, combo, dist, dot, mul, orthonormal, sub
+from ._vec import TWO_PI, add, atan2, combo, cos, dist, dot, mul, orthonormal, sin, sub
 from .topology import (
     B_CURVE,
     BLENDED_EDGE,
@@ -92,17 +92,17 @@ class Conic(Curve):
         self.a, self.b, self.sense = a, b, sense
 
     def point(self, t):
-        return combo(self.C, self.X, self.a * math.cos(t), self.Y, self.b * math.sin(t))
+        return combo(self.C, self.X, self.a * cos(t), self.Y, self.b * sin(t))
 
     def d1(self, t):
-        c, s = math.cos(t), math.sin(t)
+        c, s = cos(t), sin(t)
         return combo(self.C, self.X, self.a * c, self.Y, self.b * s), combo(
             (0.0, 0.0, 0.0), self.X, -self.a * s, self.Y, self.b * c
         )
 
     def param(self, p, clock=None):
         q = sub(p, self.C)
-        return math.atan2(dot(q, self.Y) / self.b, dot(q, self.X) / self.a)
+        return atan2(dot(q, self.Y) / self.b, dot(q, self.X) / self.a)
 
     def radius(self):
         return min(self.a, self.b) ** 2 / max(self.a, self.b)

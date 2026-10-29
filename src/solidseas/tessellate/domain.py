@@ -31,7 +31,7 @@ Everything here works on lists of ``(u, v, point id)``.
 
 import math
 
-from ._vec import dist, wrap_near
+from ._vec import atan2, dist, wrap_near
 from .topology import FaceFailed
 
 MAX_CUT_POINTS = 2048
@@ -178,7 +178,7 @@ class Builder:
             mid = ((qa[0] + qb[0]) * 0.5, (qa[1] + qb[1]) * 0.5, (qa[2] + qb[2]) * 0.5)
             dev = dist(qm, mid)
             half = 0.5 * dist(qa, qb)
-            bend = 2.0 * math.atan2(dev, half) if half > 0.0 else 0.0
+            bend = 2.0 * atan2(dev, half) if half > 0.0 else 0.0
             if depth < 12 and (dev > chord or bend > angle) and len(out) < MAX_CUT_POINTS:
                 stack.append((tm, qm, depth + 1))
                 continue

@@ -36,6 +36,7 @@ from solidseas.tessellate import (
     REASONS,
     SkippedFace,
     Tessellation,
+    _vec,
     tessellate_body,
     tessellate_document,
     tessellate_transmit,
@@ -258,6 +259,49 @@ def test_normals_point_out_and_the_shared_vertices_close_the_solid():
     assert len(pos) // 3 < m.n_vertices  # shared: each edge's samples are one set of points
     # The per-face mesh is not welded: each face has vertices of its own.
     assert not _closed([tuple(m.triangles[k : k + 3]) for k in range(0, len(m.triangles), 3)])
+
+
+def test_the_trigonometry_is_the_same_whichever_way_the_c_library_rounds():
+    # The sine that gave o11 another mesh on Windows: its exact value lies 0.4987 of a
+    # last bit from glibc's answer, so the Microsoft runtime rounds it the other way.
+    linux = math.sin(4.338389854957334)
+    windows = math.nextafter(linux, -math.inf)
+    assert _vec.stable(linux) == _vec.stable(windows)
+    assert _vec.sin(4.338389854957334) == _vec.stable(linux)
+    # angles every library gives exactly are kept, so a half turn is still math.pi
+    assert _vec.acos(-1.0) == _vec.atan2(0.0, -1.0) == math.pi
+    assert _vec.atan2(1.0, 0.0) == math.pi / 2 and _vec.atan2(-0.0, 1.0) == 0.0
+    assert _vec.stable(0.0) == 0.0 and math.isnan(_vec.stable(math.nan))
+    assert abs(_vec.stable(1 / 3) - 1 / 3) < 1e-12 / 3
+
+
+@pytest.mark.parametrize("towards", [math.inf, -math.inf], ids=["up", "down"])
+def test_the_mesh_is_the_same_whichever_way_the_c_library_rounds(monkeypatch, towards):
+    """Every sine, cosine, tangent and arctangent the mesher takes one last bit higher (or
+    lower), as another C library may round it, gives o11 the very same triangles."""
+    with open_document(fixture_path("o11_curved.SLDPRT")) as doc:
+        before = tessellate_document(doc)
+
+    class Library:
+        def __getattr__(self, name):
+            return getattr(math, name)
+
+    def moved(f):
+        def g(*args):
+            r = f(*args)
+            exact = not math.isfinite(r) or abs(r) in (0.0, 1.0, math.pi / 2, math.pi)
+            return r if exact else math.nextafter(r, towards)
+
+        return staticmethod(g)
+
+    for name in ("sin", "cos", "tan", "acos", "atan2"):
+        setattr(Library, name, moved(getattr(math, name)))
+    monkeypatch.setattr(_vec, "math", Library())
+    with open_document(fixture_path("o11_curved.SLDPRT")) as doc:
+        after = tessellate_document(doc)
+    assert after.mesh.positions == before.mesh.positions
+    assert after.mesh.triangles == before.mesh.triangles
+    assert after.mesh.normals == before.mesh.normals
 
 
 def test_a_finer_chord_gives_more_triangles_and_closer_mass_properties():

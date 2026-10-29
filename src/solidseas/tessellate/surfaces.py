@@ -34,14 +34,18 @@ import math
 from . import nurbs
 from ._vec import (
     TWO_PI,
+    acos,
     add,
+    atan2,
     combo,
+    cos,
     cross,
     dist,
     dot,
     mul,
     norm,
     orthonormal,
+    sin,
     step_angle,
     sub,
     unit,
@@ -387,7 +391,7 @@ class Cylinder(Revolved):
         self.P, self.r = P, r
 
     def d1(self, u, v):
-        c, s = math.cos(u), math.sin(u)
+        c, s = cos(u), sin(u)
         e = combo((0.0, 0.0, 0.0), self.X, c, self.Y, s)
         p = add(add(self.P, mul(self.A, v)), mul(e, self.r))
         return p, combo((0.0, 0.0, 0.0), self.X, -self.r * s, self.Y, self.r * c), self.A
@@ -395,7 +399,7 @@ class Cylinder(Revolved):
     def closest(self, p, hint, tol, ptol, clock=None, near=None):
         x, y, h = self._local(p, self.P)
         rho = math.hypot(x, y)
-        return math.atan2(y, x), h, abs(rho - self.r)
+        return atan2(y, x), h, abs(rho - self.r)
 
     def speeds(self, box):
         return self.r, 1.0
@@ -420,7 +424,7 @@ class Cone(Revolved):
             self.apex_v = None
 
     def d1(self, u, v):
-        c, s = math.cos(u), math.sin(u)
+        c, s = cos(u), sin(u)
         e = combo((0.0, 0.0, 0.0), self.X, c, self.Y, s)
         rho = self.r + v * self.t
         p = add(add(self.P, mul(self.A, v)), mul(e, rho))
@@ -446,7 +450,7 @@ class Cone(Revolved):
         d, v, side = best
         if self.pole_at(p, ptol) is not None:
             return None, self.apex_v, d
-        u = math.atan2(y, x) if side > 0 else math.atan2(-y, -x)
+        u = atan2(y, x) if side > 0 else atan2(-y, -x)
         return u, v, d
 
     def speeds(self, box):
@@ -471,7 +475,7 @@ class Sphere(Revolved):
         self.vrange = (-h, h)
 
     def d1(self, u, v):
-        cu, su_, cv, sv_ = math.cos(u), math.sin(u), math.cos(v), math.sin(v)
+        cu, su_, cv, sv_ = cos(u), sin(u), cos(v), sin(v)
         e = combo((0.0, 0.0, 0.0), self.X, cu, self.Y, su_)
         r = self.r
         p = add(self.C, add(mul(e, r * cv), mul(self.A, r * sv_)))
@@ -480,24 +484,24 @@ class Sphere(Revolved):
         return p, du, dv
 
     def normal(self, u, v):
-        cv = math.cos(v)
+        cv = cos(v)
         if abs(cv) < 1e-12:
             return None
-        e = combo((0.0, 0.0, 0.0), self.X, math.cos(u), self.Y, math.sin(u))
-        return add(mul(e, cv), mul(self.A, math.sin(v)))
+        e = combo((0.0, 0.0, 0.0), self.X, cos(u), self.Y, sin(u))
+        return add(mul(e, cv), mul(self.A, sin(v)))
 
     def closest(self, p, hint, tol, ptol, clock=None, near=None):
         x, y, h = self._local(p, self.C)
         rho = math.hypot(x, y)
         d = abs(math.sqrt(rho * rho + h * h) - self.r)
-        v = math.atan2(h, rho)
+        v = atan2(h, rho)
         if rho <= ptol:
             return None, (math.pi / 2 if h > 0 else -math.pi / 2), d
-        return math.atan2(y, x), v, d
+        return atan2(y, x), v, d
 
     def speeds(self, box):
         v0, v1 = box[2], box[3]
-        c = 1.0 if v0 <= 0.0 <= v1 else max(math.cos(v0), math.cos(v1))
+        c = 1.0 if v0 <= 0.0 <= v1 else max(cos(v0), cos(v1))
         return max(self.r * c, self.r * 1e-3), self.r
 
     def steps(self, box, chord, angle):
@@ -522,15 +526,15 @@ class Torus(Revolved):
         # lies off the axis by less than its radius: a dome, a lemon) meets its axis where
         # R + r cos v is nought: poles at v = +-acos(-R / r), one at pi when R = r.
         if R <= r:
-            vp = math.acos(max(-1.0, min(1.0, -R / r)))
-            top = add(C, mul(self.A, r * math.sin(vp)))
+            vp = acos(max(-1.0, min(1.0, -R / r)))
+            top = add(C, mul(self.A, r * sin(vp)))
             if vp >= math.pi - 1e-12:
                 self.poles = ((math.pi, top),)
             else:
-                self.poles = ((-vp, sub(C, mul(self.A, r * math.sin(vp)))), (vp, top))
+                self.poles = ((-vp, sub(C, mul(self.A, r * sin(vp)))), (vp, top))
 
     def d1(self, u, v):
-        cu, su_, cv, sv_ = math.cos(u), math.sin(u), math.cos(v), math.sin(v)
+        cu, su_, cv, sv_ = cos(u), sin(u), cos(v), sin(v)
         e = combo((0.0, 0.0, 0.0), self.X, cu, self.Y, su_)
         rho = self.R + self.r * cv
         p = add(self.C, add(mul(e, rho), mul(self.A, self.r * sv_)))
@@ -547,12 +551,12 @@ class Torus(Revolved):
         rho = math.hypot(x, y)
         if rho <= ptol:
             raise FaceFailed("degenerate", "a point on a torus's axis")
-        u = math.atan2(y, x)
-        v = math.atan2(h, rho - self.R)
+        u = atan2(y, x)
+        v = atan2(h, rho - self.R)
         d = abs(math.hypot(rho - self.R, h) - self.r)
         if self.R < self.r:
             # A torus that meets its axis covers some points twice: take the nearer reading.
-            u2, v2 = u + math.pi, math.atan2(h, -rho - self.R)
+            u2, v2 = u + math.pi, atan2(h, -rho - self.R)
             d2 = abs(math.hypot(-rho - self.R, h) - self.r)
             if d2 < d or (
                 hint is not None and hint[0] is not None and d2 <= tol and _closer(hint, (u2, v2), (u, v))
@@ -567,8 +571,8 @@ class Torus(Revolved):
         distance from the axis, not as slow as that sum."""
         v0, v1 = box[2], box[3]
         whole = (v1 - v0) >= TWO_PI
-        cmax = 1.0 if whole or _contains_angle(v0, v1, 0.0) else max(math.cos(v0), math.cos(v1))
-        cmin = -1.0 if whole or _contains_angle(v0, v1, math.pi) else min(math.cos(v0), math.cos(v1))
+        cmax = 1.0 if whole or _contains_angle(v0, v1, 0.0) else max(cos(v0), cos(v1))
+        cmin = -1.0 if whole or _contains_angle(v0, v1, math.pi) else min(cos(v0), cos(v1))
         rho = max(abs(self.R + self.r * cmax), abs(self.R + self.r * cmin))
         return max(rho, self.r * 1e-3), self.r
 
@@ -837,7 +841,7 @@ class Spun(Surface):
 
     def d1(self, u, v):
         q, dq = self.c.d1(v)
-        c, s = math.cos(u), math.sin(u)
+        c, s = cos(u), sin(u)
         p = add(self.B, _rotate(sub(q, self.B), self.A, c, s))
         return p, cross(self.A, sub(p, self.B)), _rotate(dq, self.A, c, s)
 
@@ -863,7 +867,7 @@ class Spun(Surface):
         rad_t, rho_t, _h = self._radial(self.c.point(bt))
         if rho_t <= 0.0 or rho_p <= 0.0:
             return [(0.0, bt)]
-        ang = math.atan2(dot(self.A, cross(rad_t, rad_p)), dot(rad_t, rad_p))
+        ang = atan2(dot(self.A, cross(rad_t, rad_p)), dot(rad_t, rad_p))
         return [(ang, bt)]
 
 
