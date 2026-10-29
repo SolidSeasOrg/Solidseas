@@ -58,8 +58,17 @@ for name, frag_depth, highp in (("far", True, True), ("medium", True, False), ("
         app.processEvents()
         v.grabFramebuffer()
         if v.renderer is None:  # no context of the kind asked for, or no renderer on it: stop here
-            es = bool(v.context() and v.context().isOpenGLES())
-            out[f"{name} {instanced}"] = {"es": es, "made": False, "error": v.error}
+            ctx = v.context()
+            es = bool(ctx and ctx.isOpenGLES())
+            said = None
+            try:  # the driver's renderer and version, to say which context this was
+                v.makeCurrent()
+                f = ctx.functions()
+                said = " / ".join(str(f.glGetString(k) or "") for k in (0x1F01, 0x1F02))
+                v.doneCurrent()
+            except Exception as e:  # noqa: BLE001
+                said = repr(e)
+            out[f"{name} {instanced}"] = {"es": es, "made": False, "error": v.error, "gl": said}
             print(json.dumps(out))
             raise SystemExit(0)
         r = {"es": v.context().isOpenGLES(), "rank_far": v.renderer.rank_far}
@@ -91,6 +100,10 @@ def test_a_transparent_part_ranks_at_the_far_side_of_its_box_every_way(es):
     if es and not first["es"]:
         why = first.get("error") or "the context made is desktop OpenGL"
         pytest.skip(f"no OpenGL ES context can be made here ({why})")
+    if es and not first.get("made", True) and first.get("error") is None:
+        # Seen on a desktop NVIDIA driver: an OpenGL ES context is made, yet the view starts
+        # no renderer on it and says nothing. The viewer never asks for OpenGL ES there.
+        pytest.skip(f"the 3D view starts no renderer on this OpenGL ES context ({first.get('gl')})")
     for name in ("far", "medium", "stencil"):
         for instanced in ("True", "False"):
             r = out[f"{name} {instanced}"]
