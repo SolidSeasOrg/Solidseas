@@ -333,7 +333,8 @@ try {
     $ErrorActionPreference = 'Stop'
     if ($code -ne 0) { throw 'accepted.json was not written' }
     $sums = foreach ($z in $zips) { '{0}  {1}' -f (Get-FileHash -Algorithm SHA256 -LiteralPath $z).Hash.ToLower(), (Split-Path -Leaf $z) }
-    $sums | Set-Content -LiteralPath (Join-Path $out 'SHA256SUMS.txt') -Encoding ASCII
+    # LF line ends, so sha256sum -c reads the list on Linux and macOS too
+    Set-Content -LiteralPath (Join-Path $out 'SHA256SUMS.txt') -Value ((@($sums) -join "`n") + "`n") -NoNewline -Encoding ASCII
 }
 finally {
     $ErrorActionPreference = 'Stop'

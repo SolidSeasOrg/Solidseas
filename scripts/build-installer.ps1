@@ -122,7 +122,8 @@ if ($compiled -ne 0) { throw "ISCC.exe failed with exit code $compiled" }
 if (-not (Test-Path -LiteralPath $setup)) { throw "ISCC.exe reported success but wrote no $setup" }
 
 $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $setup).Hash.ToLower()
-"{0}  {1}" -f $hash, $setupName | Set-Content -LiteralPath "$setup.sha256" -Encoding ASCII
+# LF line end, so sha256sum -c reads it on Linux and macOS too
+Set-Content -LiteralPath "$setup.sha256" -Value (("{0}  {1}" -f $hash, $setupName) + "`n") -NoNewline -Encoding ASCII
 $item = Get-Item -LiteralPath $setup
 "Built {0} ({1:N1} MB)" -f $item.FullName, ($item.Length / 1MB)
 "SHA-256 {0}, in {1}.sha256" -f $hash, $setupName

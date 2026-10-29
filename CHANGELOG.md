@@ -406,6 +406,10 @@ while the project takes shape.
 
 ### Fixed
 
+- **Checksum lists you can check anywhere.** A release's SHA256SUMS.txt and
+  .sha256 files now end their lines the Unix way, so `sha256sum -c` on Linux or
+  macOS verifies the downloads instead of failing on every line.
+
 - **The same mesh on Windows and Linux.** A part's mesh, and the drawings, 3D
   views and exports made from it, now come out the same on both. A sine or
   cosine that the two systems rounded a hair differently could change a curved

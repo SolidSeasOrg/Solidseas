@@ -123,7 +123,8 @@ if ($WithExtensions) {
         $name = if ($f.Name -like "*.zip") { "extensions/" + $f.Name } elseif ($OneFolder) { "SolidSeasViewer/" + $f.Name } else { $f.Name }
         "{0}  {1}" -f (Get-FileHash -Algorithm SHA256 -LiteralPath $f.FullName).Hash.ToLower(), $name
     }
-    $sums | Set-Content -LiteralPath (Join-Path $root "dist\SHA256SUMS.txt") -Encoding ASCII
+    # LF line ends, so sha256sum -c reads the list on Linux and macOS too
+    Set-Content -LiteralPath (Join-Path $root "dist\SHA256SUMS.txt") -Value ((@($sums) -join "`n") + "`n") -NoNewline -Encoding ASCII
     "Wrote dist\SHA256SUMS.txt for the viewer and {0} package(s)" -f ($files.Count - 1)
 }
 if ($WithBridge) {

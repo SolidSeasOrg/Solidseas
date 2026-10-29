@@ -219,7 +219,7 @@ jobs:
             '--self-test', (Resolve-Path tests\fixtures).Path, '--screenshot-dir', $out, '--select-all')
           if ($p.ExitCode -ne 0) { throw "The single-file viewer's self-test failed with exit code $($p.ExitCode)" }
           $hash = (Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash.ToLowerInvariant()
-          Set-Content -LiteralPath 'dist\SolidSeasViewer.exe.sha256' -Value "$hash  SolidSeasViewer.exe" -Encoding ascii
+          Set-Content -LiteralPath 'dist\SolidSeasViewer.exe.sha256' -Value "$hash  SolidSeasViewer.exe`n" -NoNewline -Encoding ascii
           # The list of every library inside the single-file viewer, which PyInstaller's work
           # folder for the spec holds after the build.
           $bundled = 'build\pyinstaller\SolidSeasViewer\BUNDLED-FILES.txt'
