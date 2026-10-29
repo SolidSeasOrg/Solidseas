@@ -8,6 +8,16 @@ while the project takes shape.
 
 ### Changed
 
+- **Release viewers accept their own release's packages.** A release build now
+  takes the extension packages attached to the release, checks each against the
+  release's SHA256SUMS.txt, and builds the installer and the single-file viewer
+  to accept exactly those packages, so a viewer downloaded from a release can
+  add the packages published beside it. The installer also carries the packages,
+  which the viewer adds, switched off, the first time it starts. A release with
+  no packages attached still builds, and its viewer accepts none. The release
+  also includes BUNDLED-FILES.txt, the list of every library inside the
+  single-file viewer.
+
 - **The web viewer is marked provisional.** The help for `solidseas serve
   --viewer` now says the reference web viewer is provisional.
 

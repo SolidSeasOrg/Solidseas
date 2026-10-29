@@ -2,7 +2,9 @@ name: Release installer
 
 # Builds the Windows installer, SolidSeas-Setup-<version>.exe, for a published release and
 # attaches it, with its SHA-256, to that release. It can also be run by hand for an existing
-# release tag, which replaces the installer attached to it.
+# release tag, which replaces the installer attached to it. The extension packages attached to
+# the release, checked against its SHA256SUMS.txt, are the ones the viewer it builds accepts
+# and the installer carries; a release with none gives a viewer that accepts none.
 #
 # It runs only on GitHub's own Windows runner, never on the project's self-hosted machine,
 # and never for a pull request: it builds only a tag a maintainer has released. The token
@@ -77,8 +79,96 @@ jobs:
           $iscc = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'
           if (-not (Test-Path -LiteralPath $iscc)) { throw "ISCC.exe is not at $iscc" }
 
+      # The extension packages are built on the Windows PC (scripts\build-extensions.ps1) and
+      # attached to the release before this runs. The viewer accepts only the packages listed
+      # in accepted.json at build time, so the build takes those exact files from the release.
+      - name: Fetch the release's extension packages
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $names = @(gh release view $env:TAG --json assets --jq '.assets[].name' --repo $env:GITHUB_REPOSITORY)
+          if ($LASTEXITCODE -ne 0) { throw "gh could not list the files attached to $env:TAG" }
+          if (@($names | Where-Object { $_ -like '*.zip' }).Count -eq 0) {
+            "No extension packages are attached to $env:TAG, so this viewer is built without any and accepts none." |
+              Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+            "EXTENSIONS=false" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          }
+          else {
+            New-Item -ItemType Directory -Force -Path 'dist\extensions' | Out-Null
+            gh release download $env:TAG --pattern '*.zip' --pattern SHA256SUMS.txt --dir dist\extensions `
+              --repo $env:GITHUB_REPOSITORY
+            if ($LASTEXITCODE -ne 0) { throw "gh could not download the extension packages of $env:TAG" }
+            "EXTENSIONS=true" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          }
+
+      - name: Check the extension packages against SHA256SUMS.txt
+        if: env.EXTENSIONS == 'true'
+        run: |
+          $sums = 'dist\extensions\SHA256SUMS.txt'
+          if (-not (Test-Path -LiteralPath $sums)) { throw "$env:TAG has extension packages but no SHA256SUMS.txt" }
+          # Lines as sha256sum writes them. A name may carry a folder (extensions/<zip>, as
+          # scripts\build-viewer.ps1 -WithExtensions writes it); only the file name counts.
+          $listed = @{}
+          foreach ($line in Get-Content -LiteralPath $sums) {
+            if ($line -match '^([0-9a-fA-F]{64})\s+\*?(\S.*?)\s*$') {
+              $listed[($Matches[2] -split '[\\/]')[-1]] = $Matches[1].ToLowerInvariant()
+            }
+          }
+          $zips = @(Get-ChildItem -LiteralPath 'dist\extensions' -Filter '*.zip' -File | Sort-Object Name)
+          foreach ($zip in $zips) {
+            if (-not $zip.Name.EndsWith("-$env:VERSION.zip")) {
+              throw "$($zip.Name) is not a package of $env:VERSION (its name must end in -$env:VERSION.zip)"
+            }
+            if (-not $listed.ContainsKey($zip.Name)) { throw "SHA256SUMS.txt does not list $($zip.Name)" }
+            $hash = (Get-FileHash -LiteralPath $zip.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            if ($hash -ne $listed[$zip.Name]) { throw "$($zip.Name) does not match its SHA-256 in SHA256SUMS.txt" }
+            "$hash  $($zip.Name)"
+          }
+          foreach ($name in $listed.Keys) {
+            if ($name -like '*.zip' -and -not ($zips.Name -contains $name)) {
+              throw "SHA256SUMS.txt lists $name, which is not attached to $env:TAG"
+            }
+          }
+
+      - name: Accept the extension packages
+        if: env.EXTENSIONS == 'true'
+        env:
+          PYTHONPATH: src
+        run: |
+          # The build environment the installer is built in, with the locked packages, made
+          # here so the core can read the packages' manifests with its own code.
+          $venv = Join-Path $env:RUNNER_TEMP 'venv'
+          python -m venv $venv
+          if ($LASTEXITCODE -ne 0) { throw "Could not make the environment $venv" }
+          $python = Join-Path $venv 'Scripts\python.exe'
+          & $python -m pip install --disable-pip-version-check --require-hashes --no-deps `
+            --only-binary ":all:" -r requirements\build-windows.txt
+          if ($LASTEXITCODE -ne 0) { throw "pip could not install the locked requirements" }
+          $zips = @(Get-ChildItem -LiteralPath 'dist\extensions' -Filter '*.zip' -File | Sort-Object Name |
+            ForEach-Object { $_.FullName })
+          $accepted = 'src\solidseas_app\extensions\accepted.json'
+          & $python -m solidseas_app.extensions.package accept @zips --out $accepted
+          if ($LASTEXITCODE -ne 0) { throw "accepted.json was not written" }
+          # Each package must be one this core adds, checked as the viewer checks it.
+          $check = Join-Path $env:RUNNER_TEMP 'check-packages.py'
+          Set-Content -LiteralPath $check -Encoding utf8 -Value @'
+          import sys
+          from solidseas_app.extensions import check_package
+          from solidseas_app.extensions.package import read_accepted
+          accepted = read_accepted(sys.argv[1])
+          for path in sys.argv[2:]:
+              print(check_package(path, accepted=accepted).manifest.id, 'accepted')
+          '@
+          & $python $check $accepted @zips
+          if ($LASTEXITCODE -ne 0) { throw "A package of $env:TAG is one this core refuses" }
+          "This viewer accepts the {0} extension package(s) attached to {1}." -f $zips.Count, $env:TAG |
+            Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+
       - name: Build the installer
-        run: scripts\build-installer.ps1 -Venv "$env:RUNNER_TEMP\venv" -Python python
+        run: |
+          $options = @{ Venv = "$env:RUNNER_TEMP\venv"; Python = 'python' }
+          if ($env:EXTENSIONS -eq 'true') { $options.ExtensionsFolder = 'dist\extensions' }
+          scripts\build-installer.ps1 @options
 
       - name: Install it, run the self-test and uninstall it
         env:
@@ -94,6 +184,13 @@ jobs:
           foreach ($needed in @($exe, (Join-Path $app '_internal\licenses\BUNDLED-FILES.txt'),
                                 (Join-Path $app '_internal\licenses\LGPL-3.0.txt'))) {
             if (-not (Test-Path -LiteralPath $needed)) { throw "Not installed: $needed" }
+          }
+          if ($env:EXTENSIONS -eq 'true') {
+            # The list of the packages this viewer accepts, and the packages themselves.
+            $list = Join-Path $app '_internal\solidseas_app\extensions\accepted.json'
+            if (-not (Test-Path -LiteralPath $list)) { throw "Not installed: $list" }
+            $carried = @(Get-ChildItem -LiteralPath (Join-Path $app 'SolidSeas extensions') -Filter '*.zip' -File)
+            if ($carried.Count -eq 0) { throw "The installer carries none of the extension packages" }
           }
           # The 3D view is left off: the runner has no display and no OpenGL.
           $out = Join-Path $env:RUNNER_TEMP 'selftest'
@@ -123,6 +220,11 @@ jobs:
           if ($p.ExitCode -ne 0) { throw "The single-file viewer's self-test failed with exit code $($p.ExitCode)" }
           $hash = (Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash.ToLowerInvariant()
           Set-Content -LiteralPath 'dist\SolidSeasViewer.exe.sha256' -Value "$hash  SolidSeasViewer.exe" -Encoding ascii
+          # The list of every library inside the single-file viewer, which PyInstaller's work
+          # folder for the spec holds after the build.
+          $bundled = 'build\pyinstaller\SolidSeasViewer\BUNDLED-FILES.txt'
+          if (-not (Test-Path -LiteralPath $bundled)) { throw "The single-file build wrote no $bundled" }
+          Copy-Item -LiteralPath $bundled -Destination 'dist\BUNDLED-FILES.txt' -Force
 
       - name: Attach the installer and the single-file viewer to the release
         env:
@@ -132,6 +234,9 @@ jobs:
           # The same installer under a name without the version, so a link to the latest
           # release's SolidSeas-Setup.exe (the website's download) always finds the newest.
           Copy-Item -LiteralPath $setup -Destination 'dist\SolidSeas-Setup.exe' -Force
+          # Only the files this workflow built. --clobber replaces an attached file of the same
+          # name, so the extension packages and SHA256SUMS.txt attached by hand are never sent.
           gh release upload $env:TAG $setup "$setup.sha256" 'dist\SolidSeas-Setup.exe' `
-            'dist\SolidSeasViewer.exe' 'dist\SolidSeasViewer.exe.sha256' --clobber --repo $env:GITHUB_REPOSITORY
+            'dist\SolidSeasViewer.exe' 'dist\SolidSeasViewer.exe.sha256' 'dist\BUNDLED-FILES.txt' `
+            --clobber --repo $env:GITHUB_REPOSITORY
           if ($LASTEXITCODE -ne 0) { throw "gh could not attach the installer to $env:TAG" }

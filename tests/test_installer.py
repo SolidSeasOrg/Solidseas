@@ -7,6 +7,7 @@ runner, with every action pinned to a commit."""
 
 import ast
 import importlib.metadata
+import os
 import re
 import sys
 import types
@@ -312,13 +313,25 @@ def test_build_installer_runs_on_windows_powershell_5():
 # -- the release workflow -------------------------------------------------------------------
 
 
-def test_every_workflow_action_in_the_release_workflow_is_pinned_to_a_commit():
-    text = RELEASE.read_text(encoding="utf-8")
+@pytest.mark.parametrize("workflow", WORKFLOWS, ids=lambda p: p.name)
+def test_every_workflow_action_is_pinned_to_a_commit(workflow):
+    text = workflow.read_text(encoding="utf-8")
     uses = re.findall(r"^\s*-?\s*uses:\s*(\S+)(.*)$", text, re.M)
     assert uses
     for action, rest in uses:
         assert re.fullmatch(r"[\w.-]+/[\w.-]+(/[\w./-]+)?@[0-9a-f]{40}", action), action
         assert re.search(r"#\s*v\d+\.\d+\.\d+", rest), f"{action} has no version comment"
+
+
+def test_the_workflows_pin_each_action_to_the_same_commit():
+    pins: dict[str, set[str]] = {}
+    for workflow in WORKFLOWS:
+        for action in re.findall(r"^\s*-?\s*uses:\s*(\S+)", workflow.read_text(encoding="utf-8"), re.M):
+            name, _, commit = action.partition("@")
+            pins.setdefault(name, set()).add(commit)
+    assert {"actions/checkout", "actions/setup-python"} <= set(pins)
+    for name, commits in pins.items():
+        assert len(commits) == 1, f"{name} is pinned to {sorted(commits)}"
 
 
 def without_comments(text: str) -> str:
@@ -337,7 +350,7 @@ def test_the_release_workflow_runs_only_for_releases_on_a_hosted_windows_runner(
     assert re.search(r'INNO_SETUP_VERSION: "6\.\d+\.\d+"', text)
     assert "scripts\\build-installer.ps1" in text
     assert "gh release upload $env:TAG $setup \"$setup.sha256\" 'dist\\SolidSeas-Setup.exe' `" in text
-    assert "'dist\\SolidSeasViewer.exe' 'dist\\SolidSeasViewer.exe.sha256' --clobber" in text
+    assert "'dist\\SolidSeasViewer.exe.sha256' 'dist\\BUNDLED-FILES.txt' `" in text
     assert "QT_QPA_PLATFORM: offscreen" in text and "--self-test" in text
     # The tag reaches commands only through the environment, never pasted into a script.
     for line in text.splitlines():
@@ -357,6 +370,90 @@ def test_the_release_workflow_loads_as_yaml():
     for step in job["steps"]:
         if "uses" in step:
             assert re.fullmatch(r"[\w.-]+/[\w.-]+@[0-9a-f]{40}", step["uses"]), step["uses"]
+
+
+def _release_steps() -> list[tuple[str, str]]:
+    """The release job's steps as (name, script), read as text so that no YAML library is
+    needed: each step starts at a line "      - " and its name is on its "name:" line."""
+    job = RELEASE.read_text(encoding="utf-8").split("\n    steps:\n", 1)[1]
+    steps = re.split(r"^      - ", job, flags=re.M)
+    out = []
+    for step in steps[1:]:
+        name = re.search(r"^(?:name|uses): (.+)$", step, re.M)
+        out.append((name.group(1).strip() if name else "", step))
+    return out
+
+
+def _step(name: str) -> str:
+    [found] = [script for n, script in _release_steps() if n == name]
+    return found
+
+
+def test_the_release_accepts_its_own_extension_packages_before_it_builds_the_viewer():
+    names = [n for n, _ in _release_steps()]
+    fetch, check, accept = (
+        "Fetch the release's extension packages",
+        "Check the extension packages against SHA256SUMS.txt",
+        "Accept the extension packages",
+    )
+    build = "Build the installer"
+    assert names.index(fetch) < names.index(check) < names.index(accept) < names.index(build)
+    assert names.index(build) < names.index("Build the single-file viewer and run its self-test")
+    assert (
+        "gh release download $env:TAG --pattern '*.zip' --pattern SHA256SUMS.txt --dir dist\\extensions"
+        in _step(fetch)
+    )
+    # a release with no packages still builds, and says so in the job summary
+    assert "GITHUB_STEP_SUMMARY" in _step(fetch) and "EXTENSIONS=false" in _step(fetch)
+    assert "if: env.EXTENSIONS == 'true'" in _step(check) and "if: env.EXTENSIONS == 'true'" in _step(accept)
+    assert '"-$env:VERSION.zip"' in _step(check) and "Get-FileHash" in _step(check)
+    assert "-m solidseas_app.extensions.package accept @zips --out $accepted" in _step(accept)
+    assert "$accepted = 'src\\solidseas_app\\extensions\\accepted.json'" in _step(accept)
+    assert "PYTHONPATH: src" in _step(accept)
+    assert "$options.ExtensionsFolder = 'dist\\extensions'" in _step(build)
+    # the hand-attached packages and their checksums are never uploaded over
+    upload = _step("Attach the installer and the single-file viewer to the release")
+    assert ".zip" not in without_comments(upload) and "SHA256SUMS" not in without_comments(upload)
+
+
+def test_the_release_s_package_check_runs_against_a_real_package(tmp_path):
+    """The Python the accept step writes to a file and runs, run here on a package built
+    the way scripts/build-extensions.ps1 builds one."""
+    import subprocess
+
+    from solidseas_app.extensions import package
+
+    script = _step("Accept the extension packages")
+    body = script.split("-Value @'\n", 1)[1].split("\n          '@\n", 1)[0]
+    code = "\n".join(line[10:] for line in body.splitlines())
+    (tmp_path / "check.py").write_text(code, encoding="utf-8")
+    folder = tmp_path / "bridge"
+    folder.mkdir()
+    (folder / "SolidSeas.SwBridge.exe").write_bytes(b"MZ the bridge")
+    zip_path = package.build_package("cad-bridge", str(folder), str(tmp_path / "out"))
+    accepted = tmp_path / "accepted.json"
+    env = {**os.environ, "PYTHONPATH": os.pathsep.join([str(ROOT / "src"), os.environ.get("PYTHONPATH", "")])}
+
+    def run(*args):
+        return subprocess.run([sys.executable, *args], env=env, capture_output=True, text=True)
+
+    made = run("-m", "solidseas_app.extensions.package", "accept", zip_path, "--out", str(accepted))
+    assert made.returncode == 0, made.stderr
+    done = run(str(tmp_path / "check.py"), str(accepted), zip_path)
+    assert done.returncode == 0, done.stderr
+    assert done.stdout.split() == ["cad-bridge", "accepted"]
+    accepted.write_text('{"version": 1, "accepted": {}}', encoding="utf-8")
+    refused = run(str(tmp_path / "check.py"), str(accepted), zip_path)
+    assert refused.returncode != 0 and "not one this version of SolidSeas accepts" in refused.stderr
+
+
+def test_ci_tests_the_viewer_on_the_hosted_windows_runner_only():
+    text = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    assert re.search(r"- os: windows-latest\n\s+extras: dev,app\n", text)
+    assert re.search(r"- os: ubuntu-latest\n\s+extras: dev\n", text)
+    assert 'pip install -e ".[${{ matrix.extras }}]"' in text and "QT_QPA_PLATFORM: offscreen" in text
+    own = text.split("\n  own-linux:\n", 1)[1].split("\n  hosted:\n", 1)[0]
+    assert '-e ".[dev]"' in own, "the self-hosted machine installs no Qt"
 
 
 def test_no_workflow_gives_a_pull_request_write_access_or_the_release_job():
