@@ -518,3 +518,14 @@ def test_views_words(G):
     assert G.views_words([], False) == "Front"
     assert G.views_words(["top"], True) == "Front and top, and an isometric"
     assert G.views_words(["top", "right"], False) == "Front, top and right"
+
+
+def test_the_experimental_note_shows_on_every_question(app, open_guided, made, G):
+    from solidseas_app.viewer import experimental
+
+    w = open_guided(StandIn(answer_of(made)))
+    note = w.experimental_note
+    assert note.text() == experimental.drawings_note()
+    assert note.isVisibleTo(w), "Guided drawings are experimental, as Expert ones are"
+    walk(app, w, G.SUMMARY)
+    assert note.isVisibleTo(w), "and the note stays through the last question"
