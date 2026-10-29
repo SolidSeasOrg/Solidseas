@@ -8,6 +8,11 @@ while the project takes shape.
 
 ### Changed
 
+- **The ISO choice says what it changes.** In Drawing Settings, the ISO standard
+  reads "ISO (first angle views, ASME sheet)": so far it changes only the
+  projection to first angle, and the sheet, title block and lettering still
+  follow ASME.
+
 - **Extension features say how finished they are.** File > Convert now shows
   "(In development)" and Save Animation shows "(Experimental)", the same tags
   the Extensions page gives the OCCT backend and the video extension.

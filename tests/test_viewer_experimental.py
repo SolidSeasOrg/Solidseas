@@ -118,3 +118,13 @@ def test_extension_fronts_carry_their_extension_tag(window):
     assert animationaction.MENU_TEXT == E.tagged("Save Animation...", E.extension_stage("video"))
     assert animationaction.MENU_TEXT == "Save Animation... (Experimental)"
 
+
+@needs_qt  # the settings form imports Qt
+def test_the_iso_standard_says_the_sheet_is_still_asme():
+    from solidseas_app.viewer.drawingsettings import PAGES
+
+    (field,) = [f for p in PAGES for f in p.fields if (f.group, f.key) == ("standard", "profile")]
+    labels = dict(field.options)
+    assert labels["iso"] == "ISO (first angle views, ASME sheet)"
+    assert "first angle" in field.tip and "title block" in field.tip and "ASME" in field.tip
+    assert "—" not in field.tip + labels["iso"] and "–" not in field.tip + labels["iso"]
