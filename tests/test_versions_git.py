@@ -28,6 +28,26 @@ needs_git = pytest.mark.skipif(GIT is None, reason="git is not installed")
 POSIX = os.name != "nt"
 
 
+def _git_version() -> tuple[int, ...]:
+    """The installed git's version, ``(2, 28, 0)`` from "git version 2.28.0.windows.1";
+    () when there is no git or it says something else."""
+    if GIT is None:
+        return ()
+    out = subprocess.run([GIT, "--version"], capture_output=True, text=True, timeout=30).stdout
+    words = out.split()
+    numbers = words[2].split(".")[:3] if len(words) > 2 else []
+    return tuple(int(n) for n in numbers if n.isdigit())
+
+
+GIT_VERSION = _git_version()
+# git init --object-format=sha256 came with 2.29; 2.29 also does a partial clone's lazy
+# fetches in a subprocess, where 2.28's in-process fetch during checkout reads a bad pack
+# header and leaves the clone checked out without its files.
+needs_git_2_29 = pytest.mark.skipif(
+    GIT_VERSION < (2, 29), reason=f"needs git 2.29 or later (installed: {'.'.join(map(str, GIT_VERSION))})"
+)
+
+
 class Repo:
     """A repository the test makes with the git command line, with no configuration of
     the account's and fixed dates, so the order of commits is known."""
@@ -316,6 +336,7 @@ def test_a_linked_worktree_and_a_separate_git_folder(make_repo, tmp_path):
 
 
 @needs_git
+@needs_git_2_29
 def test_a_sha256_repository(make_repo):
     r = make_repo("sha256", "--object-format=sha256")
     path = r.write("x.bin", content(1))
@@ -345,6 +366,7 @@ def test_a_shallow_clone_says_its_history_is_incomplete(make_repo, tmp_path):
 
 
 @needs_git
+@needs_git_2_29
 def test_a_partial_clone_lists_versions_whose_content_is_not_here(make_repo, tmp_path):
     r = make_repo()
     for i in range(3):
