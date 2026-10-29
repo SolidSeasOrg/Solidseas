@@ -138,7 +138,7 @@ def test_lists_show_as_text_and_read_back():
     assert ds.names_text(("1:1", "1:2"), ", ") == "1:1, 1:2"
     assert ds.parse_names("1:1, 1:2,", ", ") == ["1:1", "1:2"]
     assert ds.parse_lines("A.\n\n  B. \n") == ["A.", "B."]
-    assert ds.address_value(["1 Main St", "", "Springfield", ""]) == ["1 Main St", "", "Springfield"]
+    assert ds.address_value(["1 Main St", "", "Anytown", ""]) == ["1 Main St", "", "Anytown"]
     assert ds.cell_value("kinds", "Machined, printed") == ["machined", "printed"]
     assert ds.cell_text("kinds", ("machined",)) == "machined"
     assert ds.cell_value("optional_number", "") is None and ds.cell_text("optional_number", None) == ""
@@ -237,7 +237,7 @@ def _filled():
     settings = change(
         drawing_settings.DrawingSettings(),
         company__name=COMPANY,
-        company__address=["1 Example Way", "Springfield"],
+        company__address=["1 Example Way", "Anytown"],
         people__people=[{"name": "Ann Bee", "initials": "AB"}, {"name": "Cy Dee", "initials": "CD"}],
         standard__unit_for_unstated="mm",
         email__method="webmail",
