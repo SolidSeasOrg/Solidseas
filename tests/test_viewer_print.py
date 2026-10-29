@@ -30,7 +30,7 @@ from pathlib import Path
 import pytest
 
 from solidseas import walk
-from solidseas.errors import OutputRefusedError
+from solidseas.errors import LinkRefusedError, OutputRefusedError
 from solidseas_app.viewer import opening, printing
 from support import FIXTURES, fixture_path
 
@@ -848,12 +848,20 @@ def _cloud(attrs: int, tag: int = CLOUD_TAG):
 def test_a_cloud_folder_takes_a_print_only_once_its_files_are_here(models, monkeypatch, attrs, tag, why):
     """A cloud folder is a reparse point whose tag is its provider's, not a link: whether it
     takes the print is decided by the attribute saying its files are not on this computer,
-    and a print it refuses goes to the temporary folder with nothing written there."""
+    and a print it refuses goes to the temporary folder with nothing written there. A
+    reparse point with no tag is taken for a link: on Windows the model is not even read
+    through it (the read looks at every folder below the opened one), elsewhere the read
+    has no such attributes to look at and only the print is sent away."""
     cloud = models / "cloud"
     cloud.mkdir()
     shutil.copy2(models / "o02_boxA.SLDPRT", cloud / "o02_boxA.SLDPRT")
     _fake_lstat(monkeypatch, {os.path.normcase(str(cloud)): _cloud(attrs, tag)})
     assert printing.folder_problem(str(cloud), str(models)) == why
+    if why == printing.LINKED and os.name == "nt":
+        with pytest.raises(LinkRefusedError):
+            _export(models, "cloud/o02_boxA.SLDPRT")
+        assert os.listdir(cloud) == ["o02_boxA.SLDPRT"]
+        return
     out = _export(models, "cloud/o02_boxA.SLDPRT")
     if why is None:
         assert out["place"] == printing.MODEL and out["file"] == str(cloud / f"o02_boxA {TODAY}.3mf")
@@ -865,7 +873,9 @@ def test_a_cloud_folder_takes_a_print_only_once_its_files_are_here(models, monke
 def test_a_cloud_folder_above_the_model_or_one_that_cannot_be_looked_at_takes_no_print(models, monkeypatch):
     """A placeholder anywhere above the model's folder refuses it as one at the folder does
     (a sync root keeps a folder online only while a folder inside it is here); a folder lstat
-    cannot read, as when the provider is not running, is not written to either."""
+    cannot read, as when the provider is not running, is not written to either. On Windows
+    the read of the model looks at that folder first and fails with the same error, as
+    reading a file the provider cannot give fails, so there is no print at all."""
     (models / "cloud" / "job").mkdir(parents=True)
     shutil.copy2(models / "o02_boxA.SLDPRT", models / "cloud" / "job" / "o02_boxA.SLDPRT")
     online_only = _cloud(DIRECTORY | REPARSE_POINT | walk.FILE_ATTRIBUTE_RECALL_ON_OPEN)
@@ -875,12 +885,15 @@ def test_a_cloud_folder_above_the_model_or_one_that_cannot_be_looked_at_takes_no
     monkeypatch.undo()
     stopped = OSError(errno.EIO, "The cloud file provider is not running")
     _fake_lstat(monkeypatch, {os.path.normcase(str(models / "cloud" / "job")): stopped})
-    out = _export(models, "cloud/job/o02_boxA.SLDPRT")
-    assert out["place"] == printing.TEMP
-    assert (
-        out["fallback"]
-        == "the model's folder could not be looked at (The cloud file provider is not running)"
-    )
+    unreadable = "the model's folder could not be looked at (The cloud file provider is not running)"
+    assert printing.folder_problem(str(models / "cloud" / "job"), str(models)) == unreadable
+    if os.name == "nt":
+        with pytest.raises(OSError, match="The cloud file provider is not running") as raised:
+            _export(models, "cloud/job/o02_boxA.SLDPRT")
+        assert raised.value is stopped
+    else:
+        out = _export(models, "cloud/job/o02_boxA.SLDPRT")
+        assert out["place"] == printing.TEMP and out["fallback"] == unreadable
     assert os.listdir(models / "cloud" / "job") == ["o02_boxA.SLDPRT"]
 
 
