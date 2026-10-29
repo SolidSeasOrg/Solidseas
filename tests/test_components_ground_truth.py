@@ -399,12 +399,15 @@ def _under(path: str, folder: str) -> bool:
 class _Scrub:
     """The kit's scrub expectations, read from ``ground_truth.json``."""
 
-    def __init__(self, gen: dict) -> None:
+    def __init__(self, gt: dict) -> None:
+        gen = gt["_generation"]
         keys = ("windows_account", "profile_folder_name", "profile_folder_short_name")
         self.accounts = {(gen.get(k) or "").casefold() for k in keys} - {""}
         self.template_paths: set[str] = set()
         self.template_names: set[str] = set()
-        for t in (gen.get("templates") or {}).values():
+        # the hashes of the paths and names stored in the templates are kept in the
+        # private overlay (scripts/split-ground-truth.py): they include the account's own
+        for t in (gt.get("_template_hashes") or {}).values():
             if isinstance(t, dict):
                 self.template_paths.update(t.get("embedded_path_sha256") or [])
                 self.template_names.update(t.get("name_sha256") or [])
@@ -433,7 +436,7 @@ def _report(name: str):
 def test_the_kit_records_its_scrub_expectations():
     if GT is None:
         pytest.skip(MISSING)
-    scrub = _Scrub(GT["_generation"])
+    scrub = _Scrub(GT)
     assert scrub.accounts and scrub.output and len(scrub.template_paths) >= 5 and scrub.template_names
     assert len(NATIVES) >= 10
 
@@ -442,7 +445,7 @@ def test_the_kit_records_its_scrub_expectations():
 def test_the_path_report_meets_the_kits_scrub_expectations(name):
     """What the kit's own audit allows, applied to the report, which reads more than the
     byte scan the audit used: nested documents, non-ASCII text and the structured carriers."""
-    scrub = _Scrub(GT["_generation"])
+    scrub = _Scrub(GT)
     rep = _report(name)
     assert rep.complete and len(rep.paths) >= 5
     assert [p.path for p in rep.paths if not scrub.path_ok(p.path)] == []
@@ -467,7 +470,7 @@ def test_the_path_report_meets_the_kits_scrub_expectations(name):
 def test_the_save_location_is_the_kits_output_folder():
     if GT is None:
         pytest.skip(MISSING)
-    scrub = _Scrub(GT["_generation"])
+    scrub = _Scrub(GT)
     compared = 0
     for name in NATIVES:
         for p in _report(name).paths:
@@ -533,3 +536,14 @@ def test_a_virtual_components_own_document_is_read(name):
     nested = [p for p in rep.paths if any(loc.nested for loc in p.locations)]
     assert any("save_location" in p.roles for p in nested)
     assert any(f.location.nested for f in rep.identity_fields)
+
+
+def test_the_public_ground_truth_holds_no_template_path_or_name_hashes():
+    """An unsalted hash of a short name is confirmed by one guess, and the templates store
+    the generating account's own folders and name: their hashes stay in the private overlay."""
+    if not GT_PATH.is_file():
+        pytest.skip(MISSING)
+    public = json.loads(GT_PATH.read_text(encoding="utf-8"))
+    for name, entry in (public["_generation"].get("templates") or {}).items():
+        if isinstance(entry, dict):
+            assert not {"embedded_path_sha256", "name_sha256"} & set(entry), name

@@ -103,7 +103,7 @@ files.
 
 | File | What it holds |
 |---|---|
-| `ground_truth.json` | What SOLIDWORKS reported about each document after the kit reopened it read-only, how the kit made it, the templates it used (paths, hashes, and the Dassault author names only as SHA-256), and the export settings |
+| `ground_truth.json` | What SOLIDWORKS reported about each document after the kit reopened it read-only, how the kit made it, the templates it used (paths, file hashes and counts; the SHA-256 of the paths and names stored in them, which include the generating account's own, are in the private fixtures' `ground_truth.private.json`, moved there by `scripts/split-ground-truth.py`), and the export settings |
 | `generation.log` | Every API step, with SOLIDWORKS' return codes |
 | `scrub_report.txt` | The kit's own audit of every path and user name in its output, and its verdict. The generating account's profile folder is written as `%USERPROFILE%`, and its line in `SHA256SUMS.txt` was updated to match |
 | `SHA256SUMS.txt` | The hash of every file above except itself and this README |
