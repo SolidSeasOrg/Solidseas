@@ -6,111 +6,6 @@ while the project takes shape.
 
 ## [Unreleased]
 
-### Changed
-
-- **Release viewers accept their own release's packages.** A release build now
-  takes the extension packages attached to the release, checks each against the
-  release's SHA256SUMS.txt, and builds the installer and the single-file viewer
-  to accept exactly those packages, so a viewer downloaded from a release can
-  add the packages published beside it. The installer also carries the packages,
-  which the viewer adds, switched off, the first time it starts. A release with
-  no packages attached still builds, and its viewer accepts none. The release
-  also includes BUNDLED-FILES.txt, the list of every library inside the
-  single-file viewer.
-
-- **The web viewer is marked provisional.** The help for `solidseas serve
-  --viewer` now says the reference web viewer is provisional.
-
-- **The ISO choice says what it changes.** In Drawing Settings, the ISO standard
-  reads "ISO (first angle views, ASME sheet)": so far it changes only the
-  projection to first angle, and the sheet, title block and lettering still
-  follow ASME.
-
-- **Extension features say how finished they are.** File > Convert now shows
-  "(In development)" and Save Animation shows "(Experimental)", the same tags
-  the Extensions page gives the OCCT backend and the video extension.
-
-- **Drawings move to a larger sheet when they would clash.** When a drawing's
-  sheet size is automatic and the drawing still has text over text, or a
-  dimension with no clear place, SolidSeas lays it out again on the next larger
-  sheet, and on larger sizes after that until the drawing is clear or the
-  largest size is reached. It keeps the sheet with the fewest conflicts, the
-  smaller one when two are equal, and the drawing's checks say which sheet was
-  used and why. A sheet size you chose in the drawing or in Drawing Settings is
-  never changed.
-
-- **A continuation title block on later sheets.** The sheets after a drawing's
-  first carry a short continuation title block (size, CAGE, drawing number,
-  revision, scale and SHEET n OF m) in place of the full one, so a long parts
-  list fits more lines on each of them.
-
-- **Identity reads count as files opened.** In display geometry and the BOM, the
-  files reference resolution opens to read their identity now count toward
-  `max_files` and `files_opened`. Large assemblies on Linux report sub-assembly
-  files held open past the open-file limit as a limit (`max_files`), not as
-  unreadable or missing, and the sub-assembly source no longer reads the tree of
-  a sub-assembly that stores nothing for a part.
-
-- **Faster explode switches and box drawing.** Switching a sub-assembly's
-  explode, the Explode level or what is hidden recomputes up to four times
-  faster on large compact assemblies, and switching back to an earlier choice is
-  instant. With a component made transparent, the grey boxes wholly in front of
-  or behind it are drawn together instead of one at a time.
-
-- **Parts are tessellated once while the viewer runs.** Parts drawn from their
-  own geometry are kept while the viewer runs: showing an assembly again,
-  another configuration of it, another assembly with the same parts, or one of
-  those parts on its own no longer tessellates them again, and a part saved
-  again is read again. For library users, `display_geometry` takes `brep_cache`,
-  a `solidseas.tesscache.TessellationCache` (provisional).
-
-- **Stored paths through links.** A file named by a stored path that goes
-  through a link, junction or cloud folder is no longer looked for through it;
-  it is reported with the stored-path-refused warning.
-
-- **When OpenGL starts.** The 3D View setting's note and the guide now say
-  starting OpenGL holds the window when the setting is turned on, or when the
-  viewer starts with it on, rather than at the first part.
-
-- **Stable identity answers from the REST service.** The service keeps an
-  identity key file beside its token file, so /v1/identity's answers for names
-  without a token no longer change when the token file is edited. It is created
-  on first start; a service whose folder it may not write to (the shared-machine
-  recipe in the API guide) needs an administrator to create it once.
-
-- **The REST service reads only what it was started for.** `serve --formats` now
-  refuses a file whose content is a format it was not started with, whatever its
-  name says, and reads model files within its own bounds (10 million triangles,
-  30 million vertices, 512 MiB of named files). In a root served without its
-  subfolders, a model file reads the files it names from its own folder only.
-
-- **IGES and BREP through the REST service.** `solidseas serve` reads the tree,
-  counts and preview of IGES and BREP files when it is started with `--formats`
-  including them and the OCCT backend extension is on; its workers may then
-  start Open CASCADE's helper. Before, it answered needs_extension on Windows.
-
-- **Lighter 3D print preparation.** Preparing a 3D print, or an STL or 3MF
-  export, joins a mesh's vertices with about 40 percent less memory, and faster
-  for SOLIDWORKS display meshes.
-
-- **3D Print Part for a part whose file was not found.** In an assembly's 3D
-  view, right-clicking a part whose own file was not found (drawn from what its
-  sub-assembly stores of it) now shows 3D Print Part greyed, with the reason and
-  the stored path, instead of offering nothing for the part.
-
-- **Batch conversion leaves your documents open.** Batch conversion with
-  SolidSeas' own SOLIDWORKS (`python -m solidseas.swapi convert`) no longer ends
-  that SOLIDWORKS while it shows a document SolidSeas did not open, such as one
-  you opened in it while it ran. It shows that SOLIDWORKS on your screen
-  instead, says so in the log, and ends it once you have saved and closed the
-  document.
-
-- **A new home.** SolidSeas now lives in the SolidSeas organisation on GitHub,
-  at https://github.com/SolidSeas/SolidSeas, starting from a fresh history. Releases,
-  issues and the wiki are there. The SOLIDWORKS test documents, which carry the
-  name of the account that made them, are kept in a private repository and are
-  fetched for the tests that need them.
-
 ### Added
 
 - **Drawings to ISO.** Drawing Settings > Standard and Units chooses ASME or
@@ -369,19 +264,6 @@ while the project takes shape.
   in a Parasolid kernel. Names outside ASCII in a Parasolid file's name
   attributes are now read as UTF-8 when they are valid UTF-8.
 
-- **Native SOLIDWORKS part writing, first research steps.** The library has
-  a new, experimental `solidseas.nativewrite` package that writes `.sldprt`
-  files without SOLIDWORKS: it lays out the 2015+ container, changes a
-  feature's driving dimension and a sketch's points in place, reads SolidCraft
-  designs into a new source-independent description of a parametric part,
-  and writes the simplest such part (one rectangle extruded) through a part
-  SOLIDWORKS made, refusing anything it cannot carry. SOLIDWORKS 2024 opened
-  every test part it wrote as a native sketch and extrusion, rebuilt it,
-  took a change of the depth dimension and saved it. Sketch dimensions and
-  most feature types are not written yet, so it is not offered in the app
-  and is not for real work. docs/NATIVE_SLDPRT_WRITER.md explains what is known and what
-  is still being measured.
-
 - **Guided drawings.** Guided, the second way to make a drawing, is no longer
   coming soon. It asks a few plain questions, one at a time, each with a
   sentence on why it matters: what the drawing is for (to show a customer or get
@@ -396,6 +278,310 @@ while the project takes shape.
   editor. Remember My Choice and Settings > Drawings offer Guided like the other
   two. Starting another drawing while Guided is open brings it forward and says
   a Guided drawing is already open.
+
+- **Balloons on parts hidden behind others.** On an assembly drawing, a part
+  that sits inside another, or behind other parts in every view, now has its
+  hidden lines drawn dashed in the front, top and side views, and its balloon
+  points at one of them, as a drafter would draw it. Before, it had no balloon
+  and the checks warned about it. Only those parts' hidden lines are drawn, so
+  an assembly whose parts all show is drawn as before.
+
+- **The AI can look at the part after each step.** In Automatic mode, with the
+  picture box ticked, a second box, Show it the part after each step, has the
+  model look at a picture of the part after every step that passed SolidSeas'
+  checks. SolidSeas saves a copy of the part as it is then, unsaved changes
+  included, draws it, and asks whether the part looks the way that step should
+  leave it. If the model says it does not, the run stops there and you choose
+  Keep or Revert; the look never lets through a step the checks refused, and a
+  look that cannot be made is noted in the log while the run goes on. It is
+  off until you tick it, costs one more request per step, and is greyed out
+  where your administrator has turned pictures off. A chat through SolidSeas'
+  MCP server can ask run_plan for the same pictures, one after each step.
+
+### Changed
+
+- **Release viewers accept their own release's packages.** A release build now
+  takes the extension packages attached to the release, checks each against the
+  release's SHA256SUMS.txt, and builds the installer and the single-file viewer
+  to accept exactly those packages, so a viewer downloaded from a release can
+  add the packages published beside it. The installer also carries the packages,
+  which the viewer adds, switched off, the first time it starts. A release with
+  no packages attached still builds, and its viewer accepts none. The release
+  also includes BUNDLED-FILES.txt, the list of every library inside the
+  single-file viewer.
+
+- **The web viewer is marked provisional.** The help for `solidseas serve
+  --viewer` now says the reference web viewer is provisional.
+
+- **The ISO choice says what it changes.** In Drawing Settings, the ISO standard
+  reads "ISO (first angle views, ASME sheet)": so far it changes only the
+  projection to first angle, and the sheet, title block and lettering still
+  follow ASME.
+
+- **Extension features say how finished they are.** File > Convert now shows
+  "(In development)" and Save Animation shows "(Experimental)", the same tags
+  the Extensions page gives the OCCT backend and the video extension.
+
+- **Drawings move to a larger sheet when they would clash.** When a drawing's
+  sheet size is automatic and the drawing still has text over text, or a
+  dimension with no clear place, SolidSeas lays it out again on the next larger
+  sheet, and on larger sizes after that until the drawing is clear or the
+  largest size is reached. It keeps the sheet with the fewest conflicts, the
+  smaller one when two are equal, and the drawing's checks say which sheet was
+  used and why. A sheet size you chose in the drawing or in Drawing Settings is
+  never changed.
+
+- **A continuation title block on later sheets.** The sheets after a drawing's
+  first carry a short continuation title block (size, CAGE, drawing number,
+  revision, scale and SHEET n OF m) in place of the full one, so a long parts
+  list fits more lines on each of them.
+
+- **Identity reads count as files opened.** In display geometry and the BOM, the
+  files reference resolution opens to read their identity now count toward
+  `max_files` and `files_opened`. Large assemblies on Linux report sub-assembly
+  files held open past the open-file limit as a limit (`max_files`), not as
+  unreadable or missing, and the sub-assembly source no longer reads the tree of
+  a sub-assembly that stores nothing for a part.
+
+- **Faster explode switches and box drawing.** Switching a sub-assembly's
+  explode, the Explode level or what is hidden recomputes up to four times
+  faster on large compact assemblies, and switching back to an earlier choice is
+  instant. With a component made transparent, the grey boxes wholly in front of
+  or behind it are drawn together instead of one at a time.
+
+- **Parts are tessellated once while the viewer runs.** Parts drawn from their
+  own geometry are kept while the viewer runs: showing an assembly again,
+  another configuration of it, another assembly with the same parts, or one of
+  those parts on its own no longer tessellates them again, and a part saved
+  again is read again. For library users, `display_geometry` takes `brep_cache`,
+  a `solidseas.tesscache.TessellationCache` (provisional).
+
+- **Stored paths through links.** A file named by a stored path that goes
+  through a link, junction or cloud folder is no longer looked for through it;
+  it is reported with the stored-path-refused warning.
+
+- **When OpenGL starts.** The 3D View setting's note and the guide now say
+  starting OpenGL holds the window when the setting is turned on, or when the
+  viewer starts with it on, rather than at the first part.
+
+- **Stable identity answers from the REST service.** The service keeps an
+  identity key file beside its token file, so /v1/identity's answers for names
+  without a token no longer change when the token file is edited. It is created
+  on first start; a service whose folder it may not write to (the shared-machine
+  recipe in the API guide) needs an administrator to create it once.
+
+- **The REST service reads only what it was started for.** `serve --formats` now
+  refuses a file whose content is a format it was not started with, whatever its
+  name says, and reads model files within its own bounds (10 million triangles,
+  30 million vertices, 512 MiB of named files). In a root served without its
+  subfolders, a model file reads the files it names from its own folder only.
+
+- **IGES and BREP through the REST service.** `solidseas serve` reads the tree,
+  counts and preview of IGES and BREP files when it is started with `--formats`
+  including them and the OCCT backend extension is on; its workers may then
+  start Open CASCADE's helper. Before, it answered needs_extension on Windows.
+
+- **Lighter 3D print preparation.** Preparing a 3D print, or an STL or 3MF
+  export, joins a mesh's vertices with about 40 percent less memory, and faster
+  for SOLIDWORKS display meshes.
+
+- **3D Print Part for a part whose file was not found.** In an assembly's 3D
+  view, right-clicking a part whose own file was not found (drawn from what its
+  sub-assembly stores of it) now shows 3D Print Part greyed, with the reason and
+  the stored path, instead of offering nothing for the part.
+
+- **Batch conversion leaves your documents open.** Batch conversion with
+  SolidSeas' own SOLIDWORKS (`python -m solidseas.swapi convert`) no longer ends
+  that SOLIDWORKS while it shows a document SolidSeas did not open, such as one
+  you opened in it while it ran. It shows that SOLIDWORKS on your screen
+  instead, says so in the log, and ends it once you have saved and closed the
+  document.
+
+### Fixed
+
+- **Security fixes from the desktop review.** A chat is no longer told the full
+  path of a part's file when a picture of it cannot be made or a file call
+  fails; a Gridfinity bin laid out by hand on a grid you give is held to the
+  100-cell limit; the SSH tunnel to a Tracefinity server uses Windows' own ssh,
+  never one in the current folder, and always refuses a server key it has not
+  seen before; making a bin never writes through a temporary file already in the
+  bins folder; a packaged SolidSeas no longer looks for the CAD Bridge in a dist
+  folder under your temporary folder; and --set-policy writes the removal of
+  AllowedProviderHosts with the restrictions, before anything that relaxes one.
+
+- **The machine policy holds for checkouts' helpers and extension packages.** An
+  administrator's DisableExtensions or AllowedExtensions now holds for a bridge
+  named by SOLIDSEAS_SWBRIDGE and an OCCT helper named by
+  SOLIDSEAS_OCCT_HELPER_PYTHON; the CAD Bridge's program is checked against its
+  package before it runs, as every other extension's helper is; Add from file
+  refuses a package for an extension your administrator has left off rather than
+  unpacking it; and a drawing no longer finds its model through a link or
+  junction on the model's stored path.
+
+- **The projection symbol on ASME drawings.** ASME drawings showed the
+  first-angle projection symbol in the title block. They now show the
+  third-angle symbol.
+
+- **Room for a datum feature symbol.** When a datum feature symbol has no room
+  on the automatically chosen sheet, the drawing moves to the next sheet size if
+  that clears it.
+
+- **Position frames beside a dimension.** A position frame beside a dimension's
+  value is no longer covered by a dimension in the next row.
+
+- **A dimension's value and a datum symbol.** A dimension's value no longer
+  stands on a datum feature symbol placed between its view and the dimensions on
+  that side.
+
+- **Indexing a folder that holds SolidSeas' cache.** Indexing a folder that
+  holds SolidSeas' cache (a home folder, say) no longer walks or indexes the
+  catalogs inside it.
+
+- **Where Used notes.** A long Where Used note is cut at its end instead of its
+  middle, and its tooltip shows all of it.
+
+- **index and serve agree on root ids.** `solidseas index FOLDER` now keeps the
+  root id `serve --catalog` gave the folder, so the two no longer rename each
+  other's roots and resolve every document again.
+
+- **Picking through transparent parts on OpenGL ES.** On OpenGL ES graphics, a
+  click goes through a transparent part to what lies inside its box, as on other
+  graphics, also where the driver lacks depth writes from shaders or high
+  precision.
+
+- **Watertight solids with a hole at an edge.** Solids with a hole that touches
+  or almost touches an edge of a face now come out closed, so their 3D prints
+  are watertight.
+
+- **Domes and lemon shapes.** Domes and lemon shapes made by revolving an arc
+  whose centre lies off the axis are drawn; they used to be left as holes.
+
+- **Smooth shading along small fillets.** Small fillets along long curved edges
+  are shaded smoothly: the triangles along their edges no longer tilt up to 60
+  degrees away from the surface.
+
+- **Time limits and memory while drawing from bodies.** Parts and assemblies
+  drawn from their bodies keep to their time limit while the bodies are read,
+  not only while they are tessellated, and in an assembly a part that runs out
+  of memory is skipped with a reason while the rest are still drawn.
+
+- **Faster STEP export of parts with many holes.** STEP export of parts with
+  many round holes or other faces cut at their seams is faster: a plate of 900
+  holes took 20 s and takes 2 s. The file written is the same.
+
+- **Large STEP assemblies open faster.** An assembly that places each component
+  both by its own placement and by a mapped item, or keeps its mapped items in
+  one shared representation, took time that grew with the square of its
+  components (4,000 components took 18 s); it now grows in proportion (2.5 s).
+
+- **The Computed column.** The Properties tab's Computed column marks a property
+  linked to another property (`$PRP:`), and no longer marks a typed value that
+  only looks like a link.
+
+- **Reader fixes.** The zip compression ratio is taken against the bytes
+  actually read; a second scene of a 3MF no longer trips the zip total limit;
+  3MF colour groups and AMF volumes and materials are bounded; OBJ material
+  libraries are counted as they are named; a PLY comment mentioning end_header
+  no longer ends the header; JSON numbers such as 1e999 are refused; glTF
+  strips, fans and GLB chunks keep the time limit.
+
+- **Crafted files that ask for too much memory.** A crafted 3MF or zipped AMF
+  can no longer make SolidSeas build a central directory larger than its end
+  record admits, a glTF accessor's sparse block is checked before any zeros are
+  made, strided accessors are copied without an object per element, and the
+  files a document names are bounded in total. Running out of memory while
+  reading a model file reports limit_exceeded on every surface.
+
+- **A frame under a vertical dimension.** A feature control frame under a
+  vertical dimension's text no longer lands across the next dimension.
+
+- **No slivers along holes in 3D print files.** STL and 3MF exports no longer
+  contain zero-area slivers along the edge of a hole, which slicers counted as
+  errors to repair.
+
+- **3D prints on drives without hard links.** On Linux and macOS, a 3D print of
+  a model on a FAT or exFAT drive, or on a share without hard links, goes to the
+  temporary folder and says the folder's file system has no hard links, instead
+  of saying permission was denied. Export STEP and Export for 3D Printing into
+  such a folder say the same and suggest a folder on another drive.
+
+- **Your SOLIDWORKS layout after a batch conversion.** After a batch conversion,
+  SolidSeas puts back the toolbar and CommandManager tab settings (and the last
+  splash screen shown) that its own SOLIDWORKS changed in your registry, as long
+  as no other SOLIDWORKS ran meanwhile; run alone, for example overnight, it
+  used to leave your CommandManager tabs rearranged. The recent documents list
+  is not put back yet.
+
+- **The assistant's page in the user guide.** It no longer says attaching to
+  SOLIDWORKS is still to come: the assistant attaches through the CAD Bridge
+  extension.
+
+- **Names back in the documentation.** In fourteen places the documentation and
+  the code's own notes showed an empty pair of backticks where the design
+  pattern they follow should be named. They name it again.
+
+- **Switching the OCCT backend extension on or off takes effect at once.**
+  Before, switching it on while the viewer was open was not enough: IGES and
+  BREP files were listed as readable but would not open, and the message said
+  the extension was not added or not switched on, although it was, until the
+  viewer was started again. Now the viewer follows the Extensions page as soon
+  as you switch the extension on or off, or add or remove its package: the
+  folder shown is read again, and its IGES and BREP files open, or say what
+  they need, without a restart. A folder's saved index no longer outlives the
+  switch either: a folder read with the extension off is read again once it is
+  on, and the other way round, instead of keeping its old rows until you chose
+  Re-index. If the extension is on but its program cannot start, the message
+  now says that, rather than asking you to switch it on.
+- **IGES and BREP files say what they need, even with Files SolidSeas Cannot
+  Read off.** While the OCCT backend extension is off, these files used to be
+  hidden with the formats SolidSeas cannot read at all, counted only as files
+  of formats SolidSeas cannot read (hidden). They are now always listed,
+  greyed, with Needs the OCCT backend in their Status column; their Overview
+  and the quick filter's button point to Tools > Extensions, and the status bar
+  counts them by format (1 IGES file needs the OCCT backend extension). Files
+  of formats SolidSeas cannot read at all, such as Inventor or VRML, are still
+  hidden unless View > Show > Files SolidSeas Cannot Read is on.
+- **Old run folders are cleared away.** The assistant said a kept run's folder
+  stays for 7 days, but nothing ever removed it, and with the look after each
+  step on, every step added another copy of the part. Now, when the assistant
+  or its MCP server starts, it removes the folder of each run that ended and in
+  which nothing changed for 7 days, safety copy, step copies and journal
+  included. A run still open, in this window or in another program, keeps its
+  folder however old it is, and SolidSeas removes nothing outside its runs
+  folder and never follows a link or junction there. A safety copy you have
+  open in SOLIDWORKS keeps its folder until the next time.
+
+- **A sheet too small for the drawing says so.** When you choose a sheet size
+  and the views with their dimensions fit it at no scale, the drawing now says
+  to choose a larger sheet and offers Sheet and Scale as a fix, instead of
+  saying the views do not fit the largest sheet. With the sheet left on
+  automatic, a larger sheet is picked as before.
+
+- **Smoother noses on STEP models.** A nose cone or other shape made by
+  revolving an arc is meshed as finely as the rest of the part. Its arc's whole
+  circle, which reaches far past the part, had made the part look larger to the
+  mesher, so the nose came out about three times coarser.
+
+- **Hole callouts keep their space in SVG.** A callout such as "6X Ø4.50
+  THRU" no longer runs together as "6X Ø4.50THRU" when a drawing is shown as
+  SVG.
+
+## [0.2.361] - 2026-10-19
+
+### Added
+
+- **Native SOLIDWORKS part writing, first research steps.** The library has
+  a new, experimental `solidseas.nativewrite` package that writes `.sldprt`
+  files without SOLIDWORKS: it lays out the 2015+ container, changes a
+  feature's driving dimension and a sketch's points in place, reads SolidCraft
+  designs into a new source-independent description of a parametric part,
+  and writes the simplest such part (one rectangle extruded) through a part
+  SOLIDWORKS made, refusing anything it cannot carry. SOLIDWORKS 2024 opened
+  every test part it wrote as a native sketch and extrusion, rebuilt it,
+  took a change of the depth dimension and saved it. Sketch dimensions and
+  most feature types are not written yet, so it is not offered in the app
+  and is not for real work. docs/NATIVE_SLDPRT_WRITER.md explains what is known and what
+  is still being measured.
 
 - **Express drawings.** Pressing Drawing now asks how you would like to make the
   drawing. Express goes straight to the editor with a simple drawing for showing
@@ -530,25 +716,6 @@ while the project takes shape.
   drawn from the part as last saved, and What the AI sees says so. A chat
   through SolidSeas' MCP server can ask for the same picture with show_part.
   An administrator can turn pictures off.
-
-- **Balloons on parts hidden behind others.** On an assembly drawing, a part
-  that sits inside another, or behind other parts in every view, now has its
-  hidden lines drawn dashed in the front, top and side views, and its balloon
-  points at one of them, as a drafter would draw it. Before, it had no balloon
-  and the checks warned about it. Only those parts' hidden lines are drawn, so
-  an assembly whose parts all show is drawn as before.
-
-- **The AI can look at the part after each step.** In Automatic mode, with the
-  picture box ticked, a second box, Show it the part after each step, has the
-  model look at a picture of the part after every step that passed SolidSeas'
-  checks. SolidSeas saves a copy of the part as it is then, unsaved changes
-  included, draws it, and asks whether the part looks the way that step should
-  leave it. If the model says it does not, the run stops there and you choose
-  Keep or Revert; the look never lets through a step the checks refused, and a
-  look that cannot be made is noted in the log while the run goes on. It is
-  off until you tick it, costs one more request per step, and is greyed out
-  where your administrator has turned pictures off. A chat through SolidSeas'
-  MCP server can ask run_plan for the same pictures, one after each step.
 
 - **Items not shown on assembly drawings.** An item of the parts list that no
   view draws (hidden in the assembly, its file not found, or with no solid
@@ -1868,6 +2035,12 @@ while the project takes shape.
 
 ### Changed
 
+- **A new home.** SolidSeas now lives in the SolidSeas organisation on GitHub,
+  at https://github.com/SolidSeas/SolidSeas, starting from a fresh history. Releases,
+  issues and the wiki are there. The SOLIDWORKS test documents, which carry the
+  name of the account that made them, are kept in a private repository and are
+  fetched for the tests that need them.
+
 - **The modeling assistant says plainly what a script can do.** A script runs
   in a separate process with a memory cap and a time limit, but with your own
   rights, so it can do anything you can. The console's note beside Run and
@@ -1951,173 +2124,6 @@ while the project takes shape.
   its file or folder names does.
 
 ### Fixed
-
-- **Security fixes from the desktop review.** A chat is no longer told the full
-  path of a part's file when a picture of it cannot be made or a file call
-  fails; a Gridfinity bin laid out by hand on a grid you give is held to the
-  100-cell limit; the SSH tunnel to a Tracefinity server uses Windows' own ssh,
-  never one in the current folder, and always refuses a server key it has not
-  seen before; making a bin never writes through a temporary file already in the
-  bins folder; a packaged SolidSeas no longer looks for the CAD Bridge in a dist
-  folder under your temporary folder; and --set-policy writes the removal of
-  AllowedProviderHosts with the restrictions, before anything that relaxes one.
-
-- **The machine policy holds for checkouts' helpers and extension packages.** An
-  administrator's DisableExtensions or AllowedExtensions now holds for a bridge
-  named by SOLIDSEAS_SWBRIDGE and an OCCT helper named by
-  SOLIDSEAS_OCCT_HELPER_PYTHON; the CAD Bridge's program is checked against its
-  package before it runs, as every other extension's helper is; Add from file
-  refuses a package for an extension your administrator has left off rather than
-  unpacking it; and a drawing no longer finds its model through a link or
-  junction on the model's stored path.
-
-- **The projection symbol on ASME drawings.** ASME drawings showed the
-  first-angle projection symbol in the title block. They now show the
-  third-angle symbol.
-
-- **Room for a datum feature symbol.** When a datum feature symbol has no room
-  on the automatically chosen sheet, the drawing moves to the next sheet size if
-  that clears it.
-
-- **Position frames beside a dimension.** A position frame beside a dimension's
-  value is no longer covered by a dimension in the next row.
-
-- **A dimension's value and a datum symbol.** A dimension's value no longer
-  stands on a datum feature symbol placed between its view and the dimensions on
-  that side.
-
-- **Indexing a folder that holds SolidSeas' cache.** Indexing a folder that
-  holds SolidSeas' cache (a home folder, say) no longer walks or indexes the
-  catalogs inside it.
-
-- **Where Used notes.** A long Where Used note is cut at its end instead of its
-  middle, and its tooltip shows all of it.
-
-- **index and serve agree on root ids.** `solidseas index FOLDER` now keeps the
-  root id `serve --catalog` gave the folder, so the two no longer rename each
-  other's roots and resolve every document again.
-
-- **Picking through transparent parts on OpenGL ES.** On OpenGL ES graphics, a
-  click goes through a transparent part to what lies inside its box, as on other
-  graphics, also where the driver lacks depth writes from shaders or high
-  precision.
-
-- **Watertight solids with a hole at an edge.** Solids with a hole that touches
-  or almost touches an edge of a face now come out closed, so their 3D prints
-  are watertight.
-
-- **Domes and lemon shapes.** Domes and lemon shapes made by revolving an arc
-  whose centre lies off the axis are drawn; they used to be left as holes.
-
-- **Smooth shading along small fillets.** Small fillets along long curved edges
-  are shaded smoothly: the triangles along their edges no longer tilt up to 60
-  degrees away from the surface.
-
-- **Time limits and memory while drawing from bodies.** Parts and assemblies
-  drawn from their bodies keep to their time limit while the bodies are read,
-  not only while they are tessellated, and in an assembly a part that runs out
-  of memory is skipped with a reason while the rest are still drawn.
-
-- **Faster STEP export of parts with many holes.** STEP export of parts with
-  many round holes or other faces cut at their seams is faster: a plate of 900
-  holes took 20 s and takes 2 s. The file written is the same.
-
-- **Large STEP assemblies open faster.** An assembly that places each component
-  both by its own placement and by a mapped item, or keeps its mapped items in
-  one shared representation, took time that grew with the square of its
-  components (4,000 components took 18 s); it now grows in proportion (2.5 s).
-
-- **The Computed column.** The Properties tab's Computed column marks a property
-  linked to another property (`$PRP:`), and no longer marks a typed value that
-  only looks like a link.
-
-- **Reader fixes.** The zip compression ratio is taken against the bytes
-  actually read; a second scene of a 3MF no longer trips the zip total limit;
-  3MF colour groups and AMF volumes and materials are bounded; OBJ material
-  libraries are counted as they are named; a PLY comment mentioning end_header
-  no longer ends the header; JSON numbers such as 1e999 are refused; glTF
-  strips, fans and GLB chunks keep the time limit.
-
-- **Crafted files that ask for too much memory.** A crafted 3MF or zipped AMF
-  can no longer make SolidSeas build a central directory larger than its end
-  record admits, a glTF accessor's sparse block is checked before any zeros are
-  made, strided accessors are copied without an object per element, and the
-  files a document names are bounded in total. Running out of memory while
-  reading a model file reports limit_exceeded on every surface.
-
-- **A frame under a vertical dimension.** A feature control frame under a
-  vertical dimension's text no longer lands across the next dimension.
-
-- **No slivers along holes in 3D print files.** STL and 3MF exports no longer
-  contain zero-area slivers along the edge of a hole, which slicers counted as
-  errors to repair.
-
-- **3D prints on drives without hard links.** On Linux and macOS, a 3D print of
-  a model on a FAT or exFAT drive, or on a share without hard links, goes to the
-  temporary folder and says the folder's file system has no hard links, instead
-  of saying permission was denied. Export STEP and Export for 3D Printing into
-  such a folder say the same and suggest a folder on another drive.
-
-- **Your SOLIDWORKS layout after a batch conversion.** After a batch conversion,
-  SolidSeas puts back the toolbar and CommandManager tab settings (and the last
-  splash screen shown) that its own SOLIDWORKS changed in your registry, as long
-  as no other SOLIDWORKS ran meanwhile; run alone, for example overnight, it
-  used to leave your CommandManager tabs rearranged. The recent documents list
-  is not put back yet.
-
-- **The assistant's page in the user guide.** It no longer says attaching to
-  SOLIDWORKS is still to come: the assistant attaches through the CAD Bridge
-  extension.
-
-- **Names back in the documentation.** In fourteen places the documentation and
-  the code's own notes showed an empty pair of backticks where the design
-  pattern they follow should be named. They name it again.
-
-- **Switching the OCCT backend extension on or off takes effect at once.**
-  Before, switching it on while the viewer was open was not enough: IGES and
-  BREP files were listed as readable but would not open, and the message said
-  the extension was not added or not switched on, although it was, until the
-  viewer was started again. Now the viewer follows the Extensions page as soon
-  as you switch the extension on or off, or add or remove its package: the
-  folder shown is read again, and its IGES and BREP files open, or say what
-  they need, without a restart. A folder's saved index no longer outlives the
-  switch either: a folder read with the extension off is read again once it is
-  on, and the other way round, instead of keeping its old rows until you chose
-  Re-index. If the extension is on but its program cannot start, the message
-  now says that, rather than asking you to switch it on.
-- **IGES and BREP files say what they need, even with Files SolidSeas Cannot
-  Read off.** While the OCCT backend extension is off, these files used to be
-  hidden with the formats SolidSeas cannot read at all, counted only as files
-  of formats SolidSeas cannot read (hidden). They are now always listed,
-  greyed, with Needs the OCCT backend in their Status column; their Overview
-  and the quick filter's button point to Tools > Extensions, and the status bar
-  counts them by format (1 IGES file needs the OCCT backend extension). Files
-  of formats SolidSeas cannot read at all, such as Inventor or VRML, are still
-  hidden unless View > Show > Files SolidSeas Cannot Read is on.
-- **Old run folders are cleared away.** The assistant said a kept run's folder
-  stays for 7 days, but nothing ever removed it, and with the look after each
-  step on, every step added another copy of the part. Now, when the assistant
-  or its MCP server starts, it removes the folder of each run that ended and in
-  which nothing changed for 7 days, safety copy, step copies and journal
-  included. A run still open, in this window or in another program, keeps its
-  folder however old it is, and SolidSeas removes nothing outside its runs
-  folder and never follows a link or junction there. A safety copy you have
-  open in SOLIDWORKS keeps its folder until the next time.
-
-- **A sheet too small for the drawing says so.** When you choose a sheet size
-  and the views with their dimensions fit it at no scale, the drawing now says
-  to choose a larger sheet and offers Sheet and Scale as a fix, instead of
-  saying the views do not fit the largest sheet. With the sheet left on
-  automatic, a larger sheet is picked as before.
-
-- **Smoother noses on STEP models.** A nose cone or other shape made by
-  revolving an arc is meshed as finely as the rest of the part. Its arc's whole
-  circle, which reaches far past the part, had made the part look larger to the
-  mesher, so the nose came out about three times coarser.
-
-- **Hole callouts keep their space in SVG.** A callout such as "6X Ø4.50
-  THRU" no longer runs together as "6X Ø4.50THRU" when a drawing is shown as
-  SVG.
 
 - **The same drawing on Windows and Linux.** A drawing now orders lines of
   equal length, such as a cone's two outline lines, the same way on every
