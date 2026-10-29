@@ -593,7 +593,7 @@ different use (bead).
 | Project | Licence | Used |
 |---|---|---|
 | [KenM76/swformat](https://github.com/KenM76/swformat) | Apache-2.0 | **No code and no format description used.** Its container reader is ported from openswx, which SolidSeas excludes for its disassembly provenance (`docs/FORMAT.md` 18), and its own docs say it is not clean-room. Its reports of SOLIDWORKS behaviour (offset shifts rejected, members relocated to the end accepted, stale CRCs accepted, a drawing sketch re-solved from an edited `moLengthParameter_c`) are treated as claims to test, and the check tests the first two. It has no part feature-tree decoding |
-| [tangency-labs/solidcraft](https://github.com/tangency-labs/solidcraft) | MIT OR Apache-2.0 | Its documented document format is read; no code used |
+| [bherbruck/solidcraft](https://github.com/bherbruck/solidcraft) | MIT OR Apache-2.0 | Its documented document format is read; no code used |
 | SOLIDWORKS API documentation | | The oracle's calls: `ForceRebuild3`, `GetWhatsWrong`, `IExtrudeFeatureData2`, `IDimension.SetSystemValue3`, `SaveAs3` with `swSaveAsOptions_Copy` |
 
 Everything above was worked out from fixtures made through the published

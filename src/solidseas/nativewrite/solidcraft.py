@@ -1,6 +1,6 @@
 """SolidCraft's native document into ``ParametricDocumentIR``.
 
-SolidCraft (MIT or Apache-2.0, https://github.com/tangency-labs/solidcraft)
+SolidCraft (MIT or Apache-2.0, https://github.com/bherbruck/solidcraft)
 saves a ``.solidcraft`` file either as its JSON document or as a ZIP holding
 ``container.json`` and ``document.json``. This reads either with the standard
 library only: no SolidCraft, no MCP server. Field names follow SolidCraft's

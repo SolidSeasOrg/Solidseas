@@ -17,7 +17,7 @@ body:
     attributes:
       label: SolidSeas version
       description: The output of `solidseas --version`, or the version in the viewer's title bar.
-      placeholder: "0.2.327"
+      placeholder: "0.2.x (Help > About)"
     validations:
       required: true
   - type: dropdown
