@@ -54,6 +54,38 @@ def test_the_frames_are_drawn_offscreen_at_the_size_chosen(tmp_path):
     assert all(out["clear"]), "the assembly stays inside every frame, exploded too"
 
 
+_GL_FRAMES_REPAINTED = """
+from PySide6.QtWidgets import QMainWindow
+from solidseas_app.viewer import mesh3d
+from solidseas_app.viewer.animation import AnimationOptions, frames
+scene = mesh3d.read_assembly_scene(sys.argv[1], sys.argv[2], sys.argv[2], 1_000_000)["data"]
+window = QMainWindow()
+view = view3d.ModelView()
+window.setCentralWidget(view)
+window.resize(400, 300)
+window.show()
+view.set_assembly(scene)
+view.grabFramebuffer()
+plan = frames(AnimationOptions(seconds=1, fps=6, size="640x360"), view.camera_state())
+def progress(index):
+    view.update()
+    app.processEvents()
+    return True
+n = view.render_frames(plan, (640, 360), "#204060", sys.argv[3], progress)
+print(json.dumps({"n": n, "error": view.error}))
+"""
+
+
+@needs_qt
+def test_each_frame_is_drawn_in_the_views_context_after_the_window_repaints(tmp_path):
+    """Save Animation's progress dialog runs the event loop after each frame, and a repaint
+    there leaves the window's own context current, which has none of the view's vertex
+    arrays: drawn in it, the next frame crashed NVIDIA's driver. Each frame makes the view's
+    context current again."""
+    out = run_gl(_GL_FRAMES_REPAINTED, str(fixture_path(O16)), str(FIXTURES), str(tmp_path))
+    assert out["error"] is None and out["n"] == 6
+
+
 class _View:
     can_explode = True
 

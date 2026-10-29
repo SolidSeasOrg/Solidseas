@@ -406,6 +406,11 @@ while the project takes shape.
 
 ### Fixed
 
+- **Save Animation no longer closes the viewer partway through.** On some NVIDIA
+  graphics drivers the viewer quit while saving a video, after the first frame
+  or two. Every frame is now drawn in the 3D view's own context, whatever the
+  progress window redraws in between.
+
 - **Checksum lists you can check anywhere.** A release's SHA256SUMS.txt and
   .sha256 files now end their lines the Unix way, so `sha256sum -c` on Linux or
   macOS verifies the downloads instead of failing on every line.

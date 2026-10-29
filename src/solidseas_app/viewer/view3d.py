@@ -2135,9 +2135,11 @@ class ModelView(QOpenGLWidget):
         saved = self.explode
         colour = QColor(background)
         done = 0
-        self.makeCurrent()
         try:
             for f in frames:
+                # each time: progress() runs the event loop, whose repaints leave the window's
+                # own context current, and that one has none of this view's vertex arrays
+                self.makeCurrent()
                 self.explode = f.explode if self.can_explode else 0.0
                 if not self._sync():
                     raise GLError("the 3D view could not take the model again")
