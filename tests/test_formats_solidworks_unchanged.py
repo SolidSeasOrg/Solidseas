@@ -15,7 +15,8 @@ and its members are compared with the version evened out.
 
 Skipped where this is not a git checkout holding :data:`BASE` (a shallow clone in CI).
 When SOLIDWORKS output changes on purpose, :data:`BASE` moves to the commit that
-changed it.
+changed it. It moved to the mesher's platform-stable trigonometry (0.2.521),
+which changed o11's mesh, from the tip of the STEP prints.
 """
 
 import io
@@ -33,7 +34,7 @@ import pytest
 
 from support import FIXTURES
 
-BASE = "61c5c9d004a94a6231d4d90f52fa584e2fce6152"
+BASE = "d3ddfcb3608060a1eb01983e83fbc12b9c2b954f"
 REPO = Path(__file__).resolve().parents[1]
 SRC = REPO / "src"
 _VERSION = re.compile(rb"SolidSeas [0-9][0-9.]*")
