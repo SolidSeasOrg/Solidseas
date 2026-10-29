@@ -156,8 +156,10 @@ def test_o16_parts_only_and_lite():
 
 
 def test_o16_rows_carry_files_configurations_and_properties():
+    # Only the fixtures folder: on the PC that made the fixtures, the paths o16 stores
+    # hold the parts too, and each would be read for its identity as well.
     with open_document(O16) as doc:
-        bom = doc.bom(bom_type="indented", columns=["PartNo", "Part Number"])
+        bom = doc.bom(bom_type="indented", columns=["PartNo", "Part Number"], allow_outside_roots=False)
     by_item = {r.item: r for r in bom.rows}
     o06 = by_item["2"]
     assert o06.configuration == "OracleAlt" and o06.description == "Oracle test box"
@@ -697,11 +699,12 @@ def test_cycles_and_limits_are_noted(tmp_path):
 
 
 def test_file_and_time_limits_leave_rows_unread(tmp_path):
+    inside = {"allow_outside_roots": False}  # not the parts at o16's stored paths, as above
     with open_document(O16) as doc:
-        none = doc.bom(max_files=0)
-        late = doc.bom(max_seconds=0)
-        few = doc.bom(max_files=8)
-        identities = doc.bom(max_files=3)
+        none = doc.bom(max_files=0, **inside)
+        late = doc.bom(max_seconds=0, **inside)
+        few = doc.bom(max_files=8, **inside)
+        identities = doc.bom(max_files=3, **inside)
     for bom, limit in ((none, "max_files"), (late, "max_seconds"), (identities, "max_files")):
         assert [w.code for w in bom.warnings][-1:] == ["bom_limit_reached"] and limit in bom.warnings[-1]
         unread = [r.part_number for r in bom.rows if r.properties is None]

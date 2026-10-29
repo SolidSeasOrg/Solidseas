@@ -2119,7 +2119,9 @@ def test_a_part_read_from_a_sub_assemblys_own_file_prints_from_the_3d_view(print
     d, pane = w.details, w.details.preview
     pane.view_factory = _stub_view_factory([])
     pane.gl_check = lambda: (True, "test")
-    w.change_settings(view_3d=True)
+    # The opened folder alone: on the PC that made the fixtures, o02 is still at the path
+    # o15 stores for it.
+    w.change_settings(view_3d=True, references_inside_only=True)
     d.tabs.setCurrentIndex(TABS.index("Preview"))
     p.open(models, "top2.SLDASM")
     pane.set_mode(MODEL)
@@ -2221,7 +2223,9 @@ def test_the_scene_says_which_parts_no_row_stands_for_were_not_found(models):
     _top_of_o15(models)
     os.remove(models / "o02_boxA.SLDPRT")
     with open_document(models / "top2.SLDASM", within=models) as doc:
-        g = geo.display_geometry(doc, roots=Roots([Root("opened", str(models))]), allow_outside_roots=True)
+        # The opened folder alone: on the PC that made the fixtures, o02 is still at the
+        # path o15 stores for it.
+        g = geo.display_geometry(doc, roots=Roots([Root("opened", str(models))]), allow_outside_roots=False)
     gone = next(i for i in g.instances if i.id == "o15_sub_asm-1/o02_boxA-1")
     assert g.meshes[gone.mesh].kind == "subassembly" and g.file_failures[gone.file] == "missing"
     stored = g.files[gone.file].stored_path
@@ -2255,7 +2259,9 @@ def test_a_part_whose_own_file_is_not_found_has_its_3d_print_off_with_the_reason
     d, pane = w.details, w.details.preview
     pane.view_factory = _stub_view_factory([])
     pane.gl_check = lambda: (True, "test")
-    w.change_settings(view_3d=True)
+    # The opened folder alone: on the PC that made the fixtures, o02 is still at the path
+    # o15 stores for it.
+    w.change_settings(view_3d=True, references_inside_only=True)
     d.tabs.setCurrentIndex(TABS.index("Preview"))
     p.open(models, "top2.SLDASM")
     pane.set_mode(MODEL)
