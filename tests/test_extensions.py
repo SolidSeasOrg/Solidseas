@@ -423,6 +423,43 @@ def test_the_video_helper_encodes_frames_through_its_ffmpeg_and_never_over_a_fil
             V.encode(args)
 
 
+def test_the_video_helper_gives_h264_a_bitrate_for_the_frame_size(tmp_path, monkeypatch):
+    """Without a rate, ffmpeg gives an encoder 200 kbit/s, which blurs a 720p or 1080p clip and
+    leaves trails behind the parts that move: H.264 gets a tenth of a bit a pixel of each frame
+    (the first frame's size, from its PNG header), at least 1 Mbit/s, and h264_mf the High
+    profile by its number. MPEG-4 part 2 keeps its quality scale."""
+    import struct
+    import subprocess
+    import zlib
+
+    from solidseas_app.extensions import video_helper as V
+
+    frames, out = tmp_path / "frames", tmp_path / "out"
+    frames.mkdir()
+    out.mkdir()
+    ihdr = b"IHDR" + struct.pack(">IIBBBBB", 1280, 720, 8, 2, 0, 0, 0)
+    head = b"\x89PNG\r\n\x1a\n" + struct.pack(">I", 13) + ihdr + struct.pack(">I", zlib.crc32(ihdr))
+    (frames / "frame00000.png").write_bytes(head)
+    ran = []
+
+    def run(command, **kw):
+        ran.append(command)
+        open(command[-1], "wb").close()
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr(V.subprocess, "run", run)
+    clip = {"frames": str(frames), "out_dir": str(out), "fps": 30, "format": "mp4"}
+    for encoder, name in (("h264_mf", "a.mp4"), ("mpeg4", "b.mp4")):
+        monkeypatch.setattr(V, "_encoder", lambda ffmpeg, e=encoder: e)
+        V.encode({**clip, "name": name})
+    h264, mpeg4 = ran
+    assert h264[h264.index("-b:v") + 1] == str(1280 * 720 * 30 // 10)
+    assert h264[h264.index("-profile:v") + 1] == "100"
+    assert "-b:v" not in mpeg4 and mpeg4[mpeg4.index("-q:v") + 1] == "3"
+    assert V._bitrate(str(frames), 5) == 1_000_000  # the floor
+    assert V._bitrate(str(tmp_path), 30) == 1920 * 1080 * 30 // 10  # no frame to read: 1080p
+
+
 def test_the_viewer_build_carries_the_extensions_and_the_list_it_accepts():
     import re
     from pathlib import Path

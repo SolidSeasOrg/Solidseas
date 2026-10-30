@@ -406,6 +406,11 @@ while the project takes shape.
 
 ### Fixed
 
+- **Saved MP4 clips are sharp.** A clip from Save Animation came out blurry and
+  blocky, with trails behind the parts that move, because it was encoded at a
+  very low bitrate whatever its size. MP4 clips now get a bitrate to suit their
+  size and frame rate, and Windows' own encoder uses its High profile.
+
 - **Save Animation no longer closes the viewer partway through.** On some NVIDIA
   graphics drivers the viewer quit while saving a video, after the first frame
   or two. Every frame is now drawn in the 3D view's own context, whatever the

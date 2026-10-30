@@ -8,7 +8,8 @@ frames into (``frame00000.png`` on), the frame rate, the format and a plain file
 writes that file into the folder the core gave it for the result, never over a file; the
 core moves it to where the person chose. For MP4 it takes the first H.264 encoder its
 ffmpeg has of Windows' own (``h264_mf``) and OpenH264, else MPEG-4 part 2, so the package
-needs no GPL encoder.
+needs no GPL encoder. H.264 is given a bitrate for the frame size and rate: ffmpeg's own
+default, 200 kbit/s, blurs a 720p or 1080p clip and leaves trails behind the parts that move.
 
 ``SOLIDSEAS_FFMPEG`` names the ffmpeg to use (for a source checkout or a test); a packaged
 helper uses the one beside it.
@@ -26,6 +27,9 @@ PROTOCOL = 1
 FRAME_PATTERN = "frame%05d.png"
 _NAME = re.compile(r"[A-Za-z0-9 ._()+\-]{1,120}\.(gif|mp4)")
 _PREFERRED = ("h264_mf", "libopenh264", "mpeg4")
+_BITS_PER_PIXEL = 0.1  # of each frame, for H.264: a ceiling, as flat colours need far less
+_MIN_BITRATE = 1_000_000
+_H264_HIGH = "100"  # h264_mf takes the profile only as its number
 
 
 def ffmpeg_path() -> str:
@@ -47,6 +51,25 @@ def _encoder(ffmpeg: str) -> str:
         line.split()[1] for line in listed.splitlines() if len(line.split()) > 1 and line.startswith(" V")
     }
     return next((e for e in _PREFERRED if e in names), "mpeg4")
+
+
+def _frame_size(frames: str) -> tuple[int, int] | None:
+    """The first frame's width and height, from its PNG header; None when it cannot be read."""
+    try:
+        with open(os.path.join(frames, FRAME_PATTERN % 0), "rb") as fh:
+            head = fh.read(24)
+    except OSError:
+        return None
+    if len(head) < 24 or head[:8] != b"\x89PNG\r\n\x1a\n" or head[12:16] != b"IHDR":
+        return None
+    return int.from_bytes(head[16:20], "big"), int.from_bytes(head[20:24], "big")
+
+
+def _bitrate(frames: str, fps: int) -> int:
+    """Bits a second for H.264: :data:`_BITS_PER_PIXEL` of every frame (1080p when the frames
+    cannot be read), at least :data:`_MIN_BITRATE`."""
+    width, height = _frame_size(frames) or (1920, 1080)
+    return max(_MIN_BITRATE, round(width * height * fps * _BITS_PER_PIXEL))
 
 
 class Refused(ValueError):
@@ -80,6 +103,10 @@ def encode(args: dict) -> dict:
         command += ["-c:v", encoder, "-pix_fmt", "yuv420p", "-movflags", "+faststart"]
         if encoder == "mpeg4":
             command += ["-q:v", "3"]
+        else:
+            command += ["-b:v", str(_bitrate(frames, fps))]
+            if encoder == "h264_mf":
+                command += ["-profile:v", _H264_HIGH]
     command.append(target)
     done = subprocess.run(command, capture_output=True, text=True, check=False)
     if done.returncode != 0 or not os.path.isfile(target):
