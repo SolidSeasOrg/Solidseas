@@ -127,6 +127,7 @@ The mesh is read and its buffers made in a separate process (:mod:`.meshproc`);
 this module only uploads and draws, on the UI thread, where OpenGL must run.
 """
 
+import logging
 import math
 import os
 import time
@@ -201,6 +202,8 @@ from .viewmath import (
     wheel_factor,
 )
 from .wording import tip
+
+_log = logging.getLogger(__name__)
 
 GL_DEPTH_BUFFER_BIT, GL_COLOR_BUFFER_BIT = 0x0100, 0x4000
 GL_LINES, GL_TRIANGLES, GL_UNSIGNED_INT, GL_FLOAT = 0x0001, 0x0004, 0x1405, 0x1406
@@ -2531,8 +2534,39 @@ class ModelView(QOpenGLWidget):
         self._place_cube()
         self.overlays_changed()
         super().resizeEvent(event)
+        self._check_context()
+
+    def showEvent(self, event) -> None:
+        super().showEvent(event)
+        self._check_context()
+
+    def paintEvent(self, event) -> None:
+        super().paintEvent(event)
+        self._check_context()
 
     # -- OpenGL --------------------------------------------------------------------------
+    def _check_context(self) -> None:
+        """Say so when the driver gave the view a context that does not work: Qt then never
+        calls :meth:`initializeGL`, so no renderer starts and nothing else would. Seen on a
+        desktop NVIDIA driver asked for OpenGL ES 3.0, where a GL call on that context ended
+        the program; so only the context's own state and the format asked for are read.
+        Where no context can be made at all (:func:`gl_status`, offscreen for one), the
+        preview says so instead and makes no view, and a view made there anyway, as the
+        tests make one, still turns its camera without OpenGL."""
+        if self.renderer is not None or self.error is not None:
+            return
+        ctx = self.context()
+        if ctx is None or ctx.isValid():  # not made yet, or made and initializeGL called
+            return
+        if not gl_status()[0]:
+            return
+        fmt = ctx.format()
+        kind = "OpenGL ES" if fmt.renderableType() == QSurfaceFormat.RenderableType.OpenGLES else "OpenGL"
+        version = f"{fmt.majorVersion()}.{fmt.minorVersion()}"
+        why = f"the graphics driver could not make the {kind} {version} context it asked for"
+        _log.warning("3D view: %s", why)
+        self._fail(why)
+
     def initializeGL(self) -> None:
         try:
             self.renderer = Renderer()

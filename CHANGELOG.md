@@ -437,6 +437,9 @@ while the project takes shape.
 
 ### Fixed
 
+- **The 3D view says when the graphics driver could not make its OpenGL
+  context.** It used to stay blank with no message.
+
 - **The model-governs note names the model in capitals.** A reduced-dimension
   drawing of a part whose file name or number has lower case no longer fails the
   lettering check.
