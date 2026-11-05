@@ -157,7 +157,8 @@ model off this PC. Under `DisableImages`, `preview` refuses and so does `list_fo
 The same as the assistant's (below): JSON-RPC 2.0, one message per line, protocol versions
 2025-06-18, 2025-03-26 and 2024-11-05 (the newest when the app asks for another). A tool
 call runs on a thread of its own, so a ping or a cancellation is read meanwhile; a cancelled
-call's answer is not sent. Diagnostics and the log go to standard error. The code is
+call's answer is not sent. Four calls run at once and 32 more may wait; a call past those is
+answered at once with error -32000, to be sent again later. Diagnostics and the log go to standard error. The code is
 `solidseas/serve/mcp.py` (the tools) and `solidseas/mcpwire.py` (the protocol), and
 `tests/test_mcp_connector.py` checks every tool against the REST route, the refusals and a
 run over a real pipe.
