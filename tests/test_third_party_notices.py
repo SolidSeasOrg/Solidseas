@@ -236,3 +236,79 @@ def test_the_library_notices_the_three_js_its_viewer_carries():
     row = rf"^\s*three\.js\s+0\.{revision}\.\d+\s+MIT\s+three\.js-LICENSE\.txt$"
     assert re.search(row, library, re.M)
     assert (LICENCES / "three.js-LICENSE.txt").read_bytes() == (vendored / "LICENSE").read_bytes()
+
+
+def _video_and_occt_steps() -> tuple[str, str]:
+    build = EXTENSIONS.read_text(encoding="utf-8")
+    video = build[build.index("if ('video' -in $Only) {") : build.index("if ('solidcraft' -in $Only)")]
+    occt = build[build.index("if ('occt' -in $Only) {") : build.index("$zips = @(")]
+    return video, occt
+
+
+def test_the_python_helpers_carry_the_licences_of_what_python_brings():
+    """solidseas-video.exe and solidseas-occt.exe are PyInstaller programs: besides Python's own
+    LICENSE.txt they carry OpenSSL, mpdecimal and xz from the standard library, and the code
+    Python incorporates (expat, the Mersenne Twister and others), whose notices Python's
+    LICENSE.txt leaves out."""
+    build = EXTENSIONS.read_text(encoding="utf-8")
+    parts = re.search(r"^\$pythonParts = @\(([^)]*)\)$", build, re.M)
+    assert parts, "build-extensions.ps1 lists no $pythonParts"
+    names = re.findall(r"'([^']+)'", parts.group(1))
+    assert {
+        "Python-incorporated.txt",
+        "OpenSSL-LICENSE.txt",
+        "mpdecimal-LICENSE.txt",
+        "xz-COPYING.txt",
+    } <= set(names)
+    for name in names:
+        assert (LICENCES / name).is_file(), name
+    for step in _video_and_occt_steps():
+        assert "'SOURCE.txt') + $pythonParts" in step
+    incorporated = (LICENCES / "Python-incorporated.txt").read_text(encoding="utf-8")
+    for notice in ("Mersenne Twister", "SipHash24", "strtod and dtoa", "expat", "cfuhash"):
+        assert f"\n{notice}\n" in incorporated, notice
+
+
+def test_the_viewer_leaves_out_only_texts_that_ship_elsewhere():
+    spec = SPEC.read_text(encoding="utf-8")
+    block = spec[spec.index("NOT_IN_VIEWER = {") :]
+    left_out = set(re.findall(r'"([^"]+\.txt)"', block[: block.index("}")]))
+    assert left_out
+    _, occt = _video_and_occt_steps()
+    for name in left_out:
+        assert (LICENCES / name).is_file(), name
+        assert name in occt or name == "three.js-LICENSE.txt", name
+    # The program's own components keep their texts, and so does where the LGPL source is.
+    for name in ("LGPL-3.0.txt", "GPL-3.0.txt", "Qt-third-party.txt", "SOURCE.txt"):
+        assert name not in left_out
+    assert "if n not in NOT_IN_VIEWER]" in spec
+
+
+def test_source_txt_names_the_shipped_versions_and_no_host_that_may_not_exist():
+    """licenses/SOURCE.txt is the direction to the LGPL source that travels with the program and
+    is published beside it. It must name the versions the build carries, and stay true wherever
+    a release is published: no release of the project's own named by its address."""
+    source = (LICENCES / "SOURCE.txt").read_text(encoding="utf-8")
+    qt = locked()["pyside6-essentials"][0]
+    assert f"qt-everywhere-src-{qt}.tar.xz" in source
+    assert f"pyside-setup-everywhere-src-{qt}.zip" in source
+    build_sh = (ROOT / "packaging" / "ffmpeg" / "build.sh").read_text(encoding="utf-8")
+    ffmpeg = re.search(r"^FFMPEG_VERSION=(\S+)$", build_sh, re.M).group(1)
+    assert f"ffmpeg-{ffmpeg}.tar.xz" in source
+    for text in (source, notices()):
+        assert "SolidSeas/SolidSeas/releases/tag/" not in text
+        assert not re.search(r"releases/tag/(qt|ffmpeg)-[\d.]+-source", text)
+    release = (ROOT / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
+    assert "'licenses\\SOURCE.txt'" in release
+
+
+def test_the_wheel_metadata_declares_the_licences_of_what_it_carries():
+    import tomllib
+
+    project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]
+    # three.js (MIT) ships in the wheel; the earcut port (ISC) is in the tessellator.
+    assert set(re.split(r"\s+AND\s+", project["license"])) == {"Apache-2.0", "MIT", "ISC"}
+    for name in project["license-files"]:
+        assert (ROOT / name).is_file(), name
+    assert "THIRD_PARTY_NOTICES.txt" in project["license-files"]
+    assert "src/solidseas/serve/viewer/three/LICENSE" in project["license-files"]

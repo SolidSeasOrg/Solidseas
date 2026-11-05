@@ -191,7 +191,9 @@ a.datas = [d for d in a.datas if wanted(d[0])]
 
 # Licences (THIRD_PARTY_NOTICES.txt). The executable carries, in licenses\ inside it (the
 # one-folder build in _internal\licenses beside it), which Help > Licences shows: SolidSeas'
-# LICENSE, NOTICE and THIRD_PARTY_NOTICES.txt, every text in licenses\ of the repository, the LICENSE.txt of the Python running this build (the Python the
+# LICENSE, NOTICE and THIRD_PARTY_NOTICES.txt; the texts in licenses\ of the repository, SOURCE.txt
+# (where the LGPL source is) among them, but for those only an extension package or the library
+# carries (NOT_IN_VIEWER); the LICENSE.txt of the Python running this build (the Python the
 # executable carries, with the terms of what that Python bundles), and BUNDLED-FILES.txt, the
 # list of every library inside the executable. The build stops rather than ship without them:
 # when it would carry a Python package the notices do not cover, when the notices name another
@@ -213,7 +215,7 @@ MSVC = r"(vcruntime|msvcp|concrt|vccorlib|vcomp|vcamp)\d+"
 # Libraries from Python: for each one carried, either Python's LICENSE.txt names it (the word),
 # or the repository's licenses folder holds that library's own licence (the file), as it must for
 # a Python whose LICENSE.txt leaves some of them out (CPython 3.12.0's names neither OpenSSL,
-# SQLite, xz nor mpdecimal).
+# SQLite, xz nor mpdecimal, and 3.12.10's does not name expat, which pyexpat is built from).
 PYTHON_PARTS = {
     r"libcrypto|libssl": ("openssl", "OpenSSL-LICENSE.txt"),
     r"libffi": ("libffi", None),
@@ -221,6 +223,7 @@ PYTHON_PARTS = {
     r"_bz2": ("bzip2", None),
     r"_lzma|liblzma": ("xz", "xz-COPYING.txt"),
     r"_decimal|mpdec": ("mpdec", "mpdecimal-LICENSE.txt"),
+    r"pyexpat": ("expat", "Python-incorporated.txt"),
     MSVC: ("microsoft", None),
 }
 
@@ -297,7 +300,16 @@ with open(BUNDLED, "w", encoding="utf-8", newline="\r\n") as fh:
     fh.write("\nPyInstaller's run-time hooks (Apache License 2.0)\n")
     fh.writelines(f"  {h}\n" for h in hooks)
 OWN_TEXTS = ("LICENSE", "NOTICE", "THIRD_PARTY_NOTICES.txt")
-a.datas += [(f"licenses/{n}", os.path.join(LICENCES, n), "DATA") for n in sorted(os.listdir(LICENCES))]
+# Texts that only an extension package (OCCT, OCP) or the library (three.js) carries, left out so
+# that Help > Licences lists what the program itself holds.
+NOT_IN_VIEWER = {
+    "LGPL-2.1.txt",
+    "OCCT_LGPL_EXCEPTION.txt",
+    "OCP-LICENSE.txt",
+    "OCP-third-party.txt",
+    "three.js-LICENSE.txt",
+}
+a.datas += [(f"licenses/{n}", os.path.join(LICENCES, n), "DATA") for n in sorted(os.listdir(LICENCES)) if n not in NOT_IN_VIEWER]
 a.datas += [(f"licenses/{n}", os.path.join(ROOT, n), "DATA") for n in OWN_TEXTS]
 a.datas += [("licenses/Python-LICENSE.txt", PYTHON_LICENCE, "DATA")]
 a.datas += [("licenses/BUNDLED-FILES.txt", BUNDLED, "DATA")]

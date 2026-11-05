@@ -145,6 +145,10 @@ function Copy-Licences([string]$folder, [string[]]$files) {
 
 # SolidSeas' own licence and notices, which every package of SolidSeas' own code carries.
 $ownLicences = @('LICENSE', 'NOTICE', 'THIRD_PARTY_NOTICES.txt') | ForEach-Object { Join-Path $root $_ }
+# What a PyInstaller helper carries from Python beyond Python's own LICENSE.txt: the notices of the
+# code Python incorporates, and OpenSSL (libcrypto), mpdecimal (_decimal) and xz (_lzma), which
+# its standard library brings along (THIRD_PARTY_NOTICES.txt section 3.2).
+$pythonParts = @('Python-incorporated.txt', 'OpenSSL-LICENSE.txt', 'mpdecimal-LICENSE.txt', 'xz-COPYING.txt')
 
 Push-Location $root
 try {
@@ -197,8 +201,14 @@ try {
         $ErrorActionPreference = 'Stop'
         # The helper is a PyInstaller program, so it carries Python and PyInstaller's bootloader.
         Copy-Item -LiteralPath (Join-Path $base 'LICENSE.txt') -Destination $pythonLicence
-        $licenceTexts = @('LGPL-2.1.txt', 'LGPL-3.0.txt', 'GPL-3.0.txt', 'PyInstaller-COPYING.txt') | ForEach-Object { Join-Path $root "licenses\$_" }
-        Copy-Licences $folder ($ownLicences + $licenceTexts + $ffmpegLicences + @($about, $pythonLicence))
+        $licenceTexts = @('LGPL-2.1.txt', 'LGPL-3.0.txt', 'GPL-3.0.txt', 'PyInstaller-COPYING.txt', 'SOURCE.txt') + $pythonParts | ForEach-Object { Join-Path $root "licenses\$_" }
+        # packaging\ffmpeg\build.sh records the compiler, zlib and mingw-w64 it built with in BUILD.txt.
+        $ffmpegRecord = @()
+        if (Test-Path -LiteralPath (Join-Path $FfmpegFolder 'BUILD.txt') -PathType Leaf) {
+            $ffmpegRecord = @(Join-Path $work 'ffmpeg-BUILD.txt')
+            Copy-Item -LiteralPath (Join-Path $FfmpegFolder 'BUILD.txt') -Destination $ffmpegRecord[0] -Force
+        }
+        Copy-Licences $folder ($ownLicences + $licenceTexts + $ffmpegLicences + $ffmpegRecord + @($about, $pythonLicence))
         $pointer = Join-Path $work 'video-licences.txt'
         'The licence texts of everything in this package (SolidSeas, Python, PyInstaller and FFmpeg) are in its licenses folder; THIRD_PARTY_NOTICES.txt there says what each one covers.' |
             Set-Content -LiteralPath $pointer -Encoding UTF8
@@ -316,7 +326,7 @@ try {
         $ErrorActionPreference = 'Stop'
         # The helper is a PyInstaller program, so it carries Python and PyInstaller's bootloader.
         Copy-Item -LiteralPath (Join-Path $base 'LICENSE.txt') -Destination $pythonLicence -Force
-        $licenceTexts = @('LGPL-2.1.txt', 'OCCT_LGPL_EXCEPTION.txt', 'OCP-LICENSE.txt', 'OCP-third-party.txt', 'PyInstaller-COPYING.txt') | ForEach-Object { Join-Path $root "licenses\$_" }
+        $licenceTexts = @('LGPL-2.1.txt', 'OCCT_LGPL_EXCEPTION.txt', 'OCP-LICENSE.txt', 'OCP-third-party.txt', 'PyInstaller-COPYING.txt', 'SOURCE.txt') + $pythonParts | ForEach-Object { Join-Path $root "licenses\$_" }
         Copy-Licences $folder ($ownLicences + $licenceTexts + @($about, $pythonLicence))
         $pointer = Join-Path $work 'occt-licences.txt'
         'The licence texts of everything in this package (SolidSeas, Python, PyInstaller, OCP, Open CASCADE Technology and the other libraries the OCP wheel carries) are in its licenses folder; THIRD_PARTY_NOTICES.txt there says what each one covers.' |

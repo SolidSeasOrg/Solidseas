@@ -125,10 +125,17 @@ yet.
 4. If you attach packages after publishing, run the workflow again by hand for
    the tag (Actions > Release installer > Run workflow), so the viewer accepts
    them.
-5. Publish the Qt source release, `qt-6.12.0-source`, with the Qt and Qt for
-   Python source archives that `THIRD_PARTY_NOTICES.txt` names, if it is not
-   there yet. When the bundled Qt version changes, publish a new one under the
-   new version and update the notices to match.
+5. Attach to the same release, beside the program and the packages, the source
+   archives that `licenses/SOURCE.txt` lists: the whole repository at the tag
+   (`git archive --format=tar.gz --prefix=SolidSeas-<version>/ -o
+   SolidSeas-<version>-source.tar.gz v<version>`, which a host that adds a
+   source archive to each release, as GitHub does, makes for you; the sdist
+   leaves out the build scripts and the spec, so it is not enough), the Qt and Qt for
+   Python source archives, and, with the video package, `ffmpeg-<version>.tar.xz`
+   and its `.asc` from `packaging\ffmpeg\out`. The LGPL asks for the source in
+   the same place as the program, so every release carries them, wherever it is
+   published. The release workflow attaches `SOURCE.txt` itself. When the bundled
+   Qt or FFmpeg version changes, update `SOURCE.txt` and the notices to match.
 
 ## The viewer's self-test
 

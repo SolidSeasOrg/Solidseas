@@ -1,0 +1,51 @@
+Where to get the source code
+============================
+
+SolidSeas Viewer and the SolidSeas extension packages carry software under the GNU Lesser
+General Public License (LGPL): Qt 6.12.0 and Qt for Python (PySide6 and shiboken6) 6.12.0
+under version 3, FFmpeg 9.0.2 in the video package under version 2.1 or later, and, in the
+OCCT backend package, Open CASCADE Technology 7.9.3 under version 2.1 with the Open CASCADE
+exception. The LGPL gives you the right to the exact source code of that software, and to run
+SolidSeas with a version of it you changed. This file says where the source is.
+
+The source is published in the same place as the program
+--------------------------------------------------------
+
+Every release of SolidSeas publishes, in the same place as its installer, SolidSeasViewer.exe
+and its extension packages (the release page or download folder you got them from), these
+files:
+
+  - SolidSeas' own source at that version, with the build scripts, the PyInstaller spec and
+    the exact list of packages the program was built from (requirements/build-windows.txt):
+    the archive of the whole repository at the release's tag
+    (SolidSeas-<version>-source.tar.gz, or the "Source code" archive of the release). This
+    is what you need to build SolidSeas Viewer again with your own Qt or Qt for Python
+    (THIRD_PARTY_NOTICES.txt section 2.2).
+  - The Qt source: qt-everywhere-src-6.12.0.tar.xz, or qtbase-everywhere-src-6.12.0.tar.xz,
+    which holds every Qt library and plugin the program carries.
+  - The Qt for Python source: pyside-setup-everywhere-src-6.12.0.zip.
+  - With the video package: ffmpeg-9.0.2.tar.xz, its signature ffmpeg-9.0.2.tar.xz.asc, and
+    the script that built ffmpeg.exe from it (packaging/ffmpeg/build.sh in SolidSeas' source).
+    ffmpeg-build.txt in the package records how that build was configured.
+  - With the OCCT backend package: the source archives that occt-build.txt in the package
+    names.
+
+The same Qt, Qt for Python and FFmpeg source is also published by its own projects:
+
+  - Qt 6.12.0:
+    https://download.qt.io/official_releases/qt/6.12/6.12.0/single/qt-everywhere-src-6.12.0.tar.xz
+  - Qt for Python 6.12.0:
+    https://download.qt.io/official_releases/QtForPython/pyside6/PySide6-6.12.0-src/pyside-setup-everywhere-src-6.12.0.zip
+  - FFmpeg 9.0.2: https://ffmpeg.org/releases/ffmpeg-9.0.2.tar.xz
+
+Asking for the source
+---------------------
+
+If any of these files is missing from the place you downloaded SolidSeas from, ask the
+SolidSeas project for it, through the issue tracker or contact address named on that page. It
+will be sent to you, or published there again, at no charge, for as long as that release of
+SolidSeas is offered and for at least three years after that. This offer is open to anyone who
+received the program.
+
+SolidSeas has not changed Qt, Qt for Python, FFmpeg or Open CASCADE Technology. Their source is
+the source their projects released, unchanged.

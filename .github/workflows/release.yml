@@ -234,9 +234,11 @@ jobs:
           # The same installer under a name without the version, so a link to the latest
           # release's SolidSeas-Setup.exe (the website's download) always finds the newest.
           Copy-Item -LiteralPath $setup -Destination 'dist\SolidSeas-Setup.exe' -Force
-          # Only the files this workflow built. --clobber replaces an attached file of the same
-          # name, so the extension packages and SHA256SUMS.txt attached by hand are never sent.
+          # Only the files this workflow built, and SOURCE.txt, which says where the source of the
+          # LGPL software in them is, beside them as the LGPL asks. --clobber replaces an attached
+          # file of the same name, so the extension packages, the source archives and
+          # SHA256SUMS.txt attached by hand are never sent.
           gh release upload $env:TAG $setup "$setup.sha256" 'dist\SolidSeas-Setup.exe' `
             'dist\SolidSeasViewer.exe' 'dist\SolidSeasViewer.exe.sha256' 'dist\BUNDLED-FILES.txt' `
-            --clobber --repo $env:GITHUB_REPOSITORY
+            'licenses\SOURCE.txt' --clobber --repo $env:GITHUB_REPOSITORY
           if ($LASTEXITCODE -ne 0) { throw "gh could not attach the installer to $env:TAG" }

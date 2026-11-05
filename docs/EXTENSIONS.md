@@ -159,9 +159,9 @@ mesh children are Python worker processes of another kind and keep their own run
   configured with `--enable-gpl` or `--enable-nonfree`, and needs `-FfmpegSource`, where
   the exact source of that ffmpeg build is, which it carries with ffmpeg's configure flags.
   `packaging/ffmpeg/build.sh` makes that ffmpeg: run it in a `debian:trixie` container as its
-  header says, then build with `-FfmpegFolder packaging\ffmpeg\out -FfmpegSource
-  https://github.com/SolidSeas/SolidSeas/releases/tag/ffmpeg-9.0.2-source`, the release that
-  holds its source tarball, signature and build script.
+  header says, then build with `-FfmpegFolder packaging\ffmpeg\out -FfmpegSource` set to
+  where the release that offers the package is published: its source tarball, signature and
+  build script are attached beside the package there (`licenses/SOURCE.txt`).
 - The OCCT package is built only when `-Only` names it (`-Only occt`), until its first
   Windows build is checked, and needs `-OcctSource`, where the exact source of the Open
   CASCADE, OCP and the libraries the OCP wheel carries is, as the video package needs

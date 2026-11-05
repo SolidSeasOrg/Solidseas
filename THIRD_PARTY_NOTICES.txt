@@ -19,6 +19,9 @@ SolidSeas is distributed in three forms, each covered below:
 Where the licence texts are:
 
   - In the repository: LICENSE, NOTICE, this file, and the licenses folder.
+  - Where the source code of the LGPL software is, and how to ask for it: SOURCE.txt in the
+    licenses folder, carried by the program and by each package that holds LGPL software,
+    and published beside the program in each release.
   - In SolidSeasViewer.exe: in a licenses folder inside the program, shown by
     Help > Licences. Python's own licence is added there when the program is built, from the
     Python it is built with (Python-LICENSE.txt), and so is BUNDLED-FILES.txt, the list of
@@ -30,7 +33,9 @@ Where the licence texts are:
 1. The library
 --------------
 
-The source and the wheel hold SolidSeas' own code, with LICENSE and NOTICE, and one
+The source and the wheel hold SolidSeas' own code, with LICENSE, NOTICE and this file (the
+wheel's metadata declares Apache-2.0 AND MIT AND ISC, for the code below and the earcut port
+NOTICE credits), and one
 third-party component, carried for the REST service's reference viewer (solidseas serve
 --viewer, docs/API.md 8.18), which the service sends to a browser as it is:
 
@@ -103,10 +108,11 @@ installer, SolidSeas-Setup-<version>.exe, installs the one-folder build.
   Qt Core and Qt GUI                      FreeType under the FTL,
                                           HarfBuzz, libpng, libjpeg,
                                           Unicode data and others)
-  Python (the interpreter     the build   PSF-2.0, with the licences     Python-LICENSE.txt
-  and the standard library)   Python's    of what it carries (OpenSSL
+  Python (the interpreter     the build   PSF-2.0, with the licences     Python-LICENSE.txt,
+  and the standard library)   Python's    of what it carries (OpenSSL    Python-incorporated.txt
                                           Apache-2.0, libffi MIT, zlib,
                                           expat, mpdecimal and others)
+  expat (pyexpat.pyd)         Python's    MIT                            Python-incorporated.txt
   OpenSSL (libcrypto-3.dll,   Python's    Apache-2.0                     OpenSSL-LICENSE.txt
   libssl-3.dll)
   SQLite (sqlite3.dll)        Python's    Public domain                  SQLite-public-domain.txt
@@ -132,6 +138,12 @@ What these licences ask, and how SolidSeas meets it:
     software are copyright (c) 2026 The FreeType Project (www.freetype.org). All rights
     reserved. This software is based in part on the work of the FreeType Team.
   - PSF-2.0: keep the PSF's copyright notice and licence with the program: Python-LICENSE.txt.
+    Python's own licence file leaves out the code Python itself incorporates (the Mersenne
+    Twister, SipHash, dtoa, cfuhash, expat and others, compiled into python312.dll and its
+    extension modules), so Python-incorporated.txt carries those notices, from Python 3.12's
+    documentation.
+  - Unicode data (in Qt Core and in Python's unicodedata module): the Unicode licence, in
+    Qt-third-party.txt.
   - PyInstaller's bootloader exception lets the bootloader be embedded in a program under
     any licence; the GPL covers only changes to PyInstaller itself, and SolidSeas makes none.
   - The Microsoft Visual C++ runtime files are Microsoft's, are redistributed only as part
@@ -165,13 +177,11 @@ Source code. The exact source of the Qt and Qt for Python versions in the progra
     requirements/build-windows.txt: https://pypi.org/project/PySide6-Essentials/6.12.0/ and
     https://pypi.org/project/shiboken6/6.12.0/
 
-Copies of these two source archives are published as the release qt-6.12.0-source on GitHub
-(https://github.com/SolidSeas/SolidSeas/releases/tag/qt-6.12.0-source), which stays for as
-long as any release offers a program built with Qt 6.12.0.
-
-If any of these stops being available, ask for the source by opening an issue at
-https://github.com/SolidSeas/SolidSeas/issues and it will be provided at no charge
-for as long as the release that carries it is offered.
+Copies of these two source archives, and SolidSeas' own source at the same version, are
+published beside the program, in the same place as each release that offers a program built
+with Qt 6.12.0. SOURCE.txt in the licenses folder lists them, and says how to ask for any of
+them that is missing: it will be provided at no charge for as long as that release is offered
+and for at least three years after.
 
 Using another build of Qt. The LGPL lets you run SolidSeas with a modified version of Qt or
 Qt for Python. How the program is built matters here:
@@ -191,9 +201,11 @@ Qt for Python. How the program is built matters here:
     removes that folder when it ends. Replacing a file in that folder therefore lasts only
     until the program ends, and is not a practical way to use another Qt.
   - What does work: all of SolidSeas' source, the build script and the exact list of
-    packages are published under the Apache License 2.0. To use your own Qt or Qt for
-    Python, install your build of PySide6 and shiboken6 (same version, or a compatible one)
-    into the build environment in place of the locked wheels, and run
+    packages are published under the Apache License 2.0, beside each release (SOURCE.txt
+    says where). This also covers the parts of Qt for Python that are Python code, which
+    both builds pack inside SolidSeasViewer.exe rather than as separate files. To use your
+    own Qt or Qt for Python, install your build of PySide6 and shiboken6 (same version, or a
+    compatible one) into the build environment in place of the locked wheels, and run
     "scripts\build-viewer.ps1 -Venv <your environment> -SkipInstall". The program it builds
     is SolidSeas with your Qt. This is the relinking the LGPL asks for (section 4(d)(0)).
     SolidSeas' licence allows it, and allows the reverse engineering needed to debug such
@@ -228,15 +240,23 @@ any other file from SOLIDWORKS or Dassault Systemes.
   Component                   Licence                        Text
   solidseas-video.exe         Apache-2.0 (SolidSeas),        licenses/LICENSE, NOTICE,
   (PyInstaller one-file       PSF-2.0 (Python),              Python-LICENSE.txt,
-  program, Python's standard  GPL-2.0-or-later WITH          PyInstaller-COPYING.txt
-  library only)               Bootloader-exception
+  program, Python's standard  GPL-2.0-or-later WITH          Python-incorporated.txt,
+  library only)               Bootloader-exception           PyInstaller-COPYING.txt
+  OpenSSL, mpdecimal, xz      Apache-2.0, BSD-2-Clause,      OpenSSL-LICENSE.txt,
+  and bzip2, which Python's   public domain, bzip2 licence   mpdecimal-LICENSE.txt,
+  standard library brings                                    xz-COPYING.txt,
+  (libcrypto-3.dll,                                          Python-LICENSE.txt
+  _decimal.pyd, _lzma.pyd,
+  _bz2.pyd)
   ffmpeg.exe                  LGPL-2.1-or-later              COPYING.LGPLv2.1.txt,
   (FFmpeg 9.0.2)                                             LICENSE-ffmpeg.md,
                                                              licenses/ffmpeg-build.txt
   zlib, linked into           Zlib                           LICENSE-zlib.txt
   ffmpeg.exe
-  the mingw-w64 runtime,      ZPL-2.1 and the permissive     LICENSE-mingw-w64.txt
-  linked into ffmpeg.exe      licences that file lists
+  the mingw-w64 runtime       ZPL-2.1 and the permissive     LICENSE-mingw-w64.txt
+  (its C runtime and          licences that file lists
+  winpthreads), linked
+  into ffmpeg.exe
   GCC's runtime library,      GPL-3.0-or-later WITH          (no notice required)
   linked into ffmpeg.exe      GCC-exception-3.1
 
@@ -254,10 +274,11 @@ folder, it can be replaced by another build of FFmpeg that takes the same comman
 
 What the LGPL asks of SolidSeas for ffmpeg.exe: ship the licence text with it (done), say
 where its exact source is (ffmpeg-build.txt), and keep that source available for as long as
-the package is offered. The source tarball, its signature and the build script are published
-as the release ffmpeg-9.0.2-source on GitHub
-(https://github.com/SolidSeas/SolidSeas/releases/tag/ffmpeg-9.0.2-source), which stays for
-as long as any release offers a video package built from it.
+the package is offered. FFmpeg's licence asks this of a copy of FFmpeg itself (LGPL 2.1
+section 4), with no written offer in its place, so the source tarball, its signature and the
+build script are published beside the package, in the same place as each release that offers
+a video package built from them. SOURCE.txt in the package's licenses folder says so, and how
+to ask for any of them that is missing.
 
 3.3 solidcraft-<version>.zip (SolidCraft)
 
@@ -269,6 +290,10 @@ as long as any release offers a video package built from it.
                               BSD, ISC, Zlib, Unicode-3.0,
                               BSL-1.0, CDLA-Permissive-2.0,
                               OFL-1.1 for fonts)
+  Fonts in solidcraft.exe     OFL-1.1 (Liberation Sans,      THIRD-PARTY-LICENSES.txt
+                              Noto Emoji), Ubuntu Font
+                              Licence 1.0 (Ubuntu Light),
+                              MIT and Bitstream Vera (Hack)
 
 The package carries SolidCraft's portable release unchanged (checked by its SHA-256) with
 all four of SolidCraft's licence files. Where a SolidCraft dependency offers a choice of

@@ -7,8 +7,10 @@ name = "solidseas"
 dynamic = ["version"]
 description = "Read, preview and manage SOLIDWORKS files, with or without SOLIDWORKS. An independent project, not affiliated with or endorsed by Dassault Systèmes."
 readme = "README.md"
-license = "Apache-2.0"
-license-files = ["LICENSE", "NOTICE"]
+# SolidSeas' own code is Apache-2.0; the wheel also carries three.js (MIT) for the REST service's
+# viewer and a port of earcut (ISC) in the tessellator (NOTICE, THIRD_PARTY_NOTICES.txt).
+license = "Apache-2.0 AND MIT AND ISC"
+license-files = ["LICENSE", "NOTICE", "THIRD_PARTY_NOTICES.txt", "src/solidseas/serve/viewer/three/LICENSE"]
 requires-python = ">=3.11"
 dependencies = [
     "olefile>=0.47",

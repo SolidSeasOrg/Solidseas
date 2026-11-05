@@ -412,6 +412,17 @@ while the project takes shape.
 
 ### Fixed
 
+- **Complete licence texts.** Help > Licences and the video package now carry
+  the notices of the code Python itself incorporates (expat and others), and the
+  video package carries the OpenSSL, mpdecimal and xz licences of what it holds.
+  Help > Licences no longer lists texts for software the viewer does not carry.
+
+- **Where to get the source of the LGPL software.** The notices pointed to
+  source releases that do not exist. SOURCE.txt, in Help > Licences and in each
+  package, now lists the source archives of Qt, Qt for Python, FFmpeg and
+  SolidSeas itself that are published beside each release, and how to ask for
+  one that is missing.
+
 - **Saved MP4 clips are sharp.** A clip from Save Animation came out blurry and
   blocky, with trails behind the parts that move, because it was encoded at a
   very low bitrate whatever its size. MP4 clips now get a bitrate to suit their
