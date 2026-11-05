@@ -74,6 +74,10 @@ MAX_LINE = 8 << 20  # bytes in one message
 SUMMARY_CHARS = 100_000  # a summary the chat's model reads; the assistant's own cap is 20,000
 CONFIRM_CHARS = 3_000  # of a plan shown in the confirmation box
 EXIT_WAIT_S = 60.0  # for runs to finish their step once the client has gone
+MAX_CALLS = 4  # tool calls running at once
+MAX_WAITING = 32  # tool calls waiting for a turn; more are refused until one ends
+MAX_CANCELLED = 1024  # cancellations remembered, the oldest forgotten first
+SERVER_BUSY = -32000  # in the range JSON-RPC leaves to the server: too many calls at once
 
 PARSE_ERROR, INVALID_REQUEST, METHOD_NOT_FOUND, INVALID_PARAMS, INTERNAL_ERROR = (
     -32700,
@@ -272,6 +276,10 @@ def _error(rid: Any, code: int, message: str) -> dict:
     return {"jsonrpc": "2.0", "id": rid, "error": {"code": code, "message": message}}
 
 
+def _is_id(rid: Any) -> bool:
+    return isinstance(rid, (str, int)) and not isinstance(rid, bool)
+
+
 def _text_result(data: dict, *, error: bool = False, images: Sequence[bytes] = ()) -> dict:
     text = data["message"] if error else json.dumps(data, ensure_ascii=False, allow_nan=False)
     content: list[dict[str, Any]] = [{"type": "text", "text": text}]
@@ -383,7 +391,7 @@ class McpServer:
         self._running: dict[Any, AutomaticRun] = {}  # request id: the run it carries out
         # request id: (progress token, the sender, the last progress) for calls that asked
         self._progress_to: dict[Any, tuple[Any, Callable[[dict], None], list[float]]] = {}
-        self._cancelled: set[Any] = set()
+        self._cancelled: dict[Any, None] = {}  # request ids cancelled, oldest first
         self._closing = threading.Event()
 
     # ----------------------------------------------------------------- the session
@@ -411,7 +419,7 @@ class McpServer:
                 writer.write(line.encode("ascii") + b"\n")
                 writer.flush()
 
-        pool = ThreadPoolExecutor(max_workers=4, thread_name_prefix="mcp-tool")
+        pool = ThreadPoolExecutor(max_workers=MAX_CALLS, thread_name_prefix="mcp-tool")
         calls: list[Future] = []
         try:
             while True:
@@ -427,11 +435,18 @@ class McpServer:
                     continue
                 try:
                     message = json.loads(line.decode("utf-8"))
-                except (UnicodeDecodeError, ValueError):
+                except (UnicodeDecodeError, ValueError, RecursionError):
                     send(_error(None, PARSE_ERROR, "a message is one JSON object on one line, in UTF-8"))
                     continue
-                if isinstance(message, dict) and message.get("method") == "tools/call" and "id" in message:
+                if (
+                    isinstance(message, dict)
+                    and message.get("method") == "tools/call"
+                    and _is_id(message.get("id"))
+                ):
                     calls = [c for c in calls if not c.done()]
+                    if len(calls) >= MAX_CALLS + MAX_WAITING:  # each waiting call holds its message
+                        send(_error(message["id"], SERVER_BUSY, "too many tool calls at once"))
+                        continue
                     calls.append(pool.submit(self._answer, message, send))
                     continue
                 reply = self.handle(message)
@@ -491,7 +506,7 @@ class McpServer:
                 self._cancel(params.get("requestId"))
             return None
         rid = message["id"]
-        if not isinstance(rid, (str, int)) or isinstance(rid, bool):
+        if not _is_id(rid):
             return _error(None, INVALID_REQUEST, "a request's id is a string or a number")
         if not isinstance(method, str):
             return _error(rid, INVALID_REQUEST, "a request names its method")
@@ -571,8 +586,12 @@ class McpServer:
         return text
 
     def _cancel(self, rid: Any) -> None:
+        if not _is_id(rid):  # a list or an object is no request's id
+            return
         with self._lock:
-            self._cancelled.add(rid)
+            self._cancelled[rid] = None
+            while len(self._cancelled) > MAX_CANCELLED:  # ids a client never sent cost nothing
+                del self._cancelled[next(iter(self._cancelled))]
             run = self._running.get(rid)
             cancel = self._cancels.get(rid)
         if run is not None:

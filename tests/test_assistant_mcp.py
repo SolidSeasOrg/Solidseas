@@ -447,6 +447,56 @@ def test_a_cancelled_call_is_not_answered():
     assert out.getvalue() == b""
 
 
+def test_a_hostile_line_never_ends_the_server():
+    # Before, a line nested too deep for the JSON parser and a cancellation whose id was a
+    # list each raised out of the reading loop, and every cancellation was kept for good.
+    s = server_on(WindowLive(block()))
+    lines = [b"[" * 200_000]
+    lines.append(
+        json.dumps({"jsonrpc": "2.0", "method": "notifications/cancelled", "params": {"requestId": [1]}})
+    )
+    lines += [
+        json.dumps({"jsonrpc": "2.0", "method": "notifications/cancelled", "params": {"requestId": f"n{i}"}})
+        for i in range(mcp_server.MAX_CANCELLED + 50)
+    ]
+    lines.append(json.dumps(request("ping", {}, 9)))
+    out = io.BytesIO()
+    s.serve(io.BytesIO(b"".join((m if isinstance(m, bytes) else m.encode()) + b"\n" for m in lines)), out)
+    replies = [json.loads(line) for line in out.getvalue().splitlines()]
+    assert replies[0]["error"]["code"] == mcp_server.PARSE_ERROR
+    assert replies[-1] == {"jsonrpc": "2.0", "id": 9, "result": {}}
+    assert len(s._cancelled) == mcp_server.MAX_CANCELLED
+
+
+def test_calls_past_the_limit_are_refused_at_once():
+    s = server_on(WindowLive(block()))
+    gate = threading.Event()
+
+    class Slow(WindowLive):
+        def list(self):
+            gate.wait(30)
+            return super().list()
+
+    s._sessions = Slow(block())
+    most = mcp_server.MAX_CALLS + mcp_server.MAX_WAITING
+    lines = [request("tools/call", {"name": "cad_sessions", "arguments": {}}, i) for i in range(most + 5)]
+    raw = b"".join(json.dumps(m).encode() + b"\n" for m in lines)
+
+    class Reader(io.BytesIO):
+        def readline(self, size=-1):
+            line = super().readline(size)
+            if not line:
+                gate.set()  # the calls go on only once every line was read
+            return line
+
+    out = io.BytesIO()
+    s.serve(Reader(raw), out)  # returns once the calls have answered
+    replies = [json.loads(line) for line in out.getvalue().splitlines()]
+    busy = [r["id"] for r in replies if r.get("error", {}).get("code") == mcp_server.SERVER_BUSY]
+    assert busy == list(range(most, most + 5))
+    assert len([r for r in replies if "result" in r]) == most
+
+
 def test_the_program_flag_starts_the_server(monkeypatch):
     import runpy
 

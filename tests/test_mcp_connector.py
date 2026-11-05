@@ -361,6 +361,61 @@ def test_ping_and_cancel_are_read_while_a_call_works():
     assert 8 in ids and 7 not in ids  # a cancelled call's reply is never sent
 
 
+def _quick_endpoint(call, **limits) -> mcpwire.StdioEndpoint:
+    return mcpwire.StdioEndpoint(
+        name="t", title="t", version="0", instructions=lambda: "", tools=lambda: [], call=call, **limits
+    )
+
+
+def test_an_id_that_is_a_list_or_an_object_never_ends_the_server():
+    # Before, a tools/call or a cancellation whose id was a list or an object raised
+    # TypeError out of the reading loop, and the server ended.
+    lines = [
+        {"jsonrpc": "2.0", "id": [1], "method": "tools/call", "params": {"name": "x"}},
+        {"jsonrpc": "2.0", "id": {"a": 1}, "method": "tools/call", "params": {"name": "x"}},
+        {"jsonrpc": "2.0", "method": "notifications/cancelled", "params": {"requestId": {"a": 1}}},
+        {"jsonrpc": "2.0", "method": "notifications/cancelled", "params": {"requestId": [2]}},
+        {"jsonrpc": "2.0", "id": 9, "method": "ping"},
+    ]
+    endpoint = _quick_endpoint(lambda name, args, rid: mcpwire.tool_result(["done"]))
+    out = io.BytesIO()
+    endpoint.serve(io.BytesIO(b"".join(json.dumps(m).encode() + b"\n" for m in lines)), out)
+    replies = [json.loads(line) for line in out.getvalue().splitlines()]
+    assert [r["error"]["code"] for r in replies[:2]] == [mcpwire.INVALID_REQUEST] * 2
+    assert replies[2:] == [{"jsonrpc": "2.0", "id": 9, "result": {}}]
+
+
+def test_calls_past_the_limit_are_refused_at_once_and_cost_no_thread():
+    # Before, every call waiting for a turn held a thread and its whole message, without
+    # limit: 1,000 calls of 1 MB took the server process to about 1 GB, and past the
+    # system's thread limit the reading loop ended.
+    release = threading.Event()
+
+    def call(name, args, rid):
+        release.wait(30)
+        return mcpwire.tool_result(["done"])
+
+    endpoint = _quick_endpoint(call, max_calls=1, max_waiting=2)
+    lines = [
+        {"jsonrpc": "2.0", "id": i, "method": "tools/call", "params": {"name": "slow"}} for i in range(10)
+    ]
+    lines.append({"jsonrpc": "2.0", "id": 99, "method": "ping"})
+    out = io.BytesIO()
+    before = threading.active_count()
+    endpoint.serve(io.BytesIO(b"".join(json.dumps(m).encode() + b"\n" for m in lines)), out)
+    try:
+        assert threading.active_count() - before <= 3
+        replies = [json.loads(line) for line in out.getvalue().splitlines()]
+        busy = [r["id"] for r in replies if r.get("error", {}).get("code") == mcpwire.SERVER_BUSY]
+        assert busy == list(range(3, 10))
+        assert {"jsonrpc": "2.0", "id": 99, "result": {}} in replies
+    finally:
+        release.set()
+    assert endpoint.wait_calls(within(10))
+    replies = [json.loads(line) for line in out.getvalue().splitlines()]
+    assert sorted(r["id"] for r in replies if "result" in r and r["id"] != 99) == [0, 1, 2]
+
+
 # --------------------------------------------------------------------------- the catalog and the command
 def test_the_catalog_tools_answer_with_catalog(root, rest):
     c = Connector(root, catalog=True)

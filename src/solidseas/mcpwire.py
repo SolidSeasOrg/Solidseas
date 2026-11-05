@@ -8,8 +8,11 @@
 tools and one that answers a call. Nothing here knows what the tools do.
 
 * A tool call runs on a thread of its own (a daemon thread, so one that never returns
-  never keeps the process alive), at most ``max_calls`` at once; meanwhile the reader
-  goes on reading, so a ping or a cancellation is answered while a slow call works.
+  never keeps the process alive), at most ``max_calls`` at once and at most
+  ``max_waiting`` more waiting for a turn; a call past those is answered at once with
+  an error, so a client that sends calls faster than they end costs no more threads or
+  memory. Meanwhile the reader goes on reading, so a ping or a cancellation is
+  answered while a slow call works.
 * A cancelled call's reply is never sent, as the protocol asks. The call itself runs
   to its end: :meth:`StdioEndpoint.cancelled` lets a tool look.
 * Out: ASCII JSON, compact. In: UTF-8, one message at most :data:`MAX_LINE` bytes.
@@ -38,6 +41,7 @@ from typing import Any, BinaryIO
 PROTOCOL_VERSIONS = ("2025-06-18", "2025-03-26", "2024-11-05")
 MAX_LINE = 8 << 20  # bytes in one message read
 MAX_CALLS = 4  # tool calls running at once; more wait for one to finish
+MAX_WAITING = 32  # tool calls waiting for one to finish; more are refused until one ends
 
 PARSE_ERROR, INVALID_REQUEST, METHOD_NOT_FOUND, INVALID_PARAMS, INTERNAL_ERROR = (
     -32700,
@@ -46,6 +50,7 @@ PARSE_ERROR, INVALID_REQUEST, METHOD_NOT_FOUND, INVALID_PARAMS, INTERNAL_ERROR =
     -32602,
     -32603,
 )
+SERVER_BUSY = -32000  # in the range JSON-RPC leaves to the server: too many calls at once
 
 
 class InvalidParams(ValueError):
@@ -110,6 +115,7 @@ class StdioEndpoint:
         tools: Callable[[], list[dict[str, Any]]],
         call: Callable[[str, dict[str, Any], Any], dict[str, Any]],
         max_calls: int = MAX_CALLS,
+        max_waiting: int = MAX_WAITING,
     ) -> None:
         self.info = {"name": name, "title": title, "version": version}
         self._instructions = instructions
@@ -120,6 +126,7 @@ class StdioEndpoint:
         self._cancelled: set[Any] = set()
         self._running: set[Any] = set()
         self._calls = threading.BoundedSemaphore(max_calls)
+        self._most_calls = max_calls + max_waiting  # running and waiting, together
         self._threads: list[threading.Thread] = []
         self._idle = threading.Condition(self._lock)
         self._write_lock = threading.Lock()
@@ -163,7 +170,12 @@ class StdioEndpoint:
             except (UnicodeDecodeError, ValueError, RecursionError):
                 send(error_message(None, PARSE_ERROR, "a message is one JSON object on one line, in UTF-8"))
                 continue
-            if isinstance(message, dict) and message.get("method") == "tools/call" and "id" in message:
+            if (
+                isinstance(message, dict)
+                and message.get("jsonrpc") == "2.0"
+                and message.get("method") == "tools/call"
+                and _is_id(message.get("id"))
+            ):
                 self._start_call(message, send)
                 continue
             reply = self.handle(message)
@@ -186,11 +198,25 @@ class StdioEndpoint:
                     self._idle.notify_all()
 
         with self._lock:
-            self._running.add(rid)
             self._threads = [t for t in self._threads if t.is_alive()]
-            thread = threading.Thread(target=run, name="mcp-tool-call", daemon=True)
-            self._threads.append(thread)
-        thread.start()
+            busy = len(self._threads) >= self._most_calls or rid in self._running
+            if not busy:
+                self._running.add(rid)
+                thread = threading.Thread(target=run, name="mcp-tool-call", daemon=True)
+                self._threads.append(thread)
+        if busy:
+            send(
+                error_message(rid, SERVER_BUSY, "too many tool calls at once, or one with this id is running")
+            )
+            return
+        try:
+            thread.start()
+        except RuntimeError:  # the system has no thread to give: this call alone fails
+            with self._lock:
+                self._threads.remove(thread)
+                self._running.discard(rid)
+                self._idle.notify_all()
+            send(error_message(rid, SERVER_BUSY, "too many tool calls at once"))
 
     def wait_calls(self, timeout: float) -> bool:
         """Wait up to ``timeout`` seconds for the tool calls still running; whether all ended."""
@@ -218,6 +244,8 @@ class StdioEndpoint:
         if "id" not in message:  # a notification: nothing is answered
             if method == "notifications/cancelled" and isinstance(params, dict):
                 rid = params.get("requestId")
+                if not _is_id(rid):  # a list or an object is no request's id
+                    return None
                 with self._lock:
                     if rid in self._running:
                         self._cancelled.add(rid)
@@ -278,6 +306,7 @@ __all__ = [
     "METHOD_NOT_FOUND",
     "PARSE_ERROR",
     "PROTOCOL_VERSIONS",
+    "SERVER_BUSY",
     "InvalidParams",
     "StdioEndpoint",
     "error_message",

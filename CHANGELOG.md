@@ -694,6 +694,12 @@ while the project takes shape.
 
 ### Security
 
+- **The MCP servers keep running whatever an app sends.** A message with a
+  malformed id, or nested too deep, no longer stops `solidseas mcp` or the chat
+  connector. When four tool calls are running and 32 are waiting, the next one
+  is answered at once with error -32000, so it costs no memory, and the app can
+  send it again later.
+
 - **An extension's settings file is checked before its helper starts.**
   SolidSeas now refuses to start an extension's helper when the package's
   extension.json in your profile is not the one its release recorded, so a
