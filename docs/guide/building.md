@@ -296,7 +296,14 @@ any other), saving the window at each step and a report in `DIR`.
 
 The pages in `docs/guide` are the source of the project's GitHub wiki.
 `scripts/sync-wiki.sh` copies them into a checkout of the wiki and commits them
-there:
+there.
+
+Before the first sync, create the wiki's first page by hand in GitHub's web
+interface: open the repository's Wiki tab (turn on Wikis under Settings >
+General > Features if there is no tab), choose Create the first page and save
+it as it is. GitHub makes the wiki's own repository only then, so until that
+page exists there is nothing to clone or push to, and the sync stops at its
+clone. The first sync replaces that page, `Home`, with the guide's own. Then:
 
 ```bash
 scripts/sync-wiki.sh ../SolidSeas.wiki          # clone if needed, write, commit; no push
@@ -322,11 +329,9 @@ What it does:
 - commits only when something changed, as the repository's configured author,
   and pushes only with `--push` (pulling first, fast-forward only).
 
-Running it again with an unchanged guide makes no commit. The wiki has to exist
-before it can be cloned: on GitHub, create its first page once from the
-repository's Wiki tab. `scripts/wiki_sync.py` does the work, with
-`--wiki-url`, `--repository` and `--branch` to point it elsewhere, and
-`tests/test_wiki_sync.py` checks the link rewriting and that a second run
-changes nothing.
+Running it again with an unchanged guide makes no commit. `scripts/wiki_sync.py`
+does the work, with `--wiki-url`, `--repository` and `--branch` to point it
+elsewhere, and `tests/test_wiki_sync.py` checks the link rewriting and that a
+second run changes nothing.
 
 Edit the pages here, not on the wiki: the next sync writes over a changed page.
