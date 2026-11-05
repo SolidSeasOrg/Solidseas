@@ -279,3 +279,22 @@ def test_convert_is_off_for_drawings_and_meshes_saying_why(converter, standin):
     assert c.window.act_convert.toolTip().startswith("STL files hold triangles")
     c.open("o02_boxA.step")
     assert c.window.act_convert.isEnabled()
+
+
+@needs_qt
+def test_convert_keeps_to_the_opened_folder_when_the_setting_says_so(converter, standin):
+    """Settings > General > Look for Referenced Files Only in the Opened Folder reaches
+    Convert's request as it does Export STEP's (SolidSeas-0mpq)."""
+    c = converter()
+    requests: list[dict] = []
+
+    def record(request, cancelled):
+        requests.append(dict(request))
+        return {"ok": False, "error": {"code": "recorded", "message": "recorded"}}
+
+    c.window.convert.export = record
+    c.open("o02_boxA.SLDPRT")
+    c.press()
+    c.window.change_settings(references_inside_only=True)
+    c.press()
+    assert [r.get("outside") for r in requests] == [None, False]

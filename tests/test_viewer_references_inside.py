@@ -15,6 +15,7 @@ import os
 
 import pytest
 
+import test_occt_backend as B
 from builders import part_with_creation_time
 from solidseas.errors import NothingToExportError, UnsupportedOperationError
 from test_viewer import Viewer, _state, _wait, needs_qt
@@ -105,8 +106,9 @@ def test_the_3d_view_draws_the_part_outside_only_when_allowed(project):
         reader.close()
 
 
-def test_prints_and_exports_take_the_part_outside_only_when_allowed(project, tmp_path):
-    from solidseas_app.viewer import printing, stepexport
+def test_prints_and_exports_take_the_part_outside_only_when_allowed(project, tmp_path, monkeypatch):
+    from solidseas.convert import occt
+    from solidseas_app.viewer import convertfile, printing, stepexport
 
     asm, proj = str(project / "Proj" / "asm.SLDASM"), str(project / "Proj")
     out = tmp_path / "out"
@@ -117,6 +119,14 @@ def test_prints_and_exports_take_the_part_outside_only_when_allowed(project, tmp
     assert stepexport.export_step_file(asm, proj, str(out / "a.step"))["file"]
     with pytest.raises(NothingToExportError):
         stepexport.export_step_file(asm, proj, str(out / "b.step"), outside=False)
+    occt.forget()  # File > Convert, through a stand-in for the OCCT helper
+    B.install_standin_program(tmp_path, monkeypatch)
+    try:
+        assert convertfile.convert_file(asm, proj, str(out / "a.igs"), format="iges")["file"]
+        with pytest.raises(NothingToExportError):
+            convertfile.convert_file(asm, proj, str(out / "b.igs"), format="iges", outside=False)
+    finally:
+        occt.forget()
     temp = tmp_path / "temp"
     temp.mkdir()
     printed = printing.export_for_print(asm, proj, "stl", out_base=str(temp), next_to_model=False)

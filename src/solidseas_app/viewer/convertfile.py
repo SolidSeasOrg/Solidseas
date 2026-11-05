@@ -100,10 +100,13 @@ def convert_file(
     allow_partial: bool = False,
     overwrite: bool = False,
     token: str | None = None,
+    outside: bool = True,
 ) -> dict[str, Any]:
     """Write the document at ``path`` (opened read-only ``within`` the opened ``folder``, or
     the nested document ``nested`` leads to) as ``format`` (``iges``, ``brep`` or ``step``)
-    to ``target``, through the backend that writes it. Returns what was written, for the
+    to ``target``, through the backend that writes it; an assembly's component files are
+    found as Export STEP finds them, without ``outside`` in the opened folder alone
+    (:func:`.stepexport.step_of`). Returns what was written, for the
     window; raises what :func:`solidseas.convert.convert_document` raises
     (``FormatNotSupportedError`` with rule ``needs_extension`` when the backend is not
     there, ``UnsupportedOperationError`` for a document no backend converts), what the
@@ -139,7 +142,9 @@ def convert_file(
     with _opened(path, within or folder, nested) as doc:
         source = doc.format if isinstance(doc, ModelDocument) else "solidworks"
         if source in ("solidworks", "parasolid"):
-            model = stepexport.step_of(doc, path, folder, nested, configuration, allow_partial=allow_partial)
+            model = stepexport.step_of(
+                doc, path, folder, nested, configuration, allow_partial=allow_partial, outside=outside
+            )
             left_out = [
                 {"name": b.name, "reason": b.reason, "message": b.message}
                 for b in model.bodies

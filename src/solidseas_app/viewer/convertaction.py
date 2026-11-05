@@ -84,7 +84,7 @@ class ConvertController(StepController):
             if overwrite and not self.confirm(f"{os.path.basename(path)} already exists.\n\nReplace it?"):
                 return None
         self.last_folder = os.path.dirname(path)
-        return {
+        request = {
             "job": "convert",
             "format": fmt,
             "path": source.path,
@@ -96,6 +96,9 @@ class ConvertController(StepController):
             "overwrite": overwrite,
             "allow_partial": False,
         }
+        if self.window.settings.references_inside_only:  # an assembly's files: the opened folder's
+            request["outside"] = False
+        return request
 
     def _written(self, data: dict[str, Any]) -> list[str]:
         return convertfile.written_lines(data)

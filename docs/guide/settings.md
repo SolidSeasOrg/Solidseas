@@ -37,8 +37,8 @@ read. A network path is never looked at.
 
 **Settings > General > Look for referenced files only in the opened folder**
 (off by default) keeps every one of those reads inside the folder you opened:
-the details tabs, the 3D view, 3D Print, File > Export STEP and Export for 3D
-Printing, and drawings of assemblies. A file that is only outside it is then
+the details tabs, the 3D view, 3D Print, File > Export STEP, File > Convert and
+Export for 3D Printing, and drawings of assemblies. A file that is only outside it is then
 shown as not found, and the message for it says the setting is on. Turning the
 setting on closes a document that was found outside the folder, and Back no
 longer returns to one; the document shown is read again.

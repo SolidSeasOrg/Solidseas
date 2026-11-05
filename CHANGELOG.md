@@ -433,6 +433,10 @@ while the project takes shape.
 
 ### Fixed
 
+- **File > Convert follows Look for referenced files only in the opened
+  folder.** With the setting on, converting an assembly no longer reads
+  component files from outside the folder you opened.
+
 - **The viewer's self-test leaves your cache folder alone.** The index it makes
   of the folder it tests and the thumbnails it draws now go to a temporary
   folder of its own, removed when it ends.
