@@ -10,7 +10,7 @@ Options:
   Print's as 3MF, STL and STEP (:mod:`.selftest_formats`).
 * ``--self-test FOLDER --screenshot-dir DIR [--select NAME]...`` runs the
   self-test (:mod:`.selftest`) and exits with its result; ``--select-all``
-  and ``--report FILE`` are for robustness runs, ``--3d`` turns the
+  and ``--report FILE`` are for stress runs over many files, ``--3d`` turns the
   interactive 3D view on for the run, ``--configuration NAME[,fitted]`` draws
   the assembly the ``--select`` before it names in that configuration too, after
   turning and zooming the view (``,fitted``: a fitted corner view), and checks

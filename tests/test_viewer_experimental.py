@@ -21,7 +21,7 @@ def test_the_tag_and_the_notes_read_the_same_everywhere():
     for text in notes:
         assert text.endswith(f"Report problems at {URL}"), text
         assert "incomplete or wrong" in text and "change between versions" in text
-        assert "—" not in text and "–" not in text, "no em or en dashes"
+        assert chr(0x2014) not in text and chr(0x2013) not in text, "no em or en dashes"
     assert "check every drawing before you use it" in E.drawings_note()
     assert E.extension_stage("occt") == E.IN_DEVELOPMENT and E.extension_stage("video") == E.EXPERIMENTAL
     assert E.extension_stage("unknown") == E.EXPERIMENTAL
@@ -127,4 +127,4 @@ def test_the_iso_standard_says_the_sheet_is_still_asme():
     labels = dict(field.options)
     assert labels["iso"] == "ISO (first angle views, ASME sheet)"
     assert "first angle" in field.tip and "title block" in field.tip and "ASME" in field.tip
-    assert "—" not in field.tip + labels["iso"] and "–" not in field.tip + labels["iso"]
+    assert chr(0x2014) not in field.tip + labels["iso"] and chr(0x2013) not in field.tip + labels["iso"]

@@ -228,7 +228,7 @@ report names no documents.
 
 ``--select-all`` reads the details of every listed document instead, without
 screenshots, and the report then gives only counts, timings and error codes,
-never document names: it is meant for robustness runs over private folders.
+never document names: it is meant for stress runs over private folders.
 A document with a section or tab that failed fails the run.
 
 The self-test ships in the viewer, so its outputs pass the same write guards

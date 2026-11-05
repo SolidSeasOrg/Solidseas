@@ -299,7 +299,7 @@ document may be an older version than its parent (24 of 428 depth-1 documents).
    members gives every member the same CRC, CRCs are skipped with a warning
    (2 files) but sizes are still checked.
 
-Robustness. On the reference implementation this library was ported from:
+Damaged and hostile files. On the reference implementation this library was ported from:
 1,247 truncations, 3,000 random corruptions, 786 targeted record corruptions,
 deflate bombs and 18-level nesting, each either decoded exactly or raised a
 SolidSeas error within 5 s. On the library itself, an independent fuzz of 541
