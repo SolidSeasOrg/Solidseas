@@ -187,6 +187,11 @@ angle, shows the first-angle symbol and says TOLERANCING ISO 8015 in its
 tolerance block. Its sheets, title block, lettering and tolerance notes still
 follow the ASME layout; the ISO forms of those come later.
 
+**Tolerances** holds the inch and millimetre tolerance blocks your drawings
+use. Millimetre General Tolerance is shown greyed out: millimetre drawings use
+the millimetre block for now, and an ISO 2768 class will be offered there once
+drawings apply it.
+
 ## From the command line
 
 ```bash

@@ -319,6 +319,10 @@ while the project takes shape.
 
 ### Changed
 
+- **Millimetre general tolerance is greyed out in Drawing Settings.** Millimetre
+  drawings use the millimetre block; an ISO 2768 class will be offered once
+  drawings apply it.
+
 - **Install guide covers checking a download and the SmartScreen warning.**
   Installing SolidSeas now explains, step by step, how to check a download's
   SHA-256 before running it, what Windows SmartScreen shows for the unsigned

@@ -66,7 +66,8 @@ class Field:
     are (value, label) pairs), ``number``, ``optional_number`` (empty is none),
     ``checks`` (a tick box a choice), ``records`` (a table of :class:`Column`),
     ``block`` (a tolerance block's rows), ``mapping`` and ``per_type`` (a control a
-    :class:`Column`), ``logo`` or ``folder`` (empty is next to the part)."""
+    :class:`Column`), ``logo`` or ``folder`` (empty is next to the part). A setting
+    that nothing applies yet is shown but not ``enabled``, its ``tip`` saying so."""
 
     group: str
     key: str
@@ -74,6 +75,7 @@ class Field:
     kind: str
     options: tuple = ()
     tip: str = ""
+    enabled: bool = True
 
 
 @dataclass(frozen=True)
@@ -259,6 +261,9 @@ PAGES: tuple[Page, ...] = (
                 "choice",
                 (("block", "The millimetre block"),)
                 + tuple((f"iso2768-{c}", f"ISO 2768-{c}") for c in standards.ISO2768_CLASSES),
+                "Not available yet: millimetre drawings use the millimetre block above. An ISO 2768 "
+                "class will be offered here once drawings apply it.",
+                enabled=False,
             ),
             Field(
                 "tolerances",
@@ -1005,6 +1010,7 @@ class DrawingSettingsDialog:
                 from .wording import tip
 
                 widget.setToolTip(tip(f.tip))
+            widget.setEnabled(f.enabled)
             if f.kind == "flag":
                 form.addRow(widget)
             elif f.kind in ("records", "per_type"):

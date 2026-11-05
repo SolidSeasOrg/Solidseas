@@ -318,6 +318,21 @@ def test_the_dialog_round_trips_the_settings(app, settings_file):
 
 
 @needs_qt
+def test_the_millimetre_general_tolerance_is_shown_off_until_drawings_apply_it(app, settings_file):
+    """Drawings use the millimetre block whatever this says, so it is not offered; a class
+    chosen before is kept as it is, and still changes nothing (SolidSeas-sxil)."""
+    settings = change(_filled(), tolerances__mm_general="iso2768-f")
+    dialog = ds.DrawingSettingsDialog(None, settings, path=settings_file)
+    try:
+        general = _binding(dialog, "tolerances", "mm_general").widget
+        assert not general.isEnabled() and "Not available yet" in general.toolTip()
+        assert all(b.widget.isEnabled() for b in dialog.bindings if b.field.key != "mm_general")
+        assert dialog.collect() == (settings, [])
+    finally:
+        dialog.close()
+
+
+@needs_qt
 def test_a_value_that_fails_its_check_is_refused_with_its_reason(app, settings_file):
     dialog = ds.DrawingSettingsDialog(None, _filled(), path=settings_file)
     try:
