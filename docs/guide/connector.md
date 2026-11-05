@@ -87,7 +87,7 @@ and looks like this, with your own paths:
 {
   "mcpServers": {
     "solidseas-files": {
-      "command": "C:\\Path\\To\\SolidSeas Viewer.exe",
+      "command": "C:\\Path\\To\\SolidSeasViewer.exe",
       "args": ["--cli", "mcp", "--root", "folder=C:\\Path\\To\\Projects"]
     }
   }

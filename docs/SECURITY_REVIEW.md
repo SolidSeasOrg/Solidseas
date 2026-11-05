@@ -149,7 +149,8 @@ or put a link where a folder was, finding 19).
   `test_every_other_origin_is_still_refused`,
   `test_a_preflight_from_an_allowed_origin_is_answered`,
   `test_any_other_preflight_is_refused`). Each route has a parameter allowlist;
-  URL, header and body limits apply, header bytes past the limit are never read
+  URL and header limits apply, a request with a body is refused (400, rule
+  `body`), header bytes past the limit are never read
   (finding 17), and a slow sender is cut off and logged. Verified:
   `test_a_wrong_host_is_refused`, `test_cross_site_browser_requests_are_refused`,
   `test_no_response_carries_cors_headers`, `test_the_query_allowlist` and its

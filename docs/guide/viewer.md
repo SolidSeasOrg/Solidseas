@@ -21,7 +21,11 @@ The viewer never changes a file. It writes only:
 - the files 3D Print sends to your slicer, each a new file next to the model it
   was made from, or in the system's temporary folder (see [3D Print](3d-print.md));
 - drawings you make, next to the part or in a folder you choose (see
-  [Drawings](drawings.md)).
+  [Drawings](drawings.md));
+- a BOM you edit, saved as a `.ssbom` file, and its CSV, Excel or PDF export,
+  where you choose (see [Bills of materials](where-used-and-bom.md#bills-of-materials));
+- an animation you save from the 3D view with the video export extension, where
+  you choose.
 
 The one way a file of yours can change is a setting you turn on yourself: with
 Open 3MF and STL Files As They Are, your slicer opens your own 3MF or STL file,
@@ -46,7 +50,8 @@ https://github.com/SolidSeas/SolidSeas/issues.
 - **In development:** the OCCT backend extension, which reads IGES and BREP
   files ([Every 3D format](formats.md#iges-and-brep-files)).
 - **On the command line,** `solidseas drawing`, `history`, `snapshot`,
-  `diff`, `sldprt`, `convert` and `export` (with its `--check`), and the REST
+  `diff`, `sldprt`, `convert`, `mcp`, `openapi` and `export` (with its
+  `--check`), and the REST
   service's `/v1/bom`, `/v1/mesh`, the catalog routes (`--catalog`, among them
   `/v1/duplicates`, `/v1/missing` and `/v1/changes`), the other formats
   (`--formats`) and the reference viewer (`serve --viewer`) are provisional and

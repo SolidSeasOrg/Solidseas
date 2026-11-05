@@ -34,6 +34,26 @@ writes surface bodies beside solids (see
 [Exporting STEP](3d-print.md#exporting-step-for-other-cad-systems)).
 `solidseas drawing new` makes a drawing ([Drawings](drawings.md#from-the-command-line)).
 
+`solidseas --help` lists every command, and `solidseas COMMAND --help` gives its
+options. [API.md](../API.md) section 7 is the full list, with what each prints:
+
+| To | Commands |
+|---|---|
+| read one document | `info`, `props`, `configurations`, `components`, `references`, `bom`, `paths`, `streams`, `dump`, `preview` |
+| write files from it | `parasolid`, `export`, `convert`, `sldprt`, `drawing` |
+| work on a folder | `list`, `batch` |
+| keep a catalog of folders | `index`, `where-used`, `search`, `duplicates`, `missing`, `changes`, `catalog`, `catalogs`, `clear-index` |
+| follow a file's versions | `history`, `snapshot`, `diff` |
+| serve other programs | `serve`, `mcp`, `openapi` |
+| check SolidSeas itself | `version`, `schema` |
+
+With SolidSeas Viewer installed and no Python, `SolidSeasViewer.exe --cli`
+followed by a command runs that command, such as
+`SolidSeasViewer.exe --cli mcp --root jobs=D:\Jobs`. It is meant for a program
+that starts it and reads its output, such as an AI app ([AI apps](#ai-apps-mcp)),
+since the viewer's program has no console window of its own. To type commands
+yourself, install the `solidseas` command from Python.
+
 ### Parasolid files
 
 `solidseas parasolid` writes Parasolid files for another CAD system, with no
@@ -255,12 +275,16 @@ folders and files, draws a part or an assembly in 3D and shows an assembly's
 bill of materials, after you paste a token from the token file
 ([API.md](../API.md) section 8.18).
 
+`solidseas openapi` prints the service's OpenAPI description, which HTTP tools
+and code generators read, and `solidseas openapi -o FILE` saves it
+([API.md](../API.md) section 8.19).
+
 [SECURITY_REVIEW.md](../SECURITY_REVIEW.md) reviews the service for whoever has
 to approve it. The service's `/v1/bom`, `/v1/mesh`, the catalog routes
 (`--catalog`, among them `/v1/duplicates`, `/v1/missing` and `/v1/changes`), the
 other formats (`--formats`) and the reference viewer (`--viewer`) are provisional
 and may change. So are the commands `history`, `snapshot`, `diff`, `sldprt`,
-`convert` and `export` (with its `--check`).
+`convert`, `drawing`, `mcp`, `openapi` and `export` (with its `--check`).
 
 With `--formats` naming IGES or BREP (`--formats all`, or
 `--formats solidworks,iges,occt_brep`), the service reads those files through the
@@ -268,6 +292,22 @@ OCCT backend extension when it is there as the service starts: their trees,
 counts and rendered previews come from Open CASCADE, whose helper each of the
 service's workers may then start. Switching the extension on or off takes effect
 the next time the service starts.
+
+## AI apps (MCP)
+
+`solidseas mcp` lets an AI app that speaks the Model Context Protocol, such as
+Claude Desktop or Claude Code, read the folders you name, read-only, with no port
+and no token (provisional):
+
+```bash
+solidseas mcp --root jobs=D:\Jobs --catalog
+```
+
+The app starts the command itself, so it goes in the app's configuration rather
+than in a console. [MCP.md](../MCP.md#reading-your-cad-files-from-any-mcp-app)
+shows how to set an app up, lists what the app can read, and says what reaches its
+AI model. In the viewer, Settings > Connector shows the configuration for the folder
+you have open ([Connect other apps to SolidSeas](connector.md)).
 
 ## One answer, three ways
 

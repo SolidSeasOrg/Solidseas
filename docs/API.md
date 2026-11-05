@@ -5376,6 +5376,10 @@ line; the service has no versions route yet. `version_not_found`: a version name
 comparison of a file with fewer than two. `version_unavailable`: the version's
 content is not on this machine (`detail.rule` says why); nothing is fetched.
 
+`quarantined` is in the table because the catalog uses it as a file's state (a
+file that stopped a worker twice is set aside until it changes, 3.18): no route
+answers it, and no command exits with it.
+
 The four drawing codes (`docs/DRAWINGS.md` 14, provisional) come only from the
 library and the command line (`solidseas drawing`, `docs/drawings/cli.md`); the
 service has no drawing route yet. `drawing_invalid`: a `.ssdrw` that is not a
@@ -6300,7 +6304,7 @@ it.
 | `parasolid FILE -o DIR` | `--text`, `--raw` and `--local-bodies fallback` (default), `always` or `never` (a part), `--configuration NAME`, `--allow-partial`, `--other-configurations` and `--include-hidden` (an assembly), `--max-mb N`, `--force`, `--allow-source-dir` | `parasolid_result` |
 | `convert FILE --format iges\|brep\|step` | `-o FILE` (or a folder that exists; default: the document's name in the current folder), `--max-mb N`, `--force`, `--allow-source-dir`; needs the OCCT backend extension (3.20.10) | `file_written` (provisional) |
 | `export FILE --format 3mf\|stl\|step` | `-o FILE` (or a folder that exists; default: the document's name in the current folder), `--configuration NAME`, `--chord MM` (0.0001 to 10) and `--merge` (3MF and STL), `--sheets`, `--allow-partial`, `--exact-only`, `--include-hidden` and `--check` (STEP), `--max-mb N`, `--force`, `--allow-source-dir` | `export_result` (provisional) |
-| `sldprt DESIGN` | `-o FILE` (or a folder that exists; default: the design's name with `.SLDPRT` in the current folder), `--allow-partial`, `--allow-source-dir`; never replaces a file, so no `--force` | `sldprt_written` (provisional) |
+| `sldprt DESIGN` | `-o FILE` (or a folder that exists; default: the design's name with `.SLDPRT` in the current folder), `--allow-partial`, `--property NAME=VALUE` (repeatable), `--allow-source-dir`; never replaces a file, so no `--force` | `sldprt_written` (provisional) |
 | `list FOLDER` | `--formats solidworks\|all\|IDS` (default `solidworks`), `--recursive`, `--include properties,configurations`, `--preview none`, `meta` (default) or `inline`, `--max-depth N`, `--limit N`, `--max-examined N`, `--timeout SECONDS`, `--file-timeout SECONDS` (default 30), `--memory-mb N` (default 2048), `--in-process` | `listing` |
 | `batch FOLDER -o DIR` | `--no-recurse`, `--no-preview`, `--no-parasolid`, `--text`, `--configuration NAME`, `--allow-partial`, `--other-configurations` and `--include-hidden` (assemblies), `--max-mb N`, `--jobs N` (1 to 64, default 1), `--file-timeout SECONDS` (default 300), `--memory-mb N` (default 2048), `--in-process`, `--max-examined N`, `--force`, `--allow-source-dir` | `batch_summary` |
 | `serve` | `--root ID=DIR` (repeatable), `--library ID=DIR`, `--port N` (default 8765; 0 picks a free port), `--bind ADDRESS` (default 127.0.0.1), `--token-file PATH`, `--identity-key-file PATH`, `--workers N`, `--allow-remote`, `--allowed-host NAME`, `--identity-address ADDRESS:PORT` (repeatable), `--allow-origin ORIGIN` (repeatable), `--config FILE`, `--viewer`, `--catalog`, `--catalog-rescan SECONDS` (default 300), `--formats solidworks\|all\|IDS` (default `solidworks`) | `serve_started`, one compact line when it is ready; then it serves until stopped (section 8) |
@@ -6314,7 +6318,7 @@ it.
 | `catalog [FOLDER]` | `--catalog NAME`, `--db FILE` or `--in-project` | `catalog` (provisional) |
 | `catalogs` | | `catalog_list` (provisional) |
 | `clear-index [FOLDER]` | `--all`, `--catalog NAME`, `--db FILE` or `--in-project` | `catalog_cleared` (provisional) |
-| `drawing ACTION` | `new PART`, `export DRAWING`, `update DRAWING`, `check DRAWING_OR_PART`, `show DRAWING`, `settings`, each with the options of `docs/drawings/cli.md`; `new`, `export` and `update` write under `--out DIR` (or next to the drawing) under the write guards | `drawing_result` (provisional, section 5.17) |
+| `drawing ACTION` | `new PART`, `export DRAWING`, `update DRAWING`, `check DRAWING_OR_PART`, `show DRAWING`, `settings`, each with the options of `docs/drawings/cli.md`; `new` and `export` write into `--out DIR`, a folder that exists, under the write guards, and `update` writes the drawing over its own file or beside it | `drawing_result` (provisional, section 5.17) |
 | `history FILE` | `--source auto\|git\|snapshots` (default `auto`), `--project DIR` or `--store DIR`, `--max-commits N` (default 20,000), `--hashes` | `file_history` (provisional, section 5.19) |
 | `snapshot FILE` | `--project DIR` or `--store DIR`, `--note TEXT`; writes only into the snapshot store (3.26) | `snapshot_taken` (provisional) |
 | `diff FILE [OLDER] [NEWER]` | versions named `working`, `latest`, `vN` or by id; `--source auto\|git\|snapshots`, `--project DIR` or `--store DIR`, `--no-measures`, `--timeout SECONDS` (default 60) | `version_diff` (provisional) |
@@ -6937,7 +6941,7 @@ as HTTP/1.1 with every header of 8.11, and the connection is closed.
 | `/v1/version` | none | `version` | | |
 | `/v1/roots` | none | `roots` | | |
 | `/v1/openapi.json` | none | the OpenAPI description of these routes, `application/json` without an envelope (provisional, 8.19) | | |
-| `/v1/list` | `root`\*, `path` (a folder; the root when left out), `recursive`, `include`, `limit` (1 to 500, default 100), `cursor`, `formats` | `listing` | 60 s per page, 10 s per file | 8 MiB |
+| `/v1/list` | `root`\*, `path` (a folder; the root when left out, and an empty value answers 400 like any other), `recursive`, `include`, `limit` (1 to 500, default 100), `cursor`, `formats` | `listing` | 60 s per page, 10 s per file | 8 MiB |
 | `/v1/document` | `root`\*, `path`\*, `nested` | `document_summary`; `model_summary` for a model file | 15 s | 1 MiB |
 | `/v1/properties` | `root`\*, `path`\*, `configuration`, `view` (`effective`, `file` or `configuration`), `nested` | `properties` | 15 s | 1 MiB |
 | `/v1/configurations` | `root`\*, `path`\* | `configurations` | 15 s | 1 MiB |
@@ -7112,7 +7116,9 @@ Each route accepts exactly the parameters in its row of 8.6
   twice. `root` and `client` match `[a-z0-9_-]{1,32}`, and `nonce`
   `[A-Za-z0-9_-]{32,128}`. `configuration` and `part_number_property` hold
   at most 256 characters, `nested` 512 and `columns` 4,096, with no control
-  characters. `cursor` is what a
+  characters. `path` holds at most 1,024 characters: a longer one answers 403
+  `path_refused`, rule `too_long` (8.5), and one over 4,096 characters is
+  refused before that as 400 `invalid_argument`. `cursor` is what a
   listing page returned.
 - The query is percent-decoded once, as strict UTF-8. An invalid or overlong
   sequence (`%C0%AE`), a `%` that does not start a two-digit escape, a `#`, an
@@ -7836,7 +7842,10 @@ What it holds:
   (8.16): a generated client does not do that for you.
 - Each kind's `data` is described as an object that names the kind and its
   section of this document; `solidseas schema KIND` prints the kind's full JSON
-  Schema. The error envelope lists the error codes of 5.6 as an open set.
+  Schema. The error envelope lists, as an open set, the error codes of 5.6
+  that a route can answer.
+- No route answers 413: a request with a body answers 400 `invalid_argument`,
+  rule `body` (8.6).
 - Operations and parameters that are provisional carry
   `x-solidseas-provisional: true`.
 - Deadlines and size caps in the descriptions are the defaults of 8.8.
@@ -7946,6 +7955,12 @@ provisional item can change at any commit. It is:
   warning codes `history_incomplete`, `lfs_not_fetched` and `measures_incomplete`.
 - The service's configuration file (8.17, `serve --config`) and its CORS for
   named origins (`serve --allow-origin`, 8.4), while they are new.
+- The MCP server (8.20), while it is new: the `mcp` command with its options,
+  its tools, their arguments and their answers.
+- Drawings (3.24), while they are new: `solidseas.drawing` and its modules, the
+  `drawing` command with its actions and options, the kind `drawing_result` and
+  the error codes `drawing_invalid`, `drawing_too_complex`, `model_not_found` and
+  `drawing_released`.
 - The API description (8.19), while it is new: the route `/v1/openapi.json`,
   the command `openapi` and the document's content and layout.
 - 3D models for a web page, while they are new: `solidseas.gltf` (3.28), the

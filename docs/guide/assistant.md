@@ -1,8 +1,10 @@
 # The modeling assistant
 
 The modeling assistant drafts SOLIDWORKS API code from a plain description of a
-change, shows you that code, and runs it only when you say so. It is
-experimental, in preview, and works in Review mode. [ASSISTANT.md](../ASSISTANT.md)
+change, shows you that code, and runs it only when you say so (Review mode).
+In Automatic mode it plans a goal and carries the plan out step by step, from a
+fixed set of operations SolidSeas checks. It is experimental: check what it does
+to your part before you save it. [ASSISTANT.md](../ASSISTANT.md)
 has the design and its safety rules, and [MCP.md](../MCP.md) describes the
 server that lets a chat client use the same tools.
 
@@ -106,6 +108,28 @@ more.
 The assistant reaches the SOLIDWORKS running on your PC through the CAD Bridge
 extension (Tools > Extensions), on Windows. Without it the window says why, and
 runs only scripts that do not use SOLIDWORKS.
+
+## Automatic mode
+
+Tick **Automatic** and describe a goal instead of a change. The AI model plans
+the goal once, as steps from a fixed set of operations (a dimension's value,
+an extruded boss or cut from a sketch, a fillet, a chamfer, a shell, a linear
+or circular pattern, suppressing or unsuppressing a feature, and a custom
+property), and SolidSeas checks every step before anything runs. The plan appears in the Plan panel, with where each value came from.
+
+- A plan that only adds to the part, or sets only dimension values you gave,
+  starts by itself. A plan that suppresses or unsuppresses a feature, writes a
+  custom property or sets a value you did not give waits for **Run plan**.
+- SolidSeas writes a safety copy of the part first, then carries out each step in
+  its own undo entry and checks that it changed only what it should. A step that
+  fails its checks is taken off at once and the run stops.
+- **Stop** ends the run between two steps.
+- Afterwards, **Keep** leaves the part as it is and **Revert** takes the run's
+  steps off, newest first.
+
+Automatic mode never runs code the AI wrote, and never saves your part: save it
+in SOLIDWORKS when you are happy with it. Your administrator can turn Automatic
+mode off; the box is then greyed, saying "Set by your administrator".
 
 ## Setting up the AI
 

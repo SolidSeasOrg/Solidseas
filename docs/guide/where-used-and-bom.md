@@ -57,3 +57,20 @@ show as its part number.
 file (UTF-8, for Excel and ERP imports) or as JSON, into a folder you choose
 outside the one you opened. It is off while another configuration's BOM is
 being read.
+
+**Edit BOM...** on the tab opens the BOM in a window of its own, to lay it out
+the way you want it:
+
+- choose top level, parts only or indented, and with **Columns...** which
+  columns show, in which order and under which headings (any property of the
+  parts can be a column);
+- move rows up and down (Ctrl+Up, Ctrl+Down) and hide the ones you do not want;
+  the item numbers follow;
+- type over a cell (double-click or F2). It then shows in italics, its tooltip
+  gives the text it replaced, and **Reset Cell** puts that back.
+
+**Save** keeps the layout as a `.ssbom` file, and **Export...** writes CSV, an
+Excel workbook or a PDF. When the BOM is read again, every edit whose part is
+still there is kept, and the status bar counts the ones that no longer apply.
+Nothing you do here changes the assembly. A drawing's parts list is edited in
+the same window ([Drawings](drawings.md#editing-a-drawing)).

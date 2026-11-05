@@ -5,7 +5,7 @@ SolidSeas works with Claude Desktop, Claude Code and any other app that adds ser
 
 - **Reading your CAD files** (`solidseas mcp`): a chat reads the SOLIDWORKS files in folders
   you choose, on Linux or Windows, with no SOLIDWORKS. It never changes a file.
-- **The modeling assistant** (`SolidSeas Viewer.exe --mcp`): a chat reads the parts open in
+- **The modeling assistant** (`SolidSeasViewer.exe --mcp`): a chat reads the parts open in
   your SOLIDWORKS and has SolidSeas build in them. It needs SOLIDWORKS on Windows.
 
 ## Reading your CAD files from any MCP app
@@ -77,14 +77,14 @@ claude mcp add solidseas-files -- /path/to/SolidSeas/.venv/bin/python -m solidse
 Put your own folders in place of the example paths. On Windows, Claude Code takes the same
 command with `C:\Path\To\Projects`.
 
-With SolidSeas Desktop installed and no Python, the executable runs the same command
+With SolidSeas Viewer installed and no Python, its executable runs the same command
 through `--cli`, which hands the rest of its arguments to the `solidseas` command line:
 
 ```json
 {
   "mcpServers": {
     "solidseas-files": {
-      "command": "C:\\Path\\To\\SolidSeas Viewer.exe",
+      "command": "C:\\Path\\To\\SolidSeasViewer.exe",
       "args": ["--cli", "mcp", "--root", "jobs=C:\\Path\\To\\Projects"]
     }
   }
@@ -92,7 +92,7 @@ through `--cli`, which hands the rest of its arguments to the `solidseas` comman
 ```
 
 ```
-claude mcp add solidseas-files -- "C:\Path\To\SolidSeas Viewer.exe" --cli mcp --root jobs=C:\Path\To\Projects
+claude mcp add solidseas-files -- "C:\Path\To\SolidSeasViewer.exe" --cli mcp --root jobs=C:\Path\To\Projects
 ```
 
 Settings > Connector in the viewer shows this block for the folder you have open, ready to
@@ -181,7 +181,7 @@ Claude Desktop, in `%APPDATA%\Claude\claude_desktop_config.json`:
 {
   "mcpServers": {
     "solidseas": {
-      "command": "C:\\Users\\%USERNAME%\\Desktop\\SolidSeas Viewer.exe",
+      "command": "C:\\Users\\%USERNAME%\\AppData\\Local\\Programs\\SolidSeas\\SolidSeasViewer.exe",
       "args": ["--mcp"]
     }
   }
@@ -191,7 +191,7 @@ Claude Desktop, in `%APPDATA%\Claude\claude_desktop_config.json`:
 Claude Code:
 
 ```
-claude mcp add solidseas -- "C:\Users\%USERNAME%\Desktop\SolidSeas Viewer.exe" --mcp
+claude mcp add solidseas -- "C:\Users\%USERNAME%\AppData\Local\Programs\SolidSeas\SolidSeasViewer.exe" --mcp
 ```
 
 Put your Windows user name in place of `%USERNAME%`, or give wherever the executable is.

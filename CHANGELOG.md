@@ -8,6 +8,11 @@ while the project takes shape.
 
 ### Added
 
+- **More of the viewer in the guide.** The modeling assistant page now explains
+  Automatic mode, the BOM page explains Edit BOM..., and the command-line page
+  lists every command, solidseas mcp, solidseas openapi and SolidSeasViewer.exe
+  --cli.
+
 - **SolidSeasViewer.exe --cli.** The executable runs any solidseas command, such
   as serve or mcp, so the local API and the MCP connector work without Python
   installed.
@@ -460,6 +465,11 @@ while the project takes shape.
   release, and `THIRD_PARTY_NOTICES.txt` names what is linked into it.
 
 ### Fixed
+
+- **The REST reference matches the service.** API.md now gives the path
+  parameter's real 1,024-character limit, says an empty path on /v1/list is
+  refused, that no route answers 413 or quarantined, and lists the mcp command
+  and drawings as provisional.
 
 - **The 3D view says when the graphics driver could not make its OpenGL
   context.** It used to stay blank with no message.

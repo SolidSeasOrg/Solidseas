@@ -38,8 +38,11 @@ modifies a source document.
 open in SOLIDWORKS with editable features, from designs made elsewhere, such
 as SolidCraft. It never changes an existing file: everything it writes is a
 new file. SOLIDWORKS opens the test parts it writes as editable native
-features, but it covers one extruded rectangle so far, so do not use it for
-real work, and expect its names to change. What it can do today, and
+features, but it covers only rectangles extruded from the Front Plane, one
+round hole and a few fillets so far, so do not use it for real work, and expect
+its names to change. The `solidseas sldprt` command
+([The command line](command-line.md#solidworks-parts-from-a-design)) says what it
+writes. What it can do today, and
 what is still being measured, is in
 [NATIVE_SLDPRT_WRITER.md](../NATIVE_SLDPRT_WRITER.md).
 
