@@ -433,6 +433,10 @@ while the project takes shape.
 
 ### Fixed
 
+- **A half-written 3D print file is retried later.** If a stopped 3D Print
+  export left a temporary .part file that could not be deleted, the next 3D
+  Print now tries again to remove it.
+
 - **Tessellation warnings are listed.** The warnings no_stored_bodies,
   configuration_assumed and bodies_unreadable are now in the list of warning
   codes and in the API reference.

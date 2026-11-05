@@ -2675,3 +2675,29 @@ def test_the_self_test_prints_through_real_right_clicks_on_the_3d_view(tmp_path,
     after = _files(models)
     assert {k: v for k, v in after.items() if k in before} == before
     assert all(k.endswith(".3mf") for k in set(after) - set(before))
+
+
+def test_a_part_that_could_not_be_removed_keeps_its_record_for_the_next_print(models, monkeypatch):
+    """A folder whose permissions let a file be added but not deleted refuses the rename
+    and then the removal of the part: the record stays, closed, so the next 3D Print tries
+    again, and a record never stays once its parts are gone."""
+    temp = str(models.parent / "temp")
+    os.makedirs(temp, exist_ok=True)
+    token = "0123456789abcdef"
+    folders = [printing.export_folder_path(temp), str(models)]
+    journal = printing._journal(temp, token, folders)
+    stuck, gone = (Path(printing.part_path(f, token)) for f in (str(models), folders[0]))
+    stuck.write_bytes(b"half written")
+    gone.write_bytes(b"half written")
+    real = printing._remove_part
+    monkeypatch.setattr(printing, "_remove_part", lambda p: False if p == str(stuck) else real(p))
+    printing._clean_up([str(stuck), str(gone)], journal)
+    assert stuck.exists() and not gone.exists() and os.path.exists(journal[1])
+    monkeypatch.setattr(printing, "_remove_part", real)
+    assert printing.sweep_abandoned(temp, str(models)) == 1
+    assert not stuck.exists() and not os.path.exists(journal[1])
+    # with every part removed, or none written, the record goes at once
+    journal = printing._journal(temp, token, folders)
+    stuck.write_bytes(b"half written")
+    printing._clean_up([str(stuck), str(gone)], journal)
+    assert not stuck.exists() and not os.path.exists(journal[1])

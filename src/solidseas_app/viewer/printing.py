@@ -1625,9 +1625,27 @@ def export_in_process(
         return {"ok": False, "error": dict(stopped_error)}
     finally:
         _end(proc, conn, job, kill=stopped)
-        for leftover in leftovers:  # what a stopped export left: its own part, by its random name
-            _remove_part(leftover)
-        _close_journal(journal)
+        _clean_up(leftovers, journal)
+
+
+def _clean_up(leftovers: list[str], journal) -> None:
+    """Remove what a stopped export left, its own parts by their random names, then its
+    record, unless a part is still there: a folder whose permissions let a file be added
+    but not deleted refuses both the rename and the removal, and the record then stays,
+    closed, so that the next 3D Print tries again (:func:`sweep_abandoned`)."""
+    left = False
+    for leftover in leftovers:
+        if not _remove_part(leftover) and _plain_file(leftover):
+            left = True
+    _close_journal(journal, keep=left)
+
+
+def _plain_file(path: str) -> bool:
+    try:
+        st = os.lstat(path)
+    except OSError:
+        return False
+    return stat.S_ISREG(st.st_mode) and not _link(st)
 
 
 def _remove_part(path: str) -> bool:
@@ -1681,7 +1699,9 @@ def _journal(out_base: str | None, token: str, folders: list[str]):
     return f, path
 
 
-def _close_journal(journal) -> None:
+def _close_journal(journal, *, keep: bool = False) -> None:
+    """Close the record ``journal`` and remove it, or with ``keep`` leave it for the next
+    3D Print, as a viewer that ended would."""
     if journal is None:
         return
     f, path = journal
@@ -1689,6 +1709,8 @@ def _close_journal(journal) -> None:
         f.close()
     except OSError:
         pass
+    if keep:
+        return
     try:
         os.remove(path)
     except OSError:
