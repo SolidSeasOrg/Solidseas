@@ -73,6 +73,14 @@ def test_each_program_takes_its_formats_3mf_first():
         "orca": ("3mf", "stl", "step"),
         "prusa": ("3mf", "stl", "step"),
         "cura": ("3mf", "stl"),  # STEP only through a plug-in
+        # printer makers' slicers: 3MF and STL, which they all open
+        "creality": ("3mf", "stl"),
+        "elegoo": ("3mf", "stl"),
+        "snapmaker": ("3mf", "stl"),
+        "qidi": ("3mf", "stl"),
+        "anycubic": ("3mf", "stl"),
+        "flashforge": ("3mf", "stl"),
+        "superslicer": ("3mf", "stl"),
     }
     other = printing.other_program("C:\\Tools\\slicer.exe")
     assert other.formats == ("3mf", "stl", "step")
@@ -368,7 +376,7 @@ def programs(tmp_path) -> dict:
     env = {"ProgramW6432": str(pf), "ProgramFiles": str(pf)}
     bambu = _install(pf, "Bambu Studio/bambu-studio.exe")
     cura = _install(pf, "UltiMaker Cura 5.7.1/UltiMaker-Cura.exe")
-    found = printing.detect(env, app_path=lambda exe: None, windows=True)
+    found = printing.detect(env, app_path=lambda exe: None, uninstall=list, windows=True)
     return {"env": env, "bambu": bambu, "cura": cura, "found": found}
 
 

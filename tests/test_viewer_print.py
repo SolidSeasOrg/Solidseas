@@ -108,7 +108,7 @@ def programs(tmp_path) -> dict:
 
 def _detect(env, app_paths=None):
     app_paths = app_paths or {}
-    return printing.detect(env, app_path=lambda exe: app_paths.get(exe), windows=True)
+    return printing.detect(env, app_path=lambda exe: app_paths.get(exe), uninstall=list, windows=True)
 
 
 # --------------------------------------------------------------------------- finding programs
@@ -133,6 +133,92 @@ def test_detect_reads_app_paths_first_and_skips_what_is_not_there(programs, tmp_
     by = {p.key: p.path for p in found}
     assert by["orca"] == str(orca) and by["bambu"] == os.path.normpath(programs["bambu"])
     assert printing.detect({}, windows=True) == [] and printing.detect(programs["env"], windows=False) == []
+
+
+MAKERS = {  # the printer makers' slicers, each where its installer is taken to put it
+    "creality": "Creality/Creality Print 7.3/CrealityPrint.exe",
+    "elegoo": "ElegooSlicer/elegoo-slicer.exe",
+    "snapmaker": "Snapmaker Orca/snapmaker-orca.exe",
+    "qidi": "QIDIStudio/qidi-studio.exe",
+    "anycubic": "AnycubicSlicerNext/AnycubicSlicerNext.exe",
+    "flashforge": "Orca-Flashforge/orca-flashforge.exe",
+    "superslicer": "SuperSlicer/superslicer.exe",
+}
+
+
+def test_detect_finds_the_printer_makers_slicers_in_their_install_folders(programs):
+    pf = Path(programs["env"]["ProgramFiles"])
+    installed = {key: _install(pf, rel) for key, rel in MAKERS.items()}
+    _install(pf, "Creality/Creality Print 6.0/CrealityPrint.exe")  # an older version beside it
+    found = {p.key: p for p in _detect(programs["env"])}
+    assert list(found) == [
+        "bambu",
+        "prusa",
+        "cura",
+        "creality",
+        "elegoo",
+        "snapmaker",
+        "qidi",
+        "anycubic",
+        "flashforge",
+        "superslicer",
+    ]  # SLICERS order: the makers' after the four
+    for key, exe in installed.items():
+        assert found[key].path == os.path.normpath(exe), key
+        assert found[key].formats == ("3mf", "stl"), key  # 3MF first: the default
+    assert found["creality"].name == "Creality Print" and found["anycubic"].name == "Anycubic Slicer Next"
+    names = {s.key: s.name for s in printing.SLICERS}
+    assert names["qidi"] == "QIDI Studio" and names["flashforge"] == "Orca-Flashforge"
+    # Known by key in Viewer.ini, and Bambu Studio is still the first choice
+    assert printing.parse_choice({"program": "QIDI"}) == printing.PrintChoice("qidi")
+    assert printing.first_choice(list(found.values())) == printing.PrintChoice("bambu")
+    only = [p for p in found.values() if p.key == "elegoo"]
+    assert printing.first_choice(only) is None  # the window asks
+    assert printing.format_for(only[0], printing.PrintChoice("elegoo", None, "step")) == "3mf"
+
+
+def test_detect_reads_the_install_folder_of_an_uninstall_entry(programs, tmp_path):
+    elsewhere = _install(tmp_path / "D" / "Slicers" / "QIDI", "qidi-studio.exe")
+    snap = _install(tmp_path / "D" / "Snap", "snapmaker-orca.exe")
+    entries = [
+        ("Some Other Program", str(tmp_path / "D" / "Slicers" / "QIDI")),  # not its name
+        ("qidistudio 2.07.02.73", str(elsewhere.parent)),  # any case, a version after
+        ("Snapmaker Orca", "relative\\folder"),  # not absolute: passed over
+        ("Snapmaker_Orca", str(snap.parent)),
+        ("ElegooSlicer", str(tmp_path / "gone")),  # its folder holds no program
+    ]
+    calls = []
+
+    def uninstall():
+        calls.append(1)
+        return entries
+
+    found = printing.detect(programs["env"], app_path=lambda exe: None, uninstall=uninstall, windows=True)
+    by = {p.key: p.path for p in found}
+    assert by["qidi"] == os.path.normpath(elsewhere) and by["snapmaker"] == os.path.normpath(snap)
+    assert "elegoo" not in by
+    assert len(calls) == 1  # read once for all the programs
+    # The four that have always been found are found only as before, never from an entry
+    gone = [("Bambu Studio", str(tmp_path / "D"))]
+    _install(tmp_path / "D", "bambu-studio.exe")
+    no_bambu = {"ProgramFiles": str(tmp_path / "empty")}
+    found = printing.detect(no_bambu, app_path=lambda exe: None, uninstall=lambda: gone, windows=True)
+    assert found == []
+
+    # A registry that cannot be read finds nothing there, and the folders still count
+    def broken():
+        raise OSError("no registry")
+
+    found = printing.detect(programs["env"], app_path=lambda exe: None, uninstall=broken, windows=True)
+    assert [p.key for p in found] == ["bambu", "prusa", "cura"]
+
+
+def test_registry_uninstall_entries_outside_windows_are_none():
+    if os.name != "nt":
+        assert printing.registry_uninstall_entries() == []
+    else:
+        for name, folder in printing.registry_uninstall_entries():
+            assert isinstance(name, str) and isinstance(folder, str)
 
 
 def test_detect_never_writes_the_registry():

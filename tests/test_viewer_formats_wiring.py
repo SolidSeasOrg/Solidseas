@@ -472,7 +472,10 @@ def _dry_printer(w, tmp_path: Path) -> list:
     exe.write_bytes(b"MZ")
     exe.chmod(0o755)  # a program on Linux and macOS too
     found = printing.detect(
-        {"ProgramW6432": str(pf), "ProgramFiles": str(pf)}, app_path=lambda e: None, windows=True
+        {"ProgramW6432": str(pf), "ProgramFiles": str(pf)},
+        app_path=lambda e: None,
+        uninstall=list,
+        windows=True,
     )
     c = w.printer
     c.detect = lambda: list(found)

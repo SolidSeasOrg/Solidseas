@@ -1,13 +1,17 @@
 """The 3D Print button's workings, without Qt: which program, which format, where the
 export goes, and the one function that starts the program.
 
-* **Programs.** Bambu Studio, OrcaSlicer, PrusaSlicer and UltiMaker Cura are found
-  in their usual install folders (``Program Files``, ``Program Files (x86)`` and
-  the per-user ``Programs`` folder) and in the registry's App Paths, which is only
-  read (:func:`detect`). Each has the formats it takes, the first, 3MF, being its
-  default: Bambu Studio, OrcaSlicer and PrusaSlicer take 3MF, STL and STEP;
-  UltiMaker Cura 3MF and STL (STEP only through a plug-in). Any other executable
-  the user picks takes all three.
+* **Programs.** Bambu Studio, OrcaSlicer, PrusaSlicer and UltiMaker Cura, and the
+  slicers printer makers build on them (Creality Print, ElegooSlicer, Snapmaker Orca,
+  QIDI Studio, Anycubic Slicer Next, Orca-Flashforge and SuperSlicer), are found in
+  the registry's App Paths, then in the install folder their uninstall entry names,
+  then in their usual install folders (``Program Files``, ``Program Files (x86)`` and
+  the per-user ``Programs`` folder); the registry is only read (:func:`detect`). Each
+  has the formats it takes, the first, 3MF, being its default: Bambu Studio,
+  OrcaSlicer and PrusaSlicer take 3MF, STL and STEP; UltiMaker Cura (STEP only
+  through a plug-in) and the others 3MF and STL. Any other executable the user picks
+  takes all three. Each is started only as a program the user installed: none is
+  shipped with SolidSeas.
 * **The choice** is kept in ``Viewer.ini``, section ``[Print]``
   (:func:`load_choice`, :func:`save_choice`): the program's key, the path of
   another program, and the format. Until one is chosen, Bambu Studio is used when
@@ -104,6 +108,8 @@ _TOKEN = re.compile(r"[0-9a-f]{16}")
 MAX_PATH_TEXT = 1024
 OTHER = "other"
 APP_PATHS = r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths"
+UNINSTALL = r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall"
+MAX_UNINSTALL_KEYS = 4_000  # uninstall entries looked at, at most, in each view of the registry
 # The extension a program must have on Windows: an executable. A batch file or a script
 # runs through an interpreter that parses its arguments again, so none is accepted.
 EXECUTABLE_EXTENSIONS = (".exe",)
@@ -114,14 +120,16 @@ _UNSAFE = re.compile(r"[^\w .,()+\-]")
 @dataclass(frozen=True)
 class Slicer:
     """A program the viewer knows: its key in ``Viewer.ini``, its name, the formats it
-    takes (the first is its default), its executable's names and the folders it
-    installs to, below a programs folder (``*`` matches a version)."""
+    takes (the first is its default), its executable's names, the folders it
+    installs to, below a programs folder (``*`` matches a version), and how the
+    display name of its uninstall entry starts (``uninstall``, in any case)."""
 
     key: str
     name: str
     formats: tuple[str, ...]
     executables: tuple[str, ...]
     folders: tuple[str, ...]
+    uninstall: tuple[str, ...] = ()
 
 
 # Which formats each opens, as docs/guide/3d-print.md says: documented by Bambu Lab's
@@ -143,6 +151,72 @@ SLICERS: tuple[Slicer, ...] = (
         ("3mf", "stl"),
         ("UltiMaker-Cura.exe", "Cura.exe"),
         ("UltiMaker Cura *", "Ultimaker Cura *", "UltiMaker Cura", "Ultimaker Cura"),
+    ),
+    # Printer makers' slicers, all AGPL-3.0 forks of OrcaSlicer, Bambu Studio or PrusaSlicer:
+    # started as programs the user installed, never shipped. Each is offered 3MF and STL, which
+    # all of them open; the STEP import they inherit is not offered until their makers document
+    # it. None of the makers documents its install folder or executable name. Where a name
+    # below comes from third-party install listings, or is only a guess from the program's
+    # own name, its comment says so; the uninstall entry's install folder and App Paths are
+    # read before these folders, so an install elsewhere is still found.
+    Slicer(
+        "creality",
+        "Creality Print",
+        ("3mf", "stl"),
+        ("CrealityPrint.exe",),  # 6.0's, from install listings; 7's assumed the same
+        ("Creality\\Creality Print *", "Creality Print *", "Creality\\Creality Print", "Creality Print"),
+        ("Creality Print",),
+    ),
+    Slicer(
+        "elegoo",
+        "ElegooSlicer",
+        ("3mf", "stl"),
+        # Not confirmed: OrcaSlicer's naming (orca-slicer.exe) carried over, then the program's name.
+        ("elegoo-slicer.exe", "ElegooSlicer.exe"),
+        ("ElegooSlicer", "Elegoo Slicer"),  # ElegooSlicer from an install guide
+        ("ElegooSlicer", "Elegoo Slicer"),
+    ),
+    Slicer(
+        "snapmaker",
+        "Snapmaker Orca",
+        ("3mf", "stl"),
+        ("snapmaker-orca.exe",),  # the portable build's; the installer's assumed the same
+        ("Snapmaker Orca", "Snapmaker_Orca", "Snapmaker\\Snapmaker Orca"),  # not confirmed
+        ("Snapmaker Orca", "Snapmaker_Orca"),
+    ),
+    Slicer(
+        "qidi",
+        "QIDI Studio",
+        ("3mf", "stl"),
+        ("qidi-studio.exe",),  # from install listings
+        ("QIDIStudio", "QIDI Studio"),  # QIDIStudio from install listings
+        ("QIDIStudio", "QIDI Studio"),
+    ),
+    Slicer(
+        "anycubic",
+        "Anycubic Slicer Next",
+        ("3mf", "stl"),
+        ("AnycubicSlicerNext.exe",),  # from install listings; the older Anycubic Slicer is another program
+        ("AnycubicSlicerNext", "Anycubic Slicer Next"),  # AnycubicSlicerNext from install listings
+        ("AnycubicSlicerNext", "Anycubic Slicer Next"),
+    ),
+    Slicer(
+        "flashforge",
+        "Orca-Flashforge",
+        ("3mf", "stl"),
+        # Not confirmed: OrcaSlicer's naming carried over. Flashforge's newer Flash Studio is
+        # another program and is not looked for.
+        ("orca-flashforge.exe",),
+        ("Orca-Flashforge", "Orca Flashforge", "Flashforge\\Orca-Flashforge"),  # not confirmed
+        ("Orca-Flashforge", "Orca Flashforge"),
+    ),
+    Slicer(
+        "superslicer",
+        "SuperSlicer",
+        ("3mf", "stl"),
+        ("superslicer.exe",),  # mostly unpacked from a zip, which registers nothing
+        ("SuperSlicer", "SuperSlicer*"),
+        ("SuperSlicer",),
     ),
 )
 BY_KEY = {s.key: s for s in SLICERS}
@@ -237,21 +311,69 @@ def registry_app_path(executable: str) -> str | None:
     return None
 
 
+def registry_uninstall_entries() -> list[tuple[str, str]]:
+    """The display name and install folder of each program the registry's uninstall
+    entries list with both (for this user, then the machine, in its 64- and 32-bit
+    views), or none elsewhere than on Windows. Only read, never written."""
+    if os.name != "nt":
+        return []
+    import winreg
+
+    out: list[tuple[str, str]] = []
+    for hive in (winreg.HKEY_CURRENT_USER, winreg.HKEY_LOCAL_MACHINE):
+        for view in (winreg.KEY_WOW64_64KEY, winreg.KEY_WOW64_32KEY):
+            try:
+                root = winreg.OpenKey(hive, UNINSTALL, 0, winreg.KEY_READ | view)
+            except OSError:
+                continue
+            with root:
+                for i in range(MAX_UNINSTALL_KEYS):
+                    try:
+                        sub = winreg.EnumKey(root, i)
+                    except OSError:
+                        break
+                    try:
+                        with winreg.OpenKey(root, sub, 0, winreg.KEY_READ | view) as key:
+                            name, _ = winreg.QueryValueEx(key, "DisplayName")
+                            folder, kind = winreg.QueryValueEx(key, "InstallLocation")
+                    except OSError:
+                        continue
+                    if not isinstance(name, str) or not isinstance(folder, str):
+                        continue
+                    folder = folder.strip().strip('"')[:MAX_PATH_TEXT]
+                    if kind == winreg.REG_EXPAND_SZ:
+                        folder = winreg.ExpandEnvironmentStrings(folder)
+                    if name and folder:
+                        out.append((name.strip()[:MAX_PATH_TEXT], folder))
+    return out
+
+
+def _uninstall_folders(s: Slicer, entries: list[tuple[str, str]]) -> list[str]:
+    """The install folders of the uninstall entries whose display name starts as one of
+    ``s.uninstall`` does, in any case; only absolute ones."""
+    starts = tuple(u.casefold() for u in s.uninstall)
+    if not starts:
+        return []
+    return [f for name, f in entries if name.casefold().startswith(starts) and os.path.isabs(f)]
+
+
 def detect(
     env: dict[str, str] | None = None,
     *,
     app_path=registry_app_path,
+    uninstall=registry_uninstall_entries,
     is_file=os.path.isfile,
     listdir=os.listdir,
     windows: bool | None = None,
 ) -> list[Program]:
     """The known programs installed here, in :data:`SLICERS` order: each from the
-    registry's App Paths or its usual install folders, the first executable found.
-    Nothing is started and nothing is written. Elsewhere than on Windows none is
-    detected: choose the program instead."""
+    registry's App Paths, then the install folder of its uninstall entry, then its
+    usual install folders, the first executable found. Nothing is started and nothing
+    is written. Elsewhere than on Windows none is detected: choose the program instead."""
     if not (os.name == "nt" if windows is None else windows):
         return []
     folders = program_folders(env)
+    entries: list[tuple[str, str]] | None = None  # read once, when the first program needs them
     found = []
     for s in SLICERS:
         path = None
@@ -260,6 +382,20 @@ def detect(
             if candidate and os.path.isabs(candidate) and is_file(candidate):
                 path = candidate
                 break
+        if path is None and s.uninstall:
+            if entries is None:
+                try:
+                    entries = list(uninstall())
+                except OSError:
+                    entries = []
+            for where in _uninstall_folders(s, entries):
+                for exe in s.executables:
+                    candidate = os.path.join(where, exe)
+                    if is_file(candidate):
+                        path = candidate
+                        break
+                if path:
+                    break
         if path is None:
             for folder in folders:
                 for pattern in s.folders:

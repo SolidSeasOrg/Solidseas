@@ -62,10 +62,19 @@ a message says so.
 
 The first time, the viewer uses Bambu Studio if it is installed, and the status
 line says so with the result, and where to change it. Otherwise it asks which
-program to use, from the slicers it finds on this computer (Bambu Studio,
-OrcaSlicer, PrusaSlicer and UltiMaker Cura, in their usual install folders or the
-registry's App Paths) or any other program you pick. It remembers the choice in
-`Viewer.ini`.
+program to use, from the slicers it finds on this computer or any other program
+you pick. It remembers the choice in `Viewer.ini`. The slicers it looks for are:
+
+- Bambu Studio, OrcaSlicer, PrusaSlicer and UltiMaker Cura;
+- Creality Print (6 and 7), ElegooSlicer, Snapmaker Orca, QIDI Studio, Anycubic
+  Slicer Next, Orca-Flashforge and SuperSlicer, the slicers printer makers build
+  on OrcaSlicer, Bambu Studio or PrusaSlicer.
+
+Each is found through the registry's App Paths, the install folder Windows lists
+for it under installed apps (for the second group), or its usual install folder
+in Program Files or your own Programs folder. SolidSeas includes none of them: it
+starts the one you installed. If yours is installed but not listed, choose its
+program file with **Choose Another Program...**.
 
 To change it, open **Settings > 3D Print Program**: it lists the programs found,
 **Choose Another Program...** picks any program file (`.exe`), and **Send as
@@ -75,6 +84,8 @@ beside it.
 
 - Bambu Studio, OrcaSlicer and PrusaSlicer take 3MF, STL and STEP.
 - UltiMaker Cura takes 3MF and STL.
+- Creality Print, ElegooSlicer, Snapmaker Orca, QIDI Studio, Anycubic Slicer
+  Next, Orca-Flashforge and SuperSlicer take 3MF and STL.
 - Any other program you pick is offered all three.
 
 Every program gets 3MF until you choose another format, and the choice is
@@ -91,7 +102,11 @@ otherwise an assumption:
 | OrcaSlicer | documented | documented | documented (its wiki's Import and Export page) |
 | PrusaSlicer | documented | documented | documented (Prusa's Supported file formats article), since 2.5 (PrusaSlicer 2.5.0's release notes) |
 | UltiMaker Cura | documented | documented | not offered: only with UltiMaker's STEP and IGES plug-in |
+| Creality Print, ElegooSlicer, Snapmaker Orca, QIDI Studio, Anycubic Slicer Next, Orca-Flashforge, SuperSlicer | assumed, as for the slicer each is built on | assumed, as for the slicer each is built on | not offered: not documented by their makers |
 | any other program | assumed | assumed | assumed |
+
+To send STEP to one of the printer makers' slicers, choose its program file with
+Choose Another Program... and it is offered all three formats.
 
 With Cura's STEP plug-in installed, choose Cura's program file with Choose
 Another Program... and it is offered STEP too. That a program opens the file

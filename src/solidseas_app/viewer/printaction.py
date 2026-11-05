@@ -142,8 +142,10 @@ class ChooseProgramDialog(QDialog):
         text = (
             "Which program should 3D Print open the part or assembly in?"
             if detected
-            else "No slicer program SolidSeas knows (Bambu Studio, OrcaSlicer, PrusaSlicer, UltiMaker Cura) "
-            "was found on this computer. Choose the program to open 3D prints in."
+            else "No slicer program SolidSeas knows (Bambu Studio, OrcaSlicer, PrusaSlicer, UltiMaker Cura, "
+            "and Creality Print, ElegooSlicer, Snapmaker Orca, QIDI Studio, Anycubic Slicer Next, "
+            "Orca-Flashforge and SuperSlicer) was found on this computer. Choose the program to open 3D "
+            "prints in."
         )
         label = QLabel(text)
         label.setWordWrap(True)

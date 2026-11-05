@@ -8,6 +8,11 @@ while the project takes shape.
 
 ### Added
 
+- **More slicers for 3D Print.** 3D Print now finds Creality Print,
+  ElegooSlicer, Snapmaker Orca, QIDI Studio, Anycubic Slicer Next,
+  Orca-Flashforge and SuperSlicer when you have installed them, including in a
+  folder you chose at install, and sends them 3MF or STL.
+
 - **The view cube's Home is kept for each document between runs.** Set Current
   View as Home holds the next time you open the viewer too, until you choose
   Reset Home to Isometric.
