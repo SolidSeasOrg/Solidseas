@@ -8,6 +8,17 @@ while the project takes shape.
 
 ### Added
 
+- **Read your CAD files from any MCP app.** `solidseas mcp --root ID=DIR` lets
+  Claude Desktop, Claude Code and other apps that add Model Context Protocol
+  servers read the SOLIDWORKS files in folders you choose, on Linux or Windows,
+  without SOLIDWORKS and without changing a file: folder listings, summaries,
+  custom properties, configurations, components, references, bills of materials,
+  path reports and stored previews, and with `--catalog` search, where-used,
+  duplicates, missing references and recent changes. Each answer is the same
+  JSON the REST service gives, nothing outside the folders is read, and under
+  the LocalProviderOnly machine policy every tool refuses. docs/MCP.md says how
+  to set it up and what reaches the app's model.
+
 - **The REST service describes itself in OpenAPI.** `GET /v1/openapi.json`, the
   new `solidseas openapi` command and `docs/openapi.json` give an OpenAPI 3.0.3
   description of every route, parameter, status code and error code, so an HTTP

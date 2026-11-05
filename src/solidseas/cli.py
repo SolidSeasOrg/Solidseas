@@ -40,7 +40,9 @@ released export (``docs/DRAWINGS.md`` 12.6).
 
 ``serve`` runs the REST service (``solidseas.serve``) until it is stopped: it
 prints one ``serve_started`` line on standard output when it is ready (one
-compact JSON line under ``--json``) and logs to standard error.
+compact JSON line under ``--json``) and logs to standard error. ``mcp`` offers the same
+reads to an MCP app on standard input and output (``solidseas.serve.mcp``) until the app
+closes standard input.
 
 ``list`` and ``batch`` read each document in a worker process
 (:class:`solidseas.workers.WorkerPool`), as the service does: a file that hangs,
@@ -2027,6 +2029,31 @@ def _serve_settings(args: argparse.Namespace) -> dict[str, Any]:
     return settings
 
 
+def _service_roots(roots: list[Root], command: str) -> list[Root]:
+    """The roots of ``serve`` or ``mcp``: at least one, each a folder that exists."""
+    if not roots:
+        raise InvalidArgumentError(
+            f"{command} needs at least one --root ID=DIR", detail={"parameter": "root"}
+        )
+    for r in roots:
+        if not os.path.isdir(r.path):
+            raise FileNotFoundError(2, f"root {r.id}: no such folder", r.path)
+    return roots
+
+
+def cmd_mcp(args: argparse.Namespace) -> int:
+    """Serve an MCP client on standard input and output (``solidseas.serve.mcp``) until it
+    closes standard input: the service's reads over the same roots, with no port.
+    Standard output carries the protocol alone, so a failure before it serves is one
+    line on standard error, ``--json`` or not."""
+    from .serve.mcp import DEFAULT_WORKERS, serve_stdio
+
+    args.json = False
+    projects = _root_args(args.root, "project", "--root")
+    roots = _service_roots(projects + _root_args(args.library, "library", "--library"), "mcp")
+    return serve_stdio(Roots(roots), workers=args.workers or DEFAULT_WORKERS, catalog=bool(args.catalog))
+
+
 def cmd_serve(args: argparse.Namespace) -> int:
     """Run the REST service. Refusals (a remote bind without its settings, a token file
     others can read) exit 3 before anything listens; once it serves, it runs until
@@ -2051,12 +2078,7 @@ def cmd_serve(args: argparse.Namespace) -> int:
         parse_identity_address(text)  # refused before the token file is touched
     for text in s["allow_origins"]:
         parse_origin(text)
-    roots = s["roots"]
-    if not roots:
-        raise InvalidArgumentError("serve needs at least one --root ID=DIR", detail={"parameter": "root"})
-    for r in roots:
-        if not os.path.isdir(r.path):
-            raise FileNotFoundError(2, f"root {r.id}: no such folder", r.path)
+    roots = _service_roots(s["roots"], "serve")
     token_path, tokens, created = ensure_token_file(s["token_file"])
     key_file = s["identity_key_file"] or default_identity_key_file(token_path)
     _key_path, identity_key, key_created = ensure_identity_key(key_file)
@@ -3389,6 +3411,7 @@ COMMANDS: dict[str, Command] = {
         Command("catalogs", "catalog_list", "none", cmd_catalogs),
         Command("clear-index", "catalog_cleared", "none", cmd_clear_index),
         Command("serve", "serve_started", "none", cmd_serve),
+        Command("mcp", None, "none", cmd_mcp),  # speaks MCP on standard output: no envelope
         Command("drawing", "drawing_result", "path", cmd_drawing),
         Command("history", "file_history", "path", cmd_history),
         Command("snapshot", "snapshot_taken", "path", cmd_snapshot),
@@ -4058,6 +4081,28 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="serve the reference web viewer at /viewer/ (provisional): the file list, a part or assembly in "
         "3D and the BOM, in a browser on this machine",
+    )
+    sp = add(
+        "mcp",
+        "let an MCP app (Claude Desktop, Claude Code...) read the files under the given roots, over "
+        "standard input and output, read-only",
+        target="none",
+        json_help="changes nothing: standard output carries the protocol alone",
+    )
+    sp.add_argument(
+        "--root", action="append", metavar="ID=DIR", help="a folder to read, recursively; repeat for more"
+    )
+    sp.add_argument(
+        "--library", action="append", metavar="ID=DIR", help="a library folder, searched after the roots"
+    )
+    sp.add_argument(
+        "--workers", type=_positive_int, default=None, help="worker processes reading documents (default 2)"
+    )
+    sp.add_argument(
+        "--catalog",
+        action="store_true",
+        help="keep a catalog of the roots in your cache folder and offer search, where_used, duplicates, "
+        "missing_references and recent_changes",
     )
     def add_catalog_choice(sp: argparse.ArgumentParser) -> None:
         g = sp.add_mutually_exclusive_group()

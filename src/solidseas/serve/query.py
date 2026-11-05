@@ -147,6 +147,59 @@ def parse_query(raw: str, allowed: Mapping[str, Param]) -> tuple[dict[str, Any],
         if value == "":
             raise _bad(name, "an empty value is not accepted; leave the parameter out instead")
         given[name] = value
+    return _converted(given, allowed)
+
+
+def _as_query_text(name: str, spec: Param, value: Any) -> str:
+    """A JSON argument written as a query would carry it, after a check of its JSON type."""
+    if spec.kind == "int":
+        if isinstance(value, bool) or not isinstance(value, int):
+            raise _bad(name, "a whole number")
+        return str(value)
+    if spec.kind == "bool":
+        if not isinstance(value, bool):
+            raise _bad(name, "true or false")
+        return "true" if value else "false"
+    if spec.kind == "include":
+        if not isinstance(value, list) or not all(isinstance(v, str) and "," not in v for v in value):
+            raise _bad(name, f"a list of {', '.join(spec.choices)}")
+        value = ",".join(value)
+    if not isinstance(value, str):
+        raise _bad(name, "text")
+    try:
+        value.encode("utf-8")
+    except UnicodeEncodeError:  # a lone surrogate: a query decoded as strict UTF-8 never holds one
+        raise _bad(name, "not valid Unicode text") from None
+    return value
+
+
+def parse_arguments(
+    args: Mapping[str, Any], allowed: Mapping[str, Param]
+) -> tuple[dict[str, Any], tuple[tuple[str, str], ...]]:
+    """What :func:`parse_query` returns, from JSON arguments (an MCP tool call) instead of a
+    query string: each value is checked for its JSON type (an integer, a boolean, a list
+    of ``include`` members, text otherwise), written as the query would carry it and
+    converted by the same rules, so the same bounds, enumerations, unknown names and
+    empty values are refused in the same words."""
+    given: dict[str, str] = {}
+    for name, value in args.items():
+        spec = allowed.get(name)
+        if spec is None:
+            raise ServiceError(
+                "unknown_parameter",
+                "the route does not accept a parameter by that name",
+                detail={"parameter": str(name)[:64]},
+            )
+        text = _as_query_text(name, spec, value)
+        if text == "":
+            raise _bad(name, "an empty value is not accepted; leave the argument out instead")
+        given[name] = text
+    return _converted(given, allowed)
+
+
+def _converted(
+    given: dict[str, str], allowed: Mapping[str, Param]
+) -> tuple[dict[str, Any], tuple[tuple[str, str], ...]]:
     out: dict[str, Any] = {}
     for name, spec in allowed.items():
         if name in given:
@@ -190,4 +243,4 @@ def requested_location(raw: str, *, nested: bool = False) -> dict[str, Any] | No
     return out
 
 
-__all__ = ["MAX_FIELDS", "Param", "ServiceError", "parse_query", "requested_location"]
+__all__ = ["MAX_FIELDS", "Param", "ServiceError", "parse_arguments", "parse_query", "requested_location"]

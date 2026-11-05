@@ -5,7 +5,8 @@
 * :mod:`.paths`: a request path checked as text and found in the root's folder
   index, never joined into a path;
 * :mod:`.tokens`: the bearer-token file and the service's identity key;
-* :mod:`.config`: the settings file of ``solidseas serve --config``.
+* :mod:`.config`: the settings file of ``solidseas serve --config``;
+* :mod:`.mcp`: ``solidseas mcp``, the same reads for an MCP app, with no port.
 
 The Python API of this package is provisional until 0.2.0.
 """

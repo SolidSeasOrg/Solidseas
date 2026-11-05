@@ -740,14 +740,17 @@ class Server:
     :meth:`serve_forever`. ``pool`` is a worker pool to use instead of the one the
     service would create (tests pass one with test jobs; the CLI never does); the
     service closes a pool it created, and one it was given only when :meth:`shutdown`
-    is asked to."""
+    is asked to. With ``listen=False`` nothing is bound and :attr:`httpd` is None: the
+    same roots, workers and answers for ``solidseas mcp`` (:mod:`.mcp`), which takes its
+    requests on standard input instead of a port."""
 
-    def __init__(self, config: ServeConfig, *, pool: WorkerPool | None = None) -> None:
+    def __init__(self, config: ServeConfig, *, pool: WorkerPool | None = None, listen: bool = True) -> None:
         bind_host = check_bind(
             config.host, allow_remote=config.allow_remote, allowed_hosts=config.allowed_hosts
         )
         self.config = config
-        self.tokens = TokenChecker(config.tokens, identity_key=config.identity_key)
+        # without a port there are no HTTP clients, so no tokens to check
+        self.tokens = TokenChecker(config.tokens, identity_key=config.identity_key) if listen else None
         self._states = [_RootState(r) for r in config.roots]
         self._by_id = {s.id: s for s in self._states}
         self._pool = pool
@@ -768,13 +771,16 @@ class Server:
         # the last scans' catalog_scan data, newest last (a long-running service keeps a few)
         self.catalog_scans: deque = deque(maxlen=CATALOG_SCANS_KEPT)
         self._openapi: tuple[bytes, str] | None = None  # the description's body and ETag, once built
-        try:
-            self.httpd = _HTTPServer((bind_host, config.port), self)
-        except OSError as exc:  # the port is taken, or the address is not this machine's
-            raise AddressUnavailableError(
-                f"cannot listen on {bind_host} port {config.port}: {exc.strerror or exc}"
-            ) from None
-        self.host, self.port = self.httpd.server_address[:2]
+        self.httpd: _HTTPServer | None = None
+        self.host, self.port = bind_host, config.port
+        if listen:
+            try:
+                self.httpd = _HTTPServer((bind_host, config.port), self)
+            except OSError as exc:  # the port is taken, or the address is not this machine's
+                raise AddressUnavailableError(
+                    f"cannot listen on {bind_host} port {config.port}: {exc.strerror or exc}"
+                ) from None
+            self.host, self.port = self.httpd.server_address[:2]
         self._identity_addresses = {parse_identity_address(t) for t in config.identity_addresses}
         self.allow_origins = frozenset(config.allow_origins)
         self.viewer_files = load_viewer() if config.viewer else None
@@ -835,7 +841,8 @@ class Server:
         budget = self.config.shutdown_budget_s if budget_s is None else budget_s
         if self._serving:
             self.httpd.shutdown()
-        self.httpd.server_close()
+        if self.httpd is not None:
+            self.httpd.server_close()
         self._catalog_stop.set()  # a scan stops between files, before the workers go
         if self._catalog_thread is not None:
             self._catalog_thread.join(budget)

@@ -6295,6 +6295,7 @@ it.
 | `list FOLDER` | `--formats solidworks\|all\|IDS` (default `solidworks`), `--recursive`, `--include properties,configurations`, `--preview none`, `meta` (default) or `inline`, `--max-depth N`, `--limit N`, `--max-examined N`, `--timeout SECONDS`, `--file-timeout SECONDS` (default 30), `--memory-mb N` (default 2048), `--in-process` | `listing` |
 | `batch FOLDER -o DIR` | `--no-recurse`, `--no-preview`, `--no-parasolid`, `--text`, `--configuration NAME`, `--allow-partial`, `--other-configurations` and `--include-hidden` (assemblies), `--max-mb N`, `--jobs N` (1 to 64, default 1), `--file-timeout SECONDS` (default 300), `--memory-mb N` (default 2048), `--in-process`, `--max-examined N`, `--force`, `--allow-source-dir` | `batch_summary` |
 | `serve` | `--root ID=DIR` (repeatable), `--library ID=DIR`, `--port N` (default 8765; 0 picks a free port), `--bind ADDRESS` (default 127.0.0.1), `--token-file PATH`, `--identity-key-file PATH`, `--workers N`, `--allow-remote`, `--allowed-host NAME`, `--identity-address ADDRESS:PORT` (repeatable), `--allow-origin ORIGIN` (repeatable), `--config FILE`, `--viewer`, `--catalog`, `--catalog-rescan SECONDS` (default 300), `--formats solidworks\|all\|IDS` (default `solidworks`) | `serve_started`, one compact line when it is ready; then it serves until stopped (section 8) |
+| `mcp` | `--root ID=DIR` (repeatable), `--library ID=DIR`, `--workers N` (default 2), `--catalog` | none: standard output carries the Model Context Protocol until the app closes standard input (8.20, `docs/MCP.md`) |
 | `index FOLDER...` | `--root ID=DIR`, `--library DIR` or `ID=DIR` (each repeatable), `--catalog NAME`, `--db FILE` or `--in-project`, `--formats IDS`, `--hash all\|duplicates\|none`, `--no-previews`, `--verify`, `--part-number-property NAME`, `--workers N` (default 2), `--file-timeout SECONDS` (default 30), `--timeout SECONDS` | `catalog_scan` (provisional) |
 | `where-used FILE` | `--configuration NAME`, `--direct`, `--max-depth N` (default 32), `--catalog NAME`, `--db FILE` or `--in-project` | `where_used` (provisional) |
 | `search TEXT...` | `--sort relevance\|name\|modified`, `--limit N` (1 to 500, default 100), `--cursor C`, `--catalog NAME`, `--db FILE` or `--in-project` | `catalog_search` (provisional) |
@@ -7835,6 +7836,17 @@ To use it, import the file into an HTTP client or API tool that reads OpenAPI
 Then set the server's port and give the tool your token as a bearer token. Keep
 the token in the tool's secret store rather than in the document or a URL, and
 regenerate the client when the document's `info.version` changes.
+
+### 8.20 The same reads for MCP apps (provisional)
+
+`solidseas mcp --root ID=DIR ...` offers the routes that read documents to an app that
+speaks the Model Context Protocol (Claude Desktop, Claude Code and others), on standard
+input and output, with no port and no token. Each tool is one route of 8.6, its arguments
+that route's parameters with the same bounds, and its answer the route's envelope, made by
+the same code (`Server` built with `listen=False`): the same roots and root-relative paths,
+the same refusals of 8.5, the same worker processes, deadlines and size caps. The machine
+policy's `LocalProviderOnly` makes every tool refuse. `docs/MCP.md`, "Reading your CAD files
+from any MCP app", has the tools, how to set an app up and what reaches the app's model.
 
 ## 9. Stability policy and deprecations
 
