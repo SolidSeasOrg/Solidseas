@@ -65,6 +65,25 @@ def test_every_relative_link_reaches_a_file_and_its_anchor(document):
     assert not broken, broken
 
 
+def test_the_readme_links_work_on_a_package_index():
+    """The README is the package's long description, shown on a package index where a
+    relative link leads nowhere: it links into the repository by full URL, and each of
+    those reaches a file and its anchor here."""
+    blob = wiki_sync.REPOSITORY_URL + "/blob/main/"
+    broken = []
+    for link in wiki_sync.links((ROOT / "README.md").read_text(encoding="utf-8")):
+        if not wiki_sync.SCHEME.match(link.target):
+            broken.append(f"{link.line}: {link.target} (relative)")
+        elif link.target.startswith(blob):
+            path, _, anchor = link.target.removeprefix(blob).partition("#")
+            target = ROOT / path
+            if not target.is_file():
+                broken.append(f"{link.line}: {link.target} (no such file)")
+            elif anchor and target.suffix == ".md" and anchor not in anchors(target):
+                broken.append(f"{link.line}: {link.target} (no such heading)")
+    assert not broken, broken
+
+
 @pytest.mark.parametrize("document", DOCUMENTS, ids=lambda p: p.relative_to(ROOT).as_posix())
 def test_the_text_keeps_to_the_house_style(document):
     text = document.read_text(encoding="utf-8")

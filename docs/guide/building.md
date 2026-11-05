@@ -1,9 +1,9 @@
 # Building SolidSeas
 
 This page is for people working on SolidSeas itself: setting up a checkout,
-running the checks, building the Windows executable and installer, keeping the
-build's lock file current, running the viewer's self-test, and copying this
-guide to the GitHub wiki. Contributors and agents should read
+running the checks, building and checking the Python package, building the
+Windows executable and installer, keeping the build's lock file current,
+running the viewer's self-test, and copying this guide to the GitHub wiki. Contributors and agents should read
 [AGENTS.md](../../AGENTS.md) first, and [CONTRIBUTING.md](../../CONTRIBUTING.md)
 says what helps a pull request.
 
@@ -26,6 +26,40 @@ CASCADE. [OCCT.md](../OCCT.md) records how SolidSeas uses Open CASCADE: as a
 test oracle, and in the OCCT backend extension, whose helper program reads and
 writes IGES and BREP, never inside the library
 or the viewer.
+
+## Building and checking the Python package
+
+The library is packaged as a source archive (sdist) and a wheel. To build both
+into a folder outside the checkout, with [uv](https://docs.astral.sh/uv/):
+
+```bash
+uv build --out-dir /tmp/solidseas-dist
+```
+
+(`python -m build --outdir /tmp/solidseas-dist` does the same with the `build`
+package.) The wheel holds the `solidseas` and `solidseas_app` packages, the REST
+service's reference viewer with three.js, and the licence files
+(`LICENSE`, `NOTICE`, `THIRD_PARTY_NOTICES.txt` and three.js's `LICENSE`) in
+its metadata. Its long description is `README.md`, which therefore links into
+the repository by full URL: a relative link leads nowhere on a package index,
+and `tests/test_user_guide.py` fails on one. The sdist holds what builds the
+wheel and leaves out the tests (`MANIFEST.in`).
+
+Then check the wheel as someone installing it meets it:
+
+```bash
+scripts/smoke-wheel.sh /tmp/solidseas-dist/solidseas-<version>-py3-none-any.whl
+scripts/smoke-wheel.sh /tmp/solidseas-dist/solidseas-<version>-py3-none-any.whl 3.12   # one Python
+```
+
+For Python 3.11, 3.12 and 3.13 (uv fetches any it does not have), it installs
+the wheel and its dependencies from PyPI into a new virtual environment, away
+from the checkout, runs `pip check`, and runs the installed `solidseas` command:
+`version`, `info` and `list` on `tests/fixtures/o02_boxA.STL`, `openapi`,
+`serve` on a free port (asking it for `/v1/health` and the reference viewer,
+then stopping it with Ctrl+C) and an MCP handshake with `solidseas mcp`. It
+prints PASS or FAIL for each Python and leaves nothing behind.
+`uvx twine check /tmp/solidseas-dist/*` checks that the description renders.
 
 ## Building the Windows executable
 
@@ -113,29 +147,42 @@ package is not offered yet.
 
 ## Making a release
 
-1. Build the extension packages from the release's commit:
+A release is named after the version in `src/solidseas/__init__.py`, and its
+tag is that version with a `v` in front (`v0.2.600`): the release workflow
+stops when the tag and the version differ.
+
+1. Make the release's commit. Set the version with
+   `scripts/bump-version.sh --set X.Y.Z`, move the entries under
+   `## [Unreleased]` in `CHANGELOG.md` to a new section below it,
+   `## [X.Y.Z] - YYYY-MM-DD`, and leave `## [Unreleased]` empty above it.
+   Commit both files together: the pre-commit hook leaves the version alone in
+   a commit that changes it. Run the checks, build the Python package and run
+   `scripts/smoke-wheel.sh` on it as above, then tag that commit `vX.Y.Z` and
+   push the commit and the tag. Every later commit moves the version on, so
+   tag this commit and no other.
+2. Build the extension packages from the release's commit:
    `scripts\build-extensions.ps1 -Venv .venv` (with `-FfmpegFolder`, `-FfmpegSource` and,
    if you have it, `-SolidCraftZip`). It writes the zips and their
    `SHA256SUMS.txt` to `dist\extensions`.
-2. Draft the release on GitHub for that commit's tag, and attach the zips and
+3. Draft the release on GitHub for that commit's tag, and attach the zips and
    `dist\extensions\SHA256SUMS.txt`, which the workflow checks them against.
    Attach that file, which lists only the zips, rather than `dist\SHA256SUMS.txt`:
    the workflow builds its own viewer, so a viewer hash from your build would
    not match.
-3. Publish the release. The release workflow checks the zips, builds the
+4. Publish the release. The release workflow checks the zips, builds the
    viewer and the installer to accept them, tests the installed viewer and
    attaches the installer, `SolidSeasViewer.exe` and `BUNDLED-FILES.txt`. It
    then replaces the `SHA256SUMS.txt` you attached with one list for the whole
    release: the installer under both its names, `SolidSeasViewer.exe` and the
    zips. Check that the release's `SHA256SUMS.txt` names the installer once the
    workflow has finished.
-4. If you attach packages after publishing, replace the release's
+5. If you attach packages after publishing, replace the release's
    `SHA256SUMS.txt` with a `dist\extensions\SHA256SUMS.txt` that lists every
    zip the release carries (the workflow's list does not name the new ones).
    Then run the workflow again by hand for the tag (Actions > Release
    installer > Run workflow), so the viewer accepts them and the list covers
    them.
-5. Attach to the same release, beside the program and the packages, the source
+6. Attach to the same release, beside the program and the packages, the source
    archives that `licenses/SOURCE.txt` lists: the whole repository at the tag
    (`git archive --format=tar.gz --prefix=SolidSeas-<version>/ -o
    SolidSeas-<version>-source.tar.gz v<version>`, which a host that adds a

@@ -1,0 +1,4 @@
+# The source archive (sdist) holds what builds the wheel: the package sources, pyproject.toml,
+# the README and the licence files. setuptools would also add the test modules, which cannot
+# run from it (their fixtures and conftest.py are not in it), so they are left out.
+prune tests

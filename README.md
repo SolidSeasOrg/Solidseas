@@ -29,7 +29,7 @@ Website: https://solidseas.app
 ## Status
 
 - **Stable:** the library's public API, its command line and the REST service,
-  since 0.2.0, apart from what [docs/API.md](docs/API.md) marks provisional.
+  since 0.2.0, apart from what [docs/API.md](https://github.com/SolidSeas/SolidSeas/blob/main/docs/API.md) marks provisional.
   Their names, JSON, exit codes and routes change only under its stability
   policy (section 9).
 - **Preview:** SolidSeas Viewer, the desktop app.
@@ -42,11 +42,11 @@ Website: https://solidseas.app
   edges along its depth and on the hole's far edge. Parts without fillets open
   in SOLIDWORKS 2024 with their feature tree; parts with a fillet have not been
   opened in SOLIDWORKS yet. It is not in the viewer.
-  [The command line](docs/guide/command-line.md#solidworks-parts-from-a-design)
+  [The command line](https://github.com/SolidSeas/SolidSeas/blob/main/docs/guide/command-line.md#solidworks-parts-from-a-design)
   says what it writes, and
-  [docs/NATIVE_SLDPRT_WRITER.md](docs/NATIVE_SLDPRT_WRITER.md) has the research.
+  [docs/NATIVE_SLDPRT_WRITER.md](https://github.com/SolidSeas/SolidSeas/blob/main/docs/NATIVE_SLDPRT_WRITER.md) has the research.
 
-[docs/ROADMAP.md](docs/ROADMAP.md) has the phases.
+[docs/ROADMAP.md](https://github.com/SolidSeas/SolidSeas/blob/main/docs/ROADMAP.md) has the phases.
 
 ## Install
 
@@ -65,7 +65,7 @@ python -m pip install /path/to/SolidSeas
 pip install -e ".[app]"          # add the viewer (PySide6) to a checkout
 ```
 
-[Installing SolidSeas](docs/guide/installing.md) has the details.
+[Installing SolidSeas](https://github.com/SolidSeas/SolidSeas/blob/main/docs/guide/installing.md) has the details.
 
 ## Quick start
 
@@ -104,54 +104,54 @@ and DXF carry the PRELIMINARY stamp), the modeling assistant, and the
 Gridfinity, video export, SolidCraft and CAD Bridge extensions. In
 development: the OCCT backend extension. Please report problems at
 https://github.com/SolidSeas/SolidSeas/issues.
-[The viewer](docs/guide/viewer.md#experimental-features) has the full list.
+[The viewer](https://github.com/SolidSeas/SolidSeas/blob/main/docs/guide/viewer.md#experimental-features) has the full list.
 
 ## Documentation
 
-The [user guide](docs/guide/index.md):
+The [user guide](https://github.com/SolidSeas/SolidSeas/blob/main/docs/guide/index.md):
 
-- [Installing](docs/guide/installing.md) and [the viewer](docs/guide/viewer.md)
-- [Every 3D format](docs/guide/formats.md),
-  [Where Used and BOMs](docs/guide/where-used-and-bom.md),
-  [3D Print and STEP export](docs/guide/3d-print.md),
-  [Drawings](docs/guide/drawings.md)
-- [Settings and the 3D view](docs/guide/settings.md),
-  [the modeling assistant](docs/guide/assistant.md)
-- [The command line and REST service](docs/guide/command-line.md),
-  [the Python library](docs/guide/python-library.md)
-- [Building SolidSeas](docs/guide/building.md)
+- [Installing](https://github.com/SolidSeas/SolidSeas/blob/main/docs/guide/installing.md) and [the viewer](https://github.com/SolidSeas/SolidSeas/blob/main/docs/guide/viewer.md)
+- [Every 3D format](https://github.com/SolidSeas/SolidSeas/blob/main/docs/guide/formats.md),
+  [Where Used and BOMs](https://github.com/SolidSeas/SolidSeas/blob/main/docs/guide/where-used-and-bom.md),
+  [3D Print and STEP export](https://github.com/SolidSeas/SolidSeas/blob/main/docs/guide/3d-print.md),
+  [Drawings](https://github.com/SolidSeas/SolidSeas/blob/main/docs/guide/drawings.md)
+- [Settings and the 3D view](https://github.com/SolidSeas/SolidSeas/blob/main/docs/guide/settings.md),
+  [the modeling assistant](https://github.com/SolidSeas/SolidSeas/blob/main/docs/guide/assistant.md)
+- [The command line and REST service](https://github.com/SolidSeas/SolidSeas/blob/main/docs/guide/command-line.md),
+  [the Python library](https://github.com/SolidSeas/SolidSeas/blob/main/docs/guide/python-library.md)
+- [Building SolidSeas](https://github.com/SolidSeas/SolidSeas/blob/main/docs/guide/building.md)
 
 Reference:
 
 | Document | Covers |
 |---|---|
-| [API.md](docs/API.md) | the library, the command line and the REST service |
-| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | how the pieces fit together |
-| [DRAWINGS.md](docs/DRAWINGS.md) | the drawings specification |
-| [EXTENSIONS.md](docs/EXTENSIONS.md) | extension packages |
-| [MCP.md](docs/MCP.md) | SolidSeas as an MCP server |
-| [ASSISTANT.md](docs/ASSISTANT.md) | the modeling assistant's design |
-| [FORMAT.md](docs/FORMAT.md) | the SOLIDWORKS file format |
-| [NATIVE_SLDPRT_WRITER.md](docs/NATIVE_SLDPRT_WRITER.md) | research: writing native parts without SOLIDWORKS |
-| [GRIDFINITY.md](docs/GRIDFINITY.md) | Gridfinity bins from photos |
-| [SECURITY_REVIEW.md](docs/SECURITY_REVIEW.md) | the security review |
+| [API.md](https://github.com/SolidSeas/SolidSeas/blob/main/docs/API.md) | the library, the command line and the REST service |
+| [ARCHITECTURE.md](https://github.com/SolidSeas/SolidSeas/blob/main/docs/ARCHITECTURE.md) | how the pieces fit together |
+| [DRAWINGS.md](https://github.com/SolidSeas/SolidSeas/blob/main/docs/DRAWINGS.md) | the drawings specification |
+| [EXTENSIONS.md](https://github.com/SolidSeas/SolidSeas/blob/main/docs/EXTENSIONS.md) | extension packages |
+| [MCP.md](https://github.com/SolidSeas/SolidSeas/blob/main/docs/MCP.md) | SolidSeas as an MCP server |
+| [ASSISTANT.md](https://github.com/SolidSeas/SolidSeas/blob/main/docs/ASSISTANT.md) | the modeling assistant's design |
+| [FORMAT.md](https://github.com/SolidSeas/SolidSeas/blob/main/docs/FORMAT.md) | the SOLIDWORKS file format |
+| [NATIVE_SLDPRT_WRITER.md](https://github.com/SolidSeas/SolidSeas/blob/main/docs/NATIVE_SLDPRT_WRITER.md) | research: writing native parts without SOLIDWORKS |
+| [GRIDFINITY.md](https://github.com/SolidSeas/SolidSeas/blob/main/docs/GRIDFINITY.md) | Gridfinity bins from photos |
+| [SECURITY_REVIEW.md](https://github.com/SolidSeas/SolidSeas/blob/main/docs/SECURITY_REVIEW.md) | the security review |
 
 ## Contributing
 
-Want to help? See [CONTRIBUTING.md](CONTRIBUTING.md), and read
-[AGENTS.md](AGENTS.md) before your first change. To report a security problem,
-see [SECURITY.md](SECURITY.md). What changed in each release is in
-[CHANGELOG.md](CHANGELOG.md).
+Want to help? See [CONTRIBUTING.md](https://github.com/SolidSeas/SolidSeas/blob/main/CONTRIBUTING.md), and read
+[AGENTS.md](https://github.com/SolidSeas/SolidSeas/blob/main/AGENTS.md) before your first change. To report a security problem,
+see [SECURITY.md](https://github.com/SolidSeas/SolidSeas/blob/main/SECURITY.md). What changed in each release is in
+[CHANGELOG.md](https://github.com/SolidSeas/SolidSeas/blob/main/CHANGELOG.md).
 
 ## Licence
 
-SolidSeas is licensed under the Apache License 2.0. See [LICENSE](LICENSE) and
-[NOTICE](NOTICE).
+SolidSeas is licensed under the Apache License 2.0. See [LICENSE](https://github.com/SolidSeas/SolidSeas/blob/main/LICENSE) and
+[NOTICE](https://github.com/SolidSeas/SolidSeas/blob/main/NOTICE).
 
 SolidSeas Viewer and the extension packages also carry third-party software
 under their own licences, among them Qt and Qt for Python under the GNU LGPL
 version 3 and, in the video package, an LGPL build of FFmpeg.
-[THIRD_PARTY_NOTICES.txt](THIRD_PARTY_NOTICES.txt) lists each one, what its
+[THIRD_PARTY_NOTICES.txt](https://github.com/SolidSeas/SolidSeas/blob/main/THIRD_PARTY_NOTICES.txt) lists each one, what its
 licence asks and where its source is, and how to run the viewer with your own
 build of Qt. The licence texts are in `licenses/`, and the viewer shows them
 under Help > Licences.
