@@ -6,9 +6,12 @@ what it says, and .github/workflows/release.yml runs only for a release, on GitH
 runner, with every action pinned to a commit."""
 
 import ast
+import hashlib
 import importlib.metadata
 import os
 import re
+import shutil
+import subprocess
 import sys
 import types
 from pathlib import Path
@@ -22,6 +25,7 @@ BUILD_VIEWER = ROOT / "scripts" / "build-viewer.ps1"
 BUILD_INSTALLER = ROOT / "scripts" / "build-installer.ps1"
 RELEASE = ROOT / ".github" / "workflows" / "release.yml"
 WORKFLOWS = sorted((ROOT / ".github" / "workflows").glob("*.yml"))
+PWSH = shutil.which("pwsh") or shutil.which("pwsh", path=os.path.expanduser("~/.local/bin"))
 
 
 # -- the spec, run with stand-ins for PyInstaller -------------------------------------------
@@ -414,16 +418,16 @@ def test_the_release_accepts_its_own_extension_packages_before_it_builds_the_vie
     assert "$accepted = 'src\\solidseas_app\\extensions\\accepted.json'" in _step(accept)
     assert "PYTHONPATH: src" in _step(accept)
     assert "$options.ExtensionsFolder = 'dist\\extensions'" in _step(build)
-    # the hand-attached packages and their checksums are never uploaded over
-    upload = _step("Attach the installer and the single-file viewer to the release")
-    assert ".zip" not in without_comments(upload) and "SHA256SUMS" not in without_comments(upload)
+    # the hand-attached packages are never uploaded over, and their list is replaced by the
+    # release's own, never sent back as it was downloaded
+    upload = without_comments(_step("Attach the installer and the single-file viewer to the release"))
+    assert ".zip" not in upload and "extensions" not in upload
+    assert "'dist\\SHA256SUMS.txt' --clobber" in upload
 
 
 def test_the_release_s_package_check_runs_against_a_real_package(tmp_path):
     """The Python the accept step writes to a file and runs, run here on a package built
     the way scripts/build-extensions.ps1 builds one."""
-    import subprocess
-
     from solidseas_app.extensions import package
 
     script = _step("Accept the extension packages")
@@ -448,6 +452,72 @@ def test_the_release_s_package_check_runs_against_a_real_package(tmp_path):
     accepted.write_text('{"version": 1, "accepted": {}}', encoding="utf-8")
     refused = run(str(tmp_path / "check.py"), str(accepted), zip_path)
     assert refused.returncode != 0 and "not one this version of SolidSeas accepts" in refused.stderr
+
+
+def _run_block(step: str) -> str:
+    """The PowerShell a release step runs, its "run: |" block without the indent."""
+    lines = []
+    for line in step.split("        run: |\n", 1)[1].splitlines():
+        if line.strip() and not line.startswith(" " * 10):
+            break
+        lines.append(line[10:])
+    return "\n".join(lines) + "\n"
+
+
+def _run_step(tmp_path, name: str, **env) -> subprocess.CompletedProcess:
+    """Run the release step ``name`` in ``tmp_path`` as the runner's pwsh shell does, stopping
+    at the first error. PowerShell on Linux reads the step's backslash paths as folders."""
+    script = tmp_path / "step.ps1"
+    script.write_text("$ErrorActionPreference = 'Stop'\n" + _run_block(_step(name)), encoding="utf-8")
+    return subprocess.run(
+        [PWSH, "-NoProfile", "-NonInteractive", "-File", str(script)],
+        cwd=tmp_path,
+        env={**os.environ, **env},
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+
+
+@pytest.mark.skipif(PWSH is None, reason="no pwsh (PowerShell 7) here")
+@pytest.mark.parametrize("extensions", [True, False], ids=["with-packages", "without-packages"])
+def test_the_release_writes_one_sha256sums_for_everything_it_attaches(tmp_path, extensions):
+    write = "Write SHA256SUMS.txt for the release"
+    names = [n for n, _ in _release_steps()]
+    assert names.index("Build the single-file viewer and run its self-test") < names.index(write)
+    assert names.index(write) < names.index("Attach the installer and the single-file viewer to the release")
+    dist = tmp_path / "dist"
+    (dist / "extensions").mkdir(parents=True)
+    built = {"SolidSeas-Setup-1.2.3.exe": b"MZ the installer", "SolidSeasViewer.exe": b"MZ the viewer"}
+    packages = {"cad-bridge-1.2.3.zip": b"PK the bridge", "video-1.2.3.zip": b"PK the video"}
+    for name, data in built.items():
+        (dist / name).write_bytes(data)
+    for name, data in packages.items():
+        (dist / "extensions" / name).write_bytes(data)
+    # the list attached by hand, as scripts/build-extensions.ps1 writes it
+    by_hand = "".join(f"{hashlib.sha256(data).hexdigest()}  {name}\n" for name, data in packages.items())
+    (dist / "extensions" / "SHA256SUMS.txt").write_bytes(by_hand.encode("ascii"))
+
+    done = _run_step(tmp_path, write, VERSION="1.2.3", EXTENSIONS="true" if extensions else "false")
+    assert done.returncode == 0, done.stderr
+    listed = {
+        "SolidSeas-Setup-1.2.3.exe": built["SolidSeas-Setup-1.2.3.exe"],
+        "SolidSeas-Setup.exe": built["SolidSeas-Setup-1.2.3.exe"],
+        "SolidSeasViewer.exe": built["SolidSeasViewer.exe"],
+        **(packages if extensions else {}),
+    }
+    # the form sha256sum -c reads: ASCII, two spaces, LF line ends, a newline after the last
+    want = "".join(f"{hashlib.sha256(data).hexdigest()}  {name}\n" for name, data in listed.items())
+    assert (dist / "SHA256SUMS.txt").read_bytes() == want.encode("ascii")
+    assert (dist / "SolidSeas-Setup.exe").read_bytes() == built["SolidSeas-Setup-1.2.3.exe"]
+    # the list the packages were checked against stays in dist\extensions as it was
+    assert (dist / "extensions" / "SHA256SUMS.txt").read_bytes() == by_hand.encode("ascii")
+    if extensions:
+        # A run by hand later downloads this list in its place; the check still passes.
+        (dist / "extensions" / "SHA256SUMS.txt").write_bytes(want.encode("ascii"))
+        check = _run_step(tmp_path, "Check the extension packages against SHA256SUMS.txt", VERSION="1.2.3")
+        assert check.returncode == 0, check.stderr
+        assert check.stdout.split() == [part for line in by_hand.splitlines() for part in line.split()]
 
 
 def test_ci_tests_the_viewer_on_the_hosted_windows_runner_only():

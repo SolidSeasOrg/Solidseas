@@ -4,7 +4,9 @@ name: Release installer
 # attaches it, with its SHA-256, to that release. It can also be run by hand for an existing
 # release tag, which replaces the installer attached to it. The extension packages attached to
 # the release, checked against its SHA256SUMS.txt, are the ones the viewer it builds accepts
-# and the installer carries; a release with none gives a viewer that accepts none.
+# and the installer carries; a release with none gives a viewer that accepts none. Last, it
+# replaces that SHA256SUMS.txt with one list for the whole release: the installer, the
+# single-file viewer and the packages.
 #
 # It runs only on GitHub's own Windows runner, never on the project's self-hosted machine,
 # and never for a pull request: it builds only a tag a maintainer has released. The token
@@ -226,19 +228,38 @@ jobs:
           if (-not (Test-Path -LiteralPath $bundled)) { throw "The single-file build wrote no $bundled" }
           Copy-Item -LiteralPath $bundled -Destination 'dist\BUNDLED-FILES.txt' -Force
 
-      - name: Attach the installer and the single-file viewer to the release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # One list for every file a person downloads to run or add: the installer under both its
+      # names, the single-file viewer and the extension packages. It replaces the list attached
+      # by hand, which names only the packages and stays in dist\extensions as the check above
+      # read it. The packages' lines are the same, since they were checked against it; a run
+      # by hand later downloads this list instead, and its check reads only the packages' lines.
+      - name: Write SHA256SUMS.txt for the release
         run: |
           $setup = "dist\SolidSeas-Setup-$env:VERSION.exe"
           # The same installer under a name without the version, so a link to the latest
           # release's SolidSeas-Setup.exe (the website's download) always finds the newest.
           Copy-Item -LiteralPath $setup -Destination 'dist\SolidSeas-Setup.exe' -Force
-          # Only the files this workflow built, and SOURCE.txt, which says where the source of the
-          # LGPL software in them is, beside them as the LGPL asks. --clobber replaces an attached
-          # file of the same name, so the extension packages, the source archives and
-          # SHA256SUMS.txt attached by hand are never sent.
+          $files = @(Get-Item -LiteralPath $setup, 'dist\SolidSeas-Setup.exe', 'dist\SolidSeasViewer.exe')
+          if ($env:EXTENSIONS -eq 'true') {
+            $files += @(Get-ChildItem -LiteralPath 'dist\extensions' -Filter '*.zip' -File | Sort-Object Name)
+          }
+          $sums = foreach ($f in $files) {
+            '{0}  {1}' -f (Get-FileHash -LiteralPath $f.FullName -Algorithm SHA256).Hash.ToLowerInvariant(), $f.Name
+          }
+          # LF line ends, so sha256sum -c reads the list on Linux and macOS too
+          Set-Content -LiteralPath 'dist\SHA256SUMS.txt' -Value ((@($sums) -join "`n") + "`n") -NoNewline -Encoding ascii
+          Get-Content -LiteralPath 'dist\SHA256SUMS.txt'
+
+      - name: Attach the installer and the single-file viewer to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $setup = "dist\SolidSeas-Setup-$env:VERSION.exe"
+          # Only the files this workflow built or wrote, and SOURCE.txt, which says where the source
+          # of the LGPL software in them is, beside them as the LGPL asks. --clobber replaces an
+          # attached file of the same name: SHA256SUMS.txt replaces the list attached by hand, and
+          # the extension packages and source archives attached by hand are never sent.
           gh release upload $env:TAG $setup "$setup.sha256" 'dist\SolidSeas-Setup.exe' `
             'dist\SolidSeasViewer.exe' 'dist\SolidSeasViewer.exe.sha256' 'dist\BUNDLED-FILES.txt' `
-            'licenses\SOURCE.txt' --clobber --repo $env:GITHUB_REPOSITORY
+            'dist\SHA256SUMS.txt' 'licenses\SOURCE.txt' --clobber --repo $env:GITHUB_REPOSITORY
           if ($LASTEXITCODE -ne 0) { throw "gh could not attach the installer to $env:TAG" }

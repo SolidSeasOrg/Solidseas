@@ -104,10 +104,12 @@ to the release, checks each against the release's `SHA256SUMS.txt`, and builds
 the viewer and the installer to accept exactly those packages. It then installs
 the result, runs the self-test below on the installed viewer, uninstalls it, and
 attaches the installer, the single-file viewer and `BUNDLED-FILES.txt` to the
-release. It builds no extension packages: those are built on a Windows PC and
-attached by hand, as the checklist below says. A release with none attached
-gives a viewer that accepts none. The OCCT backend's package is not offered
-yet.
+release, with one `SHA256SUMS.txt` for the whole release in place of the list
+attached with the packages: it names the installer under both its names, the
+single-file viewer and the packages. It builds no extension packages: those are
+built on a Windows PC and attached by hand, as the checklist below says. A
+release with none attached gives a viewer that accepts none. The OCCT backend's
+package is not offered yet.
 
 ## Making a release
 
@@ -116,14 +118,22 @@ yet.
    if you have it, `-SolidCraftZip`). It writes the zips and their
    `SHA256SUMS.txt` to `dist\extensions`.
 2. Draft the release on GitHub for that commit's tag, and attach the zips and
-   `dist\extensions\SHA256SUMS.txt`. Attach that file, which lists only the
-   zips, rather than `dist\SHA256SUMS.txt`: the workflow builds its own viewer,
-   so a viewer hash from your build would not match.
+   `dist\extensions\SHA256SUMS.txt`, which the workflow checks them against.
+   Attach that file, which lists only the zips, rather than `dist\SHA256SUMS.txt`:
+   the workflow builds its own viewer, so a viewer hash from your build would
+   not match.
 3. Publish the release. The release workflow checks the zips, builds the
    viewer and the installer to accept them, tests the installed viewer and
-   attaches the installer, `SolidSeasViewer.exe` and `BUNDLED-FILES.txt`.
-4. If you attach packages after publishing, run the workflow again by hand for
-   the tag (Actions > Release installer > Run workflow), so the viewer accepts
+   attaches the installer, `SolidSeasViewer.exe` and `BUNDLED-FILES.txt`. It
+   then replaces the `SHA256SUMS.txt` you attached with one list for the whole
+   release: the installer under both its names, `SolidSeasViewer.exe` and the
+   zips. Check that the release's `SHA256SUMS.txt` names the installer once the
+   workflow has finished.
+4. If you attach packages after publishing, replace the release's
+   `SHA256SUMS.txt` with a `dist\extensions\SHA256SUMS.txt` that lists every
+   zip the release carries (the workflow's list does not name the new ones).
+   Then run the workflow again by hand for the tag (Actions > Release
+   installer > Run workflow), so the viewer accepts them and the list covers
    them.
 5. Attach to the same release, beside the program and the packages, the source
    archives that `licenses/SOURCE.txt` lists: the whole repository at the tag

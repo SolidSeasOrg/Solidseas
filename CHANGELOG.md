@@ -8,6 +8,10 @@ while the project takes shape.
 
 ### Added
 
+- **One checksum list for each release.** Every release now has a SHA256SUMS.txt
+  that lists the installer under both its names, SolidSeasViewer.exe and the
+  extension packages, so you can check any download against one file.
+
 - **Read your CAD files from any MCP app.** `solidseas mcp --root ID=DIR` lets
   Claude Desktop, Claude Code and other apps that add Model Context Protocol
   servers read the SOLIDWORKS files in folders you choose, on Linux or Windows,
