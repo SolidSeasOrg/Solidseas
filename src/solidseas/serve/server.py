@@ -57,7 +57,9 @@ meets them:
    ``source`` is ``{"root", "path"}``. Error objects never carry the reader's
    own message (it can hold an absolute path). Answers have size caps, an
    ``ETag`` computed from a ``stat`` (``If-None-Match`` answers 304 without
-   reading the file), and the security headers on every response. No HTML,
+   reading the file), and the security headers on every response. ``/v1/openapi.json``
+   (provisional) answers the service's OpenAPI description (:mod:`.openapi`) as bare
+   JSON, without the envelope, since tools expect the document alone. No HTML,
    SVG or XML is ever served; a preview is served only after its bytes are
    checked to be a PNG or a BMP.
 10. **The catalog** (``--catalog``, provisional). The service keeps a catalog of
@@ -493,6 +495,8 @@ ROUTES: dict[str, Route] = {
         ),
         Route("/v1/version", "version", {}),
         Route("/v1/roots", "roots", {}),
+        # the OpenAPI description of these routes (provisional, .openapi): bare JSON, no kind
+        Route("/v1/openapi.json", None, {}),
         Route(
             "/v1/list",
             "listing",
@@ -763,6 +767,7 @@ class Server:
         self._catalog_stop = threading.Event()
         # the last scans' catalog_scan data, newest last (a long-running service keeps a few)
         self.catalog_scans: deque = deque(maxlen=CATALOG_SCANS_KEPT)
+        self._openapi: tuple[bytes, str] | None = None  # the description's body and ETag, once built
         try:
             self.httpd = _HTTPServer((bind_host, config.port), self)
         except OSError as exc:  # the port is taken, or the address is not this machine's
@@ -1008,6 +1013,21 @@ class Server:
             _fit_users(data, source, answer.cap)
         answer.json(model.envelope(route.kind, data, source=source))
         answer.etag = self.etag(route.kind, hashlib.sha256(answer.body).hexdigest())
+        answer.not_modified_for(if_none_match)
+        return answer
+
+    def openapi_answer(self, if_none_match: str | None) -> "_Answer":
+        """``/v1/openapi.json`` (provisional): the OpenAPI description of the routes
+        (:func:`.openapi.build_openapi`), bare JSON rather than an envelope, built on the
+        first request and kept, with an ETag from its bytes."""
+        if self._openapi is None:
+            from .openapi import build_openapi
+
+            body = model.dumps(build_openapi()).encode("ascii")
+            self._openapi = (body, self.etag("openapi", hashlib.sha256(body).hexdigest()))
+        body, tag = self._openapi
+        answer = _Answer(etag=tag)
+        answer.body = body
         answer.not_modified_for(if_none_match)
         return answer
 
@@ -2068,6 +2088,8 @@ class _Handler(BaseHTTPRequestHandler):
             return _Answer().json(model.envelope("version", model.build_version()))
         if route.kind == "roots":
             return _Answer().json(model.envelope("roots", model.build_roots(app.root_states())))
+        if route.path == "/v1/openapi.json":
+            return app.openapi_answer(inm)
         if route.kind == "listing":
             return app.listing(route, q, canonical, self._t0, inm)
         if route.kind == "bom":

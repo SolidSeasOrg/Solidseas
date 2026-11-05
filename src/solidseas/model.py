@@ -1596,8 +1596,8 @@ def build_file_written(
     height: int | None = None,
     source: str | None = None,
 ) -> dict[str, Any]:
-    """``file_written`` data: one file the command line wrote (``dump``, ``preview`` and
-    ``convert``). ``source`` says where a preview came from (``stored`` in the file, or
+    """``file_written`` data: one file the command line wrote (``dump``, ``preview``,
+    ``convert`` and ``openapi``). ``source`` says where a preview came from (``stored`` in the file, or
     ``rendered`` from its geometry), or which backend wrote a converted file (``occt``)."""
     return to_json_data(
         {
@@ -4104,7 +4104,7 @@ KINDS: dict[str, KindSpec] = {
             _FILE_WRITTEN_SCHEMA,
             (),
             build_file_written,
-            ("dump", "preview", "convert"),
+            ("dump", "preview", "convert", "openapi"),
             None,
         ),
         _kind(

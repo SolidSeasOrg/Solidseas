@@ -1895,9 +1895,8 @@ def test_the_server_process_never_opens_a_document(tree, monkeypatch):
     running = Running({"jobs": tree / "jobs"}, workers=1, catalog=True)  # its scans read in workers too
     try:
         assert wait_for(lambda: running.server._catalog_path is not None, 120)
-        assert {route for route, _ in ROUTE_MIX} | {"health", "identity", "version", "roots"} == {
-            p.removeprefix("/v1/") for p in ROUTES
-        }
+        reads_nothing = {"health", "identity", "version", "roots", "openapi.json"}
+        assert {route for route, _ in ROUTE_MIX} | reads_nothing == {p.removeprefix("/v1/") for p in ROUTES}
         for route, params in ROUTE_MIX:
             r = running.get(route, **params)
             assert r.status == 200, (route, r.body[:200])

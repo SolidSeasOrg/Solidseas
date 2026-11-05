@@ -43,8 +43,9 @@ What it covers:
   (section 7);
 - the REST service, `solidseas serve` (section 8), how to run it as a
   background service (8.14), how a client checks it before sending its
-  token (8.16), its configuration file (8.17) and its reference viewer
-  (8.18);
+  token (8.16), its configuration file (8.17), its reference viewer
+  (8.18) and its description in OpenAPI 3.0.3 for HTTP tools and code
+  generators (8.19, provisional);
 - the error codes and warning codes;
 - how to read the JSON from JavaScript (section 6), recipes in Python, curl
   and TypeScript (section 10), and troubleshooting (section 11).
@@ -5142,7 +5143,7 @@ renaming or retyping one, or changing its meaning, does. The API version is 1.
 | `bom` | 1 | built, provisional | `bom` | `/v1/bom` |
 | `listing` | 1 | built | `list` | `/v1/list` |
 | `streams` | 1 | built | `streams` | |
-| `file_written` | 1 | built | `dump`, `preview`, `convert` | |
+| `file_written` | 1 | built | `dump`, `preview`, `convert`, `openapi` | |
 | `parasolid_result` | 1 | built | `parasolid` | |
 | `export_result` | 1 | built, provisional | `export` | |
 | `batch_summary` | 1 | built | `batch` | |
@@ -5460,7 +5461,7 @@ they describe.
 - `streams`: `{"format", "streams": [{"name", "size", "compressed_size",
   "codec"}]}`. Names are exact, so a legacy property set keeps its leading
   `\u0005`.
-- `file_written` (`dump`, `preview`, `convert`): `{"output", "bytes", "stream",
+- `file_written` (`dump`, `preview`, `convert`, `openapi -o`): `{"output", "bytes", "stream",
   "raw", "mime", "width", "height", "source"}`. `output` is the absolute path
   written; fields a command does not set are null. `source` (provisional) says
   where a preview came from: `stored` in the file, or `rendered` from a model
@@ -6309,6 +6310,7 @@ it.
 | `diff FILE [OLDER] [NEWER]` | versions named `working`, `latest`, `vN` or by id; `--source auto\|git\|snapshots`, `--project DIR` or `--store DIR`, `--no-measures`, `--timeout SECONDS` (default 60) | `version_diff` (provisional) |
 | `version` | | `version` |
 | `schema [KIND]` | `--data` | none: prints the JSON Schema of the kind's envelope (of its `data` alone with `--data`), or with no KIND the list of kinds |
+| `openapi` | `-o FILE`, `--force` | none: prints the service's OpenAPI description (8.19, provisional); with `-o`, writes it to FILE and prints `file_written` |
 
 `list` is the folder listing of section 5.7, with the same defaults as `scan`:
 not recursive, previews described but not inlined. Its `--include` adds to the
@@ -6924,6 +6926,7 @@ as HTTP/1.1 with every header of 8.11, and the connection is closed.
 | `/v1/identity` | `client`\*, `nonce`\* | `identity`: the service's proof that it holds the client's token (8.16); needs no token | | |
 | `/v1/version` | none | `version` | | |
 | `/v1/roots` | none | `roots` | | |
+| `/v1/openapi.json` | none | the OpenAPI description of these routes, `application/json` without an envelope (provisional, 8.19) | | |
 | `/v1/list` | `root`\*, `path` (a folder; the root when left out), `recursive`, `include`, `limit` (1 to 500, default 100), `cursor`, `formats` | `listing` | 60 s per page, 10 s per file | 8 MiB |
 | `/v1/document` | `root`\*, `path`\*, `nested` | `document_summary`; `model_summary` for a model file | 15 s | 1 MiB |
 | `/v1/properties` | `root`\*, `path`\*, `configuration`, `view` (`effective`, `file` or `configuration`), `nested` | `properties` | 15 s | 1 MiB |
@@ -7780,6 +7783,59 @@ a reference for a page of your own, and a quick look at what a service serves.
   can delete when you are done. Without `--viewer` nothing of this is served,
   and `/` and `/viewer/` answer as any unknown route does.
 
+### 8.19 The API description (OpenAPI)
+
+The service describes itself in OpenAPI 3.0.3, the format HTTP tools and code
+generators read: every route of 8.6, each query parameter with its type,
+choices, bounds, default and whether it is required, the bearer token of 8.3,
+the envelopes of section 4, and the status codes and error codes each route can
+answer. It is made from the service's own table of routes and parameters, so it
+says what the service enforces. It is provisional (section 9).
+
+There are three ways to get it, all the same document:
+
+- **From a running service:** `GET /v1/openapi.json`, with the token like every
+  route but `/v1/health` and `/v1/identity`. It answers `application/json` with
+  the document alone, without the envelope, and an `ETag`.
+- **From the command line:** `solidseas openapi` prints it, and
+  `solidseas openapi -o FILE` writes it to a file (an existing file only with
+  `--force`; with `--json`, the `file_written` result).
+- **From the repository:** `docs/openapi.json`, kept equal to what the command
+  prints by a test.
+
+```sh
+solidseas openapi -o solidseas-openapi.json
+curl -sS --fail-with-body -H @"$HOME/.config/solidseas/default.header" \
+  -o solidseas-openapi.json "http://127.0.0.1:8765/v1/openapi.json"
+```
+
+What it holds:
+
+- `info.version` is the API line, the major and minor version of SolidSeas
+  (`0.2`), so the document changes only when the API does. The SolidSeas version
+  that answers is in every envelope's `solidseas`.
+- One server, `http://127.0.0.1:{port}`, whose `port` defaults to 8765. Set it to
+  the port the service was started with, or replace the address for a service
+  bound elsewhere (8.2).
+- One operation per route, each with an `operationId` (`getDocument`,
+  `listFolder`, `getPreview`...) and a tag: `service`, `files` or `catalog`.
+  Every route answers HEAD too, though the document lists GET.
+- The bearer scheme applies to every operation but `getHealth` and
+  `getIdentity`. Check the service with `/v1/identity` before sending the token
+  (8.16): a generated client does not do that for you.
+- Each kind's `data` is described as an object that names the kind and its
+  section of this document; `solidseas schema KIND` prints the kind's full JSON
+  Schema. The error envelope lists the error codes of 5.6 as an open set.
+- Operations and parameters that are provisional carry
+  `x-solidseas-provisional: true`.
+- Deadlines and size caps in the descriptions are the defaults of 8.8.
+
+To use it, import the file into an HTTP client or API tool that reads OpenAPI
+3.0, or give it to an OpenAPI code generator to make a client in your language.
+Then set the server's port and give the tool your token as a bearer token. Keep
+the token in the tool's secret store rather than in the document or a URL, and
+regenerate the client when the document's `info.version` changes.
+
 ## 9. Stability policy and deprecations
 
 This policy is in effect from 0.2.0. Releases before 0.2.0 were provisional
@@ -7868,6 +7924,8 @@ provisional item can change at any commit. It is:
   warning codes `history_incomplete`, `lfs_not_fetched` and `measures_incomplete`.
 - The service's configuration file (8.17, `serve --config`) and its CORS for
   named origins (`serve --allow-origin`, 8.4), while they are new.
+- The API description (8.19), while it is new: the route `/v1/openapi.json`,
+  the command `openapi` and the document's content and layout.
 - 3D models for a web page, while they are new: `solidseas.gltf` (3.28), the
   route `/v1/mesh` with the job `display_glb`, the rule `mesh_in_flight`,
   `ServeConfig.mesh_in_flight`, and the reference viewer (`serve --viewer`,

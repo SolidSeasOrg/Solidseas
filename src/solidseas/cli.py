@@ -3150,6 +3150,25 @@ def cmd_schema(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def cmd_openapi(args: argparse.Namespace) -> int:
+    """Print the REST service's OpenAPI description (provisional, ``docs/API.md`` 8.19), or
+    write it to ``-o FILE`` under the write guards. It is JSON with or without ``--json``;
+    with ``-o``, ``--json`` prints the ``file_written`` envelope."""
+    from .serve.openapi import build_openapi
+
+    if args.force and args.output is None:
+        raise InvalidArgumentError("--force applies to -o FILE", detail={"parameter": "force"})
+    if args.output is None:
+        _print_json(build_openapi())
+        return EXIT_OK
+    out = check_output_file(args.output, [], allow_source_dir=False, force=args.force)
+    data = (model.dumps(build_openapi(), pretty=True) + "\n").encode("utf-8")
+    _write(out, data)
+    if not args.json:
+        _say(f"wrote the OpenAPI description ({len(data)} bytes) to {out}")
+    return _emit(args, "file_written", model.build_file_written(out, len(data), mime="application/json"))
+
+
 # --------------------------------------------------------------------------- versions
 def _store_options(args: argparse.Namespace) -> dict[str, Any]:
     return {"project": args.project, "store": args.store}
@@ -3376,6 +3395,7 @@ COMMANDS: dict[str, Command] = {
         Command("diff", "version_diff", "path", cmd_diff),
         Command("version", "version", "none", cmd_version),
         Command("schema", None, "none", cmd_schema),
+        Command("openapi", "file_written", "none", cmd_openapi),
     )
 }
 
@@ -4373,6 +4393,13 @@ def build_parser() -> argparse.ArgumentParser:
     sp = add("schema", "print the JSON Schema of a kind's envelope, or list the kinds", target="none")
     sp.add_argument("kind", nargs="?", help="a JSON kind, such as document_summary or listing")
     sp.add_argument("--data", action="store_true", help="the schema of data alone, without the envelope")
+    sp = add(
+        "openapi",
+        "print the OpenAPI 3.0.3 description of the REST service's routes (provisional)",
+        target="none",
+    )
+    sp.add_argument("-o", "--output", default=None, help="write it to this file instead")
+    sp.add_argument("--force", action="store_true", help="overwrite the -o file if it exists")
     return p
 
 

@@ -8,6 +8,12 @@ while the project takes shape.
 
 ### Added
 
+- **The REST service describes itself in OpenAPI.** `GET /v1/openapi.json`, the
+  new `solidseas openapi` command and `docs/openapi.json` give an OpenAPI 3.0.3
+  description of every route, parameter, status code and error code, so an HTTP
+  tool or code generator can connect without reading the prose docs
+  (provisional, docs/API.md 8.19).
+
 - **Drawings to ISO.** Drawing Settings > Standard and Units chooses ASME or
   ISO, and the projection angle. An ISO drawing places its views in first angle,
   shows the first-angle symbol and states TOLERANCING ISO 8015. Its sheets,
