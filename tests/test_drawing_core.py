@@ -131,6 +131,22 @@ def test_witnesses_answer_where_a_visible_line_is():
     assert g.witness_at("x", 0.02, 1e-6) is None
 
 
+def test_the_model_governs_note_names_the_model_in_capitals():
+    """Not only in Express: a simplified drawing of a part numbered in lower case lettered
+    its note in lower case, which R10.text refuses (SolidSeas-77nj)."""
+    from types import SimpleNamespace
+
+    from solidseas.drawing.plan.notes import model_note
+
+    ctx = SimpleNamespace(options=SimpleNamespace(express=False, detail="simplified"))
+    for title, model in (
+        ({"model": ("bracket-2", "part")}, "BRACKET-2"),
+        ({"part_number": ("ab-12c", "part")}, "AB-12C"),  # no model field: the part number
+    ):
+        text = model_note(ctx, title).text  # type: ignore[arg-type]
+        assert text.startswith(f"REDUCED-DIMENSION DRAWING OF MODEL {model}. ") and text == text.upper()
+
+
 def test_coverage_says_reduced_dimension_in_words():
     full = types.Coverage(features=3, faces=10, faces_claimed=10, area=1.0, area_claimed=1.0)
     assert full.complete and "every" in full.words()

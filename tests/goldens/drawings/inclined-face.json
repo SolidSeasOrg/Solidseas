@@ -19,14 +19,7 @@
       "DIMENSIONS SHOWN TAKE PRECEDENCE OVER THE MODEL"
     ]
   },
-  "findings": {
-    "automated": {
-      "finding": "R10.text: the model-governs note names the model by its file name as it is, in lower case (inclined_hole_block), where notes are in capitals (rule 10); whether a quoted file name may keep its case is for the review.",
-      "problems": [
-        "error R10.text notes: 'inclined_hole_block 4D9E052790719A3A. DIMENSIONS' is not in capitals"
-      ]
-    }
-  },
+  "findings": {},
   "snapshot": {
     "plan": {
       "options": {
@@ -76,7 +69,7 @@
         "REMOVE ALL BURRS. BREAK SHARP EDGES .005-.015",
         "SURFACE FINISH 125 µin MAX.",
         "DIMENSIONS APPLY AFTER FINISH.",
-        "REDUCED-DIMENSION DRAWING OF MODEL inclined_hole_block 4D9E052790719A3A. DIMENSIONS SHOWN TAKE PRECEDENCE OVER THE MODEL. SURFACES NOT DIMENSIONED ARE DEFINED BY THE MODEL WITHIN"
+        "REDUCED-DIMENSION DRAWING OF MODEL INCLINED_HOLE_BLOCK 4D9E052790719A3A. DIMENSIONS SHOWN TAKE PRECEDENCE OVER THE MODEL. SURFACES NOT DIMENSIONED ARE DEFINED BY THE MODEL WITHIN"
       ],
       "title": {"number": "INCLINED_HOLE_BLOCK", "title": "INCLINED_HOLE_BLOCK", "part_number": "INCLINED_HOLE_BLOCK", "revision": "A", "model": "inclined_hole_block 4D9E052790719A3A"},
       "coverage": [5, 1, 9, 7],
@@ -97,8 +90,7 @@
         "information R6.signatures CHECKED: CHECKED is not signed",
         "error R6.title DRAWN: nobody is named as DRAWN, with the date",
         "error R6.title finish: the title block's FINISH is empty",
-        "error R6.title material: the title block's MATERIAL is empty",
-        "error R10.text notes: 'inclined_hole_block 4D9E052790719A3A. DIMENSIONS' is not in capitals"
+        "error R6.title material: the title block's MATERIAL is empty"
       ]
     },
     "svg": {
@@ -112,7 +104,7 @@
       "visible": {"n": 105, "sum": 10453.19, "digest": "f4741e49aec8d4fe"}
     },
     "pdf": {
-      "content": "d5c72b983620fcfd",
+      "content": "7e9b31b1b5c60752",
       "operators": {"BDC": 7, "BT": 83, "EMC": 7, "ET": 83, "G": 1, "J": 2, "S": 106, "Tf": 83, "Tj": 83, "Tm": 83, "c": 12, "d": 3, "f": 12, "g": 1, "h": 56, "j": 1, "l": 214, "m": 118, "w": 6},
       "groups": [
         "Visible",
@@ -153,7 +145,7 @@
         "3. SURFACE FINISH 125 µin MAX.",
         "4. DIMENSIONS APPLY AFTER FINISH.",
         "5. REDUCED-DIMENSION DRAWING OF MODEL",
-        "inclined_hole_block 4D9E052790719A3A. DIMENSIONS",
+        "INCLINED_HOLE_BLOCK 4D9E052790719A3A. DIMENSIONS",
         "SHOWN TAKE PRECEDENCE OVER THE MODEL.",
         "SURFACES NOT DIMENSIONED ARE DEFINED BY THE",
         "MODEL WITHIN",
@@ -209,7 +201,7 @@
       ]
     },
     "dxf": {
-      "tags": "5d2d8648e3021630",
+      "tags": "836279f46c69e70c",
       "count": 4671,
       "entities": {"DIMENSION DIM": 5, "INSERT DIM": 5, "LINE BORDER": 4, "LINE CENTER": 1, "LINE TITLE": 1, "LINE VISIBLE": 21, "LWPOLYLINE BORDER": 1, "LWPOLYLINE TITLE": 36, "SPLINE TITLE": 2, "TEXT BORDER": 8, "TEXT NOTES": 10, "TEXT STAMP": 1, "TEXT TITLE": 47},
       "blocks": {"LINE 0": 31, "LWPOLYLINE 0": 7, "POINT DEFPOINTS": 16, "SOLID 0": 12, "SPLINE 0": 2, "TEXT 0": 16}

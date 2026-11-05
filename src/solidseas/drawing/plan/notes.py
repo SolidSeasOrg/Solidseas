@@ -204,10 +204,9 @@ def _process_note(ctx: Context, fields: dict[str, str]) -> str:
 
 def model_note(ctx: Context, title: dict[str, tuple[str, str]]) -> NoteLine:
     """The model-governs note of a reduced-dimension drawing (10.10), in our words."""
-    model = title.get("model", ("", ""))[0] or title.get("part_number", ("", ""))[0]
-    if ctx.options.express:
-        # an Express drawing names the model in capitals, as every note is lettered
-        model = upper(model)
+    # the model is named in capitals, as every note is lettered (R10.text), whatever case
+    # the part's own number or file name has
+    model = upper(title.get("model", ("", ""))[0] or title.get("part_number", ("", ""))[0])
     if ctx.options.detail == "simplified" or ctx.options.express:  # no GD&T: no profile frame
         return NoteLine(
             f"{MODEL_NOTE_WORDS} {model}. DIMENSIONS SHOWN TAKE PRECEDENCE OVER "

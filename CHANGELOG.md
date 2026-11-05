@@ -433,6 +433,10 @@ while the project takes shape.
 
 ### Fixed
 
+- **The model-governs note names the model in capitals.** A reduced-dimension
+  drawing of a part whose file name or number has lower case no longer fails the
+  lettering check.
+
 - **File > Convert follows Look for referenced files only in the opened
   folder.** With the setting on, converting an assembly no longer reads
   component files from outside the folder you opened.
