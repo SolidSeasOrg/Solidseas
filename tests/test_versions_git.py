@@ -18,6 +18,7 @@ from solidseas import model, versions
 from solidseas.errors import (
     FormatNotSupportedError,
     LinkRefusedError,
+    PathRefusedError,
     VersionNotFoundError,
     VersionUnavailableError,
 )
@@ -631,6 +632,17 @@ def test_apply_delta_copies_and_inserts_and_refuses_what_does_not_fit():
     with pytest.raises(Exception) as err:
         gitrepo.apply_delta(base, _delta(base, bytes([0x80 | 0x10, 5]), 5), 4)
     assert model.error_code(err.value) == "file_too_large"
+
+
+@pytest.mark.parametrize(
+    "target",
+    [r"\??\UNC\host\share\repo.git", "/??/UNC/host/share/repo.git", r"\\?\UNC\host\share", r"\\.\pipe\x"],
+)
+def test_a_device_or_nt_prefix_in_a_git_file_is_refused_by_its_text(tmp_path, target):
+    # Windows opens \??\UNC\host\share as the share, whatever abspath makes of the text
+    with pytest.raises(PathRefusedError) as err:
+        gitrepo._check_target(target, str(tmp_path), "the .git file")
+    assert err.value.detail["rule"] == "device_path"
 
 
 def test_lfs_pointers_config_and_commits_parse_as_git_writes_them():

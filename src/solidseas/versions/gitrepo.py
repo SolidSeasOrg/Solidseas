@@ -228,7 +228,8 @@ def _check_target(target: str, base: str, what: str) -> str:
     than ``base``, decided from the text and the drive's type before anything there is
     opened."""
     full = os.path.abspath(target)
-    if full.replace("/", "\\").startswith(("\\\\?\\", "\\\\.\\")):
+    # judged on the text as written too: Windows reads \??\UNC\host\share as a share
+    if any(t.replace("/", "\\").startswith(("\\\\?\\", "\\\\.\\", "\\??\\")) for t in (target, full)):
         raise PathRefusedError(
             f"{what} names a device path, which is never read", detail={"rule": "device_path"}
         )

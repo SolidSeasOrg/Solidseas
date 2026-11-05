@@ -694,6 +694,10 @@ while the project takes shape.
 
 ### Security
 
+- **History refuses a repository that points at an NT path.** A `.git` file,
+  `commondir`, `alternates` or `lfs.storage` that starts with `\??\` is refused
+  before anything there is opened, as `\\?\` and `\\.\` already were.
+
 - **The MCP servers keep running whatever an app sends.** A message with a
   malformed id, or nested too deep, no longer stops `solidseas mcp` or the chat
   connector. When four tool calls are running and 32 are waiting, the next one
