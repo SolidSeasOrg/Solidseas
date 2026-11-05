@@ -906,3 +906,79 @@ def test_only_pools_that_read_iges_or_brep_let_their_workers_start_the_helper(st
     monkeypatch.delenv(occt.ENV_PYTHON)
     occt.BACKEND._checked = None
     assert occt.helpers_per_worker() == occt.helpers_per_worker(("iges",)) == modelpool._helpers() == 0
+
+
+# --------------------------------------------------------------------------- stale stages
+def _stage(folder: Path, age: float, name: str | None = None) -> Path:
+    """A staging folder as the backend makes one, holding a copy of a file, ``age`` seconds old."""
+    import tempfile
+    import time
+
+    path = Path(tempfile.mkdtemp(prefix=occt.STAGE_PREFIX, dir=folder)) if name is None else folder / name
+    path.mkdir(exist_ok=True)
+    (path / "in").mkdir()
+    (path / "out").mkdir()
+    (path / "in" / "model.igs").write_bytes(b"a copy of a person's file")
+    when = time.time() - age
+    for p in (path / "in" / "model.igs", path / "in", path / "out", path):
+        os.utime(p, (when, when))
+    return path
+
+
+def test_a_stale_stage_a_killed_process_left_is_swept_and_nothing_else(tmp_path, monkeypatch):
+    day = occt.STALE_SECONDS
+    stale = [_stage(tmp_path, 2 * day), _stage(tmp_path, 2 * day)]
+    kept = [
+        _stage(tmp_path, 60),  # a conversion still running in another process
+        _stage(tmp_path, 2 * day, "solidseas-occt-short"),  # not a name mkdtemp makes
+        _stage(tmp_path, 2 * day, "solidseas-occt-abcdefghi"),
+        _stage(tmp_path, 2 * day, "other-occt-abcdefgh"),
+    ]
+    # a stage with a file written a moment ago is in use, however old the folder is
+    busy = _stage(tmp_path, 2 * day)
+    (busy / "out" / "model.brep").write_bytes(b"being written")
+    kept.append(busy)
+    # a file of the stage's form is not a folder
+    plain = tmp_path / "solidseas-occt-plainfil"
+    plain.write_bytes(b"x")
+    os.utime(plain, (0, 0))
+    # a link of the stage's form is never followed, and what it points at stays
+    (tmp_path / "elsewhere").mkdir()
+    elsewhere = _stage(tmp_path / "elsewhere", 2 * day)
+    link = tmp_path / "solidseas-occt-linkfold"
+    link.symlink_to(elsewhere, target_is_directory=True)
+    # a folder holding more than a stage does is not one
+    crowded = _stage(tmp_path, 2 * day)
+    for i in range(occt._STAGE_ENTRIES):
+        (crowded / "out" / f"{i}.x").write_bytes(b"")
+        os.utime(crowded / "out" / f"{i}.x", (0, 0))
+    os.utime(crowded / "out", (0, 0))
+    kept.append(crowded)
+
+    assert occt.sweep_stale_stages(str(tmp_path)) == 2
+    assert not any(p.exists() for p in stale)
+    assert all(p.is_dir() for p in kept) and plain.is_file()
+    assert link.is_symlink() and (elsewhere / "in" / "model.igs").is_file()
+    # another account's stage is left alone
+    other = _stage(tmp_path, 2 * day)
+    if hasattr(os, "getuid"):
+        monkeypatch.setattr(os, "getuid", lambda: os.lstat(other).st_uid + 1)
+        assert occt.sweep_stale_stages(str(tmp_path)) == 0 and other.is_dir()
+    # a folder that cannot be listed sweeps nothing and raises nothing
+    assert occt.sweep_stale_stages(str(tmp_path / "missing")) == 0
+
+
+def test_the_first_stage_a_process_makes_sweeps_once(tmp_path, monkeypatch):
+    import tempfile
+
+    monkeypatch.setattr(tempfile, "tempdir", str(tmp_path))
+    monkeypatch.setattr(occt, "_swept", False)
+    old = _stage(tmp_path, 2 * occt.STALE_SECONDS)
+    calls = []
+    sweep = occt.sweep_stale_stages
+    monkeypatch.setattr(occt, "sweep_stale_stages", lambda *a, **k: calls.append(1) or sweep(*a, **k))
+    first = Path(occt._new_stage())
+    second = Path(occt._new_stage())
+    assert calls == [1] and not old.exists()
+    assert first.parent == second.parent == tmp_path and first.name.startswith(occt.STAGE_PREFIX)
+    assert occt._STAGE_NAME.fullmatch(first.name) and occt._STAGE_NAME.fullmatch(second.name)

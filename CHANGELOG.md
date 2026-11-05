@@ -647,6 +647,11 @@ while the project takes shape.
 
 ### Security
 
+- **Old copies of files sent to Open CASCADE are cleaned up.** When a conversion
+  through the OCCT backend was stopped by force, its copy of your file stayed in
+  the temporary folder; SolidSeas now removes such copies older than a day the
+  next time it uses the backend.
+
 - **SolidCraft's chat tools never look at a network share.** A path from the
   chat outside SolidCraft's folder is refused before Windows opens it, in any
   spelling of a share, so no sign-in is sent to a server the chat names.

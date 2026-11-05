@@ -48,7 +48,9 @@ import atexit
 import collections
 import hashlib
 import os
+import re
 import shutil
+import stat
 import tempfile
 import threading
 import time
@@ -88,6 +90,102 @@ NO_CHECK = (
     "The OCCT backend's helper cannot check STEP files: add the OCCT package of this SolidSeas "
     "release in Tools > Extensions."
 )
+
+
+# Staging folders a killed process left behind (a worker at its deadline, a crashed export,
+# a cancelled Convert) hold a copy of a person's file. The first stage a process makes
+# sweeps those older than STALE_SECONDS, far past any file's time limit.
+STAGE_PREFIX = "solidseas-occt-"
+STALE_SECONDS = 24 * 3600.0
+_STAGE_NAME = re.compile(re.escape(STAGE_PREFIX) + r"[a-z0-9_]{8}")  # what mkdtemp makes
+_STAGE_ENTRIES = 64  # a stage holds in\, out\ and a file or two; more is not ours
+_swept = False
+_sweep_lock = threading.Lock()
+
+
+def _is_link(st: os.stat_result) -> bool:
+    """A symbolic link, or on Windows any reparse point (a junction, a cloud placeholder)."""
+    return stat.S_ISLNK(st.st_mode) or bool(getattr(st, "st_file_attributes", 0) & 0x400)
+
+
+def _newest(path: str, st: os.stat_result) -> float | None:
+    """The newest modification time in the stage ``path`` (its folders ``in`` and ``out``
+    and what they hold), or None when it does not look like a stage this module made."""
+    newest, seen, folders = st.st_mtime, 0, [path]
+    for depth in range(2):
+        below = []
+        for folder in folders:
+            try:
+                names = os.listdir(folder)
+            except OSError:
+                return None
+            for name in names:
+                seen += 1
+                if seen > _STAGE_ENTRIES:
+                    return None
+                child = os.path.join(folder, name)
+                try:
+                    cst = os.lstat(child)
+                except OSError:
+                    return None
+                newest = max(newest, cst.st_mtime)
+                if stat.S_ISDIR(cst.st_mode) and not _is_link(cst):
+                    if depth == 1:
+                        return None
+                    below.append(child)
+        folders = below
+    return newest
+
+
+def sweep_stale_stages(folder: str | None = None, *, older_than: float = STALE_SECONDS) -> int:
+    """Remove the staging folders in ``folder`` (the temporary folder) that a killed process
+    left: only folders named as this module names them, never a link or a junction, owned
+    by this account (on Windows the temporary folder is the account's own), with nothing in
+    them changed for ``older_than`` seconds. Best effort, never raises; how many it removed."""
+    folder = folder or tempfile.gettempdir()
+    try:
+        names = os.listdir(folder)
+    except OSError:
+        return 0
+    me = os.getuid() if hasattr(os, "getuid") else None
+    now, removed = time.time(), 0
+    for name in names:
+        if not _STAGE_NAME.fullmatch(name):
+            continue
+        path = os.path.join(folder, name)
+        try:
+            st = os.lstat(path)
+        except OSError:
+            continue
+        if not stat.S_ISDIR(st.st_mode) or _is_link(st) or (me is not None and st.st_uid != me):
+            continue
+        newest = _newest(path, st)
+        if newest is None or now - newest < older_than:
+            continue
+        try:
+            shutil.rmtree(path)
+        except OSError:
+            continue
+        removed += 1
+    return removed
+
+
+def _sweep_once() -> None:
+    """Sweep stale stages the first time this process makes one."""
+    global _swept
+    with _sweep_lock:
+        if _swept:
+            return
+        _swept = True
+    try:
+        sweep_stale_stages()
+    except Exception:  # pragma: no cover - a sweep never stops a conversion
+        pass
+
+
+def _new_stage() -> str:
+    _sweep_once()
+    return tempfile.mkdtemp(prefix=STAGE_PREFIX)
 
 
 def _app():
@@ -255,7 +353,7 @@ class OcctBackend(Backend):
             self._cache_bytes -= len(old.data)
 
     def _convert(self, data: bytes, format_id: str, target: str, name: str | None) -> Converted:
-        stage = tempfile.mkdtemp(prefix="solidseas-occt-")
+        stage = _new_stage()
         try:
             src_dir, out_dir = os.path.join(stage, "in"), os.path.join(stage, "out")
             os.mkdir(src_dir)
@@ -312,7 +410,7 @@ class OcctBackend(Backend):
         if reason is not None:
             raise FormatNotSupportedError(reason, detail={"rule": "needs_extension", "value": format_id})
         with self._lock:
-            stage = tempfile.mkdtemp(prefix="solidseas-occt-")
+            stage = _new_stage()
             try:
                 src = os.path.join(stage, SOURCE_NAMES["step"])
                 with open(src, "xb") as fh:

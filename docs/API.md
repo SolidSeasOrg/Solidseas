@@ -7239,8 +7239,9 @@ reach the path report.
   first start that finds none, besides the catalog in the cache folder with
   `--catalog` and, for an IGES or BREP file read through the OCCT backend, the
   copy its helper reads in a temporary folder, removed after the file (a
-  worker killed at its deadline leaves its copy behind, `docs/SECURITY_REVIEW.md`
-  finding 59).
+  worker killed at its deadline leaves its copy behind until a process of the
+  same account next uses the backend a day or more later,
+  `docs/SECURITY_REVIEW.md` finding 59).
 - Follow a link, junction, mount point or hard link out of a root, or go
   through one: every component of a path is checked before the next is used.
   Nor does it read a cloud placeholder. With `--formats`, this holds for the
