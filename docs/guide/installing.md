@@ -11,17 +11,52 @@ Download the installer from https://solidseas.app/download/windows, or take
 [GitHub Releases](https://github.com/SolidSeas/SolidSeas/releases)
 page. Each release carries the installer with its SHA-256 in a `.sha256` file
 beside it, and the same installer named `SolidSeas-Setup.exe`, so a link to
-the latest release's `SolidSeas-Setup.exe` always gets the newest version. GitHub Releases also has the single-file `SolidSeasViewer.exe`,
-which runs without installing anything: look for it among a release's files.
+the latest release's `SolidSeas-Setup.exe` always gets the newest version.
+GitHub Releases also has the single-file `SolidSeasViewer.exe`, which runs
+without installing anything: look for it among a release's files. Each release
+also has `SHA256SUMS.txt`, one list of the SHA-256 of every file you can
+download from it.
 
-The installer and `SolidSeasViewer.exe` are not code signed yet, so the first
-time you run one, Windows SmartScreen may show "Windows protected your PC" and
-name the publisher as unknown. To run it anyway, click More info, check that the
-file is the one you downloaded from the releases page (its SHA-256 should match
-the `.sha256` file beside it), then click Run anyway. Windows remembers the
-choice for that file.
+### Check your download first
 
-What the installer does:
+The installer and `SolidSeasViewer.exe` are not code signed yet, so Windows
+cannot tell you who made them. Before you run one, check that it is exactly the
+file the release published. The SHA-256 is a long code worked out from the
+file's contents: any change to the file gives a different code.
+
+1. Open the Start menu, type PowerShell and open Windows PowerShell.
+2. Type `Get-FileHash` and a space, drag the downloaded file into the
+   PowerShell window, and press Enter.
+3. Open `SHA256SUMS.txt` from the same release page and find the line that
+   ends with your file's name. The long code at the start of that line must be
+   the same as the Hash that PowerShell shows. Capital and small letters do not
+   matter.
+
+If the codes differ, do not run the file: delete it and download it again from
+the releases page.
+
+### When Windows SmartScreen warns you
+
+The first time you run the installer or `SolidSeasViewer.exe`, Windows may
+show a blue window titled "Windows protected your PC", saying that Microsoft
+Defender SmartScreen prevented an unrecognized app from starting. It shows
+this for programs that are not signed and not yet widely downloaded; it does
+not mean anything harmful was found. Once you have checked the file as above:
+
+1. Click More info. The window then shows the file's name and "Unknown
+   publisher".
+2. Check that the name is the file you downloaded, then click Run anyway.
+
+Windows remembers the choice for that file. Your browser may also say the file
+is not commonly downloaded and ask whether to keep it; choose to keep it only
+after it came from the releases page or https://solidseas.app.
+
+On a PC where Smart App Control is turned on (in Windows Security, under App &
+browser control), Windows blocks programs that are not signed and offers no Run
+anyway. SolidSeas cannot be installed there until a signed release is
+published, so use another PC, or ask whoever looks after that PC.
+
+### What the installer does
 
 - It installs the one-folder build of SolidSeas Viewer for you alone by
   default, in `%LOCALAPPDATA%\Programs\SolidSeas`, with no administrator

@@ -319,6 +319,12 @@ while the project takes shape.
 
 ### Changed
 
+- **Install guide covers checking a download and the SmartScreen warning.**
+  Installing SolidSeas now explains, step by step, how to check a download's
+  SHA-256 before running it, what Windows SmartScreen shows for the unsigned
+  installer (More info, then Run anyway), and that Smart App Control blocks it
+  outright where it is turned on.
+
 - **Release viewers accept their own release's packages.** A release build now
   takes the extension packages attached to the release, checks each against the
   release's SHA256SUMS.txt, and builds the installer and the single-file viewer
