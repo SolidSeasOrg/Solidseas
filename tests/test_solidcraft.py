@@ -72,6 +72,43 @@ def test_paths_outside_the_folder_are_refused(tmp_path):
             S.check_paths(args, str(folder))
 
 
+def test_a_share_in_any_spelling_is_refused_before_anything_looks_at_it(tmp_path, monkeypatch):
+    """A path from the chat that is not in the folder is refused by its text alone: Windows
+    reads ``/\\host``, ``\\/host`` and ``\\??\\UNC\\host`` as a share too, and ``realpath`` would
+    open it, sending the person's credentials to that host."""
+    folder = tmp_path / "SolidCraft"
+    folder.mkdir()
+    touched = []
+
+    def trap(real):
+        def call(path, *a, **k):
+            if "evilhost" in os.fspath(path):
+                touched.append(os.fspath(path))
+                raise AssertionError(f"looked at {path!r}")
+            return real(path, *a, **k)
+
+        return call
+
+    for name in ("realpath", "exists", "lexists", "isdir", "islink"):
+        monkeypatch.setattr(S.os.path, name, trap(getattr(os.path, name)))
+    for name in ("stat", "lstat"):
+        monkeypatch.setattr(S.os, name, trap(getattr(os, name)))
+    spellings = [
+        "\\\\evilhost\\share\\x.step",
+        "//evilhost/share/x.step",
+        "/\\evilhost\\share\\x.step",
+        "\\/evilhost/share/x.step",
+        "\\??\\UNC\\evilhost\\share\\x.step",
+        "\\\\?\\UNC\\evilhost\\share\\x.step",
+        "/evilhost/share/x.step",
+    ]
+    for value in spellings:
+        with pytest.raises(S.Refused):
+            S.check_paths({"commands": [{"params": {"out": value}}]}, str(folder))
+    assert touched == []
+    S.check_paths({"path": str(folder / "part.step")}, str(folder))  # the folder's own still passes
+
+
 def _client(tmp_path, started=None):
     started = [] if started is None else started
 

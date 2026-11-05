@@ -36,6 +36,7 @@ import re
 import shutil
 import stat
 import sys
+import tempfile
 import zipfile
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
@@ -716,10 +717,61 @@ def _agrees(owner: str, found: Manifest) -> None:
             raise ExtensionError(f"The package's manifest does not match this SolidSeas ({what}).")
 
 
+CHANGED_SINCE_CHECK = (
+    "The package changed after it was checked, so nothing of it was added. Copy it to a folder "
+    "only you can change and add it again."
+)
+
+
+def _private_copy(checked: CheckedPackage, folder: str) -> str:
+    """A copy of the package at ``checked.path``, made new in ``folder`` (SolidSeas' own) and
+    hashed as it is written. :class:`ExtensionError` when the copy's SHA-256 is not the one
+    the check accepted: the file was changed since, by another account, or by the share it
+    is on answering a second read with other bytes."""
+    fd, copy = tempfile.mkstemp(prefix=f".{checked.manifest.id}.", suffix=".zip", dir=folder)
+    h = hashlib.sha256()
+    size = 0
+    try:
+        with os.fdopen(fd, "wb") as out, open(checked.path, "rb") as src:
+            for chunk in iter(lambda: src.read(1 << 20), b""):
+                size += len(chunk)
+                if size > MAX_PACKAGE_BYTES + MAX_PACKAGE_BYTES // 64:
+                    raise ExtensionError("The package is larger than SolidSeas unpacks.")
+                h.update(chunk)
+                out.write(chunk)
+        if h.hexdigest() != checked.sha256:
+            raise ExtensionError(CHANGED_SINCE_CHECK)
+    except BaseException:
+        _remove_quietly(copy)
+        raise
+    return copy
+
+
+def _remove_quietly(path: str) -> None:
+    try:
+        os.remove(path)
+    except OSError:
+        pass
+
+
 def add_package(checked: CheckedPackage, *, root: str | None = None) -> str:
-    """Unpack ``checked`` into its extension's folder (see the module notes) and return it."""
+    """Unpack ``checked`` into its extension's folder (see the module notes) and return it.
+
+    What is unpacked is a private copy of the package with the SHA-256 the check accepted,
+    checked again before any file of it is written: the file the person chose is read by
+    its path once more here, and a package changed after its check is refused rather than
+    unpacked, so the accepted hash always binds the files added."""
     root = root or extensions_root()
     os.makedirs(root, exist_ok=True)
+    copy = _private_copy(checked, root)
+    try:
+        checked = check_package(copy, accepted={checked.manifest.id: (checked.sha256,)})
+        return _unpack(checked, root)
+    finally:
+        _remove_quietly(copy)
+
+
+def _unpack(checked: CheckedPackage, root: str) -> str:
     target = installed_dir(checked.manifest.id, root)
     temp = os.path.join(root, f".{checked.manifest.id}.{os.urandom(4).hex()}.new")
     os.mkdir(temp)

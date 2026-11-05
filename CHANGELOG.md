@@ -603,6 +603,17 @@ while the project takes shape.
   assistant now waits for the process to finish exiting and reports its real
   exit code.
 
+### Security
+
+- **SolidCraft's chat tools never look at a network share.** A path from the
+  chat outside SolidCraft's folder is refused before Windows opens it, in any
+  spelling of a share, so no sign-in is sent to a server the chat names.
+
+- **Extension packages are added only as the file that was checked.** A package
+  changed after SolidSeas checked it, for example on a file share or in a folder
+  another account can change, is now refused instead of added.
+
+
 ## [0.2.361] - 2026-10-19
 
 ### Added

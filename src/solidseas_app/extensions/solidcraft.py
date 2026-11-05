@@ -54,14 +54,25 @@ def workspace() -> str:
     return folder
 
 
+def _within(path: str, folder: str) -> bool:
+    try:
+        return os.path.commonpath([path, folder]) == folder
+    except ValueError:  # another drive, or a share
+        return False
+
+
 def _inside(path: str, folder: str) -> bool:
-    if not os.path.isabs(path):
+    """Whether ``path`` lies in ``folder``: first by its text alone, so that a path elsewhere
+    is refused before anything looks at it (on Windows ``realpath`` opens the path it is
+    given, and a share in any spelling, ``/\\server``, ``\\/server`` or ``\\??\\UNC\\server``,
+    would be sent this account's credentials), then once more with its links resolved."""
+    if not os.path.isabs(path) or "\x00" in path:
+        return False
+    text, base = os.path.normcase(os.path.abspath(path)), os.path.normcase(os.path.abspath(folder))
+    if not _within(text, base):
         return False
     real, base = os.path.realpath(path), os.path.realpath(folder)
-    try:
-        return os.path.commonpath([real, base]) == base
-    except ValueError:  # another drive
-        return False
+    return _within(os.path.normcase(real), os.path.normcase(base))
 
 
 def check_paths(args: Mapping[str, Any], folder: str) -> None:

@@ -124,6 +124,50 @@ def test_a_link_a_bomb_a_wrong_file_or_a_manifest_that_differs_is_refused(tmp_pa
         X.check_package(str(not_zip), accepted=_accept(not_zip))
 
 
+def test_a_package_changed_after_its_check_is_never_unpacked(tmp_path, monkeypatch):
+    """The SHA-256 the core accepts binds what is unpacked: a package changed after its check,
+    or between its hash and the reading of its zip (a folder another account can write, or a
+    share that answers a second read with other bytes), is refused and nothing of it is added."""
+    import shutil
+
+    good = _package(tmp_path)
+    accepted = _accept(good)
+    evil_helper = b"MZ another program"
+    m = _manifest()
+    m["helper"]["files"] = {"solidseas-video.exe": hashlib.sha256(evil_helper).hexdigest()}
+    entries = [("extension.json", json.dumps(m)), ("solidseas-video.exe", evil_helper)]
+    evil = _zip(tmp_path, entries, "evil.zip")
+    download, root = tmp_path / "download.zip", tmp_path / "extensions"
+
+    shutil.copy(good, download)
+    checked = X.check_package(str(download), accepted=accepted)
+    shutil.copy(evil, download)  # after the check, before the unpack
+    with pytest.raises(X.ExtensionError, match="changed after it was checked"):
+        X.add_package(checked, root=str(root))
+    assert os.listdir(root) == [], "nothing is unpacked and no copy is left"
+
+    shutil.copy(good, download)
+    real = X._sha256
+
+    def hash_then_swap(path):
+        digest = real(path)
+        if path == str(download):
+            shutil.copy(evil, download)  # between the hash and the zip's reading
+        return digest
+
+    monkeypatch.setattr(X, "_sha256", hash_then_swap)
+    checked = X.check_package(str(download), accepted=accepted)
+    monkeypatch.setattr(X, "_sha256", real)
+    with pytest.raises(X.ExtensionError, match="changed after it was checked"):
+        X.add_package(checked, root=str(root))
+    assert os.listdir(root) == []
+
+    shutil.copy(good, download)
+    X.add_package(X.check_package(str(download), accepted=accepted), root=str(root))
+    assert (root / "video" / "solidseas-video.exe").read_bytes() == HELPER
+    assert os.listdir(root) == ["video"]
+
+
 def test_the_state_keeps_what_was_there_and_survives_a_damaged_file(tmp_path):
     path = str(tmp_path / "SolidSeas" / X.STATE_FILE)
     assert X.read_state(path).on == X.DEFAULT_ON == {"gridfinity"}, "what was already there stays on"
