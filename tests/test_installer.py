@@ -422,7 +422,7 @@ def test_the_release_accepts_its_own_extension_packages_before_it_builds_the_vie
     # release's own, never sent back as it was downloaded
     upload = without_comments(_step("Attach the installer and the single-file viewer to the release"))
     assert ".zip" not in upload and "extensions" not in upload
-    assert "'dist\\SHA256SUMS.txt' --clobber" in upload
+    assert "'dist\\SHA256SUMS.txt' 'licenses\\SOURCE.txt' --clobber" in upload
 
 
 def test_the_release_s_package_check_runs_against_a_real_package(tmp_path):
