@@ -351,7 +351,9 @@ exactly what Ctrl+1 to Ctrl+7 give.
   model.
 - Its house is Home: the view the document opened with, the isometric unless you
   right-click the cube and choose **Set Current View as Home**, which holds for
-  that document while the viewer runs.
+  that document from then on, the next time you open the viewer too, until you
+  choose **Reset Home to Isometric** in the same menu. It is kept with the
+  document's looks in `ViewerLooks.json`.
 
 The cube's clicks, Home, R, Isometric and Ctrl+1 to Ctrl+7 ease the view there in
 a fraction of a second. Drag, wheel or press a key meanwhile and it stops where

@@ -662,9 +662,10 @@ class PreviewPane(QWidget):
         self.rotation_mode = FREE
         self.show_cube = True  # Settings > View Cube in the 3D View
         self.about_pointer = True  # Settings > Turn About the Point Under the Pointer
-        # Home in the 3D view, a camera state, for each document whose user set one there,
-        # under :attr:`document_key`, while the viewer runs: its scenes open at it.
-        self._homes_by_document: dict[Any, dict[str, Any]] = {}
+        # Home in the 3D view of the document shown, a camera state, when the user set one
+        # there (None: the isometric, fitted): its scenes open at it. It is kept with the
+        # document's looks in ``view_store``, so it comes back in the next run too.
+        self.home: dict[str, Any] | None = None
         self._drawn_key: Any = None  # the document whose scene the 3D view shows, while it does
         self.doc_type: str | None = None
         self.model_file = False  # a 3D file of another format (set by the details panel)
@@ -923,13 +924,14 @@ class PreviewPane(QWidget):
 
     def reset(self, doc_type: str | None, key: Any = None) -> None:
         """A new document (or none): forget the image, the mesh and the configurations.
-        ``key`` names the document, ``(path, path below the opened folder)``, whose looks
-        and choices of sub-assemblies to explode come back from :attr:`view_store`."""
+        ``key`` names the document, ``(path, path below the opened folder)``, whose looks,
+        choices of sub-assemblies to explode and Home come back from :attr:`view_store`."""
         self.doc_type = doc_type
         self.document_key = key
         kept = self.view_store.get(document_id(key))
         self.looks = Looks.from_state(kept["looks"] if kept else None)
         self.explode_choices = dict(kept["explode"]) if kept else {}
+        self.home = kept.get("home") if kept else None
         self.instance_looks = []
         self.component_files, self.component_names = {}, {}
         self.mesh_state = "idle"
@@ -1079,17 +1081,15 @@ class PreviewPane(QWidget):
         """Before a scene of the document is shown: the view opens it at the document's
         Home, and its Home key goes there."""
         if hasattr(view, "use_home"):
-            view.use_home(self._homes_by_document.get(self.document_key))  # type: ignore[attr-defined]
+            view.use_home(self.home)  # type: ignore[attr-defined]
 
     def _home_changed(self, state: dict[str, Any] | None) -> None:
         """The user set Home in the 3D view, or put it back to the isometric: kept for this
-        document while the viewer runs."""
+        document with its looks (:meth:`_remember`), in this run and the next."""
         if self.document_key is None:
             return
-        if state:
-            self._homes_by_document[self.document_key] = dict(state)
-        else:
-            self._homes_by_document.pop(self.document_key, None)
+        self.home = dict(state) if state else None
+        self._remember()
 
     def set_boxes(self, on: bool) -> None:
         """Settings > Boxes for Missing Meshes: the assembly shown is drawn again with or
@@ -2144,8 +2144,9 @@ class PreviewPane(QWidget):
         return pieces
 
     def view_state(self) -> dict[str, Any]:
-        """What the user chose to see here, for Back (:meth:`set_view_state`)."""
-        return {"looks": self.looks.state(), "explode": dict(self.explode_choices)}
+        """What the user chose to see here, for Back (:meth:`set_view_state`), and the
+        document's Home, kept with it in :attr:`view_store`."""
+        return {"looks": self.looks.state(), "explode": dict(self.explode_choices), "home": self.home}
 
     def set_view_state(self, state: dict[str, Any] | None) -> None:
         """Put back what :meth:`view_state` gave, as Back does."""

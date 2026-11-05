@@ -2,7 +2,9 @@
 
 What the user chose to see of an assembly in the 3D view (:mod:`.preview`): the
 components hidden or made transparent (:class:`.appearance.Looks`) and the
-sub-assemblies chosen to explode or stay together (:mod:`.explode`). The preview pane
+sub-assemblies chosen to explode or stay together (:mod:`.explode`); and, for a part
+or an assembly, the view cube's Home when the user set one
+(:meth:`.view3d.ModelView.set_home`). The preview pane
 keeps them in a :class:`LookStore` for each document it shows, so they come back when
 the document is shown again. A store made with a path also keeps them in that file,
 ``SolidSeas\\ViewerLooks.json`` beside ``Viewer.ini`` (:func:`path_beside`), never next to
@@ -24,6 +26,7 @@ nothing here imports Qt.
 
 import hashlib
 import json
+import math
 import os
 import re
 import tempfile
@@ -39,6 +42,7 @@ MAX_FILE_BYTES = 4 << 20  # a file larger than this is not one of ours
 MAX_CHOICES = 2000  # a document's looks: each is one scope's hidden or transparency
 MAX_SWITCHES = 2000  # a document's sub-assemblies chosen to explode or stay together
 MAX_TEXT = 4096  # characters of a component tree id or a file key
+MAX_COORDINATE = 1e12  # a Home's numbers: anything larger is not a camera's
 _ID = re.compile(r"[0-9a-f]{64}\Z")
 _MAX_SEQ = 2**53
 
@@ -101,15 +105,61 @@ def _switches(raw: Any) -> dict[str, bool]:
     return out
 
 
+def _numbers(raw: Any, n: int) -> list[float] | None:
+    """``raw`` as ``n`` finite numbers of a sane size, or None."""
+    if not isinstance(raw, list) or len(raw) != n:
+        return None
+    if not all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in raw):
+        return None
+    out = [float(v) for v in raw]
+    return out if all(math.isfinite(v) and abs(v) <= MAX_COORDINATE for v in out) else None
+
+
+def _home(raw: Any) -> dict[str, Any] | None:
+    """``raw``, a Home the view cube set (:meth:`.viewmath.OrbitCamera.state`) read back:
+    its direction, and unless it is fitted what it looks at and how far it is zoomed;
+    None when it does not check out. Only the keys a camera takes are kept."""
+    if not isinstance(raw, dict) or not isinstance(raw.get("fitted"), bool):
+        return None
+    angles = _numbers([raw.get("yaw"), raw.get("pitch")], 2)
+    if angles is None:
+        return None
+    home: dict[str, Any] = {"yaw": angles[0], "pitch": angles[1], "fitted": raw["fitted"]}
+    if "axes" in raw:
+        axes = raw["axes"]
+        if not isinstance(axes, list) or len(axes) != 2:
+            return None
+        right, up = _numbers(axes[0], 3), _numbers(axes[1], 3)
+        if right is None or up is None:
+            return None
+        home["axes"] = [right, up]
+    if not raw["fitted"]:
+        target, size = _numbers(raw.get("target"), 3), _numbers([raw.get("half_height")], 1)
+        if target is None or size is None or size[0] <= 0:
+            return None
+        home["target"], home["half_height"] = target, size[0]
+        if "shift" in raw:
+            shift = _numbers(raw["shift"], 2)
+            if shift is None:
+                return None
+            home["shift"] = shift
+    return home
+
+
 def clean(state: Any) -> dict[str, Any] | None:
-    """A document's ``{"looks", "explode"}`` (:meth:`.preview.PreviewPane.view_state`)
-    with what does not check out left out; None when nothing is chosen."""
+    """A document's ``{"looks", "explode"}`` (:meth:`.preview.PreviewPane.view_state`),
+    with its ``"home"`` when one is set, and what does not check out left out; None when
+    nothing is chosen."""
     if not isinstance(state, dict):
         return None
     looks, switches = _looks(state.get("looks")), _switches(state.get("explode"))
-    if looks is None and not switches:
+    home = _home(state.get("home"))
+    if looks is None and not switches and home is None:
         return None
-    return {"looks": looks, "explode": switches}
+    out: dict[str, Any] = {"looks": looks, "explode": switches}
+    if home is not None:
+        out["home"] = home
+    return out
 
 
 def _keep(docs: dict[str, dict[str, Any]], ident: str, state: dict[str, Any] | None) -> None:
@@ -171,7 +221,7 @@ class LookStore:
         return docs
 
     def get(self, ident: str | None) -> dict[str, Any] | None:
-        """The ``{"looks", "explode"}`` kept for the document ``ident``, a copy, or None."""
+        """The ``{"looks", "explode"}`` (and ``"home"``) kept for the document ``ident``, a copy, or None."""
         state = self._loaded().get(ident) if ident else None
         if state is None:
             return None

@@ -23,6 +23,7 @@ from test_viewer import Viewer, _state, needs_qt
 from test_viewer_looks import O08, O16, ROTATED, SUB, _actions, _assembly_3d, _looks, _show
 
 A = hashlib.sha256(b"a document").hexdigest()
+B = hashlib.sha256(b"another document").hexdigest()
 
 
 def _chosen() -> dict:
@@ -166,6 +167,47 @@ def test_choices_that_do_not_check_out_are_left_out(tmp_path):
     assert len(store._loaded()) == 1
 
 
+HOME = {"yaw": 10.0, "pitch": 5.0, "target": [0.0, 0.0, 0.0], "half_height": 0.05, "fitted": False}
+
+
+def test_a_home_is_kept_with_the_looks_and_checked_when_read_back(tmp_path):
+    """The view cube's Home of a document (SolidSeas-6pi5): kept on its own or beside the
+    looks, and left out when it does not check out, as a hand-edited file may have it."""
+    path = tmp_path / "ViewerLooks.json"
+    store = LookStore(str(path))
+    store.put(A, {"looks": None, "explode": {}, "home": HOME})  # a Home alone is something chosen
+    free = {"yaw": 30.0, "pitch": -20.0, "axes": [[1, 0, 0], [0, 1, 0]], "fitted": True}
+    store.put(B, {**_chosen(), "home": free})
+    assert store.flush()
+    again = LookStore(str(path))
+    assert again.get(A) == {"looks": None, "explode": {}, "home": HOME}
+    assert again.get(B) == {
+        **lookstore.clean(_chosen()),
+        "home": {**free, "axes": [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]},
+    }
+    again.put(A, {"looks": None, "explode": {}, "home": None})  # Home put back to the isometric
+    assert again.get(A) is None
+    for bad in (
+        {**HOME, "fitted": "no"},
+        {**HOME, "yaw": float("nan")},
+        {**HOME, "yaw": True},
+        {**HOME, "half_height": 0},
+        {**HOME, "target": [0, 0]},
+        {**HOME, "shift": ["a", 0]},
+        {**HOME, "axes": [[1, 0, 0]]},
+        {**HOME, "pitch": 1e300},
+        {"fitted": True},
+        "home",
+    ):
+        assert lookstore.clean({"home": bad}) is None, bad
+    extra = lookstore.clean({"home": {**HOME, "shift": [0.1, 0], "colour": "red"}})
+    assert extra == {
+        "looks": None,
+        "explode": {},
+        "home": {**HOME, "shift": [0.1, 0.0]},
+    }  # what a camera takes
+
+
 def test_a_store_without_a_file_keeps_them_in_memory():
     store = LookStore(None)
     changed: list[int] = []
@@ -252,6 +294,36 @@ def test_looks_and_explode_switches_come_back_in_the_same_run_and_the_next(app, 
     finally:
         third.close()
     assert _state(FIXTURES) == before
+
+
+@needs_qt
+def test_a_documents_home_comes_back_in_the_next_run(app, tmp_path):
+    """Set Current View as Home for a document, and the next run opens it there too; Reset
+    Home forgets it (SolidSeas-6pi5)."""
+    path = tmp_path / "ViewerLooks.json"
+    first = Run(app, path)
+    try:
+        w, pane, view = _assembly_3d(first)
+        assert pane.home is None
+        pane._home_changed(HOME)  # what the view sends when its Home is set
+        _show(first, O08)
+        assert pane.home is None  # another document: its own Home, the isometric
+        _show(first, O16)
+        assert pane.home == HOME
+    finally:
+        first.close()
+    listed = json.loads(path.read_text(encoding="utf-8"))["documents"]
+    ident = document_id((str(FIXTURES / O16), O16))
+    assert listed == [{"id": ident, "looks": None, "explode": {}, "home": HOME}]
+
+    second = Run(app, path)
+    try:
+        w, pane, view = _assembly_3d(second)
+        assert pane.home == HOME
+        pane._home_changed(None)  # Reset Home
+    finally:
+        second.close()
+    assert json.loads(path.read_text(encoding="utf-8"))["documents"] == []
 
 
 @needs_qt

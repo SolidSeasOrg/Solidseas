@@ -8,6 +8,10 @@ while the project takes shape.
 
 ### Added
 
+- **The view cube's Home is kept for each document between runs.** Set Current
+  View as Home holds the next time you open the viewer too, until you choose
+  Reset Home to Isometric.
+
 - **One checksum list for each release.** Every release now has a SHA256SUMS.txt
   that lists the installer under both its names, SolidSeasViewer.exe and the
   extension packages, so you can check any download against one file.
