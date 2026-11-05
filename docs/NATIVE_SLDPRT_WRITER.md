@@ -30,7 +30,7 @@ UNKNOWN. "Offline" below means checked by code with no SOLIDWORKS.
 | The archive's object numbering, which new records must follow | VERIFIED offline (section 4.6) |
 | Parts from the clean-room generator (section 15) | VERIFIED in SOLIDWORKS 2024 for three boxes: opens with its feature tree, rebuilds to an edited depth (section 6.2) |
 | A box with one round hole cut through all, from the generator | VERIFIED in SOLIDWORKS 2024 on open: one body, Boss-Extrude1 and Cut-Extrude1, the hole in place (section 6.2); the cut's records proved on o10 and o11 but for the ring of faces on a box without fillets (HYPOTHESIS, spec 15.5.13) |
-| Fillets on a box: its four edges along its depth, and the hole's edge on its far face | Specified (spec 15.5.14, 15.6.2): both of o11's fillets proved byte for byte, and o11 as a whole from its design but for a session counter; not yet written by the generator nor checked in SOLIDWORKS |
+| Fillets on a box: its four edges along its depth, and the hole's edge on its far face | Specified (spec 15.5.14, 15.6.2): both of o11's fillets proved byte for byte, and o11 as a whole from its design but for a session counter; written by the generator (`Fillet1` and `Fillet2`, docs/guide/command-line.md), not yet checked in SOLIDWORKS |
 | Authoring new sketches, relations, dimensions and features | Not started: needs each class's field layout (4.6.1) and dimensioned fixtures |
 
 On 2026-10-19 SOLIDWORKS 2024 SP1 (revision 32.1.0) opened all 17
