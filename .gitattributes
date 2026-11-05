@@ -4,6 +4,7 @@
 # Shell scripts and git hooks must keep LF endings to run under bash
 *.sh text eol=lf
 scripts/git-hooks/* text eol=lf
+.beads/hooks/* text eol=lf
 
 # CAD and other binary formats: never normalize, never diff as text
 *.sldprt binary
