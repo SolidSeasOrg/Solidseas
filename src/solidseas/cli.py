@@ -455,9 +455,7 @@ def cmd_info(args: argparse.Namespace, doc: Document) -> int:
 
 
 def cmd_props(args: argparse.Namespace, doc: Document) -> int:
-    data = model.build_properties(
-        doc, view=args.view, configuration=args.configuration, nested=args.nested
-    )
+    data = model.build_properties(doc, view=args.view, configuration=args.configuration, nested=args.nested)
     if args.json:
         return _emit(args, "properties", data)
     _print_json(data)  # the data alone, as JSON, as in 0.1
@@ -1175,9 +1173,7 @@ def cmd_sldprt(args: argparse.Namespace) -> int:
     from .nativewrite.container import write_new_file
 
     stem = os.path.splitext(os.path.basename(args.path))[0]
-    out = check_new_part(
-        _sldprt_output(args.output, stem), args.path, allow_source_dir=args.allow_source_dir
-    )
+    out = check_new_part(_sldprt_output(args.output, stem), args.path, allow_source_dir=args.allow_source_dir)
     doc, fmt = _read_design(args.path)
     doc = _with_properties(doc, args.property or ())
     try:
@@ -1285,9 +1281,10 @@ def cmd_components(args: argparse.Namespace, doc: Document) -> int:
         detail = f", {node['configuration']}" if node["configuration"] else ""
         _say(f"{'  ' * node['depth']}{node['name']}  ({f.get('file_name') or '?'}{detail}){_flags(node)}")
     c = data["counts"]
-    _say(f"{c['nodes']} instances of {c['files']} files, {c['depth']} levels" + (
-        " (stopped at a limit)" if data["truncated"] else ""
-    ))
+    _say(
+        f"{c['nodes']} instances of {c['files']} files, {c['depth']} levels"
+        + (" (stopped at a limit)" if data["truncated"] else "")
+    )
     for w in data["warnings"]:
         _say(f"warning: {w['code']}: {w['message']}")
     return EXIT_OK
@@ -1354,9 +1351,13 @@ def cmd_references(args: argparse.Namespace, doc: Document) -> int:
                 for c in r["candidates"]:
                     _say(f"{'':<12}    candidate {_where(c)} (identity {c['identity']})")
     for sheet in data["sheets"] or []:
-        _say(f"sheet {sheet['name']}: " + (", ".join(
-            f"{v['name']} ({v['file_name']}, {v['configuration']})" for v in sheet["views"]
-        ) or "no views"))
+        _say(
+            f"sheet {sheet['name']}: "
+            + (
+                ", ".join(f"{v['name']} ({v['file_name']}, {v['configuration']})" for v in sheet["views"])
+                or "no views"
+            )
+        )
     _say(f"{len(data['files'])} referenced files")
     summary = data["resolution"]
     if summary is not None:
@@ -1479,8 +1480,12 @@ def cmd_bom(args: argparse.Namespace, doc: Document) -> int:
     if data["children_state"] == "none":
         _say(f"no BOM: the document is a {doc.doc_type or 'document of unknown type'}")
         return code
-    _say(_visible(f"configuration: {data['configuration']} ({data['configuration_source']}), "
-                  f"{bom_mod.TYPE_NAMES[data['type']]}"))
+    _say(
+        _visible(
+            f"configuration: {data['configuration']} ({data['configuration_source']}), "
+            f"{bom_mod.TYPE_NAMES[data['type']]}"
+        )
+    )
     if out is None:
         sys.stdout.write(content)
     c = data["counts"]
@@ -2295,8 +2300,10 @@ def cmd_where_used(args: argparse.Namespace) -> int:
         _say("  the index is not complete yet: rows are waiting to be read or resolved")
     for u in data["users"]:
         via = " via " + " > ".join(v["path"] or v["name"] for v in u["via"]) if u["via"] else ""
-        detail = _uses_text(u["uses"]) if u["uses"] else ", ".join(
-            f"{v['sheet']}/{v['view']} ({v['configuration']})" for v in u["views"]
+        detail = (
+            _uses_text(u["uses"])
+            if u["uses"]
+            else ", ".join(f"{v['sheet']}/{v['view']} ({v['configuration']})" for v in u["views"])
         )
         _say(f"  {u['relation']:<20}{u['root']}:{u['path']}{via}  {detail}")
     for p in data["possible"]:
@@ -4104,6 +4111,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="keep a catalog of the roots in your cache folder and offer search, where_used, duplicates, "
         "missing_references and recent_changes",
     )
+
     def add_catalog_choice(sp: argparse.ArgumentParser) -> None:
         g = sp.add_mutually_exclusive_group()
         g.add_argument("--catalog", metavar="NAME", help="the catalog of that name in the cache folder")
