@@ -132,7 +132,10 @@ def test_the_spec_makes_the_one_folder_build_when_asked(tmp_path, monkeypatch):
     assert not {"PySide6/opengl32sw.dll", "PySide6/plugins/imageformats/qjpeg.dll"} & _dests(binaries)
     assert "PySide6/translations/qt_de.qm" not in _dests(datas)
     licences = {d for d in _dests(datas) if d.startswith("licenses/")}
-    expected = {f"licenses/{p.name}" for p in (ROOT / "licenses").iterdir()}
+    # every text in licenses/ but those only an extension package or the library carries
+    not_in_viewer = {"LGPL-2.1.txt", "OCCT_LGPL_EXCEPTION.txt", "OCP-LICENSE.txt", "OCP-third-party.txt"}
+    not_in_viewer.add("three.js-LICENSE.txt")
+    expected = {f"licenses/{p.name}" for p in (ROOT / "licenses").iterdir() if p.name not in not_in_viewer}
     expected |= {f"licenses/{n}" for n in ("LICENSE", "NOTICE", "THIRD_PARTY_NOTICES.txt")}
     expected |= {"licenses/Python-LICENSE.txt", "licenses/BUNDLED-FILES.txt"}
     assert licences == expected
