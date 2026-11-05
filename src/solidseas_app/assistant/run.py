@@ -598,7 +598,10 @@ class AutomaticRun:
     the plan's handles were checked against; ``on_event(kind, data)`` hears each step;
     ``look``, when the person asked for one, looks at the part after each step that passed
     its checks (:data:`LookAfterStep`); ``goal``, the person's goal as it was sent, goes
-    into the journal, so that a run left open can be described on a later start.
+    into the journal, so that a run left open can be described on a later start, and so
+    does ``prompt``, the planning prompt as it was sent (its picture as a line), when the
+    plan came from a model SolidSeas asked. After the plan, the journal keeps the
+    confirmation: whether the plan waited for the person, why, and their Yes.
 
     The journal's first line also names the part (the SOLIDWORKS process, the document's
     key, title and path) and holds its state before the run, and each ``step_done`` line
@@ -619,6 +622,7 @@ class AutomaticRun:
         clock: Callable[[], float] = time.monotonic,
         look: LookAfterStep | None = None,
         goal: str | None = None,
+        prompt: str | None = None,
     ) -> None:
         self._attach(live, session, document, start, baseline, on_event, clock)
         self.step_soft_limit_s = step_soft_limit_s
@@ -639,6 +643,8 @@ class AutomaticRun:
         if goal:
             started["goal"] = goal
         self.journal.write("run_started", **started)
+        if prompt:
+            self.journal.write("prompt_sent", prompt=prompt)
         self.journal.write(
             "plan",
             vocabulary=start.plan.vocabulary,
@@ -647,6 +653,14 @@ class AutomaticRun:
                 {"index": s.index, "op": s.op, "args": _shown(s), "note": s.note} for s in start.plan.steps
             ],
         )
+        if start.gate is not None:
+            # A plan that waits starts only on the person's Yes; one they decline starts no run.
+            self.journal.write(
+                "confirmation",
+                waited=start.gate.waits,
+                reasons=list(start.gate.reasons),
+                answer="yes" if start.gate.waits and start.confirmed else None,
+            )
 
     def _attach(self, live, session, document, start, baseline, on_event, clock) -> None:
         self.live = live

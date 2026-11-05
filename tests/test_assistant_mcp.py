@@ -273,6 +273,15 @@ def test_a_plan_that_overwrites_waits_for_the_person_on_this_pc():
     s.confirm = lambda title, text: True
     done = data(call(s, "run_plan", {"document": "d1", "plan": plan_of(DEPTH, FINISH)}))
     assert done["status"] == "done" and live.state.custom_properties["Finish"] == "black"
+    # The run's journal keeps the person's Yes; the plan came from the chat, so no prompt was
+    # sent from SolidSeas (SolidSeas-k89g). A No starts no run, and so leaves no journal.
+    with open(os.path.join(s._runs[done["run"]].start.folder, "journal.jsonl"), encoding="utf-8") as f:
+        lines = [json.loads(line) for line in f]
+    events = [line["event"] for line in lines]
+    assert events[:3] == ["run_started", "plan", "confirmation"] and "prompt_sent" not in events
+    confirmation = lines[2]
+    assert confirmation["waited"] is True and confirmation["answer"] == "yes"
+    assert len(confirmation["reasons"]) == 2  # the model's 9 mm, and the property it writes
 
 
 def test_the_saved_always_confirm_setting_makes_every_plan_ask():

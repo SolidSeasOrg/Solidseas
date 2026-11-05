@@ -554,7 +554,15 @@ none of its code is used.
   document.
 - **Journal.** `journal.jsonl` in the run folder gets one line per event: run
   started, checkpoint written, the prompt sent, the plan, confirmation, step
-  started with its inverse, step result, revert, stop and end. Each line is
+  started with its inverse, step result, revert, stop and end. The prompt
+  (`prompt_sent`) is the planning prompt exactly as the window sent it, a
+  picture as its line, so it holds no key and no path or custom property
+  value beyond what the prompt itself held; a plan from a chat through the
+  MCP server was made by the chat's own model and has none. The confirmation
+  (`confirmation`) says whether the plan waited for the person, why, and their
+  Yes (`answer`, null for a plan that started by itself). A plan the person
+  declines starts no run, so it has no run folder and no journal: the window
+  leaves it waiting, and the chat is told it was declined. Each line is
   flushed and synced to disk before the next action. The run's first line
   also names the part (the SOLIDWORKS process id, the document's key, title
   and path), holds the goal as it was sent when the window started the run,

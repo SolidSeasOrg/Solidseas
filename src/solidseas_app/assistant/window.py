@@ -207,6 +207,7 @@ class AssistantWindow(QWidget):
         self._plan: Plan | None = None
         self._plan_target: tuple[LiveSession, LiveDocument] | None = None
         self._plan_goal: Any = None  # the goal as the plan's call sent it, for the looks after steps
+        self._plan_prompt: str | None = None  # the planning prompt as it was sent, for the run journal
         self._run: AutomaticRun | None = None
         self._starting = False
         self._offers: list[UnfinishedRun] = []  # runs left open, the first one shown
@@ -826,6 +827,7 @@ class AssistantWindow(QWidget):
         self.draft_stop.setEnabled(True)
         self._plan, self._plan_target = None, (session, document)
         self._plan_goal = request
+        self._plan_prompt = None
         self.plan_run.setEnabled(False)
         self.plan_view.setPlainText("")
         self.plan_note.setText("")
@@ -858,6 +860,8 @@ class AssistantWindow(QWidget):
             return
         plan = result.value
         self._plan = plan
+        prompt = getattr(result, "prompt", None)
+        self._plan_prompt = prompt.text() if hasattr(prompt, "text") else None
         self.plan_view.setPlainText(plan_text(plan))
         gate = confirmation(plan, always_confirm=self._always_confirm())
         line = f"Plan ready: {len(plan.steps)} step{'s' if len(plan.steps) != 1 else ''}"
@@ -911,7 +915,7 @@ class AssistantWindow(QWidget):
         self.draft_button.setEnabled(False)
         self.say(f"Starting the run on {document.title}: checking the part and writing the safety copy...")
         always = self._always_confirm()
-        provider, goal = self.provider, self._plan_goal
+        provider, goal, sent = self.provider, self._plan_goal, self._plan_prompt
         looks = self._step_looks_wanted() and goal is not None
         if looks:
             self.say("After each step, the model is shown the part and asked whether it looks right.")
@@ -945,6 +949,7 @@ class AssistantWindow(QWidget):
                     on_event=lambda kind, data: self.sig.run_event.emit(kind, data),
                     look=look,
                     goal=goal.text if goal is not None else None,
+                    prompt=sent,
                 )
             except Exception as exc:
                 start.release()

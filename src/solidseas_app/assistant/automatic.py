@@ -128,7 +128,10 @@ class LiveTarget(Protocol):
 @dataclass
 class RunStart:
     """A run that passed every check: its id, folder, safety copy, plan and the session it
-    holds. :meth:`release` gives the session back when the run ends."""
+    holds, and the confirmation gate it passed (``gate``; None for a run put back together
+    from its journal) with whether the person confirmed it (``confirmed``: they pressed Run
+    plan, or said Yes to the chat's plan). :meth:`release` gives the session back when the
+    run ends."""
 
     run_id: str
     folder: str
@@ -137,6 +140,8 @@ class RunStart:
     writer: WriterHold
     started_at: float = field(default_factory=time.time)
     hold: RunHold | None = None
+    gate: Gate | None = None
+    confirmed: bool = False
 
     def release(self) -> None:
         self.writer.release()
@@ -446,7 +451,7 @@ def start_run(
                 hold.release()
             shutil.rmtree(folder, ignore_errors=True)  # the run folder made a moment ago, and nothing else
             raise RunRefused("checkpoint", "The safety copy could not be written, so the run did not start.")
-        return RunStart(run_id, folder, checkpoint, plan, writer, hold=hold)
+        return RunStart(run_id, folder, checkpoint, plan, writer, hold=hold, gate=gate, confirmed=confirmed)
     except BaseException:
         writer.release()
         raise

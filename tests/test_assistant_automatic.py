@@ -76,8 +76,29 @@ def test_automatic_plans_instead_of_drafting_and_shows_the_planning_prompt(app):
         w.close()
 
 
+SECRET = "Q7731 a value of the part's own"  # a custom property value no prompt holds
+
+
+def _journal(run) -> list[dict]:
+    with open(os.path.join(run.start.folder, "journal.jsonl"), encoding="utf-8") as f:
+        return [json.loads(line) for line in f.read().splitlines()]
+
+
+def _opening(run) -> dict[str, dict]:
+    """The journal's lines before the first step, by event, checked to hold no path of the
+    part and none of its custom property values (SolidSeas-k89g)."""
+    lines = _journal(run)
+    events = [line["event"] for line in lines]
+    first_step = events.index("step_started") if "step_started" in events else len(events)
+    out = {line["event"]: line for line in lines[:first_step]}
+    for event in ("prompt_sent", "confirmation"):
+        text = json.dumps(out.get(event), ensure_ascii=False)
+        assert SECRET not in text and "C:\\\\work" not in text and "block.SLDPRT" not in text, text
+    return out
+
+
 def test_a_plan_that_overwrites_nothing_starts_by_itself_and_reverts(app):
-    live = WindowLive(block())
+    live = WindowLive(dataclasses.replace(block(), custom_properties={"Description": SECRET}))
     baseline = live.state
     provider = ScriptedProvider([plan_reply(FILLET, notes="Four 1 mm rounds.")])
     w = _window(app, provider, live)
@@ -87,6 +108,12 @@ def test_a_plan_that_overwrites_nothing_starts_by_itself_and_reverts(app):
         w.draft()
         _wait(app, lambda: w._run is not None and w._run.outcome is not None and w.plan_revert.isEnabled())
         assert shown == provider.prompts[0].text()  # what the AI saw is what was sent
+        # The journal keeps the planning prompt as it was sent, then the plan and how it started.
+        opening = _opening(w._run)
+        assert list(opening) == ["run_started", "prompt_sent", "plan", "confirmation"]
+        assert opening["prompt_sent"]["prompt"] == provider.prompts[0].text()
+        confirmed = {k: opening["confirmation"][k] for k in ("waited", "reasons", "answer")}
+        assert confirmed == {"waited": False, "reasons": [], "answer": None}  # it started by itself
         plan = w.plan_view.toPlainText()
         assert plan.startswith("1. fillet: edges E1, E2, E3, E4 (from the model); radius 1 mm (you said)")
         assert "Notes: Four 1 mm rounds." in plan
@@ -103,8 +130,9 @@ def test_a_plan_that_overwrites_nothing_starts_by_itself_and_reverts(app):
 
 
 def test_a_plan_that_overwrites_what_you_have_waits_for_run_plan(app):
-    live = WindowLive(block())
-    w = _window(app, ScriptedProvider([plan_reply(DEPTH, FINISH)]), live)
+    live = WindowLive(dataclasses.replace(block(), custom_properties={"Description": SECRET}))
+    provider = ScriptedProvider([plan_reply(DEPTH, FINISH)])
+    w = _window(app, provider, live)
     try:
         w.request.setPlainText("Make it deeper and black")
         w.draft()
@@ -116,6 +144,11 @@ def test_a_plan_that_overwrites_what_you_have_waits_for_run_plan(app):
         w.run_plan()
         _wait(app, lambda: w.plan_keep.isEnabled())
         assert [c[1] for c in live.calls if c[0] == "operation"] == ["set_dimension", "set_property"]
+        opening = _opening(w._run)  # the person's Yes, and what it was asked for
+        assert opening["prompt_sent"]["prompt"] == provider.prompts[0].text()
+        confirmation = opening["confirmation"]
+        assert confirmation["waited"] is True and confirmation["answer"] == "yes"
+        assert any("writes the custom property Finish" in r for r in confirmation["reasons"])
         w.keep_run()
         assert not w._run.start.writer.held
         assert w.plan_note.text() == f"Kept. The run's folder stays for 7 days: {w._run.start.folder}"
