@@ -50,16 +50,17 @@ class _Analysis:
         self.datas = [("PySide6/translations/qt_de.qm", "x.qm", "DATA")]
 
 
-def run_spec(tmp_path, monkeypatch, one_folder: bool) -> dict:
-    """Execute the spec as PyInstaller would, with its classes recorded instead of building."""
-    calls: dict = {"EXE": [], "COLLECT": []}
+def run_spec(tmp_path, monkeypatch, one_folder: bool, collect=lambda name: []) -> dict:
+    """Execute the spec as PyInstaller would, with its classes recorded instead of building.
+    ``collect`` stands in for PyInstaller's ``collect_submodules``."""
+    calls: dict = {"EXE": [], "COLLECT": [], "Analysis": []}
     base = tmp_path / "python"
     base.mkdir()
     # A Python licence naming every library the stand-in build carries.
     (base / "LICENSE.txt").write_text("PSF openssl libffi sqlite bzip2 xz mpdec microsoft", encoding="utf-8")
     work = tmp_path / "work"
     hooks = types.ModuleType("PyInstaller.utils.hooks")
-    hooks.collect_submodules = lambda name: []
+    hooks.collect_submodules = collect
     versioninfo = types.ModuleType("PyInstaller.utils.win32.versioninfo")
     for name in ("FixedFileInfo", "StringFileInfo", "StringStruct", "StringTable", "VarFileInfo"):
         setattr(versioninfo, name, lambda *a, **k: (a, k))
@@ -90,11 +91,16 @@ def run_spec(tmp_path, monkeypatch, one_folder: bool) -> dict:
 
         return make
 
+    def analysis(scripts, **options):
+        a = _Analysis(scripts, **options)
+        calls["Analysis"].append(a)
+        return a
+
     spec_globals = {
         "__name__": "__main__",
         "SPECPATH": str(SPEC.parent),
         "workpath": str(work),
-        "Analysis": _Analysis,
+        "Analysis": analysis,
         "PYZ": lambda pure: "PYZ",
         "EXE": record("EXE"),
         "COLLECT": record("COLLECT"),
@@ -160,6 +166,53 @@ def test_the_spec_still_refuses_a_package_the_notices_do_not_cover(tmp_path, mon
     )
     with pytest.raises(SystemExit, match="requests"):
         run_spec(tmp_path, monkeypatch, one_folder=True)
+
+
+def _source_submodules(name: str) -> list[str]:
+    """What ``collect_submodules(name)`` finds, read from src/ without importing anything."""
+    folder = ROOT / "src" / Path(*name.split("."))
+    found = [name]
+    for path in sorted(folder.rglob("*.py")):
+        parts = path.relative_to(folder).with_suffix("").parts
+        if parts[-1] == "__init__":
+            parts = parts[:-1]
+        if parts:
+            found.append(".".join((name, *parts)))
+    return found
+
+
+def test_the_spec_carries_the_command_line_the_service_and_every_module_named_in_a_string(
+    tmp_path, monkeypatch
+):
+    """The executable runs the library's command line (--cli), with the REST service, its
+    OpenAPI description and the MCP connector, and imports some modules by name only, from
+    "module:function" strings PyInstaller's analysis cannot follow: each must be a hidden
+    import, or the executable fails only when that path runs."""
+    calls = run_spec(tmp_path, monkeypatch, one_folder=True, collect=_source_submodules)
+    [analysis] = calls["Analysis"]
+    hidden = set(analysis.options["hiddenimports"])
+    needed = {
+        "solidseas.cli",
+        "solidseas.mcpwire",
+        "solidseas.serve",
+        "solidseas.serve.server",
+        "solidseas.serve.openapi",
+        "solidseas.serve.mcp",
+        "solidseas.serve.config",
+        "solidseas.catalog",
+        "solidseas.jobs",
+    }
+    by_name = set()
+    for path in (ROOT / "src").rglob("*.py"):
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            if isinstance(node, ast.Constant) and isinstance(node.value, str):
+                m = re.fullmatch(r"(solidseas(?:_app)?(?:\.\w+)+):\w+", node.value)
+                if m:
+                    by_name.add(m.group(1))
+    assert {"solidseas.jobs", "solidseas.formats.stl", "solidseas.drawing.pdf"} <= by_name
+    excluded = set(analysis.options["excludes"])
+    assert not (needed | by_name) - hidden, sorted((needed | by_name) - hidden)
+    assert not (needed | by_name) & excluded
 
 
 def _wrap_init(change):

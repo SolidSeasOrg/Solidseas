@@ -48,6 +48,13 @@
 # with the tests' own readers, tests/pdf_reader.py and tests/dxf_reader.py (the standard
 # library only, sharing no code with the writers), which the executable carries for that
 # alone, as it carries the STEP checker.
+#
+# The executable also runs the library's command line (SolidSeasViewer.exe --cli ...), which
+# the Connector page uses for the REST service and MCP apps for the MCP connector: the command
+# line, the service, its OpenAPI description, the connector and the catalog are hidden imports.
+# The service's worker processes are the executable started again, like the 3D view's. The
+# service's reference viewer page (serve --viewer) and the three.js it uses are not carried,
+# so in the executable --viewer says its files are not installed.
 
 import importlib.metadata
 import importlib.util
@@ -180,6 +187,14 @@ a = Analysis(  # noqa: F821
         *collect_submodules("solidseas.drawing"),
         # Help > Licences, imported when first opened.
         "solidseas_app.viewer.licences",
+        # The command line, the REST service and the MCP connector, which the executable runs
+        # with --cli (the Connector page starts --cli serve, and MCP apps start --cli mcp).
+        # The viewer reaches them today only through imports inside functions; naming them
+        # keeps them in the build when that changes.
+        "solidseas.cli",
+        "solidseas.mcpwire",
+        *collect_submodules("solidseas.serve"),
+        *collect_submodules("solidseas.catalog"),
         "ssl",
         *(["truststore"] if importlib.util.find_spec("truststore") else []),
     ],
