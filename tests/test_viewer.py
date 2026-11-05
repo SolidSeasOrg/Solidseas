@@ -413,7 +413,7 @@ def test_self_test_writes_screenshots_and_a_report(app, tmp_path):
     report = json.loads((tmp_path / "selftest.json").read_text(encoding="utf-8"))
     assert report["ok"] and report["listing"]["counts"]["ok"] == len(DOCUMENTS) + len(MODEL_FIXTURES)
     assert [d["name"] for d in report["documents"]] == [ASSEMBLY]  # the first assembly
-    assert len(report["screenshots"]) == 2 + 1 + 9 + 1  # listing, Preferences, tabs, zoomed preview
+    assert len(report["screenshots"]) == 2 + 1 + 9 + 1  # listing, Settings, tabs, zoomed preview
     assert all(Path(p).stat().st_size > 0 for p in report["screenshots"])
 
 
@@ -2322,7 +2322,8 @@ def test_the_self_test_turns_3d_on_in_its_own_settings_only(app, tmp_path, monke
         assert part["mesh"]["triangles"] == 12
         assert (assembly["mesh"]["instances"], assembly["mesh"]["triangles"]) == (2, 24)
     names = [os.path.basename(p) for p in report["screenshots"]]
-    assert "03_preferences.png" in names
+    assert "03_settings_3d_print.png" in names  # the Settings window, closed unapplied:
+    assert not (shots / "selftest-Drawing.json").exists()  # its Drawing Settings were never saved
     for stem in ("o02_boxA", "o08_asm_2x_boxA"):
         assert any(n.endswith(f"{stem}_preview_zoomed.png") for n in names)
         assert any(n.endswith(f"{stem}_preview_3d.png") for n in names)

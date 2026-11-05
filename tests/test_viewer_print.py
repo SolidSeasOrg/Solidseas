@@ -2574,7 +2574,7 @@ def test_the_self_test_dry_run_reports_what_it_would_start(app, tmp_path, progra
     assert [m["number"] for m in menus if m["via"].startswith("view .")] == [3, 4]  # after the button's two
     names = [os.path.basename(p) for p in report["screenshots"]]
     assert sum("print_button" in n for n in names) == 2 and sum("print_program_menu" in n for n in names) == 2
-    assert sum("print_preferences" in n for n in names) == 2 and sum("print_busy" in n for n in names) == 2
+    assert sum("print_settings" in n for n in names) == 2 and sum("print_busy" in n for n in names) == 2
     menus_saved = [n for n in names if "_print_menu_" in n]  # each menu once, as it opened
     assert len(menus_saved) == 5 and all(n.startswith(tuple("0123456789")) for n in menus_saved)
     inner = "o16_asm_features_print_menu_view_o15_sub_asm-1_o07_boxB_h31-1_part.png"

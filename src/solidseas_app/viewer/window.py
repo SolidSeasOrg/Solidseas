@@ -159,7 +159,7 @@ from .lookstore import LookStore
 from .menus import relay_status_tips
 from .meshproc import MeshReader
 from .modelpool import ModelPool
-from .preferences import BOXES_NOTE, POINTER_TIP, VIEW_3D_STATUS, VIEW_CUBE_TIP, PreferencesDialog
+from .preferences import BOXES_NOTE, POINTER_TIP, VIEW_3D_STATUS, VIEW_CUBE_TIP
 from .preview import MODEL
 from .printaction import HERE_TEXT, HERE_TIP, PrintController, PrintTarget
 from .quickfilter import QuickFilterBar
@@ -2725,13 +2725,6 @@ class MainWindow(QMainWindow):
         from .settingswindow import open_settings
 
         return open_settings(self, page)
-
-    def preferences(self) -> None:
-        dialog = PreferencesDialog(self, self.settings, self.store.path, **self.printer.preferences_options())
-        dialog.applied.connect(self.apply_settings)
-        dialog.print_format_chosen.connect(self.printer.set_format)  # remembered as the menu remembers it
-        dialog.exec()
-        dialog.deleteLater()
 
     def restore_session(self) -> str | None:
         """Bring back the window layout the last run left, when the settings say to

@@ -1,7 +1,7 @@
 """Self-test mode, for automation: ``--self-test FOLDER --screenshot-dir DIR [--select NAME]...``.
 
 It opens the folder in the real window, waits for the listing, saves the
-Preferences dialog, selects each named document in turn (or the first
+Settings window on its 3D Print page, selects each named document in turn (or the first
 assembly, else the first document), waits for every section of its details,
 and saves the window with each details tab active as a PNG, then the Preview
 tab zoomed in. With ``--3d`` it also chooses 3D on the Preview tab, waits while
@@ -114,7 +114,7 @@ no model outside it), and the program and arguments it would start are recorded 
 the report (``print``) without starting anything. The export runs in its own
 process, as the button's does. It saves the toolbar while the export runs (the
 button is then Cancel 3D Print) and after it, the Settings > 3D Print Program menu
-and Preferences, then presses 3D Print again (``print_again``). Each print is
+and the Settings window's 3D Print page, then presses 3D Print again (``print_again``). Each print is
 checked (``print_checks``): the file must be next to the model (or in the temporary
 folder, with the reason said), named after the document (a virtual component after
 the name the window shows) with the configuration exported when it is not the active
@@ -264,7 +264,6 @@ from solidseas import cli as _cli
 from . import printing, viewcube, viewmath
 from .details import KEY_ROLE, OPEN, PARENT_ROLE, TABS
 from .explode import TOP, group_of, held_by
-from .preferences import PreferencesDialog
 from .preview import IMAGE, MODEL
 from .viewcube import STEPS
 from .viewmath import DEGREES_PER_PIXEL, FREE, PITCH_LIMIT, SOLIDWORKS, WHEEL_STEP
@@ -2125,7 +2124,7 @@ class SelfTest(QObject):
             self._shot("listing_icons")
             self.window.set_view("details")
             self._shot("listing_details")
-            self._preferences_shot()
+            self._settings_shot()
         if self.quick_filters:
             self.report["quick_filters"] = [self._quick_filter(keys) for keys in self.quick_filters]
         if self.view_3d:
@@ -2840,8 +2839,8 @@ class SelfTest(QObject):
 
     def _print(self, doc: dict[str, Any]) -> None:
         """Press 3D Print with the controller in its dry run, wait for the export, record
-        what it would start, save the button, the program menu and Preferences, then press
-        it again; check both prints (:meth:`_check_print`)."""
+        what it would start, save the button, the program menu and the Settings window's 3D
+        Print page, then press it again; check both prints (:meth:`_check_print`)."""
         printer = self._dry_run()
         doc["print"] = None
         target = self.window.print_target()
@@ -2872,7 +2871,7 @@ class SelfTest(QObject):
             menu.hide()
             if path:
                 doc.setdefault("screenshots", []).append(path)
-            self._preferences_shot(f"{stem}_print_preferences")
+            self._settings_shot(f"{stem}_print_settings")
             if outcome.get("ok"):
                 QTimer.singleShot(0, lambda: self._await_print(doc, printer.print_selection, second))
             else:
@@ -3948,11 +3947,23 @@ class SelfTest(QObject):
         self.report["screenshots"].append(path)
         return path
 
-    def _preferences_shot(self, label: str = "preferences") -> None:
+    def _settings_shot(self, label: str = "settings_3d_print") -> None:
+        """Save the Settings window on its 3D Print page, as Settings opens it. Nothing of the
+        person's is read for it: its General, 3D View and 3D Print pages show the run's own
+        settings, Drawing Settings are as they come (never saved: the window is closed
+        unapplied), and the AI and Extensions pages, not pictured, are blank stand-ins."""
         if not self.shots:  # a run with a report and no screenshot folder saves none
             return
+        from solidseas.drawing import settings as drawing_settings
+
+        from .drawingsettings import DrawingSettingsDialog
+        from .settingswindow import PRINT, SettingsWindow
+
         w = self.window
-        dialog = PreferencesDialog(w, w.settings, w.store.path, **w.printer.preferences_options())
+        drawings = DrawingSettingsDialog(
+            w, drawing_settings.DrawingSettings(), path=os.path.join(self.shots, "selftest-Drawing.json")
+        )
+        dialog = SettingsWindow(w, page=PRINT, drawings=drawings, ai=QDialog(), extensions=QDialog())
         dialog.show()
         self._settle()
         self.shot_no += 1

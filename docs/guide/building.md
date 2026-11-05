@@ -153,9 +153,10 @@ package is not offered yet.
 SolidSeasViewer.exe --self-test FOLDER --screenshot-dir DIR [--select NAME]
 ```
 
-opens the folder, saves the Preferences dialog, the window with each details tab
-showing and the preview zoomed in, and writes `DIR\selftest.json`. From a
-checkout, `python -m solidseas_app` takes the same options.
+opens the folder, saves the Settings window's 3D Print page, the window with
+each details tab showing and the preview zoomed in, and writes
+`DIR\selftest.json`. From a checkout, `python -m solidseas_app` takes the same
+options.
 
 The self-test never reads or changes your settings: it runs with its own
 `selftest-settings.ini` next to the report. Nor does it write to your cache
