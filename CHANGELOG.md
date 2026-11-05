@@ -8,6 +8,11 @@ while the project takes shape.
 
 ### Added
 
+- **Open in F3D.** When the free F3D viewer is installed, the File menu and a
+  file's right-click menu offer Open in F3D for STEP, IGES, STL, 3MF, OBJ, PLY,
+  glTF and the other formats it reads; SOLIDWORKS documents are not offered
+  because F3D cannot read them.
+
 - **More slicers for 3D Print.** 3D Print now finds Creality Print,
   ElegooSlicer, Snapmaker Orca, QIDI Studio, Anycubic Slicer Next,
   Orca-Flashforge and SuperSlicer when you have installed them, including in a

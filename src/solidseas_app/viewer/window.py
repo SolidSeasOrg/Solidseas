@@ -533,6 +533,7 @@ class MainWindow(QMainWindow):
         self._bom_editors: list[Any] = []  # open BOM editors, kept alive while shown
         self._apart: dict[str, str] | None = None  # set while it is not a row of the list
         self._history: list[Place] = []
+        self._f3d: tuple[str] | None = None  # where F3D is ("" when not found), once looked for
         self._pending_go: tuple[Any, ...] | None = None  # (generation, request...) waiting for references
         self._restore: list[Any] | None = None  # [generation, Place, configuration asked for]
         self._pending_select: str | None = None
@@ -887,6 +888,8 @@ class MainWindow(QMainWindow):
         self.act_show_shown = act(
             opening.show_text(), SP.SP_DirLinkIcon, self.show_shown, None, opening.show_tip()
         )
+        self.act_f3d_shown = act(opening.F3D_TEXT, None, self.f3d_shown, None, opening.F3D_TIP)
+        self.act_f3d_shown.setVisible(False)  # until F3D is found (_update_f3d)
         self.act_reload = act("&Reload", SP.SP_BrowserReload, self.reload, QKeySequence.StandardKey.Refresh)
         self.act_cancel = act("&Cancel Listing", SP.SP_BrowserStop, self.cancel_listing, "Esc")
         self.act_parasolid = act(
@@ -1080,6 +1083,8 @@ class MainWindow(QMainWindow):
         fm.addSeparator()
         fm.addAction(self.act_open_shown)
         fm.addAction(self.act_show_shown)
+        fm.addAction(self.act_f3d_shown)
+        fm.aboutToShow.connect(lambda: self._update_f3d(refresh=True))
         fm.addSeparator()
         fm.addAction(self.act_parasolid)
         fm.addAction(self.act_step)
@@ -2241,6 +2246,49 @@ class MainWindow(QMainWindow):
         if path is not None:
             self.open_externally(path, reveal=True)
 
+    def f3d_program(self, refresh: bool = False) -> str | None:
+        """Where F3D is installed (:func:`.opening.find_f3d`), or None: looked for once,
+        and again with ``refresh`` (as a menu that offers it opens, and before it starts)."""
+        if refresh or self._f3d is None:
+            self._f3d = (opening.find_f3d() or "",)
+        return self._f3d[0] or None
+
+    def _update_f3d(self, refresh: bool = False) -> None:
+        """Open in F3D on the File menu: there only while F3D is found, and enabled for a
+        file of a format F3D reads; its tooltip says why not."""
+        shown = self.shown_file()
+        found = self.f3d_program(refresh) is not None
+        self.act_f3d_shown.setVisible(found)
+        why = opening.f3d_problem(shown, look=False) if shown is not None else "no file is shown"
+        self.act_f3d_shown.setEnabled(found and why is None)
+        text = opening.F3D_TIP if why is None else sentence(why) + "."
+        self.act_f3d_shown.setToolTip(text)
+        self.act_f3d_shown.setStatusTip(text)
+
+    def f3d_shown(self) -> None:
+        """Open in F3D: the file the details show."""
+        path = self.shown_file()
+        if path is not None:
+            self.open_in_f3d(path)
+
+    def open_in_f3d(self, path: str) -> bool:
+        """Hand the file at ``path`` to F3D (:func:`.opening.open_in_f3d`, looked up each
+        time) as its one argument. The status bar says what was done, or why not; True when
+        it was."""
+        name = os.path.basename(path) or path
+        program = self.f3d_program(refresh=True)
+        why = "F3D is not found on this computer" if program is None else opening.f3d_problem(path)
+        if why is None:
+            try:
+                opening.open_in_f3d(program, path)
+            except OSError as exc:
+                why = exc.strerror or str(exc)
+        if why is not None:
+            self.statusBar().showMessage(f"{name} was not opened in F3D: {why}.", 8000)
+            return False
+        self.statusBar().showMessage(f"{name} handed to F3D.", 8000)
+        return True
+
     def open_listed(self, rel: str, reveal: bool = False) -> None:
         """Open, or with ``reveal`` Show in File Explorer, for the file at ``rel`` below the
         opened folder (a Where Used row)."""
@@ -2628,7 +2676,8 @@ class MainWindow(QMainWindow):
 
     def list_menu(self, index: QModelIndex) -> QMenu | None:
         """The context menu of the list's row at ``index`` (of the list's model): Open and
-        Show in File Explorer for a file (:meth:`open_externally`), then 3D Print for a
+        Show in File Explorer for a file (:meth:`open_externally`), Open in F3D for a file F3D
+        reads while it is installed (:meth:`open_in_f3d`), then 3D Print for a
         part or an assembly; None for a folder or a SOLIDWORKS lock file."""
         entry = self.model.entry(self.proxy.mapToSource(index)) if index.isValid() else None
         if entry is None or self.folder is None or entry["type"] != "file" or is_lock_file(entry):
@@ -2646,6 +2695,14 @@ class MainWindow(QMainWindow):
             action.setToolTip(tip(tip_text))
             action.setEnabled(why is None)
             action.triggered.connect(lambda _on=False, r=reveal: self.open_externally(path, reveal=r))
+        if opening.offers_f3d(path) and self.f3d_program(refresh=True) is not None:
+            f3d_why = opening.f3d_problem(path, look=False)
+            action = menu.addAction(
+                opening.F3D_TEXT if f3d_why is None else f"{opening.F3D_TEXT} ({f3d_why})"
+            )
+            action.setToolTip(tip(opening.F3D_TIP))
+            action.setEnabled(f3d_why is None)
+            action.triggered.connect(lambda _on=False: self.open_in_f3d(path))
         if self.entry_print_target(entry) is not None:
             menu.addSeparator()
             self.printer.add_action(
@@ -2805,6 +2862,7 @@ class MainWindow(QMainWindow):
         openable = shown is not None and opening.open_problem(shown, look=False) is None
         self.act_open_shown.setEnabled(openable)
         self.act_show_shown.setEnabled(openable)
+        self._update_f3d()
         self.act_reload.setEnabled(self.folder is not None)
         self.act_cancel.setEnabled(self._listing is not None)
         self.act_back.setEnabled(bool(self._history))

@@ -230,6 +230,26 @@ Open is offered only for a file that is there, of a 3D format SolidSeas lists,
 and never for a link or a SOLIDWORKS lock file. A component stored inside its
 assembly, or one that was not found, has it greyed with the reason.
 
+## Opening a file in F3D
+
+[F3D](https://f3d.app) is a fast, free and open source 3D viewer. When it is
+installed on this computer, **Open in F3D** appears in the File menu, under Show
+in File Explorer, and on the right-click menu of a file in the list. SolidSeas
+finds F3D where its installer puts it (the `F3D` folder in Program Files, or
+your own Programs folder), through Windows' App Paths, or in a folder on your
+`PATH`. SolidSeas does not include F3D: install it yourself to use this.
+
+It is offered for the formats F3D reads that SolidSeas lists: STEP, IGES, BREP,
+STL, 3MF, AMF, OBJ, PLY, OFF, glTF and GLB, and VRML. F3D cannot read SOLIDWORKS
+documents, so a part, an assembly or a drawing is never sent to it. To look at
+one in F3D, write it as STEP (File > Export STEP) or 3MF (File > Export for 3D
+Printing) and open that file instead.
+
+The file is handed to F3D as the one thing on its command line, and F3D only
+shows it: nothing is written to the file or its folder. As with Open, it is
+offered only for a file that is there, never for a link or a SOLIDWORKS lock
+file.
+
 ## More about the viewer
 
 - [Every 3D format](formats.md): the formats the list shows and how.

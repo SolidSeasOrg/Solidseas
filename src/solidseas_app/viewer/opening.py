@@ -26,9 +26,24 @@ action's tooltip says so. :func:`open_problem` decides what is offered at all: a
 file that is there, a plain file and not a link, with the extension of a 3D format
 SolidSeas lists (never a program, script or shortcut), and not a SOLIDWORKS lock file.
 
-The window looks both up here each time, so the tests' session-wide guard
-(``tests/conftest.py``) replaces them and no test starts a program or opens a window
-of the system. Nothing here imports Qt at module level.
+Open in F3D hands a file to F3D, the open source 3D viewer (BSD-3-Clause,
+https://f3d.app), when the user installed it; SolidSeas ships none of it:
+
+* :func:`find_f3d` looks for ``f3d.exe`` in the registry's App Paths (only read), in
+  F3D's usual install folders (``F3D\\bin`` below Program Files or the per-user
+  Programs folder, as its installer and zip lay it out) and in the folders of
+  ``PATH``, on Windows only, as 3D Print's slicers are found.
+* :func:`f3d_problem` offers it only for a file :func:`open_problem` would open, of a
+  format F3D reads (:data:`F3D_EXTENSIONS`). F3D reads no SOLIDWORKS document, so a
+  ``.sldprt``, ``.sldasm`` or ``.slddrw`` is never offered: open the STEP or 3MF that
+  File > Export STEP or 3D Print writes instead.
+* :func:`open_in_f3d` starts it through 3D Print's one launcher,
+  :func:`.printing.launch`: the file's absolute path is its one argument, no shell runs
+  and nothing else is passed. F3D only reads the file.
+
+The window looks these up here each time, so the tests' session-wide guard
+(``tests/conftest.py``) replaces them (and :func:`.printing.launch`) and no test starts
+a program or opens a window of the system. Nothing here imports Qt at module level.
 """
 
 import os
@@ -91,6 +106,110 @@ def open_problem(path: str | None, look: bool = True) -> str | None:
     if not stat.S_ISREG(st.st_mode):
         return "not a file"
     return None
+
+
+# --------------------------------------------------------------------------- Open in F3D
+F3D_TEXT = "Open in F3D"
+F3D_TIP = (
+    "Open the file in F3D, the open source 3D viewer installed on this computer. F3D only shows the "
+    "file; nothing is written to it."
+)
+F3D_EXECUTABLE = "f3d.exe"
+# Below a programs folder: the installer's folder, a versioned one, then the zip's layout.
+F3D_FOLDERS = ("F3D", "F3D *", "F3D-*")
+F3D_SUBFOLDERS = ("bin", "")
+# What F3D 4.0 reads (its Supported formats page: the formats built in and its OCCT and
+# Assimp plug-ins, which the Windows installer includes) that SolidSeas lists. Fusion 360's
+# ``.f3d`` is another format altogether and is not one of them.
+F3D_EXTENSIONS = (
+    ".3mf",
+    ".amf",
+    ".brep",
+    ".glb",
+    ".gltf",
+    ".iges",
+    ".igs",
+    ".obj",
+    ".off",
+    ".p21",
+    ".ply",
+    ".step",
+    ".stl",
+    ".stp",
+    ".vrml",
+    ".wrl",
+)
+SOLIDWORKS_EXTENSIONS = (".sldprt", ".sldasm", ".slddrw")
+MAX_PATH_ENTRIES = 200  # folders of PATH looked in, at most
+
+
+def find_f3d(
+    env: dict[str, str] | None = None,
+    *,
+    app_path=None,
+    is_file=os.path.isfile,
+    listdir=os.listdir,
+    windows: bool | None = None,
+) -> str | None:
+    """The path of the ``f3d.exe`` installed here, or None: from the registry's App
+    Paths, F3D's usual install folders, then the folders of ``PATH`` (absolute ones
+    only). Nothing is started and nothing is written. Elsewhere than on Windows none is
+    found, as 3D Print finds no slicer there."""
+    from . import printing
+
+    if not (os.name == "nt" if windows is None else windows):
+        return None
+    env = os.environ if env is None else env
+    candidate = (printing.registry_app_path if app_path is None else app_path)(F3D_EXECUTABLE)
+    if candidate and os.path.isabs(candidate) and is_file(candidate):
+        return os.path.normpath(candidate)
+    for folder in printing.program_folders(env):
+        for pattern in F3D_FOLDERS:
+            for where in printing._matches(folder, pattern, listdir):
+                for sub in F3D_SUBFOLDERS:
+                    candidate = os.path.join(where, sub, F3D_EXECUTABLE)
+                    if is_file(candidate):
+                        return os.path.normpath(candidate)
+    path = env.get("PATH") or env.get("Path") or ""
+    for entry in path.split(os.pathsep)[:MAX_PATH_ENTRIES]:
+        entry = entry.strip().strip('"')
+        if entry and os.path.isabs(entry):  # never the current folder or one relative to it
+            candidate = os.path.join(entry, F3D_EXECUTABLE)
+            if is_file(candidate):
+                return os.path.normpath(candidate)
+    return None
+
+
+def f3d_problem(path: str | None, look: bool = True) -> str | None:
+    """Why the file at ``path`` is not handed to F3D, in a few words; None when it can
+    be: a file :func:`open_problem` would open, of a format F3D reads."""
+    if path:
+        name = os.path.basename(path).lower()
+        if name.endswith(SOLIDWORKS_EXTENSIONS) and not name.startswith("~$"):
+            return "F3D does not read SOLIDWORKS documents"
+        if not name.startswith("~$") and not name.endswith(F3D_EXTENSIONS):
+            return "a format F3D does not read"
+    return open_problem(path, look)
+
+
+def offers_f3d(path: str | None) -> bool:
+    """Whether Open in F3D is offered for ``path`` at all: a format F3D reads. Only the
+    path is looked at."""
+    return bool(path) and os.path.basename(path).lower().endswith(F3D_EXTENSIONS)
+
+
+def open_in_f3d(program: str, path: str) -> None:
+    """Start F3D (``program``, from :func:`find_f3d`) with ``path`` as its one argument,
+    through :func:`.printing.launch`, looked up each time. Raises OSError when the file
+    or the program may not be used, or the start fails."""
+    from . import printing
+
+    why = f3d_problem(path) or printing.program_problem(program)
+    if why is not None:
+        raise OSError(why)
+    if os.path.basename(program).lower() != F3D_EXECUTABLE:
+        raise OSError("that program is not F3D")
+    printing.launch(program, path)
 
 
 def open_file(path: str) -> None:
@@ -199,4 +318,19 @@ class _clean_start:
                 os.environ.update(self.saved)
 
 
-__all__ = ["OPEN_TEXT", "OPEN_TIP", "open_file", "open_problem", "show_file", "show_text", "show_tip"]
+__all__ = [
+    "F3D_EXTENSIONS",
+    "F3D_TEXT",
+    "F3D_TIP",
+    "OPEN_TEXT",
+    "OPEN_TIP",
+    "f3d_problem",
+    "find_f3d",
+    "offers_f3d",
+    "open_file",
+    "open_in_f3d",
+    "open_problem",
+    "show_file",
+    "show_text",
+    "show_tip",
+]

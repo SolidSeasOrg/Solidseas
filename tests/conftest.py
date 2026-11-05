@@ -87,6 +87,7 @@ def pytest_terminal_summary(terminalreporter):
             "scripts/fetch-fixtures.py copies them in from SolidSeas/SolidSeas-fixtures"
         )
 
+
 # The service refuses a token file in a folder other accounts may write to, and on
 # Linux a umask of 002 (the default on Ubuntu) makes every test's temporary folder
 # group-writable. Tests that need such a folder make one on purpose.
@@ -361,6 +362,21 @@ def never_open_a_file_outside():
         yield real
     finally:
         opening.open_file, opening.show_file = real["open_file"], real["show_file"]
+
+
+@pytest.fixture(scope="session", autouse=True)
+def no_f3d_installed():
+    """Every window sees no F3D, whatever this computer has, so its menus are the same
+    everywhere; a test that offers Open in F3D puts its own fake in place. The fixture's
+    value is the real function."""
+    from solidseas_app.viewer import opening
+
+    real = opening.find_f3d
+    opening.find_f3d = lambda *a, **k: None
+    try:
+        yield real
+    finally:
+        opening.find_f3d = real
 
 
 def _free_qt_cycles() -> None:
