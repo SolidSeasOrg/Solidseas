@@ -77,6 +77,28 @@ claude mcp add solidseas-files -- /path/to/SolidSeas/.venv/bin/python -m solidse
 Put your own folders in place of the example paths. On Windows, Claude Code takes the same
 command with `C:\Path\To\Projects`.
 
+With SolidSeas Desktop installed and no Python, the executable runs the same command
+through `--cli`, which hands the rest of its arguments to the `solidseas` command line:
+
+```json
+{
+  "mcpServers": {
+    "solidseas-files": {
+      "command": "C:\\Path\\To\\SolidSeas Viewer.exe",
+      "args": ["--cli", "mcp", "--root", "jobs=C:\\Path\\To\\Projects"]
+    }
+  }
+}
+```
+
+```
+claude mcp add solidseas-files -- "C:\Path\To\SolidSeas Viewer.exe" --cli mcp --root jobs=C:\Path\To\Projects
+```
+
+Settings > Connector in the viewer shows this block for the folder you have open, ready to
+copy (`docs/guide/connector.md`). The root is then named `folder`. The executable has no
+window of its own here: the app starts it with pipes for its standard input and output.
+
 ### The tools
 
 Each tool is the REST route named beside it, and its arguments are that route's parameters,

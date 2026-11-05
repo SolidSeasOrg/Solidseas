@@ -12,6 +12,10 @@ The pages, in order:
 * **AI Assistant**: the AI provider, model, key and limits (the AI settings page).
 * **Extensions**: what is added and switched on, each one's Details and Settings
   (:mod:`.extensionsdialog`; its changes take effect at once, as before).
+* **Connector**: whether other apps on this PC may read the open folder through the local
+  API, its port and status, and the configuration an AI app needs to read it over MCP
+  (:mod:`.connectorpage`, saved in the ``[Connector]`` section and run by
+  :mod:`.connectorsvc`).
 
 Drawings, the AI Assistant and the Extensions are experimental: each of their pages starts
 with the note of :mod:`.experimental` saying what that means.
@@ -19,7 +23,8 @@ with the note of :mod:`.experimental` saying what that means.
 Each area keeps its own page and its own way of saving: the dialogs that showed them are
 hosted here with their buttons hidden. OK and Apply save every area (Preferences through
 the window's ``apply_settings``, Drawing Settings to ``Drawing.json``, the AI settings to
-their file and the key store); an area that refuses a value saves nothing of its own,
+their file and the key store, the Connector to the settings file, starting or stopping the
+local API to match); an area that refuses a value saves nothing of its own,
 shows its page and says why, and OK then leaves the window open. Restore Defaults restores
 the page shown. Cancel saves nothing more.
 
@@ -49,15 +54,16 @@ from PySide6.QtWidgets import (
 from . import experimental
 
 TITLE = "Settings"
-GENERAL, VIEW_3D, PRINT, DRAWINGS, AI, EXTENSIONS = (
+GENERAL, VIEW_3D, PRINT, DRAWINGS, AI, EXTENSIONS, CONNECTOR = (
     "General",
     "3D View",
     "3D Print",
     "Drawings",
     "AI Assistant",
     "Extensions",
+    "Connector",
 )
-PAGES = (GENERAL, VIEW_3D, PRINT, DRAWINGS, AI, EXTENSIONS)
+PAGES = (GENERAL, VIEW_3D, PRINT, DRAWINGS, AI, EXTENSIONS, CONNECTOR)
 _ROLE = Qt.ItemDataRole.UserRole
 
 
@@ -100,8 +106,8 @@ def _page(*widgets: QWidget, note: str | None = None, first: str | None = None) 
 class SettingsWindow(QDialog):
     """The Settings window of ``window`` (see the module notes), on ``page`` (a title of
     :data:`PAGES`, or a Drawing Settings page's title). ``preferences``, ``drawings``,
-    ``ai`` and ``extensions`` are the hosted dialogs, made from ``window`` when None (a
-    test passes its own)."""
+    ``ai``, ``extensions`` and ``connector`` are the hosted dialogs and page, made from
+    ``window`` when None (a test passes its own)."""
 
     def __init__(
         self,
@@ -112,6 +118,7 @@ class SettingsWindow(QDialog):
         drawings: Any = None,
         ai: Any = None,
         extensions: Any = None,
+        connector: Any = None,
     ) -> None:
         super().__init__(window)
         self.setWindowTitle(TITLE)
@@ -121,6 +128,7 @@ class SettingsWindow(QDialog):
         self.drawings = drawings if drawings is not None else self._make_drawings()
         self.ai = ai if ai is not None else self._make_ai()
         self.extensions = extensions if extensions is not None else self._make_extensions()
+        self.connector = connector if connector is not None else self._make_connector()
 
         self.nav = QTreeWidget()
         self.nav.setHeaderHidden(True)
@@ -157,6 +165,7 @@ class SettingsWindow(QDialog):
             self._drawing_pages.append(spec.title)
         self._add(AI, _page(_embedded(self.ai), first=experimental.assistant_note()))
         self._add(EXTENSIONS, _page(_embedded(self.extensions)))
+        self._add(CONNECTOR, _page(self.connector))
         self.nav.expandItem(self._items[DRAWINGS])
         self.nav.currentItemChanged.connect(self._shown)
 
@@ -220,6 +229,11 @@ class SettingsWindow(QDialog):
         dialog.changed.connect(self.window_.extensions_changed)  # IGES and BREP follow at once
         return dialog
 
+    def _make_connector(self) -> Any:
+        from .connectorpage import ConnectorPage
+
+        return ConnectorPage(self.window_.connector)
+
     def _add(self, title: str, widget: QWidget) -> int:
         index = self.stack.addWidget(widget)
         item = QTreeWidgetItem([title])
@@ -250,7 +264,7 @@ class SettingsWindow(QDialog):
         self.stack.setCurrentIndex(PAGES.index(area))  # the stack holds the areas in this order
         if area == DRAWINGS:
             self.drawings.show_page(sub or self._drawing_pages[0])
-        self.restore.setEnabled(area in (GENERAL, VIEW_3D, PRINT, DRAWINGS))
+        self.restore.setEnabled(area in (GENERAL, VIEW_3D, PRINT, DRAWINGS, CONNECTOR))
         self.restore.setToolTip(
             "Restore the General, 3D View and 3D Print settings as they come"
             if area in (GENERAL, VIEW_3D, PRINT)
@@ -265,6 +279,8 @@ class SettingsWindow(QDialog):
             self.drawings.restore_defaults()
         elif area in (GENERAL, VIEW_3D, PRINT):
             self.preferences.restore_defaults()
+        elif area == CONNECTOR:
+            self.connector.restore_defaults()
 
     def apply(self) -> bool:
         """Save every area (see the module notes); whether all were saved."""
@@ -275,6 +291,11 @@ class SettingsWindow(QDialog):
             return False
         if not self.ai.save():
             self._refused(AI, "The AI settings were not saved: see the page.")
+            return False
+        if not self.connector.save():
+            self._refused(
+                CONNECTOR, "The Connector settings were not saved: the settings file could not be written."
+            )
             return False
         return True
 
@@ -318,6 +339,7 @@ def open_settings(window: Any, page: str | None = None) -> SettingsWindow:
 
 __all__ = [
     "AI",
+    "CONNECTOR",
     "DRAWINGS",
     "EXTENSIONS",
     "GENERAL",

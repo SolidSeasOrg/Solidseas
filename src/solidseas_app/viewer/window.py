@@ -135,6 +135,7 @@ from solidseas.resolve import IndexCache
 from solidseas.trademarks import DISCLAIMER
 
 from . import experimental, navigate, opening, printing, reading
+from .connectorsvc import ConnectorService
 from .convertaction import TEXT as CONVERT_TEXT
 from .convertaction import TIP as CONVERT_TIP
 from .convertaction import ConvertController
@@ -578,6 +579,7 @@ class MainWindow(QMainWindow):
         self.drawings.install(self.menuBar().actions()[0].menu(), self.settings_menu, self.toolbar)
         self._build_status()
         self.where_used = WhereUsedController(self)  # indexing, the Where Used tab and the filter
+        self.connector = ConnectorService(self, self.store)  # Settings > Connector's local API
         self.apply_settings(self.settings, save=False, initial=True)
         if self.store.reset_keys:
             self.statusBar().showMessage(
@@ -1408,6 +1410,7 @@ class MainWindow(QMainWindow):
             self._history.clear()
         self.folder = folder
         self.where_used.folder_opened(folder)
+        self.connector.folder_opened(folder)  # the local API, when on, follows the open folder
         self._pending_select = select
         self._cache = IndexCache()
         self._folder_epoch += 1
@@ -3267,6 +3270,7 @@ class MainWindow(QMainWindow):
             self._export_job.cancel()  # ends Export for 3D Printing's process
         self.thumbnailer.stop()
         self.where_used.stop()  # the indexer process stops between files
+        self.connector.shutdown()  # the local API's process, when it runs
         self.models.close()  # its workers end; a read waiting on one gets an error at once
         pools = (
             self.mesh_pool,

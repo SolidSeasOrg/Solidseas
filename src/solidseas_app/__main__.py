@@ -15,6 +15,15 @@ the viewer: ``SolidSeasViewer.exe --assistant``.
 starts it, on standard input and output (:mod:`solidseas_app.assistant.mcp_server`):
 ``SolidSeasViewer.exe --mcp``, with ``--send-names`` to let the chat read typed names.
 
+``--cli`` runs the ``solidseas`` command line with the rest of the arguments and exits with
+its code (:func:`solidseas.cli.main`): ``SolidSeasViewer.exe --cli serve ...`` is how the
+viewer's Connector starts the local API, and ``SolidSeasViewer.exe --cli mcp --root ...``
+is what an MCP client starts to read a folder. The worker processes of both are this
+program started again, which ``freeze_support`` turns into them first. The windowed
+executable has no console, but a program that starts it with pipes (an MCP client, the
+viewer) gives it working standard input, output and error, as for ``--mcp``; with none,
+the command line writes to nothing rather than failing.
+
 ``--set-policy`` writes the machine policy, run as administrator, and exits
 (:mod:`solidseas_app.setpolicy`). It imports no Qt, so nothing that reads a part file
 runs elevated.
@@ -24,6 +33,7 @@ import multiprocessing
 import sys
 
 ASSISTANT_FLAG = "--assistant"
+CLI_FLAG = "--cli"
 CHILD_FLAG = "--assistant-child"
 MCP_FLAG = "--mcp"
 SET_POLICY_FLAG = "--set-policy"
@@ -31,7 +41,7 @@ SET_POLICY_FLAG = "--set-policy"
 
 def main(argv: list[str]) -> int:
     """Run what ``argv`` asks for: the assistant's script runner, the machine policy's
-    writer, the MCP server, the assistant's window or the viewer."""
+    writer, the command line, the MCP server, the assistant's window or the viewer."""
     if argv[1:2] == [CHILD_FLAG]:
         from solidseas_app.assistant.child import main as child_main
 
@@ -41,6 +51,10 @@ def main(argv: list[str]) -> int:
         from solidseas_app.setpolicy import main as set_policy_main
 
         return set_policy_main(argv[2:])
+    if argv[1:2] == [CLI_FLAG]:
+        from solidseas.cli import main as cli_main
+
+        return cli_main(argv[2:])
     if argv[1:2] == [MCP_FLAG]:
         from solidseas_app.assistant.mcp_server import main as mcp_main
 

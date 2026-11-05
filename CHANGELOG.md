@@ -8,6 +8,16 @@ while the project takes shape.
 
 ### Added
 
+- **SolidSeasViewer.exe --cli.** The executable runs any solidseas command, such
+  as serve or mcp, so the local API and the MCP connector work without Python
+  installed.
+
+- **Connect other apps from Settings.** The new Connector page lets a script or
+  in-house tool on your PC read the open folder through the local API, with a
+  status line, Copy Address, Show Token File, Save API Description and a
+  PowerShell example, and shows the configuration an AI app such as Claude
+  Desktop needs to read the folder over MCP.
+
 - **Open in F3D.** When the free F3D viewer is installed, the File menu and a
   file's right-click menu offer Open in F3D for STEP, IGES, STL, 3MF, OBJ, PLY,
   glTF and the other formats it reads; SOLIDWORKS documents are not offered

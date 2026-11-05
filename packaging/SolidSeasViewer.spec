@@ -185,6 +185,12 @@ a = Analysis(  # noqa: F821
         "solidseas_app.viewer.mail",
         "solidseas_app.viewer.mailproc",
         *collect_submodules("solidseas.drawing"),
+        # --cli: the command line, the local API Settings > Connector starts with it, and the
+        # MCP connector an AI app starts with it.
+        "solidseas.cli",
+        *collect_submodules("solidseas.serve"),
+        "solidseas.mcpwire",
+        "solidseas_app.viewer.connectorpage",
         # Help > Licences, imported when first opened.
         "solidseas_app.viewer.licences",
         # The command line, the REST service and the MCP connector, which the executable runs

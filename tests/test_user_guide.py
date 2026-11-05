@@ -103,7 +103,7 @@ def test_every_guide_page_is_in_the_index():
 
 def test_the_readme_stays_short_and_points_at_the_guide():
     text = (ROOT / "README.md").read_text(encoding="utf-8")
-    assert len(text.splitlines()) <= 160
+    assert len(text.splitlines()) <= 165
     assert "docs/guide/index.md" in text and "https://solidseas.app" in text
     assert "https://solidseas.app/download/windows" in text
     assert "THIRD_PARTY_NOTICES.txt" in text

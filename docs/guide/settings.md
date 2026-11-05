@@ -9,8 +9,8 @@ cube and rotation.
 
 Settings (Ctrl+,) opens one window with every setting SolidSeas has, its pages
 listed on the left: General, 3D View, 3D Print, Drawings (with each Drawing
-Settings page under it), AI Assistant and Extensions. OK and Apply save them
-all. AI Settings, Drawing Settings and Tools > Extensions open the same window
+Settings page under it), AI Assistant, Extensions and Connector. OK and Apply
+save them all. AI Settings, Drawing Settings and Tools > Extensions open the same window
 on their page.
 
 The Settings menu also has quick toggles for:
@@ -52,7 +52,8 @@ program, which the viewer cannot clear.
 The pages for [3D Print](3d-print.md#choosing-the-slicer-and-the-format),
 [Drawings](drawings.md#drawing-settings) and the
 [AI Assistant](assistant.md#setting-up-the-ai) are described with those
-features.
+features. The Connector page, which lets other apps on your PC read the open
+folder, is described in [Connect other apps to SolidSeas](connector.md).
 
 ## Folders and their indexes
 

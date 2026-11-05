@@ -106,6 +106,13 @@ development: the OCCT backend extension. Please report problems at
 https://github.com/SolidSeas/SolidSeas/issues.
 [The viewer](https://github.com/SolidSeas/SolidSeas/blob/main/docs/guide/viewer.md#experimental-features) has the full list.
 
+## Connect other apps
+
+Settings > Connector lets a script, an in-house tool or an AI app such as Claude
+Desktop read the folder open in the viewer, read-only and without the command line:
+[Connect other apps to SolidSeas](https://github.com/SolidSeas/SolidSeas/blob/main/docs/guide/connector.md)
+explains what each shares.
+
 ## Documentation
 
 The [user guide](https://github.com/SolidSeas/SolidSeas/blob/main/docs/guide/index.md):

@@ -30,6 +30,9 @@ https://solidseas.app.
 - [The modeling assistant](assistant.md): drafting SOLIDWORKS changes with an AI
   model, running them, and the machine policy with which an administrator
   restricts SolidSeas on a PC.
+- [Connect other apps to SolidSeas](connector.md): letting a script, an
+  in-house tool or an AI app such as Claude Desktop read the open folder, from
+  Settings > Connector, and what each option shares.
 
 ## Using SolidSeas from another system
 

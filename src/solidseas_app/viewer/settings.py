@@ -237,7 +237,7 @@ def parse_ini(data: bytes) -> Sections | None:
     return sections
 
 
-_TITLES = {"preferences": "Preferences", "session": "Session", "print": "Print"}
+_TITLES = {"preferences": "Preferences", "session": "Session", "print": "Print", "connector": "Connector"}
 
 
 def format_ini(sections: Sections) -> str:
