@@ -116,8 +116,12 @@ in and packaged extensions start off.
 
 A helper is a program in the package. The core starts it with `solidseas.helpers.Helper`, the
 runner the SOLIDWORKS bridge (`solidseas.swapi.bridge.Bridge`) is built on, through
-`solidseas_app.extensions.start_helper`, which first checks that the extension is on and
-that every file of its package still has the SHA-256 its manifest names. The drawing and
+`solidseas_app.extensions.start_helper`, which first checks that the extension is on, that
+the package's installed `extension.json` has a SHA-256 its release recorded in
+`accepted.json`, and that every file of the package still has the SHA-256 that manifest
+names. The package's folder is the person's own, so a helper replaced there together with
+its manifest is refused by the first check; a core that accepts none of an extension's
+packages, as a source checkout, has no manifest to compare and checks the files only. The drawing and
 mesh children are Python worker processes of another kind and keep their own runner.
 
 - Started suspended and placed in a Job Object (kill on close, a memory cap, die on an
@@ -152,8 +156,9 @@ mesh children are Python worker processes of another kind and keep their own run
 
 - `scripts/build-extensions.ps1` builds each package's folder and zips it with
   `python -m solidseas_app.extensions.package build` into `dist\extensions\<id>-<version>.zip`
-  (the manifest, the helper and the notices), then writes `accepted.json`, the list of those
-  packages' SHA-256s, beside the extensions module.
+  (the manifest, the helper and the notices), then writes `accepted.json` beside the
+  extensions module: the SHA-256s of those packages (`accepted`) and of each package's
+  `extension.json` (`manifests`).
 - Each package carries the licence texts of what it holds, as its notices and as files
   (`THIRD_PARTY_NOTICES.txt` section 3). The video package is refused for an ffmpeg
   configured with `--enable-gpl` or `--enable-nonfree`, and needs `-FfmpegSource`, where

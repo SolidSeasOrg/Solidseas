@@ -18,6 +18,9 @@ Extensions page, the viewer and the MCP server ask, and nothing here imports Qt:
   name twice without regard to case); sizes and the compression ratio are bounded;
   its ``extension.json`` is the core's own manifest for that extension; and every
   file the manifest names is there with its SHA-256.
+* :func:`start_helper` starts a packaged extension's helper only after its installed
+  ``extension.json`` is one the release recorded (:data:`ACCEPTED_MANIFESTS`) and every
+  file it names still has its SHA-256.
 * :func:`add_package` unpacks a checked package into a new temporary folder beside
   the others under :func:`extensions_root` and renames it into place; an older
   version there is kept until the new one is in place, then removed.
@@ -321,16 +324,18 @@ CATALOG: dict[str, Manifest] = {
 }
 
 
-def _read_accepted() -> dict[str, frozenset[str]]:
-    """``accepted.json`` beside this module, which the release build writes
-    (:mod:`.package`); nothing when there is none, as in a source checkout."""
+def _read_accepted(key: str = "accepted") -> dict[str, frozenset[str]]:
+    """The SHA-256s ``accepted.json`` beside this module lists under ``key``, by extension:
+    ``accepted`` for the package files, ``manifests`` for their ``extension.json``. The
+    release build writes it (:mod:`.package`); nothing when there is none, as in a source
+    checkout."""
     path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "accepted.json")
     try:
         with open(path, encoding="utf-8") as fh:
             raw = json.load(fh)
     except (OSError, ValueError):
         return {}
-    listed = raw.get("accepted") if isinstance(raw, dict) and raw.get("version") == 1 else None
+    listed = raw.get(key) if isinstance(raw, dict) and raw.get("version") == 1 else None
     if not isinstance(listed, dict):
         return {}
     out: dict[str, frozenset[str]] = {}
@@ -344,6 +349,9 @@ def _read_accepted() -> dict[str, frozenset[str]]:
 # What this core accepts: extension id -> the SHA-256s of its package files, from the
 # release build's accepted.json; a source checkout has none, so accepts no package.
 ACCEPTED: dict[str, frozenset[str]] = _read_accepted()
+# extension id -> the SHA-256s of those packages' extension.json, which start_helper compares
+# the installed one with, so a manifest changed in the person's own folder is never trusted.
+ACCEPTED_MANIFESTS: dict[str, frozenset[str]] = _read_accepted("manifests")
 
 
 # --------------------------------------------------------------------------- where
@@ -616,13 +624,14 @@ def _package_path(name: Any) -> str:
 
 @dataclass(frozen=True)
 class CheckedPackage:
-    """A package that passed :func:`check_package`: its manifest, its SHA-256, and its
-    files (path -> size)."""
+    """A package that passed :func:`check_package`: its manifest, its SHA-256, its files
+    (path -> size) and the SHA-256 of its ``extension.json``."""
 
     path: str
     sha256: str
     manifest: Manifest
     files: dict[str, int]
+    manifest_sha256: str = ""
 
 
 def _sha256(path: str) -> str:
@@ -677,8 +686,9 @@ def check_package(path: str, *, accepted: Mapping[str, Iterable[str]] | None = N
             raise ExtensionError("The package is larger than SolidSeas unpacks.")
         if MANIFEST not in files:
             raise ExtensionError(f"The package has no {MANIFEST}.")
+        raw_manifest = z.read(MANIFEST)
         try:
-            found = manifest(json.loads(z.read(MANIFEST).decode("utf-8")))
+            found = manifest(json.loads(raw_manifest.decode("utf-8")))
         except (ValueError, UnicodeDecodeError) as exc:
             raise ExtensionError(f"The package's {MANIFEST} is refused: {exc}") from None
         _agrees(owner, found)
@@ -697,7 +707,7 @@ def check_package(path: str, *, accepted: Mapping[str, Iterable[str]] | None = N
                     h.update(chunk)
             if h.hexdigest() != want:
                 raise ExtensionError(f"{name[:60]} in the package is not the file its manifest names.")
-    return CheckedPackage(path, digest, found, files)
+    return CheckedPackage(path, digest, found, files, hashlib.sha256(raw_manifest).hexdigest())
 
 
 def _agrees(owner: str, found: Manifest) -> None:
@@ -819,6 +829,37 @@ def _changed_file(folder: str, added: Manifest) -> str | None:
     return None
 
 
+def _recorded_manifests(
+    extension_id: str, manifests: Mapping[str, Iterable[str]] | None = None
+) -> frozenset[str] | None:
+    """The SHA-256s of the ``extension.json`` of the packages of ``extension_id`` this core
+    accepts (``manifests``, by default :data:`ACCEPTED_MANIFESTS`), or None when it accepts
+    none of that extension's packages, as in a source checkout, and so has none to compare."""
+    if manifests is not None:
+        return frozenset(manifests[extension_id]) if extension_id in manifests else None
+    if extension_id not in ACCEPTED and extension_id not in ACCEPTED_MANIFESTS:
+        return None
+    return ACCEPTED_MANIFESTS.get(extension_id, frozenset())
+
+
+def _installed_manifest(folder: str, recorded: frozenset[str] | None) -> Manifest | None:
+    """The ``extension.json`` in ``folder``, read once: None when it is a link, unreadable,
+    or (with ``recorded``) not one of those SHA-256s."""
+    path = os.path.join(folder, MANIFEST)
+    if os.path.islink(path) or not os.path.isfile(path):
+        return None
+    try:
+        with open(path, "rb") as fh:
+            data = fh.read(MAX_MANIFEST_BYTES + 1)
+        if len(data) > MAX_MANIFEST_BYTES:
+            return None
+        if recorded is not None and hashlib.sha256(data).hexdigest() not in recorded:
+            return None
+        return manifest(json.loads(data.decode("utf-8")))
+    except (OSError, ValueError, UnicodeDecodeError):
+        return None
+
+
 def _changed_message(name: str, extension: str) -> str:
     return (
         f"{name} in {extension}'s package is not the file it was added with; remove the "
@@ -836,11 +877,15 @@ def start_helper(
     launcher=None,
     helper_class=None,
     args=(),
+    manifests: Mapping[str, Iterable[str]] | None = None,
 ):
     """Start the helper of the packaged extension ``extension_id`` and return it, a
     :class:`solidseas.helpers.Helper` (section 6): only while it is on (:func:`is_on`),
-    and only after every file of its package is checked again against the SHA-256 its
-    manifest names, so a file changed since it was added is never run. It runs in a Job
+    only when its installed ``extension.json`` has a SHA-256 the release recorded
+    (``manifests``, by default :data:`ACCEPTED_MANIFESTS`; not checked where this core
+    accepts none of the extension's packages), and only after every file of its package
+    is checked again against the SHA-256 that manifest names, so neither a file nor the
+    manifest changed since it was added is ever run. It runs in a Job
     Object with the manifest's memory cap; each request's timeout is the manifest's
     ``seconds``. ``launcher(program)`` gives the command line (the program alone by
     default; a test runs a stand-in through Python), and ``args`` follow it.
@@ -858,7 +903,13 @@ def start_helper(
     found = _added(m.id, root)
     if found is None or found[1].helper is None:
         raise HelperRefused(f"{m.name}'s package is not added")
-    folder, added = found
+    folder, found_manifest = found
+    added = _installed_manifest(folder, _recorded_manifests(m.id, manifests))
+    if added is None or added.id != found_manifest.id or added.helper is None:
+        raise HelperRefused(
+            f"{MANIFEST} in {m.name}'s package is not one this version of SolidSeas accepts; "
+            "remove the extension and add the package made for this version"
+        )
     changed = _changed_file(folder, added)
     if changed is not None:
         raise HelperRefused(_changed_message(changed, m.name))
@@ -921,9 +972,13 @@ def add_beside(
             mid = checked.manifest.id
             if not policy.extension_allowed(pol, mid) or mid in added:
                 continue
-            have = added_manifest(mid, root)
-            same = have is not None and have.id == mid and have.version == checked.manifest.version
-            if same and have.helper == checked.manifest.helper:
+            have = _added(mid, root)
+            same = have is not None and have[1].id == mid and have[1].version == checked.manifest.version
+            if (
+                same
+                and have[1].helper == checked.manifest.helper
+                and _installed_manifest(have[0], frozenset({checked.manifest_sha256})) is not None
+            ):
                 continue
             try:
                 add_package(checked, root=root)
@@ -988,6 +1043,7 @@ def remove_package(extension_id: str, *, root: str | None = None) -> bool:
 
 __all__ = [
     "ACCEPTED",
+    "ACCEPTED_MANIFESTS",
     "BRIDGE",
     "CATALOG",
     "DEFAULT_ON",

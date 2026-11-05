@@ -647,6 +647,11 @@ while the project takes shape.
 
 ### Security
 
+- **An extension's settings file is checked before its helper starts.**
+  SolidSeas now refuses to start an extension's helper when the package's
+  extension.json in your profile is not the one its release recorded, so a
+  helper and its manifest replaced together are no longer run.
+
 - **Old copies of files sent to Open CASCADE are cleaned up.** When a conversion
   through the OCCT backend was stopped by force, its copy of your file stayed in
   the temporary folder; SolidSeas now removes such copies older than a day the

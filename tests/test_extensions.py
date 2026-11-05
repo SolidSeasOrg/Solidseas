@@ -606,3 +606,88 @@ def test_packages_that_came_beside_the_viewer_are_added_once_and_left_off(tmp_pa
     assert X.add_beside([str(beside)], root=str(tmp_path / "r2"), accepted=accepted, pol=locked) == []
     assert X.add_beside([str(tmp_path / "missing")], root=root, accepted=accepted, pol=free) == []
     assert X.beside_folders() == [], "a source checkout has none"
+
+
+# --------------------------------------------------------------------------- recorded manifests
+def test_accepted_json_records_each_package_s_manifest(tmp_path):
+    from solidseas_app.extensions import package
+
+    folder = tmp_path / "video"
+    folder.mkdir()
+    (folder / "solidseas-video.exe").write_bytes(HELPER)
+    pkg = package.build_package("video", str(folder), str(tmp_path / "zips"))
+    out = str(tmp_path / "accepted.json")
+    package.write_accepted([pkg], out)
+    with zipfile.ZipFile(pkg) as z:
+        want = hashlib.sha256(z.read("extension.json")).hexdigest()
+    assert package.read_accepted(out, "manifests") == {"video": frozenset({want})}
+    assert json.loads(Path(out).read_text(encoding="utf-8"))["manifests"] == {"video": [want]}
+    accepted = package.read_accepted(out)
+    assert X.check_package(pkg, accepted=accepted).manifest_sha256 == want
+
+
+def test_a_helper_starts_only_beside_the_manifest_its_release_recorded(tmp_path):
+    import sys
+
+    m = _manifest()
+    m["helper"]["files"] = {"solidseas-video.exe": hashlib.sha256(STANDIN).hexdigest()}
+    pkg = _package(tmp_path, m, helper=STANDIN)
+    root = str(tmp_path / "extensions")
+    checked = X.check_package(str(pkg), accepted=_accept(pkg))
+    X.add_package(checked, root=root)
+    recorded = {"video": [checked.manifest_sha256]}
+    on, free = X.ExtensionState(frozenset({"video"})), policy.Policy()
+    launch = lambda program: [sys.executable, "-I", program]  # noqa: E731
+
+    def start(manifests):
+        return X.start_helper("video", on, pol=free, root=root, launcher=launch, manifests=manifests)
+
+    helper = start(recorded)
+    try:
+        assert helper.request("encode", {"frames": 1})["echo"] == {"frames": 1}
+    finally:
+        helper.close(timeout=10)
+    # Whoever can write the person's folder replaces the helper and its manifest together:
+    # every file matches the manifest beside it, but not the one the release recorded.
+    folder = Path(root) / "video"
+    other = STANDIN + b"\n# another program\n"
+    (folder / "solidseas-video.exe").write_bytes(other)
+    m["helper"]["files"] = {"solidseas-video.exe": hashlib.sha256(other).hexdigest()}
+    (folder / "extension.json").write_text(json.dumps(m), encoding="utf-8")
+    with pytest.raises(X.HelperRefused, match="extension.json in Video export's package is not one"):
+        start(recorded)
+    # a manifest edited alone (a longer time limit) is refused too
+    X.add_package(checked, root=root)
+    raw = json.loads((folder / "extension.json").read_text(encoding="utf-8"))
+    raw["helper"]["seconds"] = 86400
+    (folder / "extension.json").write_text(json.dumps(raw), encoding="utf-8")
+    with pytest.raises(X.HelperRefused, match="not one this version of SolidSeas accepts"):
+        start(recorded)
+    # a core that records other manifests of the extension refuses the one added before
+    X.add_package(checked, root=root)
+    with pytest.raises(X.HelperRefused, match="add the package made for this version"):
+        start({"video": ["0" * 64]})
+    # a core that accepts none of its packages (a source checkout) has nothing to compare
+    start(None).close(timeout=10)
+    assert X._recorded_manifests("video", {}) is None
+
+
+def test_a_package_beside_the_viewer_is_added_again_over_a_changed_manifest(tmp_path):
+    from solidseas_app.extensions import package
+
+    folder = tmp_path / "video"
+    folder.mkdir()
+    (folder / "solidseas-video.exe").write_bytes(HELPER)
+    beside = tmp_path / "SolidSeas extensions"
+    pkg = package.build_package("video", str(folder), str(beside))
+    root = str(tmp_path / "root")
+    accepted, free = _accept(Path(pkg), "video"), policy.Policy()
+    assert X.add_beside([str(beside)], root=root, accepted=accepted, pol=free) == ["video"]
+    installed = Path(root) / "video" / "extension.json"
+    raw = json.loads(installed.read_text(encoding="utf-8"))
+    raw["notices"] = ["changed"]  # the same version and helper, another manifest
+    installed.write_text(json.dumps(raw), encoding="utf-8")
+    assert X.add_beside([str(beside)], root=root, accepted=accepted, pol=free) == ["video"]
+    with zipfile.ZipFile(pkg) as z:
+        assert installed.read_bytes() == z.read("extension.json")
+    assert X.add_beside([str(beside)], root=root, accepted=accepted, pol=free) == []

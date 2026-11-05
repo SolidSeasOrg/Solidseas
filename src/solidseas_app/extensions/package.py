@@ -8,9 +8,11 @@ the same files (names in order, every entry dated 1980-01-01 and marked as made 
 so a package's SHA-256 says exactly which files it holds.
 
 :func:`write_accepted` writes ``accepted.json`` from the packages a release builds: each
-extension's id and the SHA-256s of its packages. The release build runs it before it
-builds the core, and the core reads the file (:data:`ACCEPTED_FILE`) when it starts, so a
-core accepts the packages of its own release and no others.
+extension's id, the SHA-256s of its packages (``accepted``) and those of the packages'
+``extension.json`` (``manifests``). The release build runs it before it builds the core,
+and the core reads the file (:data:`ACCEPTED_FILE`) when it starts, so a core accepts the
+packages of its own release and no others, and starts a helper only beside a manifest
+its release recorded.
 
 ``python -m solidseas_app.extensions.package build --id ID --from FOLDER --out DIR`` and
 ``python -m solidseas_app.extensions.package accept ZIP... --out accepted.json`` run them.
@@ -106,21 +108,26 @@ def build_package(
 def write_accepted(packages: Iterable[str], out: str = ACCEPTED_FILE) -> dict[str, list[str]]:
     """Write ``accepted.json`` for ``packages`` (module notes) and return what it holds."""
     accepted: dict[str, list[str]] = {}
+    manifests: dict[str, list[str]] = {}
     for path in packages:
         with zipfile.ZipFile(path) as z:
-            mid = manifest(json.loads(z.read(MANIFEST).decode("utf-8"))).id
+            raw = z.read(MANIFEST)
+        mid = manifest(json.loads(raw.decode("utf-8"))).id
         accepted.setdefault(mid, []).append(_digest(path))
+        manifests.setdefault(mid, []).append(hashlib.sha256(raw).hexdigest())
     data = {k: sorted(set(v)) for k, v in sorted(accepted.items())}
+    recorded = {k: sorted(set(v)) for k, v in sorted(manifests.items())}
     tmp = out + ".tmp"
     with open(tmp, "w", encoding="utf-8") as fh:
-        json.dump({"version": 1, "accepted": data}, fh, indent=1)
+        json.dump({"version": 1, "accepted": data, "manifests": recorded}, fh, indent=1)
         fh.write("\n")
     os.replace(tmp, out)
     return data
 
 
-def read_accepted(path: str = ACCEPTED_FILE) -> dict[str, frozenset[str]]:
-    """What ``accepted.json`` at ``path`` lists, as the core reads it."""
+def read_accepted(path: str = ACCEPTED_FILE, key: str = "accepted") -> dict[str, frozenset[str]]:
+    """What ``accepted.json`` at ``path`` lists under ``key`` (``accepted``, the packages'
+    SHA-256s, or ``manifests``, their ``extension.json``'s), as the core reads it."""
     import json as _json
 
     try:
@@ -128,7 +135,7 @@ def read_accepted(path: str = ACCEPTED_FILE) -> dict[str, frozenset[str]]:
             raw = _json.load(fh)
     except (OSError, ValueError):
         return {}
-    listed = raw.get("accepted") if isinstance(raw, dict) and raw.get("version") == 1 else None
+    listed = raw.get(key) if isinstance(raw, dict) and raw.get("version") == 1 else None
     if not isinstance(listed, dict):
         return {}
     out: dict[str, frozenset[str]] = {}
