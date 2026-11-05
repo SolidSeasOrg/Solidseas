@@ -2333,6 +2333,62 @@ def test_the_self_test_turns_3d_on_in_its_own_settings_only(app, tmp_path, monke
 
 
 @needs_qt
+def test_the_self_test_keeps_its_caches_in_a_folder_of_its_own(app, tmp_path, monkeypatch):
+    """A self-test indexes the folder and saves its index as the viewer does, but in a
+    temporary folder of its own that it removes when it ends: the person's cache and data
+    folders gain nothing, and the variables that name them are put back (SolidSeas-a0j9)."""
+    from solidseas.catalog import store as catalog_store
+    from solidseas_app.viewer import app as viewer_app
+    from solidseas_app.viewer import indexer, savedindex
+    from solidseas_app.viewer.selftest import SelfTest
+
+    cache, data = tmp_path / "cache", tmp_path / "data"  # the person's, as the variables name them
+    monkeypatch.setenv("SOLIDSEAS_CACHE_DIR", str(cache))
+    monkeypatch.setenv("SOLIDSEAS_DATA_DIR", str(data))
+    monkeypatch.setenv("APPDATA", str(tmp_path / "Roaming"))
+    monkeypatch.setattr(sys, "excepthook", sys.excepthook)  # main() installs its own
+    monkeypatch.setattr(indexer, "DEFAULT_ON", True)  # opened folders are indexed, as on a PC
+
+    def indexes() -> str:  # the saved index where the viewer keeps it: in the cache folder of the moment
+        return os.path.join(catalog_store.cache_dir(), "indexes")
+
+    monkeypatch.setattr(savedindex, "index_folder", indexes)
+    seen: dict = {}
+    finish = SelfTest._finish
+
+    def finish_once_indexed(self) -> None:  # the catalog and the saved index are written first
+        self.timer.stop()
+        own = Path(catalog_store.cache_dir())
+        _wait(app, lambda: self.window.where_used.job is None and any(own.glob("indexes/*.sqlite")), 120.0)
+        seen.update(cache=own, index=self.window.where_used.result)
+        finish(self)
+
+    monkeypatch.setattr(SelfTest, "_finish", finish_once_indexed)
+    assert viewer_app.main(["--self-test", str(FIXTURES), "--report", str(tmp_path / "r.json")]) == 0
+    own = seen["cache"]
+    assert own.name == "cache" and own.parent.name.startswith("solidseas-selftest-cache-")
+    assert seen["index"]["ok"] and own in Path(seen["index"]["db"]).parents
+    assert not own.parent.exists()  # removed when the run ended
+    assert not cache.exists() and not data.exists()  # the person's folders were never made
+    assert (os.environ["SOLIDSEAS_CACHE_DIR"], os.environ["SOLIDSEAS_DATA_DIR"]) == (str(cache), str(data))
+
+
+@needs_qt
+def test_the_self_tests_cache_folder_goes_however_the_run_ends(monkeypatch):
+    from solidseas_app.viewer.selftest import OWN_FOLDERS, own_cache_folder
+
+    for name in OWN_FOLDERS:
+        monkeypatch.delenv(name, raising=False)
+    with pytest.raises(RuntimeError), own_cache_folder() as work:
+        assert os.environ["SOLIDSEAS_CACHE_DIR"] == os.path.join(work, "cache")
+        assert os.environ["SOLIDSEAS_DATA_DIR"] == os.path.join(work, "data")
+        os.makedirs(os.path.join(work, "cache", "catalogs"))  # something the run wrote
+        raise RuntimeError("the window failed")
+    assert not os.path.exists(work)
+    assert not any(name in os.environ for name in OWN_FOLDERS)  # unset before, unset again
+
+
+@needs_qt
 def test_saved_settings_apply_when_the_window_opens(app, tmp_path):
     from PySide6.QtCore import QSize
 

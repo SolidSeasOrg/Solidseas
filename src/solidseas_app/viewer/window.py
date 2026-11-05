@@ -1328,10 +1328,13 @@ class MainWindow(QMainWindow):
         rows = [(r.entry, r.thumb) for r in self.model.rows]
         counts, reason = result.get("counts") or {}, result.get("truncated_reason")
         read_at = self._index_read_at  # when the folder was read, not when the save ends
+        from .savedindex import index_folder, save
+
+        # The cache folder of now: a self-test's own one (selftest.own_cache_folder) is put
+        # back to the person's when the run ends, and a save still waiting must not follow it.
+        root = index_folder()
 
         def work() -> None:
-            from .savedindex import save
-
             try:
                 save(
                     folder,
@@ -1341,6 +1344,7 @@ class MainWindow(QMainWindow):
                     counts=counts,
                     truncated_reason=reason,
                     read_at=read_at,
+                    root=root,
                     extensions=extensions,
                 )
             except (OSError, ValueError, Exception):  # a cache that cannot be written: listed next time

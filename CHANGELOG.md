@@ -433,6 +433,10 @@ while the project takes shape.
 
 ### Fixed
 
+- **The viewer's self-test leaves your cache folder alone.** The index it makes
+  of the folder it tests and the thumbnails it draws now go to a temporary
+  folder of its own, removed when it ends.
+
 - **A half-written 3D print file is retried later.** If a stopped 3D Print
   export left a temporary .part file that could not be deleted, the next 3D
   Print now tries again to remove it.

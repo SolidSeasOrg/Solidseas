@@ -158,7 +158,10 @@ showing and the preview zoomed in, and writes `DIR\selftest.json`. From a
 checkout, `python -m solidseas_app` takes the same options.
 
 The self-test never reads or changes your settings: it runs with its own
-`selftest-settings.ini` next to the report. Set `QT_QPA_PLATFORM=offscreen` to
+`selftest-settings.ini` next to the report. Nor does it write to your cache
+folder: the index it makes of `FOLDER` and the thumbnails it draws go to a
+temporary folder of its own, removed when it ends, so an extension you added is
+not used in the run either. Set `QT_QPA_PLATFORM=offscreen` to
 run it without a screen (there is no OpenGL offscreen, so the 3D view then shows
 its message). Its outputs pass the same write guards as the exports: `DIR` and a
 `--report FILE` must lie outside `FOLDER`, and earlier screenshots, a report or

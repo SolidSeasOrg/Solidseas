@@ -64,6 +64,7 @@ output refused by a write guard (the library's code for a refusal).
 """
 
 import argparse
+import contextlib
 import os
 import sys
 import traceback
@@ -607,11 +608,12 @@ def main(argv: list[str] | None = None) -> int:
     from .settings import Settings, SettingsStore, default_path
 
     looks_path = None  # the self-test's looks stay in memory: a run never starts from another's
+    caches: contextlib.AbstractContextManager = contextlib.nullcontext()
     if args.self_test:
         # The outputs pass the write guards before anything is opened or shown.
         from solidseas.errors import OutputRefusedError
 
-        from .selftest import outputs, settings_output
+        from .selftest import outputs, own_cache_folder, settings_output
 
         try:
             _shots, report = outputs(
@@ -631,10 +633,23 @@ def main(argv: list[str] | None = None) -> int:
         if not store.save(own):
             store = SettingsStore(None)  # the run still gets its own settings, in memory
             store.save(own)
+        caches = own_cache_folder()  # its catalog, saved index and thumbnails: never the person's
     else:
         store = SettingsStore(default_path())
         looks_path = path_beside(default_path())  # each document's looks in 3D, kept between runs
 
+    with caches:
+        code, stopped = _show(args, store, looks_path)
+    if not stopped:
+        # A read past its deadline is still running in a worker. Nothing is being
+        # written to a document, so leave without waiting for it.
+        os._exit(code)
+    return code
+
+
+def _show(args, store, looks_path: str | None) -> tuple[int, bool]:
+    """Show the window, or run the self-test in it, until it closes: the exit code, and
+    whether every worker stopped (:meth:`.window.MainWindow.shutdown`)."""
     use_system_fonts()
     from PySide6.QtWidgets import QApplication, QMessageBox
 
@@ -708,8 +723,4 @@ def main(argv: list[str] | None = None) -> int:
         elif last:
             window.reopen(last)
     code = app.exec()
-    if not window.shutdown():
-        # A read past its deadline is still running in a worker. Nothing is being
-        # written to a document, so leave without waiting for it.
-        os._exit(code)
-    return code
+    return code, window.shutdown()

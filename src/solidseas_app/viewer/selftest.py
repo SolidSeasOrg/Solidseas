@@ -210,7 +210,10 @@ OpenGL, so the 3D view shows its message.
 
 The self-test never reads or changes your settings. It runs with a settings
 file of its own, ``selftest-settings.ini`` next to its report (:func:`settings_output`),
-which says whether the 3D view is on.
+which says whether the 3D view is on. Nor does it write to your cache folder: the
+catalog it indexes the folder into, the folder's saved index and the thumbnails it
+makes go to a temporary folder of its own (:func:`own_cache_folder`), removed when it
+ends, so an extension package added to your cache folder is not seen by the run either.
 
 ``--quick-filter TYPES`` (repeatable; TYPES are quick filter types or extensions,
 ``sldprt,step``) runs once the folder is listed, before any document is selected:
@@ -237,6 +240,7 @@ files of ``--print-dry-run`` are the one exception, by design: they are new file
 next to the models in the folder under test, as 3D Print puts them.
 """
 
+import contextlib
 import importlib.util
 import json
 import math
@@ -247,6 +251,7 @@ import statistics
 import sys
 import tempfile
 import time
+from collections.abc import Iterator
 from typing import Any
 
 from PySide6.QtCore import QEvent, QEventLoop, QObject, QPoint, QPointF, Qt, QThreadPool, QTimer, Signal
@@ -271,6 +276,9 @@ STEP_TIMEOUT_S = 330.0  # the STEP export stops itself at 300 seconds
 EXPLODE_TIMEOUT_S = 10.0  # an animation takes half a second at most
 LISTING_TIMEOUT_S = 3600.0
 SETTINGS_NAME = "selftest-settings.ini"
+# The folders a run keeps in a temporary folder of its own (:func:`own_cache_folder`): the
+# variable that names each, and its folder's name there.
+OWN_FOLDERS = {"SOLIDSEAS_CACHE_DIR": "cache", "SOLIDSEAS_DATA_DIR": "data"}
 ZOOM = 2.5  # the zoomed preview shot's magnification
 TURN_OVER_DEGREES = 100.0  # from the isometric view (35 degrees up), 45 past straight above
 LOOK_ACTIONS = ("transparent", "hide", "isolate", "explode-sub")
@@ -350,6 +358,28 @@ def settings_output(folder: str, report: str, *, force: bool = False) -> str:
         )
     except _cli.Refused as exc:
         raise _refused("settings", path, exc) from None
+
+
+@contextlib.contextmanager
+def own_cache_folder() -> Iterator[str]:
+    """A new temporary folder that holds the run's cache and data folders: while it lasts,
+    ``SOLIDSEAS_CACHE_DIR`` and ``SOLIDSEAS_DATA_DIR`` name folders in it (:data:`OWN_FOLDERS`),
+    so the catalog the window indexes the folder into, the folder's saved index and the
+    thumbnail cache are the run's own, never the person's. Afterwards both variables are as
+    they were and the folder is removed."""
+    work = tempfile.mkdtemp(prefix="solidseas-selftest-cache-")
+    saved = {name: os.environ.get(name) for name in OWN_FOLDERS}
+    for name, sub in OWN_FOLDERS.items():
+        os.environ[name] = os.path.join(work, sub)
+    try:
+        yield work
+    finally:
+        for name, value in saved.items():
+            if value is None:
+                os.environ.pop(name, None)
+            else:
+                os.environ[name] = value
+        shutil.rmtree(work, ignore_errors=True)
 
 
 _CHECKER: list[Any] = []  # the checker, once looked for: [module or None]
