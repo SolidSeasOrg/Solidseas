@@ -433,6 +433,10 @@ while the project takes shape.
 
 ### Fixed
 
+- **Tessellation warnings are listed.** The warnings no_stored_bodies,
+  configuration_assumed and bodies_unreadable are now in the list of warning
+  codes and in the API reference.
+
 - **Complete licence texts.** Help > Licences and the video package now carry
   the notices of the code Python itself incorporates (expat and others), and the
   video package carries the OpenSSL, mpdecimal and xz licences of what it holds.

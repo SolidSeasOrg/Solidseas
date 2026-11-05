@@ -10,6 +10,7 @@ import copy
 import os
 import pickle
 import random
+import re
 import shutil
 import sys
 
@@ -239,7 +240,6 @@ def test_opening_within_a_folder_never_crosses_a_link_below_it(tmp_path):
             _io.open_readonly(str(missing), within=str(root))
     with pytest.raises(InvalidArgumentError):
         open_document(O02.read_bytes(), within=root)
-
 
 
 def test_a_hard_link_is_refused_before_any_byte_is_read(tmp_path, monkeypatch):
@@ -560,6 +560,19 @@ def test_every_listed_warning_code_is_emitted_somewhere():
     source = "".join(p.read_text(encoding="utf-8") for p in files)  # without the table itself
     for code in WARNING_CODES:
         assert f'"{code}"' in source, f"{code} is listed but nothing emits it"
+
+
+def test_the_tessellator_s_codes_are_listed_and_documented():
+    tessellator = (FIXTURES.parent.parent / "src" / "solidseas" / "tessellate" / "__init__.py").read_text(
+        encoding="utf-8"
+    )
+    emitted = set(re.findall(r'ReaderWarning\(\s*"(\w+)"', tessellator))
+    assert {"no_stored_bodies", "configuration_assumed", "bodies_unreadable"} <= emitted
+    api = (FIXTURES.parent.parent / "docs" / "API.md").read_text(encoding="utf-8")
+    warnings_section = api.split("\n### 3.5 Warnings\n", 1)[1].split("\n### 3.6 ", 1)[0]
+    for code in emitted:
+        assert code in WARNING_CODES, f"the tessellator emits {code}, which WARNING_CODES does not list"
+        assert f"| `{code}` |" in warnings_section, f"docs/API.md 3.5 does not list {code}"
 
 
 def test_the_ghost_material_configuration_warning_keeps_its_text():

@@ -379,6 +379,10 @@ WARNING_CODES: dict[str, str] = {
     "faces_left_out": "faces that could not be tessellated leave holes in an exported object",
     "instances_left_out": "instances of the assembly that could not be placed or meshed are left out",
     "shell_reoriented": "a closed shell of an exported object was inside out and was turned round",
+    # the bodies the tessellator takes (docs/API.md section 3.15)
+    "no_stored_bodies": "the document stores no bodies for the configuration asked for",
+    "configuration_assumed": "the document does not say which configuration it stores; its only one was used",
+    "bodies_unreadable": "a stream of stored bodies could not be read; its bodies are left out",
     # the tessellator's self-checks (docs/API.md section 3.15)
     "loops_reversed": "faces whose loops all ran against them, drawn as the file faces them, loops reversed",
     "faces_folded": "faces whose triangles fold over one another (their (u, v) areas do not add up)",

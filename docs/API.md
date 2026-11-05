@@ -544,6 +544,15 @@ Exports for 3D printing (3.17, provisional) add theirs:
 | `shell_reoriented` | A closed shell of an exported object was inside out (it lay in no other shell, or every shell of the object faced the wrong way) and was turned round |
 | `shells_not_judged` | An exported object has more closed shells than the 64 whose nesting is worked out, so which way they face was not checked |
 
+The tessellator (3.15, provisional) says which stored bodies it could take
+with these:
+
+| Code | Meaning |
+|---|---|
+| `no_stored_bodies` | The document stores no bodies for the configuration asked for; the result is empty, and another configuration's bodies are never taken in its place |
+| `configuration_assumed` | The document does not say which of its stored configurations is which and stores only one, so that one was used |
+| `bodies_unreadable` | A stream of stored bodies could not be read (damaged, or over a limit); the warning names the stream, and its bodies are left out |
+
 The tessellator's self-checks (3.15, provisional) each give a warning of their
 own code when they find something, on a `Tessellation` and on the scene of a
 format whose B-rep it draws (3.20.7):
