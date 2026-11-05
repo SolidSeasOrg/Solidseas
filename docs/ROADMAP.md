@@ -2,6 +2,8 @@
 
 Phases run in this order because each one is built on the last. A phase is
 done when its "done when" list is true and the change is pushed.
+[FEATURES.md](FEATURES.md) lists what ships today, feature by feature, with its
+status.
 
 ## Phase 0: Format proof of concept (done)
 
@@ -161,7 +163,10 @@ preview and its properties within seconds of the first scan.
   `docs/OCCT.md`.
 - IGES import and export through an optional Open CASCADE conversion backend
   (tier 1 of `docs/OCCT.md`, with bead SolidSeas-e2z): OCP only, in worker
-  processes, offered only when it is installed.
+  processes, offered only when it is installed. Built as the OCCT backend
+  extension, in development: with its package added, the viewer and the command
+  line read IGES and BREP files, and File > Convert and `solidseas convert`
+  write IGES, BREP and STEP. No release offers the package yet.
 
 Done when: one click sends a selected part or assembly to Bambu Studio, and the
 app remembers that choice.
@@ -176,7 +181,9 @@ Open CASCADE backends remain.
 - Flat and indented BOMs from assemblies, exported as CSV and JSON. Built
   (provisional): `solidseas.bom`, the `bom` command and `/v1/bom` match
   SOLIDWORKS' own top-level and indented tables on fixture o19, and the
-  viewer's BOM tab shows and exports them.
+  viewer's BOM tab shows and exports them. Its BOM editor lays a BOM out
+  (columns, row order, hidden rows, edited cells), keeps the layout in a
+  `.ssbom` file and exports CSV, Excel and PDF.
 - Git-aware history, with snapshots for folders outside git. Built
   (provisional, `docs/VERSIONS.md`): `solidseas.versions` and the `history` and
   `snapshot` commands, Git read in pure Python with no program run, and
@@ -212,25 +219,35 @@ The full design is in `docs/ASSISTANT.md`.
   cancellation, keys through `CredReadW` and `CredWriteW`, the machine policy
   read fail-closed with both chokepoints (the provider factory, and
   `start_run`'s checks before step 1), and the plan validator for vocabulary
-  version 1. The window, the bridge's live mode and the step loop come next.
+  version 1. The window, the bridge's live mode and the step loop followed
+  (below).
 - CadQuery workspace: write or generate models, export STEP, or build a native
   SOLIDWORKS part through the SOLIDWORKS backend.
   It brings Open CASCADE in as tier 2 of `docs/OCCT.md`: a separate, heavier
   extra (the full CadQuery, with casadi and VTK), never in the core library or
   the viewer executable. The bridge can already make a new document and import
   STEP, IGES and Parasolid into it (`new_document`, `import_file`); writing a
-  native SLDPRT still needs a save operation.
+  native SLDPRT still needs a save operation. The workspace is not built; a
+  CadQuery model can already be recorded and written as a native part without
+  SOLIDWORKS (`solidseas sldprt`, Phase 7).
 - Always-on-top assistant window with a script console, a live log, and a
-  "What the AI sees" panel.
+  "What the AI sees" panel. Built, tagged Experimental in the viewer.
 - Review mode: plain English to drafted code against `solidseas.swapi.live`,
-  editable, run on approval in a worker process inside a Job Object.
+  editable, run on approval in a worker process inside a Job Object. Built,
+  reaching SOLIDWORKS through the CAD Bridge extension.
 - Automatic mode: a plain-English goal to one validated plan from the closed
   vocabulary, carried out on one bound part with a safety copy, an inverse per
   step, structural verification, per-run limits, a global Stop hotkey and crash
   recovery from the run journal. It never runs free generated code and never
-  saves the user's document.
+  saves the user's document. Built, with an optional picture of the part after
+  each step for the model to check, and unfinished runs offered again when the
+  window opens; the global Stop hotkey is not built (Stop is the window's
+  button).
 - Live attachment through a session and document picker, opt-in per session,
-  with one writer per SOLIDWORKS session.
+  with one writer per SOLIDWORKS session. Built.
+- Not in the first plan, built since: the same reads and Automatic runs for a
+  chat app over MCP (`SolidSeasViewer.exe --mcp`, `docs/MCP.md`), with the
+  Gridfinity and SolidCraft extensions' tools.
 - Machine policy that can disable Automatic mode or restrict providers to
   local only, read fail-closed and enforced in two chokepoints, with an
   elevated `--set-policy` entry point for administrators.
@@ -278,6 +295,12 @@ and 5: it needs only the format readers, the tessellator and the viewer.
   (`docs/OCCT.md`), never a dependency of the drawing library; whether its
   polygon-based algorithm could speed hidden lines up is a stage 4 question.
 
+Status: stage 1 is built, in the viewer and in `solidseas drawing`, tagged
+Experimental and provisional until a release makes drawings stable
+([docs/drawings](drawings/README.md)). Built ahead of their stage: STEP,
+Parasolid and Alibre Design parts, assemblies with a parts list and balloons,
+turned parts in part, and the first slice of ISO drawings.
+
 Done when: from a SOLIDWORKS part, a user gets a datum-referenced, dimensioned
 PDF and DXF stamped PRELIMINARY, edits the drawing, has it signed and released,
 emails the PDF and updates the drawing when the part changes; and the stage 1
@@ -299,7 +322,12 @@ candidates, `ParametricDocumentIR`, the SolidCraft adapter and a seed-based
 writer for one extruded rectangle are built. On 2026-10-19 SOLIDWORKS 2024
 opened all 17 test parts as native, editable sketches and extrusions,
 including a SolidCraft design written with no SOLIDWORKS; a part without a
-Parasolid partition is rebuilt as it opens.
+Parasolid partition is rebuilt as it opens. Since then the clean-room
+generator writes boxes of rectangles extruded from the Front Plane, one round
+hole cut through a box, and fillets on a box's edges along its depth and on the
+hole's far edge, through `solidseas sldprt` (provisional). SOLIDWORKS 2024 has
+opened the boxes and the hole; parts with a fillet have not been opened in it
+yet.
 
 - Step 1 (done): SOLIDWORKS' verdict on the candidates: it opens a container
   this writer laid out, rebuilds from an edited parameter, and builds the body
@@ -312,6 +340,8 @@ Parasolid partition is rebuilt as it opens.
   same check.
 - Step 4: `solidseas export model.solidcraft --format sldprt`, offered only for
   what has passed the check, with every left-out feature named to the user.
+  Built as its own command, `solidseas sldprt`, which names every feature it
+  leaves out and writes nothing unless told to (`--allow-partial`).
 
 Done when: a SolidCraft part with a dimensioned rectangle sketch and a blind
 extrusion, written with no SOLIDWORKS, opens in SOLIDWORKS as a native sketch

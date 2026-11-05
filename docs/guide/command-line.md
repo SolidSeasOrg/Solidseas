@@ -285,6 +285,7 @@ to approve it. The service's `/v1/bom`, `/v1/mesh`, the catalog routes
 other formats (`--formats`) and the reference viewer (`--viewer`) are provisional
 and may change. So are the commands `history`, `snapshot`, `diff`, `sldprt`,
 `convert`, `drawing`, `mcp`, `openapi` and `export` (with its `--check`).
+[What SolidSeas does](../FEATURES.md) gives each feature's status.
 
 With `--formats` naming IGES or BREP (`--formats all`, or
 `--formats solidworks,iges,occt_brep`), the service reads those files through the

@@ -8,6 +8,11 @@ while the project takes shape.
 
 ### Added
 
+- **A list of every feature.** docs/FEATURES.md lists what SolidSeas does,
+  feature by feature, with each one's status (Stable, Provisional, Preview,
+  Experimental or In development), what it needs and where its guide is; the
+  README and the user guide link to it.
+
 - **More of the viewer in the guide.** The modeling assistant page now explains
   Automatic mode, the BOM page explains Edit BOM..., and the command-line page
   lists every command, solidseas mcp, solidseas openapi and SolidSeasViewer.exe

@@ -28,13 +28,17 @@ Website: https://solidseas.app
 
 ## Status
 
+[What SolidSeas does](https://github.com/SolidSeas/SolidSeas/blob/main/docs/FEATURES.md)
+lists every feature with its status and what it needs, and
+[docs/ROADMAP.md](https://github.com/SolidSeas/SolidSeas/blob/main/docs/ROADMAP.md) what comes next. In short:
+
 - **Stable:** the library's public API, its command line and the REST service,
   since 0.2.0, apart from what [docs/API.md](https://github.com/SolidSeas/SolidSeas/blob/main/docs/API.md) marks provisional.
   Their names, JSON, exit codes and routes change only under its stability
   policy (section 9).
 - **Preview:** SolidSeas Viewer, the desktop app.
-- **Experimental:** drawings and extensions, which may still change from one
-  release to the next.
+- **Experimental:** drawings, the modeling assistant and extensions, which may
+  still change from one release to the next.
 - **Provisional:** writing native `.sldprt` files without SOLIDWORKS.
   `solidseas sldprt` writes a part from a SolidCraft design, a SolidSeas design
   file or a recorded CadQuery model: corner rectangles on the Front Plane
@@ -45,8 +49,6 @@ Website: https://solidseas.app
   [The command line](https://github.com/SolidSeas/SolidSeas/blob/main/docs/guide/command-line.md#solidworks-parts-from-a-design)
   says what it writes, and
   [docs/NATIVE_SLDPRT_WRITER.md](https://github.com/SolidSeas/SolidSeas/blob/main/docs/NATIVE_SLDPRT_WRITER.md) has the research.
-
-[docs/ROADMAP.md](https://github.com/SolidSeas/SolidSeas/blob/main/docs/ROADMAP.md) has the phases.
 
 ## Install
 
@@ -99,12 +101,11 @@ with open_document("D:/Jobs/Example/frame.SLDASM") as doc:
 Some features of the viewer are on but not finished, and say so with a small
 Experimental or In development tag beside their menu entries. Their results may
 be incomplete or wrong, and they may change between versions. Experimental:
-drawings (check every drawing before you use it; until one is released its PDF
+drawings (check every drawing before you use it: until one is released its PDF
 and DXF carry the PRELIMINARY stamp), the modeling assistant, and the
 Gridfinity, video export, SolidCraft and CAD Bridge extensions. In
 development: the OCCT backend extension. Please report problems at
 https://github.com/SolidSeas/SolidSeas/issues.
-[The viewer](https://github.com/SolidSeas/SolidSeas/blob/main/docs/guide/viewer.md#experimental-features) has the full list.
 
 ## Connect other apps
 
@@ -115,7 +116,7 @@ explains what each shares.
 
 ## Documentation
 
-The [user guide](https://github.com/SolidSeas/SolidSeas/blob/main/docs/guide/index.md):
+The [user guide](https://github.com/SolidSeas/SolidSeas/blob/main/docs/guide/index.md), and [every feature with its status](https://github.com/SolidSeas/SolidSeas/blob/main/docs/FEATURES.md):
 
 - [Installing](https://github.com/SolidSeas/SolidSeas/blob/main/docs/guide/installing.md) and [the viewer](https://github.com/SolidSeas/SolidSeas/blob/main/docs/guide/viewer.md)
 - [Every 3D format](https://github.com/SolidSeas/SolidSeas/blob/main/docs/guide/formats.md),

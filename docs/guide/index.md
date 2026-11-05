@@ -45,33 +45,32 @@ https://solidseas.app.
 - [Building SolidSeas](building.md): a development checkout, the checks, the
   executable, the installer, the lock file, the self-test and the wiki sync.
 
-## Where the project stands
+## What works today
 
-The library is ready for integrations: Phase 0 (reading the SOLIDWORKS format
-without SOLIDWORKS) and Phase 1 (the Python API, the command line and the local
-REST service) are built, and from 0.2.0 their public names, JSON, exit codes and
-routes change only under the stability policy in [API.md](../API.md) section 9.
+[What SolidSeas does](../FEATURES.md) lists every feature, what it needs (SOLIDWORKS,
+Windows, an extension, an AI key) and its status. In short:
 
 - **Stable:** the library's public API, its command line and the REST service,
-  since 0.2.0, apart from what API.md marks provisional.
+  since 0.2.0, apart from what [API.md](../API.md) marks provisional. Their names,
+  JSON, exit codes and routes change only under the stability policy in API.md
+  section 9.
 - **Preview:** SolidSeas Viewer, the desktop app.
-- **Experimental:** drawings and extensions, which may still change from one
-  release to the next (see [Experimental features](viewer.md#experimental-features)).
+- **Experimental:** drawings, the modeling assistant and extensions, which may
+  still change from one release to the next (see
+  [Experimental features](viewer.md#experimental-features)).
 
-[ROADMAP.md](../ROADMAP.md) has the phases and [ARCHITECTURE.md](../ARCHITECTURE.md)
-how it fits together. [DRAWINGS.md](../DRAWINGS.md) specifies drawings made from
-3D parts (a SolidSeas drawing file, a PDF and a DXF), now provisional in the
-command line and the viewer ([docs/drawings](../drawings/README.md)),
-[VERSIONS.md](../VERSIONS.md) a file's versions and what changed between them, and
-[OCCT.md](../OCCT.md) records how SolidSeas uses Open CASCADE.
+[ROADMAP.md](../ROADMAP.md) has what is built and what comes next.
 
 ## Reference documents
 
 | Document | Covers |
 |---|---|
+| [FEATURES.md](../FEATURES.md) | every feature, with its status and what it needs |
 | [API.md](../API.md) | the library, the command line and the REST service, with recipes |
 | [ARCHITECTURE.md](../ARCHITECTURE.md) | module boundaries and how the pieces fit |
-| [DRAWINGS.md](../DRAWINGS.md) | the drawings specification |
+| [DRAWINGS.md](../DRAWINGS.md) | the drawings specification, with [the pages on what is built](../drawings/README.md) |
+| [VERSIONS.md](../VERSIONS.md) | a file's versions and what changed between them |
+| [OCCT.md](../OCCT.md) | how SolidSeas uses Open CASCADE |
 | [EXTENSIONS.md](../EXTENSIONS.md) | extension packages for the viewer |
 | [MCP.md](../MCP.md) | SolidSeas as an MCP server for Claude Desktop, Claude Code and other chat clients |
 | [ASSISTANT.md](../ASSISTANT.md) | the modeling assistant's design and rules |
