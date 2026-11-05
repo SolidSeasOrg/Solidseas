@@ -1132,8 +1132,9 @@ SolidSeas executable.
   and tooltips, which have no plain mode, get the text through `html.escape`.
   Qt's default `AutoText` renders anything that looks like HTML as rich text,
   which follows links and loads images by path; an image from a UNC path sends
-  an SMB request with the user's NTLM credentials. No model or document string
-  is ever passed to the WebEngine 3D viewer.
+  an SMB request with the user's NTLM credentials. The Preview tab's 3D view
+  draws meshes with OpenGL and holds no web or HTML view, so no model or
+  document string reaches a browser engine there.
 - A "What the AI sees" panel, a live log, the plan with each argument's
   source, and Stop.
 - Beside "Send my feature and property names", "Show the AI a picture of the
