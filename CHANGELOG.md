@@ -6,6 +6,8 @@ while the project takes shape.
 
 ## [Unreleased]
 
+## [0.2.570] - 2026-11-07
+
 ### Added
 
 - **A list of every feature.** docs/FEATURES.md lists what SolidSeas does,
@@ -352,6 +354,11 @@ while the project takes shape.
   MCP server can ask run_plan for the same pictures, one after each step.
 
 ### Changed
+
+- **A new home on GitHub.** SolidSeas now lives at
+  github.com/SolidSeasOrg/Solidseas. The links in the app (the Experimental and
+  Connector pages, extensions), the guides, the installer and the package
+  metadata point there.
 
 - **Millimetre general tolerance is greyed out in Drawing Settings.** Millimetre
   drawings use the millimetre block; an ISO 2768 class will be offered once
