@@ -57,7 +57,7 @@
 export.auto: true
 import.auto: false
 
-# sync.remote: "git+https://github.com/SolidSeas/SolidSeas-beads"
+sync.remote: "git+https://github.com/SolidSeasOrg/SolidSeas-beads.git"
 
 export.path: "issues.jsonl"
 
