@@ -34,7 +34,7 @@ import pytest
 
 from support import FIXTURES
 
-BASE = "96c3916f6dd6ad66ea5970abe934407ec878ebaf"
+BASE = "679b469350ffc75242ad9d8b74ebcdbbe182a866"
 REPO = Path(__file__).resolve().parents[1]
 SRC = REPO / "src"
 _VERSION = re.compile(rb"SolidSeas [0-9][0-9.]*")
