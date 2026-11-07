@@ -37,8 +37,8 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 GUIDE = "docs/guide"
-WIKI_URL = "https://github.com/SolidSeas/SolidSeas.wiki.git"
-REPOSITORY_URL = "https://github.com/SolidSeas/SolidSeas"
+WIKI_URL = "https://github.com/SolidSeasOrg/Solidseas.wiki.git"
+REPOSITORY_URL = "https://github.com/SolidSeasOrg/Solidseas"
 MARKER = "<!-- Generated from {source} by scripts/wiki_sync.py. Edit that file, not this page. -->"
 MARKER_RE = re.compile(r"<!-- Generated from (\S+) by scripts/wiki_sync\.py\.")
 

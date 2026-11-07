@@ -36,7 +36,7 @@
 
 #define AppName "SolidSeas Viewer"
 #define AppExe "SolidSeasViewer.exe"
-#define AppUrl "https://github.com/SolidSeas/SolidSeas"
+#define AppUrl "https://github.com/SolidSeasOrg/Solidseas"
 
 [Setup]
 ; The AppId stays the same for every release, so a new version upgrades the old one in place.

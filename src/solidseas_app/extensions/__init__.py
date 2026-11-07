@@ -69,7 +69,7 @@ _WINDOWS_NAMES = {
 }
 NETWORK = ("none", "loopback", "ssh")
 KINDS = ("built_in", "packaged")
-RELEASES_URL = "https://github.com/SolidSeas/SolidSeas/releases"
+RELEASES_URL = "https://github.com/SolidSeasOrg/Solidseas/releases"
 # What is on before the person has chosen: the extensions that were part of SolidSeas
 # before extensions existed, so an update does not take away what someone already uses.
 DEFAULT_ON = frozenset({"gridfinity"})

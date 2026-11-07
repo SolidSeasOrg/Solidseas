@@ -363,7 +363,7 @@ scripts/sync-wiki.sh ../SolidSeas.wiki --push   # the same, then push to the wik
 
 What it does:
 
-- clones https://github.com/SolidSeas/SolidSeas.wiki.git into the
+- clones https://github.com/SolidSeasOrg/Solidseas.wiki.git into the
   folder you name when it does not exist yet, and refuses a checkout with
   uncommitted changes;
 - writes each guide page under a wiki name made from its file name

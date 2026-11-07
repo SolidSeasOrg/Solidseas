@@ -8,7 +8,7 @@ build the executable or the installer yourself, see [Building SolidSeas](buildin
 
 Download the installer from https://solidseas.app/download/windows, or take
 `SolidSeas-Setup-<version>.exe` from the
-[GitHub Releases](https://github.com/SolidSeas/SolidSeas/releases)
+[GitHub Releases](https://github.com/SolidSeasOrg/Solidseas/releases)
 page. Each release carries the installer with its SHA-256 in a `.sha256` file
 beside it, and the same installer named `SolidSeas-Setup.exe`, so a link to
 the latest release's `SolidSeas-Setup.exe` always gets the newest version.

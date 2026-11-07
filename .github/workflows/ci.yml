@@ -37,7 +37,7 @@ jobs:
     # registered for this repository (the repository variable SELF_HOSTED_RUNNER is true);
     # without one the job would wait in the queue until a later run cancels it.
     if: >-
-      github.repository == 'SolidSeas/SolidSeas' &&
+      github.repository == 'SolidSeasOrg/Solidseas' &&
       vars.SELF_HOSTED_RUNNER == 'true' &&
       ((github.event_name == 'push' && github.ref == 'refs/heads/main') ||
       github.event_name == 'workflow_dispatch')

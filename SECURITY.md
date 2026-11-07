@@ -11,7 +11,7 @@ or discussion.
 
 Use GitHub's private vulnerability reporting: open the repository's
 **Security** tab and choose **Report a vulnerability**, or go straight to
-<https://github.com/SolidSeas/SolidSeas/security/advisories/new>.
+<https://github.com/SolidSeasOrg/Solidseas/security/advisories/new>.
 Only the maintainers can see the report.
 
 A helpful report includes:

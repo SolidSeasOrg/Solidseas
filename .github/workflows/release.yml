@@ -29,7 +29,7 @@ permissions:
 jobs:
   installer:
     name: Windows installer
-    if: github.repository == 'SolidSeas/SolidSeas'
+    if: github.repository == 'SolidSeasOrg/Solidseas'
     runs-on: windows-latest
     timeout-minutes: 60
     concurrency:

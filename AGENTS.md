@@ -22,6 +22,7 @@ phase order.
 
 - Commits are authored as `solidground34321` with that account's GitHub
   noreply address. The repository config sets this; do not change it.
+- The repository lives at github.com/SolidSeasOrg/Solidseas.
 - Never add Co-Authored-By trailers, AI attribution or session links to commit
   messages.
 - Subjects are plain English sentences in sentence case, with no trailing

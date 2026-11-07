@@ -84,7 +84,7 @@ def pytest_terminal_summary(terminalreporter):
     if _left_out:
         terminalreporter.write_line(
             f"{len(_left_out)} test modules need the private SOLIDWORKS fixtures and were left out; "
-            "scripts/fetch-fixtures.py copies them in from SolidSeas/SolidSeas-fixtures"
+            "scripts/fetch-fixtures.py copies them in from SolidSeasOrg/SolidSeas-fixtures"
         )
 
 

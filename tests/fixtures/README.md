@@ -249,7 +249,7 @@ measures before replacing the file and its hash.
 
 The SOLIDWORKS documents (o01 to o19), `generation.log` and `scrub_report.txt` carry the
 name of the Windows account that ran the kit, so they are kept in the private repository
-SolidSeas/SolidSeas-fixtures with `ground_truth.private.json`, the account fields and the
+SolidSeasOrg/SolidSeas-fixtures with `ground_truth.private.json`, the account fields and the
 template authors' names this copy of `ground_truth.json` leaves out.
 `scripts/fetch-fixtures.py --from <clone>` copies them here, checked against
 `SHA256SUMS.txt`; without them the test modules that need them are left out of a run.

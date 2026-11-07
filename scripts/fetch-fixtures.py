@@ -2,7 +2,7 @@
 
 The documents the fixture kit made through SOLIDWORKS, and its two logs, carry the name
 of the Windows account that ran it, so they are kept in the private repository
-SolidSeas/SolidSeas-fixtures rather than this one. With a clone of it:
+SolidSeasOrg/SolidSeas-fixtures rather than this one. With a clone of it:
 
     python scripts/fetch-fixtures.py --from ../SolidSeas-fixtures
 
@@ -30,7 +30,7 @@ def _sha(path: Path) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--from", dest="source", required=True, help="a clone of SolidSeas/SolidSeas-fixtures")
+    ap.add_argument("--from", dest="source", required=True, help="a clone of SolidSeasOrg/SolidSeas-fixtures")
     args = ap.parse_args(argv)
     src = Path(args.source).resolve()
     sums = {}

@@ -14,7 +14,7 @@ Each line links to the page that explains it.
 | **In development** | Parts of it are not built yet. The viewer tags it "In development". |
 
 Nothing needs SOLIDWORKS unless the "Needs" column says so. Please report
-problems at https://github.com/SolidSeas/SolidSeas/issues.
+problems at https://github.com/SolidSeasOrg/Solidseas/issues.
 
 ## The library and the command line
 

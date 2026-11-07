@@ -296,7 +296,7 @@ def test_source_txt_names_the_shipped_versions_and_no_host_that_may_not_exist():
     ffmpeg = re.search(r"^FFMPEG_VERSION=(\S+)$", build_sh, re.M).group(1)
     assert f"ffmpeg-{ffmpeg}.tar.xz" in source
     for text in (source, notices()):
-        assert "SolidSeas/SolidSeas/releases/tag/" not in text
+        assert "SolidSeasOrg/Solidseas/releases/tag/" not in text
         assert not re.search(r"releases/tag/(qt|ffmpeg)-[\d.]+-source", text)
     release = (ROOT / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
     assert "'licenses\\SOURCE.txt'" in release

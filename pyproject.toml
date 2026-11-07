@@ -35,10 +35,10 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/SolidSeas/SolidSeas"
-Documentation = "https://github.com/SolidSeas/SolidSeas/tree/main/docs"
-Issues = "https://github.com/SolidSeas/SolidSeas/issues"
-Changelog = "https://github.com/SolidSeas/SolidSeas/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/SolidSeasOrg/Solidseas"
+Documentation = "https://github.com/SolidSeasOrg/Solidseas/tree/main/docs"
+Issues = "https://github.com/SolidSeasOrg/Solidseas/issues"
+Changelog = "https://github.com/SolidSeasOrg/Solidseas/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 app = ["PySide6>=6.7"]

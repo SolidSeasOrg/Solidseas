@@ -39,7 +39,7 @@ Some features are on but not finished, and say so with a small Experimental or
 In development tag beside their menu entries, with a note on their Settings
 page. Their results may be incomplete or wrong, and they may change between
 versions. Please report problems at
-https://github.com/SolidSeas/SolidSeas/issues.
+https://github.com/SolidSeasOrg/Solidseas/issues.
 
 - **Experimental:** drawings (New Drawing, Open Drawing, Make Drawing and
   Drawing Settings, switched on by default; turn them off under Settings >

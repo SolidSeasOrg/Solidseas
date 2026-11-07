@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
-REPOSITORY = "https://github.com/SolidSeas/SolidSeas"
+REPOSITORY = "https://github.com/SolidSeasOrg/Solidseas"
 
 
 def _load():

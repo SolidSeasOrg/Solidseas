@@ -39,7 +39,7 @@ from solidseas import policy
 from . import connectorsvc as svc
 from .documents import display_folder
 
-GUIDE_URL = "https://github.com/SolidSeas/SolidSeas/blob/main/docs/guide/connector.md"
+GUIDE_URL = "https://github.com/SolidSeasOrg/Solidseas/blob/main/docs/guide/connector.md"
 SHARE_TEXT = "Let other apps on this PC read the open folder"
 API_NOTE = (
     "SolidSeas answers on this PC only, at 127.0.0.1, and only an app that sends the token "

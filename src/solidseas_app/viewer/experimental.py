@@ -25,7 +25,7 @@ from typing import Any
 EXPERIMENTAL = "Experimental"
 IN_DEVELOPMENT = "In development"
 STAGES = (EXPERIMENTAL, IN_DEVELOPMENT)
-ISSUES_URL = "https://github.com/SolidSeas/SolidSeas/issues"
+ISSUES_URL = "https://github.com/SolidSeasOrg/Solidseas/issues"
 
 # The features of the viewer that carry a tag, and their stage.
 DRAWINGS = "drawings"

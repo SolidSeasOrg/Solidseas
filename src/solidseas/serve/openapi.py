@@ -26,7 +26,7 @@ from .tokens import NONCE_TEXT, TOKEN_NAME
 
 OPENAPI_VERSION = "3.0.3"
 OPENAPI_ROUTE = "/v1/openapi.json"
-API_DOCS = "https://github.com/SolidSeas/SolidSeas/blob/main/docs/API.md"
+API_DOCS = "https://github.com/SolidSeasOrg/Solidseas/blob/main/docs/API.md"
 # Text without the control characters the query parser refuses (C0 and DEL), in the
 # ECMA-262 dialect OpenAPI uses.
 NO_CONTROL = r"^[^\u0000-\u001f\u007f]*$"

@@ -6,7 +6,7 @@ import pytest
 
 from test_viewer import app, needs_qt  # noqa: F401  (the Qt application, as a fixture)
 
-URL = "https://github.com/SolidSeas/SolidSeas/issues"
+URL = "https://github.com/SolidSeasOrg/Solidseas/issues"
 
 
 def test_the_tag_and_the_notes_read_the_same_everywhere():
