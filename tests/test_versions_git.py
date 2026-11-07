@@ -472,8 +472,13 @@ def test_reftable_and_unknown_extensions_are_refused(make_repo):
     r.commit("one")
     config = r.root / ".git" / "config"
     original = config.read_text(encoding="utf-8")
-    config.write_text(original + "[extensions]\n\trefStorage = reftable\n", encoding="utf-8")
-    r.git("config", "core.repositoryformatversion", "1")
+    # Version 1 is written together with the extension: newer git refuses to touch a config
+    # whose version 0 names a v1-only extension, so it cannot be set afterwards with git config.
+    config.write_text(
+        original.replace("repositoryformatversion = 0", "repositoryformatversion = 1")
+        + "[extensions]\n\trefStorage = reftable\n",
+        encoding="utf-8",
+    )
     with pytest.raises(FormatNotSupportedError) as err:
         versions.history(path)
     assert err.value.detail["rule"] == "reftable"
