@@ -65,7 +65,7 @@ for.
 | Feature | What it does | Status | Needs | Guide |
 |---|---|---|---|---|
 | Folder browser | The folder tree, the file list as details or icons with thumbnails, the name filter and the quick filter's buttons, File > Open File... and Recent Folders | Preview | | [The viewer](guide/viewer.md) |
-| Details tabs | Overview, Properties, Components (with positions), BOM, References, Where Used, Paths and Preview for the document selected, and Back to the document you came from | Preview | | [The viewer](guide/viewer.md#the-window) |
+| Details tabs | Overview, Properties, Components (with positions), BOM, References, Where Used, History, Paths and Preview for the document selected, and Back to the document you came from | Preview | | [The viewer](guide/viewer.md#the-window) |
 | Every 3D format | STEP, Parasolid, Alibre Design, ACIS, 3MF, STL, OBJ, PLY, OFF, glTF and AMF files listed, previewed and drawn in 3D beside the SOLIDWORKS documents | Preview | | [Every 3D format](guide/formats.md) |
 | 3D view | Rotate, pan and zoom parts and assemblies, with a view cube, Home, exploding, picking, transparency, Hide and Isolate per component, kept for each document | Preview | a graphics card with OpenGL | [Settings and the 3D view](guide/settings.md#the-3d-view) |
 | Open and Show in File Explorer | Opens a file in the program Windows opens it with, or shows it in its folder | Preview | | [Opening a file in its own program](guide/viewer.md#opening-a-file-in-its-own-program) |
@@ -79,7 +79,7 @@ for.
 | BOM tab | An assembly's bill of materials, top level, parts only or indented, with File > Export BOM to CSV or JSON | Preview | | [Bills of materials](guide/where-used-and-bom.md#bills-of-materials) |
 | BOM editor | Edit BOM... on the BOM tab: choose columns, reorder and hide rows, type over cells, save as a `.ssbom` file and export CSV, Excel or PDF | Preview | | [Bills of materials](guide/where-used-and-bom.md#bills-of-materials) |
 | Where Used | Indexes each folder you open, then shows which assemblies and drawings use a document, and finds documents by part number or property | Preview | | [Where Used](guide/where-used-and-bom.md#where-used) |
-| Versions | Not in the viewer yet: use `solidseas history`, `snapshot` and `diff` | | | [A file's versions](guide/command-line.md#a-files-versions) |
+| History tab | A file's Git commits or snapshots, newest first, with each one's preview and what changed in it; Take Snapshot and Compare with Working Copy | Provisional | | [A file's history](guide/viewer.md#a-files-history) |
 
 ### Conversion and export
 

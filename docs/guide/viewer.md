@@ -25,7 +25,9 @@ The viewer never changes a file. It writes only:
 - a BOM you edit, saved as a `.ssbom` file, and its CSV, Excel or PDF export,
   where you choose (see [Bills of materials](where-used-and-bom.md#bills-of-materials));
 - an animation you save from the 3D view with the video export extension, where
-  you choose.
+  you choose;
+- the snapshots you take on the History tab, in your own data folder, never
+  beside the file (see [A file's history](#a-files-history)).
 
 The one way a file of yours can change is a setting you turn on yourself: with
 Open 3MF and STL Files As They Are, your slicer opens your own 3MF or STL file,
@@ -76,6 +78,7 @@ shows the selected document on a set of tabs:
 | References | where each referenced file was found |
 | Paths | the paths and user names the file would reveal if sent |
 | Where Used | the assemblies and drawings that use the document |
+| History | the file's versions, each one's preview and what changed in it (see [A file's history](#a-files-history)) |
 | Raw JSON | the document as the library's JSON |
 
 To open a folder, use File > Open Folder... (Ctrl+O), or File > Recent Folders
@@ -234,6 +237,33 @@ as the program opens it.
 Open is offered only for a file that is there, of a 3D format SolidSeas lists,
 and never for a link or a SOLIDWORKS lock file. A component stored inside its
 assembly, or one that was not found, has it greyed with the reason.
+
+## A file's history
+
+The History tab lists the versions of the selected file, newest first, with
+when each was made, where it comes from, its note and its size. In a Git
+repository the versions are the commits that changed the file, with their
+messages. Anywhere else they are the snapshots you take. When the file on disk
+differs from its newest version, it is listed on top as the working copy.
+
+Click a version to see the preview image it stores and what changed from the
+version before it: its custom and configuration properties, its configurations,
+document fields such as the material and the units, and for a part or a model
+file its geometry, with the volume, area and size that changed. Compare with
+Working Copy shows instead what changed from that version to the file as it is
+now.
+
+**Take Snapshot** keeps a copy of the file as it is now in your SolidSeas data
+folder (`%LOCALAPPDATA%\SolidSeas\history` on Windows), never beside the file,
+and adds it to the list. A file that has not changed since its newest snapshot
+stores nothing new. For a file in a Git repository the button is off: commit
+the file to add a version. Snapshots taken on the command line with `--project`
+live in that project's folder and are not listed here yet.
+
+The tab reads the versions only while it is shown, in the background, and
+nothing it does changes the file or the repository. The same history is on the
+command line as `solidseas history`, `snapshot` and `diff` (see
+[A file's versions](command-line.md#a-files-versions)).
 
 ## Opening a file in F3D
 
