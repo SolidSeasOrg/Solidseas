@@ -101,7 +101,7 @@ def by_name(result: CheckResult) -> dict[tuple[str, str], Finding]:
 
 def test_each_reference_gets_a_result(vault):
     a = vault / "Projects" / "A"
-    res = check_project(a, library=vault / "Library")
+    res = check_project(a, library=vault / "Library", copy_toolbox=True)
     assert res.documents == 4 and res.unreadable == ()  # asm, asm2, p and d
     f = by_name(res)
     ok = f["asm.SLDASM", "p.SLDPRT"]
@@ -142,8 +142,8 @@ def test_each_reference_gets_a_result(vault):
     assert not res.self_contained and len(res.problems()) == 7
 
 
-def test_toolbox_parts_are_no_problem_when_the_installation_loads_them(vault):
-    res = check_project(vault / "Projects" / "A", library=vault / "Library", toolbox_mandatory=False)
+def test_toolbox_parts_are_no_problem_by_default_because_the_installation_loads_them(vault):
+    res = check_project(vault / "Projects" / "A", library=vault / "Library")
     assert "toolbox" not in {f.result for f in res.problems()}
     assert all(c.source.name != "hex.SLDPRT" for c in plan_copies(res).copies)
 
@@ -183,7 +183,7 @@ def test_a_parts_external_files_and_its_import_source_are_checked(tmp_path):
 
 def test_plan_copies_puts_each_file_where_every_document_using_it_finds_it(vault):
     a = vault / "Projects" / "A"
-    plan = plan_copies(check_project(a, library=vault / "Library"))
+    plan = plan_copies(check_project(a, library=vault / "Library", copy_toolbox=True))
     copies = {c.source.name: c for c in plan.copies}
     assert set(copies) == {"b.SLDPRT", "bolt.SLDPRT", "hex.SLDPRT"}
     b = copies["b.SLDPRT"]

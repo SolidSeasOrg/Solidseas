@@ -96,7 +96,7 @@ class CheckResult:
 
     project: Path
     library: Path | None
-    toolbox_mandatory: bool
+    copy_toolbox: bool
     documents: int
     findings: tuple[Finding, ...]
     unreadable: tuple[tuple[Path, str], ...] = ()
@@ -110,7 +110,7 @@ class CheckResult:
     def problems(self) -> list[Finding]:
         """The findings that keep the project from being self-contained: every one but
         ``ok`` and ``inside_parent``, and but ``toolbox`` when Toolbox parts need no copy."""
-        fine = {"ok", "inside_parent"} | (set() if self.toolbox_mandatory else {"toolbox"})
+        fine = {"ok", "inside_parent"} | (set() if self.copy_toolbox else {"toolbox"})
         return [f for f in self.findings if f.result not in fine]
 
     @property
@@ -237,12 +237,12 @@ def _finding(document: Path, f, r, project: Path, library: Path | None) -> Findi
 
 
 def check_project(
-    project: Path, *, library: Path | None = None, toolbox_mandatory: bool = True
+    project: Path, *, library: Path | None = None, copy_toolbox: bool = False
 ) -> CheckResult:
     """Check that every reference of every SOLIDWORKS document in ``project`` resolves
     inside it (see the module notes). ``library`` is the common-parts library folder:
     a file found there is reported as ``outside`` with place ``library``.
-    ``toolbox_mandatory`` True means Toolbox parts must be copied into the project like
+    ``copy_toolbox`` True means Toolbox parts must be copied into the project like
     any other file; False means SOLIDWORKS loads them from the installation's own
     Toolbox folder, so a ``toolbox`` finding is no problem and needs no copy.
 
@@ -284,16 +284,16 @@ def check_project(
             if r is None:
                 continue
             findings.append(_finding(path, files.get(f.key, f), r, project, lib))
-    return CheckResult(project, lib, toolbox_mandatory, count, tuple(findings), tuple(unreadable))
+    return CheckResult(project, lib, copy_toolbox, count, tuple(findings), tuple(unreadable))
 
 
 # --------------------------------------------------------------------------- the plan
-def _needs_copy(f: Finding, toolbox_mandatory: bool) -> bool:
+def _needs_copy(f: Finding, copy_toolbox: bool) -> bool:
     if f.found is None:
         return False
     if f.result == "outside":
         return True
-    return f.result == "toolbox" and toolbox_mandatory
+    return f.result == "toolbox" and copy_toolbox
 
 
 def _same_content(a: Path, b: Path) -> bool:
@@ -306,7 +306,7 @@ def _same_content(a: Path, b: Path) -> bool:
 def plan_copies(result: CheckResult) -> CopyPlan:
     """The copies that would make ``result``'s project self-contained, without making
     them. Each file found outside the project (and each Toolbox part, when
-    ``toolbox_mandatory``) is copied once, into the deepest folder that holds every
+    ``copy_toolbox``) is copied once, into the deepest folder that holds every
     document referring to it, so SOLIDWORKS' search finds it from each of them; that
     folder is the project's own when it would lie outside it. A destination that
     already holds a file of that name is never written over: with the same content
@@ -314,7 +314,7 @@ def plan_copies(result: CheckResult) -> CopyPlan:
     project = result.project
     groups: dict[str, tuple[Path, list[Path], str | None]] = {}
     for f in result.findings:
-        if not _needs_copy(f, result.toolbox_mandatory) or f.found is None:
+        if not _needs_copy(f, result.copy_toolbox) or f.found is None:
             continue
         src, users, place = groups.setdefault(_key(f.found), (f.found, [], f.place))
         if f.document not in users:
