@@ -23,6 +23,16 @@ while the project takes shape.
   assembly. These now show as inside the assembly (status inside_parent) in the
   references, the command line and the viewer's References list.
 
+### Added
+
+- **The self-contained project check, in Python.** solidseas.pdm.check
+  finds every reference of a project's documents the way SOLIDWORKS searches,
+  past the project folder, and says for each whether it is in the project,
+  outside it (in the library, a neighbouring project or elsewhere), Toolbox,
+  inside its assembly, missing or another document of that name. It also lists
+  the copies that would make the project self-contained, without making them.
+  The pdm check command comes later.
+
 ## [0.2.570] - 2026-11-07
 
 ### Added
