@@ -33,6 +33,14 @@ while the project takes shape.
   the copies that would make the project self-contained, without making them.
   The pdm check command comes later.
 
+- **A History tab in the viewer.** It lists the selected file's versions,
+  newest first: the commits that changed it in a Git repository, or the
+  snapshots you take of it anywhere else. Click a version to see its preview
+  and what changed from the version before it, such as a property, the material
+  or the volume and size. Take Snapshot keeps a copy of the file as it is now
+  in your SolidSeas data folder, never beside the file, and Compare with
+  Working Copy shows what changed since the chosen version.
+
 ## [0.2.570] - 2026-11-07
 
 ### Added

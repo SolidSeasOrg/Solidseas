@@ -327,6 +327,7 @@ def test_window_is_titled_as_a_preview(viewer):
         "BOM",
         "References",
         "Where Used",
+        "History",
         "Paths",
         "Raw JSON",
     ]
@@ -413,7 +414,7 @@ def test_self_test_writes_screenshots_and_a_report(app, tmp_path):
     report = json.loads((tmp_path / "selftest.json").read_text(encoding="utf-8"))
     assert report["ok"] and report["listing"]["counts"]["ok"] == len(DOCUMENTS) + len(MODEL_FIXTURES)
     assert [d["name"] for d in report["documents"]] == [ASSEMBLY]  # the first assembly
-    assert len(report["screenshots"]) == 2 + 1 + 9 + 1  # listing, Settings, tabs, zoomed preview
+    assert len(report["screenshots"]) == 2 + 1 + 10 + 1  # listing, Settings, tabs, zoomed preview
     assert all(Path(p).stat().st_size > 0 for p in report["screenshots"])
 
 

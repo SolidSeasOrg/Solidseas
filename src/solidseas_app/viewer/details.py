@@ -63,9 +63,9 @@ something inside the file itself (:func:`.modelview.is_internal`) has no Go to f
 or 3D Print entry: there is no file of its own to go to.
 
 The Where Used tab (:mod:`.whereused`) is filled by the window from the opened
-folder's index, not from the document's sections, so a message about reading
-the document (a file that would not open, one the listing did not read) leaves
-it alone.
+folder's index, and the History tab (:mod:`.history`) from the file's versions, not
+from the document's sections, so a message about reading the document (a file that
+would not open, one the listing did not read) leaves them alone.
 
 The BOM tab shows an assembly configuration's bill of materials as SOLIDWORKS
 draws its BOM tables (top-level only, parts only or indented, numbered 3.1 under
@@ -113,6 +113,7 @@ from solidseas.bom import TYPE_NAMES as BOM_TYPE_NAMES
 
 from . import modeldetails, navigate, opening
 from .explode import subassemblies
+from .history import HistoryPane
 from .menus import relay_status_tips
 from .modelview import is_internal
 from .preview import PreviewPane, files_text
@@ -153,6 +154,7 @@ TABS = (
     "BOM",
     "References",
     "Where Used",
+    "History",
     "Paths",
     "Raw JSON",
 )
@@ -164,11 +166,15 @@ TAB_SECTIONS = {
     "BOM": "bom",
     "References": "references",
     "Where Used": "where_used",
+    "History": "history",
     "Paths": "paths",
     "Raw JSON": "summary",
 }
 # Hidden for a file of another format. Where Used stays: the index holds such files too.
 SOLIDWORKS_TABS = ("BOM", "Paths")
+# Filled by the window's controllers, not from the document's sections: a message about
+# reading the document leaves them alone.
+OWN_TABS = ("Where Used", "History")
 MAX_ROWS = 2000  # rows one tree shows; the rest are counted in a last row
 JSON_VIEW_CHARS = 1_000_000  # characters the Raw JSON tab shows
 
@@ -652,6 +658,7 @@ class DetailsPanel(QWidget):
             tree.setTextElideMode(Qt.TextElideMode.ElideMiddle)
         self.paths_note = _caption()
         self.where_used = WhereUsedPane()
+        self.history = HistoryPane()
         self.json = QPlainTextEdit()
         self.json.setReadOnly(True)
         self.json.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
@@ -676,6 +683,7 @@ class DetailsPanel(QWidget):
             "BOM": self.bom_widget,
             "References": refs,
             "Where Used": self.where_used,
+            "History": self.history,
             "Paths": paths,
             "Raw JSON": self.json,
         }
@@ -1130,7 +1138,7 @@ class DetailsPanel(QWidget):
         self.set_model_file(entry.get("model") is not None or format_name(path or entry["path"]) is not None)
         text = unread_text(entry, path)
         for name, page in self.pages.items():
-            if name != "Where Used":
+            if name not in OWN_TABS:
                 page.message(text, error=entry["status"] == "error")
 
     def open_failed(self, section: dict[str, Any]) -> None:
@@ -1138,7 +1146,7 @@ class DetailsPanel(QWidget):
             section.get("error"), size=self.size, path=self.path
         )
         for name, page in self.pages.items():
-            if name != "Where Used":
+            if name not in OWN_TABS:
                 page.message(text, error=True)
 
     def set_section(self, name: str, section: dict[str, Any]) -> None:

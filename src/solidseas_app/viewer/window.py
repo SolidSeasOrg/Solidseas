@@ -156,6 +156,7 @@ from .documents import (
     is_document,
     is_lock_file,
 )
+from .history import HistoryController
 from .lookstore import LookStore
 from .menus import relay_status_tips
 from .meshproc import MeshReader
@@ -579,6 +580,7 @@ class MainWindow(QMainWindow):
         self.drawings.install(self.menuBar().actions()[0].menu(), self.settings_menu, self.toolbar)
         self._build_status()
         self.where_used = WhereUsedController(self)  # indexing, the Where Used tab and the filter
+        self.file_history = HistoryController(self)  # the History tab: a file's versions
         self.connector = ConnectorService(self, self.store)  # Settings > Connector's local API
         self.apply_settings(self.settings, save=False, initial=True)
         if self.store.reset_keys:
@@ -1807,6 +1809,7 @@ class MainWindow(QMainWindow):
         if entry is None or source is None:
             self.details.clear("Select a document to see its details.")
             self.where_used.document_shown(None, None, None)
+            self.file_history.document_shown(None, None)
             self._update_actions()
             return
         folder = self.folder or ""
@@ -1814,6 +1817,7 @@ class MainWindow(QMainWindow):
         if apart is None and not self._worth_reading(entry):
             self.details.show_unread(entry, path)
             self.where_used.document_shown(entry, source, apart, model_format=self._model_format(entry))
+            self.file_history.document_shown(entry, source)
             self._update_actions()
             self.detailsFinished.emit(self._generation)
             return
@@ -1821,6 +1825,7 @@ class MainWindow(QMainWindow):
         model_file = self.details.model_file  # a file of another format: read in the worker pool
         # The index holds every format the list shows; Where Used says when one is not indexed.
         self.where_used.document_shown(entry, source, apart, model_format=self._model_format(entry))
+        self.file_history.document_shown(entry, source)
         self._update_actions()
         gen, cache = self._generation, self._cache
         within, nested = source.within, source.nested
@@ -3270,6 +3275,7 @@ class MainWindow(QMainWindow):
             self._export_job.cancel()  # ends Export for 3D Printing's process
         self.thumbnailer.stop()
         self.where_used.stop()  # the indexer process stops between files
+        self.file_history.stop()
         self.connector.shutdown()  # the local API's process, when it runs
         self.models.close()  # its workers end; a read waiting on one gets an error at once
         pools = (
@@ -3283,6 +3289,7 @@ class MainWindow(QMainWindow):
             self.export_pool,
             self.thumbnailer.pool,
             *self.where_used.pools,
+            self.file_history.pool,
         )
         for pool in pools:
             pool.clear()

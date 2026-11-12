@@ -802,7 +802,7 @@ def test_the_self_test_opens_components_and_goes_back(app, tmp_path, monkeypatch
         ("o19_drw_asm.SLDDRW", "Drawing View1", "listed", O16, True),
     ]
     names = [os.path.basename(p) for p in report["screenshots"]]
-    assert len(names) == 2 + 1 + 2 * (9 + 1) + 2 * (len(opened) + 1)
+    assert len(names) == 2 + 1 + 2 * (10 + 1) + 2 * (len(opened) + 1)
     assert any(n.endswith("o16_asm_features_open_o02_boxA-1.png") for n in names)
     assert any(n.endswith("o16_asm_features_back_from_Part12_o16_asm_features-1.png") for n in names)
     assert any(n.endswith("o19_drw_asm_open_Drawing_View1.png") for n in names)
