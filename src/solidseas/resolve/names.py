@@ -23,7 +23,8 @@ passes the checks of the ``windows-path-confinement`` rules: no component made
 only of dots and spaces (so no ``..``), no ``:`` (an alternate data stream), no
 control character, no reserved device name (``CON``, ``NUL``, ``COM1``...,
 with any extension), at most 255 characters, and a file name with a
-SOLIDWORKS document extension. A path that fails can still be found by name
+SOLIDWORKS document extension or the extension of a file a part can be imported
+from (:data:`IMPORT_EXTENSIONS`). A path that fails can still be found by name
 when its file name passes.
 
 **Names are compared the way NTFS compares them**: per character, by simple
@@ -47,6 +48,15 @@ from ..errors import InvalidArgumentError
 MAX_STORED_PATH = 1024
 MAX_COMPONENT = 255
 DOCUMENT_EXTENSIONS = (".sldprt", ".sldasm", ".slddrw")
+# Files a part can be imported from, its import source (a part's swFile names the file
+# it was opened from): STEP, IGES, Parasolid, ACIS, STL, 3MF, VRML, IFC, JT, Rhino,
+# DXF and DWG, and the native files of Inventor, Creo and NX, CATIA and Solid Edge.
+IMPORT_EXTENSIONS = (
+    ".step", ".stp", ".igs", ".iges", ".x_t", ".x_b", ".xmt_txt", ".xmt_bin", ".sat", ".sab",
+    ".stl", ".3mf", ".wrl", ".vrml", ".ifc", ".jt", ".3dm", ".dxf", ".dwg", ".ipt", ".iam",
+    ".prt", ".asm", ".catpart", ".catproduct", ".par", ".psm",
+)  # fmt: skip
+REFERENCE_EXTENSIONS = DOCUMENT_EXTENSIONS + IMPORT_EXTENSIONS
 STORED_KINDS = ("drive", "unc", "bare", "refused")
 
 _RESERVED = frozenset(
@@ -112,6 +122,11 @@ def is_document_name(name: str) -> bool:
     return name.lower().endswith(DOCUMENT_EXTENSIONS)
 
 
+def is_reference_name(name: str) -> bool:
+    """A SOLIDWORKS document's name, or an import source's: a name resolution looks up."""
+    return name.lower().endswith(REFERENCE_EXTENSIONS)
+
+
 def name_problem(name: str | None) -> str | None:
     """Why a file name cannot be looked up, or None."""
     if not name:
@@ -119,7 +134,7 @@ def name_problem(name: str | None) -> str | None:
     problem = component_problem(name)
     if problem is not None:
         return problem
-    if not is_document_name(name):
+    if not is_reference_name(name):
         return "not_a_document_name"
     return None
 
@@ -276,6 +291,16 @@ def from_stored(anchor: str, parts: Sequence[str]) -> HostPath | None:
     return HostPath(anchor, tuple(parts))
 
 
+def suffix_tails(folder: Sequence[str]) -> list[tuple[str, ...]]:
+    """The tails of a stored folder that SOLIDWORKS' folder probe puts between each
+    folder it searches and the name, in the order they are tried: none (the bare
+    name), then the last 1, 2... components. Every search for a reference by folder
+    takes its order from here. Whether SOLIDWORKS itself tries the longest tail first
+    is not settled (bead SolidSeas-bx4q): the two differ only when both would find a
+    file."""
+    return [tuple(folder[len(folder) - n :]) if n else () for n in range(len(folder) + 1)]
+
+
 def suffix_score(a: Sequence[str], b: Sequence[str]) -> int:
     """How many trailing folder components ``a`` and ``b`` share, compared folded."""
     n = 0
@@ -360,7 +385,9 @@ def parse_path_map(items: Iterable[str | tuple[str, str]] | None) -> tuple[PathM
 
 __all__ = [
     "DOCUMENT_EXTENSIONS",
+    "IMPORT_EXTENSIONS",
     "MAX_STORED_PATH",
+    "REFERENCE_EXTENSIONS",
     "STORED_KINDS",
     "HostPath",
     "PathMapping",
@@ -371,10 +398,12 @@ __all__ = [
     "from_stored",
     "host_split",
     "is_document_name",
+    "is_reference_name",
     "name_problem",
     "nfc_fold",
     "parse_path_map",
     "parse_stored",
     "parse_stored_folder",
     "suffix_score",
+    "suffix_tails",
 ]

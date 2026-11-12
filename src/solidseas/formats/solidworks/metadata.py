@@ -741,7 +741,14 @@ def parse_sw_tree(root) -> dict[str, Any]:
     state decides for a part, and that ``swHidden`` hides an unsuppressed instance,
     are a HYPOTHESIS (``docs/FORMAT.md`` 12.1): the fixtures show every instance.
     """
-    res: dict[str, Any] = {"files": {}, "models": {}, "configs": [], "refs": [], "sw_version": None}
+    res: dict[str, Any] = {
+        "files": {},
+        "models": {},
+        "configs": [],
+        "refs": [],
+        "ext_features": [],
+        "sw_version": None,
+    }
     if root is None:
         return res
     res["sw_version"] = root.get("swVersion")
@@ -783,6 +790,19 @@ def parse_sw_tree(root) -> dict[str, Any]:
                         "transform": r.get("swTransform"),
                     }
                 )
+    # A part's features that use another file (swXmlContents/Features): each names the
+    # model, and so the swFile, it uses, and its feature type says how (Stock for a base
+    # part, MirrorStock for a mirrored one, MBimport for an imported body).
+    for el in _iter_local(root, "swExtFeature"):
+        res["ext_features"].append(
+            {
+                "name": el.get("swName"),
+                "type": el.get("swFeatureType"),
+                "model_ref": el.get("swModelRef"),
+                "config": el.get("swConfigurationName"),
+                "suppressed": el.get("swSuppressed") not in (None, "0", "NO"),
+            }
+        )
     shown_by_model: dict[str, dict[str, str]] = {}
     for el in _iter_local(root, "swConfiguration"):
         shown = _display_state(el)

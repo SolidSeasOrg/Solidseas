@@ -965,6 +965,7 @@ def resolve_references(
     max_identity_reads=5_000,     # documents opened to read their identity
     cache=None,                   # an IndexCache shared by many calls
     skip_unavailable_roots=False, # search without a root that cannot be walked
+    search_above_roots=False,     # the folder probe climbs past the roots to the filesystem root
 ) -> Resolution
 ```
 
@@ -995,18 +996,27 @@ def resolve_references(
   `roots` with `index_partial` true and `truncated_reason` `unavailable`, and
   every result carries the warning `root_unavailable`. The REST service sets
   it, so a root that went missing never fails a resolution silently.
+- `search_above_roots=True` lets the folder probe (rule 5) go on above the root
+  that holds the document, folder by folder up to the filesystem root, with point
+  lookups that never follow a link. A file it finds there has `root` null. It
+  needs `allow_outside_roots`. The PDM's self-contained check (`docs/PDM.md` 5)
+  sets it, because that is where a reference leaks into a neighbouring project.
+- Besides SOLIDWORKS documents, the rules look up the names of the files a part
+  is imported from (STEP, IGES, Parasolid, ACIS, STL, 3MF, VRML, IFC, JT, Rhino,
+  DXF and DWG, and the native files of Inventor, Creo, NX, CATIA and Solid Edge).
+  Such a file has no identity SolidSeas reads, so its `identity` is `unknown`.
 
 **The rules, in order.** A hit at rules 1 to 6 whose identity differs is
 remembered and skipped.
 
 | # | Rule | What it tries |
 |---|---|---|
-| 0 | `embedded` | A virtual component, or an imported one whose `ImportedComp/` stream exists, is stored inside the document: status `embedded` (with `nested`), `embedded_not_found` or `embedded_in_subassembly`. Never looked up on disk, even when a file of that name exists |
+| 0 | `embedded` | A virtual component, or an imported one whose `ImportedComp/` stream exists, is stored inside the document: status `embedded` (with `nested`), `embedded_not_found` or `embedded_in_subassembly`. An imported component whose stored name has no folder and that has no nested document is `inside_parent`: SOLIDWORKS made it when it opened a STEP or similar assembly and keeps it in the assembly. Never looked up on disk, even when a file of that name exists |
 | 1 | `stored_unmoved` | The document is where it was saved (its folder equals `SW-Folder Name`) and the stored path exists |
 | 2 | `path_map` | The first path mapping that matches the stored path |
 | 3 | `rebased` | The stored path relative to the folder at save, from where the document is now |
 | 4 | `same_folder` | The name in the document's folder |
-| 5 | `suffix_probe` | SOLIDWORKS' probe: from the document's folder up to the root that holds it, never above it, the name under the stored folder's last 0, 1, 2... components |
+| 5 | `suffix_probe` | SOLIDWORKS' probe: from the document's folder up to the root that holds it, the name under the stored folder's last 0, 1, 2... components. It goes above that root, by point lookups up to the filesystem root, only when the caller asks (`search_above_roots`, which the PDM's self-contained check sets). Whether SOLIDWORKS tries the longer tails first is not settled; the order lives in `resolve.names.suffix_tails` |
 | 6 | `stored_path` | The stored path, for a document that has moved |
 | 7 | `name_index`, `name_index_suffix` | The name anywhere under each root, in root order. Files whose identity differs are dropped and identity matches preferred. One left is the match; of several, the one with the unique highest folder-suffix score against the stored folder, when above 0 (`name_index_suffix`); otherwise the result is `ambiguous` |
 | 8 | | A file found earlier whose identity differs, with confidence `low` and the warning `identity_mismatch`; otherwise `missing` |
@@ -5560,12 +5570,14 @@ here for brevity; the JSON carries them as floats.
 | `virtual` | Stored inside an assembly rather than as its own file |
 | `imported` | Carries `swImportedPath` |
 | `nested` | The nested-document stream in this file that holds it (3.9), or null. Pass it as `nested` to read that document |
-| `embedded` | `embedded` (found in `nested`), `embedded_not_found` (a direct virtual file whose stream is not there), `embedded_in_subassembly`, or null for a file stored on its own. An open set. Neither embedded status claims a location on disk |
+| `embedded` | `embedded` (found in `nested`), `embedded_not_found` (a direct virtual file whose stream is not there), `embedded_in_subassembly`, `inside_parent` (an imported component whose stored name has no folder and that has no nested document: SOLIDWORKS made it when it opened a STEP or similar assembly and keeps it inside the assembly), or null for a file stored on its own. An open set. No embedded status claims a location on disk |
 | `embedded_in_subassembly` | A virtual file stored inside a sub-assembly's own file rather than this one |
 | `configurations_used` | Configurations of this file that instances use, in first-seen order. In `components`, within the described configuration; in `references`, across all; for a drawing, the configurations its views show |
 | `instances`, `instances_unsuppressed`, `instances_in_bom` | Counts in the described configuration, expanded through sub-assemblies. Unsuppressed means no suppressed instance on the way; in BOM also means nothing on the way is excluded from the BOM. Null when unknown (no component tree, and drawings). A count, not a BOM: the `bom` kind (3.16, 5.13; `/v1/bom?type=parts` or `type=indented`) groups and numbers the rows as SOLIDWORKS does |
 | `per_configuration` | In `references`: `{configuration, instances, instances_unsuppressed, instances_in_bom}` for every configuration the tree describes. Null in `components` |
 | `sources` | Streams the file was found in |
+| `relation` | For a part's external file (a part's `references` list its `swXmlContents/Features` files but its own): `base_part`, `mirrored_part`, `in_context` (an assembly), `import_source` (the STEP or other file the part was imported from) or `external`, from the `swExtFeature` type that names it. An open set. Null for other documents |
+| `imported_path` | `swImportedPath` as stored: the file an imported component or an import source was made from, or null |
 | `resolution` | Null unless resolution was requested; then a resolution result (5.10) |
 
 **Component instance:**
@@ -5631,7 +5643,7 @@ rules.
 | Field | Meaning |
 |---|---|
 | `key` | The file key (C7). The result has no quantity or instances (C9) |
-| `status` | `resolved` (the stored path, after the path map), `moved` (another path), `embedded` (a virtual or imported component stored as a nested document), `embedded_not_found` (a virtual file whose stream is not there), `embedded_in_subassembly` (a virtual file stored inside a sub-assembly's own file), `ambiguous` or `missing`. An open set |
+| `status` | `resolved` (the stored path, after the path map), `moved` (another path), `embedded` (a virtual or imported component stored as a nested document), `embedded_not_found` (a virtual file whose stream is not there), `embedded_in_subassembly` (a virtual file stored inside a sub-assembly's own file), `inside_parent` (an imported component kept inside its assembly, with no document of its own), `ambiguous` or `missing`. An open set |
 | `stored_path` | As stored |
 | `match` | `{"root", "path"}` (C1): a root id and the path below it, `/`-separated, in the on-disk spelling; `root` is null and `path` absolute for a file outside every root (CLI and Python only). Null unless the status is `resolved` or `moved` |
 | `rule` | The rule that chose: `embedded`, `stored_unmoved`, `path_map`, `rebased`, `same_folder`, `suffix_probe`, `stored_path`, `name_index` or `name_index_suffix`; null when nothing was chosen. An open set |
@@ -5644,6 +5656,7 @@ rules.
 | Rule | Identity match | Identity unknown |
 |---|---|---|
 | `embedded`, `stored_unmoved`, `path_map`, `rebased` | high | medium |
+| `inside_parent` | | medium |
 | `same_folder`, `suffix_probe`, `name_index` (one candidate) | high | low |
 | `stored_path` | medium | low |
 | `name_index_suffix` | low | low |

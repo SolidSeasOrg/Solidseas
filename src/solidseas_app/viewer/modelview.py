@@ -317,6 +317,8 @@ def components_data(summary: dict[str, Any]) -> dict[str, Any] | None:
                 "instances_in_bom": 0,
                 "per_configuration": None,
                 "sources": [],
+                "relation": None,
+                "imported_path": None,
                 "resolution": None,
             }
         f["instances"] += 1

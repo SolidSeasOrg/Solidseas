@@ -133,6 +133,47 @@ def test_parts_and_drawings_have_no_tree():
     assert (refs["children_state"], refs["files"], refs["sheets"]) == ("none", [], None)
 
 
+def test_a_parts_external_files_are_its_references():
+    """Base part, mirrored part, in-context assembly and import source, each told apart by
+    the type of the feature that uses it (crafted: the fixture kit has none of these)."""
+    from builders import part_with_externals
+
+    data = part_with_externals(
+        [
+            ("C:\\Jobs\\base.SLDPRT", "PART", "Stock"),
+            ("C:\\Jobs\\left.SLDPRT", "PART", "MirrorStock"),
+            ("C:\\Jobs\\top.SLDASM", "ASSEMBLY", None),
+            ("C:\\Vendor\\motor.STEP", "PART", "MBimport"),
+            ("C:\\Vendor\\gear.igs", "PART", None),
+            ("C:\\Jobs\\other.SLDPRT", "PART", None),
+        ],
+        imported_path={"5": "C:\\Vendor\\motor.STEP"},
+    )
+    with open_document(data, name="p.SLDPRT") as doc:
+        files = doc.reference_set().files
+        refs = model.build_references(doc)
+        assert doc.components() is None  # still no component tree
+    assert [(f.key, f.file_name, f.doc_type, f.relation) for f in files.values()] == [
+        ("2", "base.SLDPRT", "part", "base_part"),
+        ("3", "left.SLDPRT", "part", "mirrored_part"),
+        ("4", "top.SLDASM", "assembly", "in_context"),
+        ("5", "motor.STEP", None, "import_source"),
+        ("6", "gear.igs", None, "import_source"),
+        ("7", "other.SLDPRT", "part", "external"),
+    ]
+    motor = files["5"]
+    assert (motor.imported, motor.imported_path, motor.direct, motor.instances) == (
+        True,
+        "C:\\Vendor\\motor.STEP",
+        True,
+        None,
+    )
+    assert motor.sources == ("swXmlContents/Features",) and motor.configurations_used == ("Default",)
+    _schema_ok("references", refs)
+    assert [f["relation"] for f in refs["files"]][:2] == ["base_part", "mirrored_part"]
+    assert refs["children_state"] == "none" and refs["sheets"] is None
+
+
 # --------------------------------------------------------------------------- crafted trees
 def test_three_levels_with_exact_ids_and_placements():
     t = TreeXml()

@@ -1,4 +1,5 @@
-"""The folder index of one root: every SOLIDWORKS document below it, by folder and by
+"""The folder index of one root: every SOLIDWORKS document below it, and every file a part
+can be imported from (:data:`.names.IMPORT_EXTENSIONS`), by folder and by
 name, as the shared folder walker (:mod:`solidseas.walk`) found it.
 
 The gateway (:mod:`.gateway`) walks the root and feeds the entries in; this
@@ -18,7 +19,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 from ..roots import Root
-from .names import HostPath, fold, is_document_name, nfc_fold
+from .names import HostPath, fold, is_reference_name, nfc_fold
 
 
 @dataclass(frozen=True)
@@ -78,7 +79,7 @@ class FolderIndex:
     def add_file(
         self, rel: str, name: str, size: int | None, mtime_ns: int | None, placeholder: bool
     ) -> None:
-        if not is_document_name(name):
+        if not is_reference_name(name):
             return
         folder = tuple(rel.split("/")[:-1])
         f = IndexedFile(rel, name, folder, size, mtime_ns, placeholder)

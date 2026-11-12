@@ -10,8 +10,10 @@ the caller's roots, and checks every answer against the stored creation time.
 
 0. ``embedded``: a virtual component, or an imported one whose nested
    document exists, is stored inside the document: status ``embedded``,
-   ``embedded_not_found`` or ``embedded_in_subassembly``. Never looked up on
-   disk, even when a file of that name exists.
+   ``embedded_not_found`` or ``embedded_in_subassembly``; an imported one whose
+   stored name has no folder and that has no nested document is
+   ``inside_parent`` (made when SOLIDWORKS opened a STEP or similar assembly).
+   Never looked up on disk, even when a file of that name exists.
 1. ``stored_unmoved``: the document is where it was saved (its folder equals
    ``SW-Folder Name``) and the stored path exists.
 2. ``path_map``: the first path mapping whose prefix matches the stored path.
@@ -19,8 +21,9 @@ the caller's roots, and checks every answer against the stored creation time.
    where the document is now.
 4. ``same_folder``: the name in the document's folder.
 5. ``suffix_probe``: SOLIDWORKS' folder-suffix probe, from the document's
-   folder up to the root that holds it and never above it: for each ancestor,
-   the name under the stored folder's last 0, 1, 2... components.
+   folder up to the root that holds it: for each ancestor, the name under the
+   stored folder's tails in :func:`.names.suffix_tails` order. Above that root
+   only with ``search_above_roots``, by point lookups up to the filesystem root.
 6. ``stored_path``: the stored path, for a document that has moved.
 7. ``name_index``: the name anywhere under each root, in root order. Candidates
    whose identity differs are dropped, and identity matches are preferred. One
@@ -30,6 +33,10 @@ the caller's roots, and checks every answer against the stored creation time.
 8. If a rule found a file whose identity differs and nothing better was found,
    that file is returned with low confidence and the warning
    ``identity_mismatch``; otherwise the reference is ``missing``.
+
+Besides SOLIDWORKS documents, the rules look up a part's import sources (STEP and
+the other names in :data:`.names.IMPORT_EXTENSIONS`). Such a file is never opened:
+its identity is unknown.
 
 A hit at rules 1 to 6 whose identity differs is remembered and skipped. No
 rule uses version or update stamps (they decided 4 of 3,225 direct references
@@ -71,10 +78,12 @@ from .names import (
     StoredPath,
     fold,
     from_stored,
+    is_document_name,
     parse_path_map,
     parse_stored,
     parse_stored_folder,
     suffix_score,
+    suffix_tails,
 )
 
 MAX_REFERENCES = 100_000
@@ -92,6 +101,7 @@ STATUSES = (
     "embedded",
     "embedded_not_found",
     "embedded_in_subassembly",
+    "inside_parent",
     "ambiguous",
     "missing",
 )
@@ -433,6 +443,7 @@ class Resolver:
         cache: IndexCache | None,
         gateway: Gateway | None,
         skip_unavailable_roots: bool = False,
+        search_above_roots: bool = False,
     ) -> None:
         for value, name, low in (
             (max_examined, "max_examined", 1),
@@ -468,6 +479,11 @@ class Resolver:
         )
         self.indexes: list[FolderIndex] = []
         self.skip_unavailable_roots = bool(skip_unavailable_roots)
+        if not isinstance(search_above_roots, bool):
+            raise InvalidArgumentError(
+                "search_above_roots is true or false", detail={"parameter": "search_above_roots"}
+            )
+        self.search_above_roots = search_above_roots
         self.unavailable: list[str] = []  # ids of roots whose folder could not be walked
         self._memo: dict[tuple, list | str] = {}
 
@@ -645,28 +661,37 @@ class Resolver:
             groups["stored_path"] = [stored_hits]
 
     def _suffix_probe(self, ref: _Ref, a: HostPath, name: str) -> list[list[_Hit]]:
-        for index in self.indexes:
-            below = index.covers(a)
-            if below is None:
-                continue
-            folder = ref.stored.folder if ref.stored.usable else ()
-            out: list[list[_Hit]] = []
-            seen: set[str] = set()
-            for j in range(len(below), -1, -1):
-                base = below[:j]
-                for n in range(len(folder) + 1):
-                    tail = folder[len(folder) - n :] if n else ()
-                    files, nfc = index.lookup((*base, *tail), name)
-                    group = [
-                        self._index_hit(index, f, "suffix_probe", nfc) for f in files if f.rel not in seen
-                    ]
-                    if group:
-                        seen.update(f.rel for f in files)
-                        out.append(group)
-                        if sum(len(g) for g in out) >= self.max_candidates:
-                            return out
-            return out
-        return []
+        index = next((i for i in self.indexes if i.covers(a) is not None), None)
+        if index is None:
+            return []
+        below = index.covers(a) or ()
+        tails = suffix_tails(ref.stored.folder if ref.stored.usable else ())
+        out: list[list[_Hit]] = []
+        seen: set[tuple] = set()
+
+        def add(group: list[_Hit]) -> bool:
+            group = [h for h in group if h.key not in seen]
+            if group:
+                seen.update(h.key for h in group)
+                out.append(group)
+            return sum(len(g) for g in out) >= self.max_candidates
+
+        for j in range(len(below), -1, -1):
+            for tail in tails:
+                files, nfc = index.lookup((*below[:j], *tail), name)
+                if add([self._index_hit(index, f, "suffix_probe", nfc) for f in files]):
+                    return out
+        if self.search_above_roots:
+            # Past the root, folder by folder to the filesystem root, as SOLIDWORKS does: a
+            # point lookup each, or the index of another root that covers the folder.
+            top = index.host
+            for k in range(len(top.parts) - 1, -1, -1):
+                for tail in tails:
+                    target = HostPath(top.anchor, (*top.parts[:k], *tail, name))
+                    found = self._lookup(target, "suffix_probe", trusted=k)
+                    if not isinstance(found, str) and add(found):
+                        return out
+        return out
 
     # ------------------------------------------------------------------ step 2: identities
     def _read_identities(self, hits: Iterable[_Hit], stored_ct: dict[int, int | None]) -> None:
@@ -675,6 +700,9 @@ class Resolver:
         todo: dict[tuple, list[_Hit]] = {}
         for h in hits:
             if h.identity is not None:
+                continue
+            if not is_document_name(h.name):  # an import source: no identity to read
+                h.identity, h.state = Identity(None), "unknown"
                 continue
             ck = (h.key, h.size, h.mtime_ns)
             ident = self.cache.identities.get(ck)
@@ -861,7 +889,9 @@ class Resolver:
     ) -> ResolvedReference:
         status = f.embedded
         identity, confidence = "unknown", "none"
-        if status == "embedded" and f.nested:
+        if status == "inside_parent":  # nothing to compare: the assembly holds it
+            confidence = CONFIDENCE["embedded"][1]
+        elif status == "embedded" and f.nested:
             ident = f.nested_identity or Identity(None)
             if ident.error is not None:
                 warnings.append(_warn("identity_read_failed", "the nested document could not be read"))
@@ -990,6 +1020,7 @@ def resolve_references(
     cache: IndexCache | None = None,
     gateway: Gateway | None = None,
     skip_unavailable_roots: bool = False,
+    search_above_roots: bool = False,
 ) -> Resolution:
     """Resolve every file ``doc`` references (``docs/API.md`` section 3.10).
 
@@ -1007,6 +1038,9 @@ def resolve_references(
     (it is gone, or access is denied) instead of raising: that root is reported with
     ``index_partial`` and ``truncated_reason`` ``"unavailable"``, and every result
     carries the warning ``root_unavailable``. The REST service sets it.
+    ``search_above_roots`` lets the folder probe (rule 5) climb past the root that
+    holds the document to the filesystem root, by point lookups (it needs
+    ``allow_outside_roots``); the PDM's self-contained check sets it.
     """
     inp = doc if isinstance(doc, ResolutionInput) else ResolutionInput.from_document(doc)
     return Resolver(
@@ -1021,6 +1055,7 @@ def resolve_references(
         cache=cache,
         gateway=gateway,
         skip_unavailable_roots=skip_unavailable_roots,
+        search_above_roots=search_above_roots,
     ).run()
 
 

@@ -376,6 +376,7 @@ REFERENCE_STATUS = {
     "embedded": "inside this document",
     "embedded_not_found": "inside, but missing",
     "embedded_in_subassembly": "inside a sub-assembly",
+    "inside_parent": "inside the assembly (imported)",
     "ambiguous": "ambiguous",
     "missing": "missing",
 }

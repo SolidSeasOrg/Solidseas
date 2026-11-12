@@ -90,7 +90,7 @@ MAX_COUNT = 1 << 31
 REPLY_LIMIT = 32 << 20  # the longest answer the catalog accepts from the job
 
 DOC_TYPES = ("part", "assembly", "drawing")
-EMBEDDED = ("embedded", "embedded_not_found", "embedded_in_subassembly")
+EMBEDDED = ("embedded", "embedded_not_found", "embedded_in_subassembly", "inside_parent")
 PROPERTY_TYPES = ("text", "number", "boolean", "date", "other")
 REFERENCES_STATES = ("none", "described", "unknown", "truncated")
 FIELD_NAMES = ("title", "author", "last_saved_by", "keywords", "comments", "last_saved_utc")

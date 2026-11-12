@@ -155,6 +155,11 @@ def test_a_referenced_files_target_says_where_to_go():
     assert (sub.kind, sub.status) == ("missing", "embedded_in_subassembly")
     assert "sub-assembly's own file" in sub.why
     assert "holds no copy" in navigate.target(_ref("embedded_not_found"), key="6").why
+    inside = navigate.target(_ref("inside_parent"), key="6")
+    assert (inside.kind, inside.status, inside.openable) == ("missing", "inside_parent", False)
+    assert inside.not_listed_reason == "stored inside the assembly"
+    assert "STEP" in inside.why and "no file to open" in inside.why
+    assert navigate.reference_status("inside_parent") == "inside the assembly (imported)"
     assert navigate.target(_ref("a_status_from_a_later_version"), key="6").kind == "missing"  # an open set
     assert navigate.target({**found, "resolution": None}, key="6", pending=True).kind == "pending"
     assert navigate.target(None, key="9", pending=True).in_folder_list is None

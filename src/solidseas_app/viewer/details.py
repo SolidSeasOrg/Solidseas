@@ -198,6 +198,7 @@ _STATUS_TONE = {
     "resolved": "green",
     "moved": "blue",
     "embedded": "purple",
+    "inside_parent": "purple",
     "ambiguous": "orange",
     "missing": "red",
     "embedded_not_found": "red",

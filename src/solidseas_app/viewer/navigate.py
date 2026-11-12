@@ -128,6 +128,8 @@ class Target:
     @property
     def not_listed_reason(self) -> str:
         """Why Show in folder list cannot show it, in a few words."""
+        if self.status == "inside_parent":
+            return "stored inside the assembly"
         return {
             OUTSIDE: "outside the opened folder",
             NESTED: "stored inside the document",
@@ -248,6 +250,11 @@ def missing_text(
         lines = [
             "It is a virtual component, stored inside this document rather than as a file of its own, "
             "but the document holds no copy of it."
+        ]
+    elif status == "inside_parent":
+        lines = [
+            "It is a component SOLIDWORKS made when it opened a STEP or similar assembly. It is kept "
+            "inside this assembly rather than as a file of its own, so there is no file to open."
         ]
     elif status == "embedded_in_subassembly":
         lines = [

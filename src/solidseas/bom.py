@@ -528,6 +528,7 @@ class _Reader:
                 "missing": "its file was not found",
                 "ambiguous": "several files could be its file",
                 "embedded_not_found": _NOT_STORED,
+                "inside_parent": "it is an imported component kept inside the assembly",
             }.get(r.status, f"its file was not found ({r.status})")
             raise _Unread(r.status, why)
         if r.match.root is not None:

@@ -6,6 +6,23 @@ while the project takes shape.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A part's external files are listed.** The references of a part now list the
+  files it uses: its base part, the part it mirrors, the assembly it was edited
+  in, and the STEP or other file it was imported from, each with a relation
+  saying which. Before, a part showed no references at all.
+
+- **A part's import source is found.** Reference resolution now looks for the
+  STEP, IGES, Parasolid and other files a part was imported from, beside the part
+  and in the folders SOLIDWORKS searches, instead of always reporting them
+  missing. SolidSeas never opens such a file, so its identity is unknown.
+
+- **Components of an opened STEP assembly are no longer missing.** When
+  SOLIDWORKS opens a STEP assembly, it keeps the components it makes inside the
+  assembly. These now show as inside the assembly (status inside_parent) in the
+  references, the command line and the viewer's References list.
+
 ## [0.2.570] - 2026-11-07
 
 ### Added

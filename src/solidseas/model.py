@@ -1036,6 +1036,8 @@ def component_file_data(f) -> dict[str, Any]:
             for c in per
         ],
         "sources": list(f.sources),
+        "relation": f.relation,
+        "imported_path": f.imported_path,
         "resolution": f.resolution,
     }
 
@@ -1173,7 +1175,9 @@ def build_references(doc, *, configuration: str | None = None, resolution=None) 
     """``references`` data: every file the document references, across all its
     configurations, with the instance counts of ``configuration`` (None: the
     active one) and of each configuration the tree describes. A drawing lists its
-    models (provisionally, from ``Header2``) and its sheets; a part lists nothing.
+    models (provisionally, from ``Header2``) and its sheets; a part lists its external
+    files (base part, mirrored part, in-context assembly, import source), each with
+    its ``relation``.
 
     ``resolution`` is a :class:`solidseas.resolve.Resolution` of this document
     (``solidseas.resolve.resolve_references``); with it each file carries its
@@ -2563,7 +2567,7 @@ _DEFS["reference_resolution"] = _obj(
         "status": {
             "type": "string",
             "description": "resolved, moved, embedded, embedded_not_found, embedded_in_subassembly, "
-            "ambiguous or missing (an open set)",
+            "inside_parent, ambiguous or missing (an open set)",
         },
         "stored_path": _STR_N,
         "match": _ref_n("location"),
@@ -2611,7 +2615,8 @@ _DEFS["component_file"] = _obj(
         "nested": _STR_N,
         "embedded": {
             "type": ["string", "null"],
-            "description": "embedded, embedded_not_found or embedded_in_subassembly (an open set)",
+            "description": "embedded, embedded_not_found, embedded_in_subassembly or inside_parent "
+            "(an open set)",
         },
         "embedded_in_subassembly": _BOOL,
         "configurations_used": _arr(_STR_N),
@@ -2620,6 +2625,12 @@ _DEFS["component_file"] = _obj(
         "instances_in_bom": _INT_N,
         "per_configuration": _arr(_ref("configuration_counts"), nullable=True),
         "sources": _arr(_STR),
+        "relation": {
+            "type": ["string", "null"],
+            "description": "a part's external file: base_part, mirrored_part, in_context, import_source "
+            "or external (an open set); null for other documents",
+        },
+        "imported_path": _STR_N,
         "resolution": _ref_n("reference_resolution"),
     }
 )
@@ -2906,8 +2917,8 @@ _DEFS["bom_row"] = _obj(
         "instances": _arr(_STR),
         "resolution": {
             "type": ["string", "null"],
-            "description": "the file's resolution status, or embedded, embedded_in_subassembly or "
-            "embedded_not_found for a document stored inside an assembly (an open set)",
+            "description": "the file's resolution status, or embedded, embedded_in_subassembly, "
+            "embedded_not_found or inside_parent for a document stored inside an assembly (an open set)",
         },
         "location": _ref_n("location"),
         "nested": _arr(_STR),

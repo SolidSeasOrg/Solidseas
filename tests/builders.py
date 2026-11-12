@@ -509,6 +509,65 @@ def part_with_creation_time(
     return rebuild(o02, changes, drop=drop)
 
 
+def part_with_externals(
+    externals: list[tuple[str, str, str | None]],
+    *,
+    ct: int | None = None,
+    imported_path: dict[str, str] | None = None,
+    folder_at_save: str = "",
+) -> bytes:
+    """A part whose ``swXmlContents/Features`` is written from scratch: its own file
+    ``"1"`` in configuration ``Default``, then one ``swFile`` per ``(stored path,
+    swDocType, swFeatureType)`` in ``externals`` (keys "2", "3"... in order), each used
+    by one ``swExtFeature`` of that type (none when the type is None). ``imported_path``
+    gives some keys a ``swImportedPath``. The other streams are o02's (with creation
+    time ``ct`` when given, :func:`part_with_creation_time`), and ``SW-Folder Name`` is
+    ``folder_at_save``."""
+    from xml.sax.saxutils import escape
+
+    from solidseas.formats.solidworks import open_container
+    from support import fixture_path
+
+    base = part_with_creation_time(ct) if ct is not None else None
+    if base is None:
+        streams = fixture_streams(fixture_path("o02_boxA.SLDPRT"))
+    else:
+        with open_container(base) as c:
+            streams = {n: c.read(n) for n in c.names()}
+    files = ['<swFile id="1" swDocType="PART" swPath="p.SLDPRT"/>']
+    models = ['<swModel id="m1" swConfigurationName="Default" swFileRef="1"/>']
+    feats = []
+    for i, (path, doc_type, feature) in enumerate(externals, start=2):
+        attrs = {"id": str(i), "swDocType": doc_type, "swPath": path, "swCreationTime": "1700000000"}
+        if imported_path and str(i) in imported_path:
+            attrs["swImportedPath"] = imported_path[str(i)]
+        files.append(f"<swFile{_attrs(attrs)}/>")
+        models.append(f'<swModel id="m{i}" swConfigurationName="Default" swFileRef="{i}"/>')
+        if feature is not None:
+            feats.append(f'<swExtFeature swName="F{i}" swFeatureType="{feature}" swModelRef="m{i}"/>')
+    xml = (
+        '<?xml version="1.0" encoding="UTF-8"?>\r\n'
+        '<swSolidWorks xmlns="http://www.solidworks.com/sw2003/schema" swVersion="17000">'
+        f"<swHeader>{''.join(files)}</swHeader><swModelList>{''.join(models)}</swModelList>"
+        f"<swExtFeatureList>{''.join(feats)}</swExtFeatureList>"
+        '<swConfigurationList><swConfiguration id="c0" swName="Default" swID="0" '
+        'swMostRecentConfiguration="YES" swModelRef="m1"/></swConfigurationList></swSolidWorks>'
+    )
+    changes = {"swXmlContents/Features": xml.encode("utf-8")}
+    if folder_at_save:
+        isw = streams["docProps/ISolidWorksInformation.xml"]
+        old = b'<property name="SW-Folder Name" pid="5"><vt:lpstr></vt:lpstr></property>'
+        assert isw.count(old) == 1
+        new = (
+            b'<property name="SW-Folder Name" pid="5"><vt:lpstr>'
+            + escape(folder_at_save).encode("utf-8")
+            + b"</vt:lpstr></property>"
+        )
+        changes["docProps/ISolidWorksInformation.xml"] = isw.replace(old, new)
+    streams.update(changes)
+    return build_modern(streams)
+
+
 def resolving_assembly(
     tree: "TreeXml", *, folder_at_save: str = "", members: dict[str, bytes] | None = None
 ) -> bytes:

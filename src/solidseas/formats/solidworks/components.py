@@ -76,6 +76,9 @@ MAX_DEPTH_LIMIT = 64  # keeps the nested JSON well inside the encoder's nesting 
 # configurations cannot multiply the work.
 MAX_REFERENCE_SET_NODES = 100_000
 TREE_STREAM = "swXmlContents/COMPINSTANCETREE"
+PART_TREE_STREAM = "swXmlContents/Features"
+SW_DOCUMENT_EXTENSIONS = (".sldprt", ".sldasm", ".slddrw")
+PART_RELATIONS = ("base_part", "mirrored_part", "in_context", "import_source", "external")
 SHEET_NAMES_STREAM = "SheetPreviews/SheetNames"
 KEYWORDS_STREAM = "swXmlContents/KeyWords"
 DOC_TYPES = {"PART": "part", "ASSEMBLY": "assembly"}
@@ -211,6 +214,11 @@ class ComponentFile:
     sources: tuple[str, ...]
     per_configuration: tuple[ConfigurationCounts, ...] | None = None
     resolution: dict[str, Any] | None = None
+    # A part's external file: how the part uses it (PART_RELATIONS). None for an
+    # assembly's component or a drawing's model.
+    relation: str | None = None
+    # swImportedPath: the file an imported component or an import source was made from.
+    imported_path: str | None = None
 
 
 @dataclass(frozen=True)
@@ -324,6 +332,13 @@ def _file_name(path: str | None) -> str | None:
     if not path:
         return None
     return path.replace("\\", "/").rsplit("/", 1)[-1] or None
+
+
+def _bare_name(path: str | None) -> bool:
+    """Whether a stored path is a file name alone, with no folder or drive."""
+    if not path:
+        return False
+    return not any(c in path for c in "\\/:")
 
 
 def _number(text: Any) -> int | None:
@@ -451,8 +466,15 @@ class _Index:
             embedded = "embedded_in_subassembly"
         elif virtual:
             embedded = "embedded" if nested else "embedded_not_found"
+        elif nested:
+            embedded = "embedded"
+        elif f.get("imported") and _bare_name(path):
+            # A component SOLIDWORKS made when it opened a STEP or similar assembly, kept in
+            # the assembly's own file: the stored name has no folder and there is no
+            # document of its own anywhere to find.
+            embedded = "inside_parent"
         else:
-            embedded = "embedded" if nested else None
+            embedded = None
         sources = [TREE_STREAM]
         if path and basename_lower(path) in self.header2_names:
             sources.append("Header2")
@@ -473,6 +495,7 @@ class _Index:
             instances_in_bom=acc.in_bom if acc is not None else 0,
             sources=tuple(sources),
             per_configuration=per,
+            imported_path=f.get("imported_path") or None,
         )
 
     def choose(self, doc, configuration: str | None) -> tuple[dict | None, str | None, str]:
@@ -736,7 +759,8 @@ def reference_set(
     """Every file the document references (the ``references`` kind): for an assembly
     every ``swFile`` an instance uses, in stored order, with the counts of
     ``configuration`` and of every configuration the tree describes; for a drawing
-    its ``Header2`` models and its sheets; for a part nothing."""
+    its ``Header2`` models and its sheets; for a part its external files
+    (:func:`part_externals`)."""
     _check_limits(max_nodes, max_depth)
     if doc.doc_type == "drawing":
         files = _header2_files(doc)
@@ -751,6 +775,10 @@ def reference_set(
             sheets=sheets,
             warnings=tuple(_reader_warnings(doc, ("Header2",)) + warns),
         )
+    if doc.doc_type == "part":
+        files = part_externals(doc)
+        warnings = _reader_warnings(doc, (PART_TREE_STREAM,)) if files else []
+        return ReferenceSet(None, "none", (), "none", False, files, None, tuple(warnings))
     if doc.doc_type != "assembly":
         return ReferenceSet(None, "none", (), "none", False, {}, None, ())
     index = _Index(doc)
@@ -800,6 +828,75 @@ def reference_set(
         )
     state = "described" if chosen is not None else "unknown"
     return ReferenceSet(name, source, described, state, truncated, files, None, tuple(warnings))
+
+
+# --------------------------------------------------------------------------- a part's external files
+def _relation(types: set[str], doc_type: str | None, name: str) -> str:
+    if "MirrorStock" in types:
+        return "mirrored_part"
+    if "Stock" in types:
+        return "base_part"
+    if "MBimport" in types or not name.lower().endswith(SW_DOCUMENT_EXTENSIONS):
+        return "import_source"
+    if doc_type == "assembly" or name.lower().endswith(".sldasm"):
+        return "in_context"
+    return "external"
+
+
+def part_externals(doc) -> dict[str, ComponentFile]:
+    """The files a part uses, by file key: every ``swFile`` of its
+    ``swXmlContents/Features`` but its own, in stored order.
+
+    ``relation`` says how the part uses each, from the ``swExtFeature`` elements that
+    name it (their ``swFeatureType``): ``mirrored_part`` (``MirrorStock``),
+    ``base_part`` (``Stock``), ``import_source`` (``MBimport``, or a file that is not a
+    SOLIDWORKS document, such as the STEP file the part was opened from),
+    ``in_context`` (an assembly, for features made in the context of one) or
+    ``external`` (another part). Instance counts are None: a part has no instances.
+    The feature types are what a migration over 16,000 real documents found; how far
+    they reach beyond that is a HYPOTHESIS."""
+    md = doc.metadata
+    tree = md.tree or {}
+    files = {fid: f for fid, f in (tree.get("files") or {}).items() if fid not in md.own_file_ids}
+    if not files:
+        return {}
+    models = tree.get("models") or {}
+    types: dict[str, set[str]] = {}
+    for e in tree.get("ext_features") or ():
+        fid = (models.get(e.get("model_ref")) or {}).get("file_ref")
+        if fid is not None and e.get("type"):
+            types.setdefault(fid, set()).add(e["type"])
+    used: dict[str, list[str | None]] = {}
+    for m in models.values():
+        lst = used.setdefault(m.get("file_ref"), [])
+        if m.get("config") is not None and m["config"] not in lst:
+            lst.append(m["config"])
+    out = {}
+    for fid, f in files.items():
+        path = f.get("path")
+        name = _file_name(path) or ""
+        is_document = name.lower().endswith(SW_DOCUMENT_EXTENSIONS)
+        doc_type = DOC_TYPES.get(f.get("doc_type") or "") if is_document else None
+        out[fid] = ComponentFile(
+            key=fid,
+            stored_path=path,
+            file_name=_file_name(path),
+            doc_type=doc_type,
+            direct=True,
+            virtual=False,
+            imported=bool(f.get("imported")),
+            nested=None,
+            embedded=None,
+            embedded_in_subassembly=False,
+            configurations_used=tuple(used.get(fid, ())),
+            instances=None,
+            instances_unsuppressed=None,
+            instances_in_bom=None,
+            sources=(PART_TREE_STREAM,),
+            relation=_relation(types.get(fid, set()), doc_type, name),
+            imported_path=f.get("imported_path") or None,
+        )
+    return out
 
 
 # --------------------------------------------------------------------------- drawings

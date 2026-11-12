@@ -334,6 +334,97 @@ def test_an_imported_component_is_embedded_when_its_stream_exists(tmp_path):
     assert (b.status, b.rule, b.match.path) == ("moved", "same_folder", "b.SLDPRT")  # an ordinary file
 
 
+def test_a_component_made_by_opening_a_step_assembly_is_inside_its_parent(tmp_path):
+    """SOLIDWORKS stores such a component by its bare name, with swImportedPath, and keeps
+    it in the assembly: it is inside the parent, never missing, and never looked up."""
+    folder = tmp_path / "Doc"
+    write(folder / "bolt-1.SLDPRT", part())  # a decoy with the stored name
+    doc = write(
+        folder / "asm.SLDASM",
+        assembly([("bolt-1.SLDPRT", CT), ("Q:\\Old\\bolt-2.SLDPRT", CT)], imported=(0, 1)),
+    )
+    with open_document(doc) as d:
+        files = d.reference_set().files
+        data = model.build_references(d, resolution=resolve_references(d))
+    assert (files["2"].embedded, files["2"].imported_path) == ("inside_parent", "C:\\Imports\\thing.step")
+    assert files["3"].embedded is None  # a stored folder: a file of its own, looked for as usual
+    gw = Gateway()
+    a, b = resolve(doc, gateway=gw).results.values()
+    assert (a.status, a.rule, a.match, a.nested, a.confidence) == (
+        "inside_parent",
+        "embedded",
+        None,
+        None,
+        "medium",
+    )
+    assert b.status == "missing"
+    assert all("bolt-1" not in path for _op, path, _o in gw.calls)
+    assert resolve(doc).counts()["inside_parent"] == 1
+    first = data["files"][0]
+    assert (first["embedded"], first["resolution"]["status"]) == ("inside_parent", "inside_parent")
+    assert data["resolution"]["counts"]["inside_parent"] == 1
+    out = cli_out(["references", str(doc), "--resolve"])
+    assert "[inside_parent]" in out and "inside_parent: " in out
+
+
+def cli_out(argv) -> str:
+    import contextlib
+    import io
+
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        cli.main(argv)
+    return buf.getvalue()
+
+
+def test_a_parts_import_source_is_found_beside_it_and_by_the_folder_probe(tmp_path):
+    """A part opened from a STEP file names that file: the resolver looks it up like a
+    SOLIDWORKS document, but never opens it, so its identity is unknown."""
+    from builders import part_with_externals
+
+    proj = tmp_path / "Proj"
+    write(proj / "thing.step", b"ISO-10303-21;\n")
+    write(proj / "imports" / "other.STP", b"ISO-10303-21;\n")
+    doc = write(
+        proj / "sub" / "p.SLDPRT",
+        part_with_externals(
+            [("Q:\\Old\\thing.step", "PART", "MBimport"), ("Q:\\Old\\imports\\other.STP", "PART", None)]
+        ),
+    )
+    gw = Gateway()
+    a, b = resolve(doc, {"proj": str(proj)}, gateway=gw).results.values()
+    assert (a.status, a.rule, a.match.path, a.identity) == ("moved", "suffix_probe", "thing.step", "unknown")
+    assert (b.status, b.rule, b.match.path) == ("moved", "suffix_probe", "imports/other.STP")
+    assert not any(op == "identity" for op, _p, _o in gw.calls)  # a STEP file is never opened
+    write(proj / "sub" / "thing.step", b"ISO-10303-21;\n")
+    a = resolve(doc, {"proj": str(proj)}).results["2"]
+    assert (a.rule, a.match.path) == ("same_folder", "sub/thing.step")
+
+
+def test_the_folder_probe_climbs_past_the_root_only_when_asked(tmp_path):
+    lib = tmp_path / "Lib"
+    write(lib / "Other" / "b.SLDPRT", part())
+    proj = lib / "Proj"
+    doc = write(proj / "sub" / "asm.SLDASM", assembly([("Q:\\X\\Other\\b.SLDPRT", CT)]))
+    roots = {"proj": str(proj)}
+    assert resolve(doc, roots).results["2"].status == "missing"
+    r = resolve(doc, roots, search_above_roots=True).results["2"]
+    assert (r.status, r.rule, r.identity) == ("moved", "suffix_probe", "match")
+    assert r.match.root is None and r.match.host_path == str(lib / "Other" / "b.SLDPRT")
+    # with lookups outside the roots refused there is nothing to climb with
+    r = resolve(doc, roots, search_above_roots=True, allow_outside_roots=False).results["2"]
+    assert r.status == "missing"
+    with pytest.raises(InvalidArgumentError):
+        resolve(doc, roots, search_above_roots="yes")
+
+
+def test_the_folder_probe_tries_the_bare_name_before_longer_tails():
+    from solidseas.resolve.names import suffix_tails
+
+    assert suffix_tails(("a", "b")) == [(), ("b",), ("a", "b")]
+    assert suffix_tails(()) == [()]
+
+
 def test_a_name_that_differs_only_by_case_is_found_with_a_warning(tmp_path):
     folder = tmp_path / "Doc"
     write(folder / "bracket.sldprt", part())
