@@ -144,6 +144,14 @@ Extend the test's allowlists only after reviewing what a regeneration added.
   of its own. The in-project catalog (`location="project"`, `--in-project`) is
   the other opt-in: its own `.solidseas` folder in the project, never a source
   document.
+- The PDM (`solidseas.pdm`, `docs/PDM.md` section 7) writes only in a library
+  the user made with `pdm init`, and there only its own `.solidseas` folder, the
+  file a restore the user asks for puts back, and the library copies (`library
+  add`, `library use`, `library update`, `check --fix`). Each write goes through
+  a temporary name and a rename, never through a link, and never over a file
+  that was not stored as a version first. A copy never replaces a file SolidSeas
+  did not make for that purpose, and nothing edits the paths stored inside a
+  SOLIDWORKS document.
 - The viewer's Open 3MF and STL Files As They Are setting is off by default.
   Turned on by the user, 3D Print hands a 3MF or STL file the slicer takes to
   the slicer itself, unexported: SolidSeas writes nothing, but the slicer then

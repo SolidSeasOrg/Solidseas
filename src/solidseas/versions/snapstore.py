@@ -461,13 +461,15 @@ class SnapshotStore:
 
 
 def open_store(
-    *, project: str | os.PathLike | None = None, store: str | os.PathLike | None = None
+    *, project: str | os.PathLike | None = None, store: str | os.PathLike | SnapshotStore | None = None
 ) -> SnapshotStore:
-    """The store to read or write: ``store`` (a folder), else the project's
-    (``<project>/.solidseas/history``), else the user's own (``data_dir()/history``).
-    Nothing is made until a snapshot is taken."""
+    """The store to read or write: ``store`` (a folder, or a :class:`SnapshotStore` such as
+    a PDM vault's, returned as it is), else the project's (``<project>/.solidseas/history``),
+    else the user's own (``data_dir()/history``). Nothing is made until a snapshot is taken."""
     if project is not None and store is not None:
         raise InvalidArgumentError("name a project or a store, not both", detail={"parameter": "store"})
+    if isinstance(store, SnapshotStore):
+        return store
     if store is not None:
         root = os.path.abspath(os.fspath(store))
         if root.replace("/", "\\").startswith(("\\\\?\\", "\\\\.\\")):

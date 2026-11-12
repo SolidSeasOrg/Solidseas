@@ -3315,6 +3315,11 @@ def cmd_diff(args: argparse.Namespace) -> int:
     )
     if args.json:
         return _emit(args, "version_diff", data)
+    _say_version_diff(data)
+    return EXIT_OK
+
+
+def _say_version_diff(data: dict[str, Any]) -> None:
     a, b = data["from"], data["to"]
     _say(
         f"{data['file']['name']}: v{a['number']} ({_version_label(a)}, {_when(a['time_utc'])}) to "
@@ -3368,7 +3373,206 @@ def cmd_diff(args: argparse.Namespace) -> int:
     elif g["reason"]:
         _say(f"geometry: not compared ({g['reason'].replace('_', ' ')})")
     _say_warnings(data["warnings"])
-    return EXIT_OK
+
+
+# --------------------------------------------------------------------------- pdm (provisional)
+_PDM_WORDS = {"new": "new", "changed": "changed", "gone": "gone", "unchanged": "unchanged"}
+
+
+def _pdm_done(args: argparse.Namespace, vault: Any, payload: dict[str, Any]) -> int:
+    return _emit(args, "pdm_result", model.build_pdm_result(args.action, vault.root, payload))
+
+
+def _say_counts(counts: dict[str, int]) -> str:
+    return ", ".join(f"{counts[k]:,} {_PDM_WORDS[k]}" for k in ("new", "changed", "gone", "unchanged"))
+
+
+def _say_skipped(skipped: list[dict[str, Any]]) -> None:
+    for s in skipped:
+        reason = "a link, never followed" if s["reason"] == "link" else s["reason"].replace("_", " ")
+        _say(f"skipped {s['path']}: {reason}")
+
+
+def _pdm_init(args: argparse.Namespace) -> int:
+    from . import pdm
+
+    vault = pdm.init(args.folder)
+    payload = {
+        "created": vault.created,
+        "settings": vault.settings.to_json(),
+        "sections": [s.data() for s in vault.sections()],
+    }
+    if not args.json:
+        if vault.created:
+            _say(f"{vault.root} is now a library: its history is kept in {vault.folder}")
+        else:
+            _say(f"{vault.root} is already a library: nothing was changed")
+        for s in payload["sections"]:
+            what = {"library": "common parts", "archive": "archived projects"}.get(s["kind"], "projects")
+            _say(f"  {s['folder']}: {what}")
+    return _pdm_done(args, vault, payload)
+
+
+def _pdm_status(args: argparse.Namespace) -> int:
+    from . import pdm
+
+    vault = pdm.open(args.path)
+    st = vault.status(args.path, unchanged=args.all)
+    if not args.json:
+        for f in st.files:
+            _say(f"{_PDM_WORDS[f.state]:<10}{f.path}")
+        _say_skipped(st.skipped)
+        _say(_say_counts(st.counts))
+    return _pdm_done(args, vault, st.data())
+
+
+def _say_checkin(data: dict[str, Any], *, scan: bool) -> None:
+    for f in data["files"]:
+        if f["stored"]:
+            _say(f"stored    {f['path']} ({f['version']})")
+        elif f["state"] == "gone":
+            _say(f"gone      {f['path']}" + ("" if scan else " (recorded as removed)"))
+    for f in data["failed"]:
+        _say(f"not stored {f['path']}: {f['message']}")
+    _say_skipped(data["skipped"])
+    c = data["checkin"]
+    unchanged = data["counts"]["unchanged"]
+    if c is None:
+        _say(f"nothing new to store ({unchanged:,} unchanged)")
+    else:
+        label = "".join(f", {k} {c[k]}" for k in ("revision", "state") if c[k] is not None)
+        _say(f"check-in {c['id']}: {data['stored']:,} stored, {unchanged:,} unchanged{label}")
+
+
+def _pdm_checkin(args: argparse.Namespace) -> int:
+    from . import pdm
+
+    vault = pdm.open(args.paths[0])
+    result = vault.checkin(args.paths, args.note, revision=args.revision, state=args.state, who=args.who)
+    data = result.data()
+    if not args.json:
+        _say_checkin(data, scan=False)
+    return _pdm_done(args, vault, data)
+
+
+def _pdm_scan(args: argparse.Namespace) -> int:
+    from . import pdm
+
+    vault = pdm.open(args.path)
+    data = vault.scan(args.path).data()
+    if not args.json:
+        _say_checkin(data, scan=True)
+    return _pdm_done(args, vault, data)
+
+
+def _pdm_log(args: argparse.Namespace) -> int:
+    from . import pdm
+
+    vault = pdm.open(args.path)
+    data = vault.log(args.path)
+    if not args.json:
+        _say(f"{data['path']} in the library at {vault.root}")
+        for v in data["versions"]:
+            if v["source"] == "working":
+                _say(f"v{v['number']:<4}{'working copy':<14}{_when(v['time_utc'])}  not checked in")
+                continue
+            if v["source"] == "git":
+                who = f"{v['author']}: " if v["author"] else ""
+                _say(
+                    f"{'git':<5}{v['id'][:12]:<14}{_when(v['time_utc'])}  {who}{v['subject'] or ''}".rstrip()
+                )
+                continue
+            notes = [c for c in v["checkins"] if not c["auto"]]
+            words = "; ".join(
+                (c["note"] or "")
+                + "".join(f" [{k} {c[k]}]" for k in ("revision", "state") if c[k] is not None)
+                + (f" ({c['who']})" if c["who"] else "")
+                for c in notes
+            )
+            if not notes:
+                words = v["subject"] or ("scan" if v["checkins"] else "")
+            _say(f"v{v['number']:<4}{v['id']:<14}{_when(v['time_utc'])}  {words}".rstrip())
+        if data["working"]["state"] == "missing":
+            _say("the file does not exist now")
+        _say_warnings(data["warnings"])
+    return _pdm_done(args, vault, data)
+
+
+def _pdm_show(args: argparse.Namespace) -> int:
+    from . import pdm
+
+    vault = pdm.open(args.path)
+    data = vault.show(args.path, args.version, source=args.vault_source)
+    if not args.json:
+        v, d = data["version"], data["document"]
+        _say(f"{data['file']['name']} v{v['number']} ({_version_label(v)}, {_when(v['time_utc'])})")
+        kind = " ".join(x for x in (d["format"], d["type"]) if x)
+        saved = f", saved by {d['saved_version']}" if d["saved_version"] else ""
+        _say(f"  {kind}{saved}, {d['configurations']} configurations, {d['properties']} properties")
+        for p in data["properties"]:
+            where = f" ({p['configuration']})" if p.get("configuration") else ""
+            _say(f"  {p['name']}{where} = {_say_property(p)}")
+        for row in data["geometry"]["configurations"]:
+            g = row["summary"] or {}
+            name = row["configuration"] or "the model"
+            if g.get("stored"):
+                _say(f"  {name}: {g['faces']} faces, fingerprint {g['fingerprint'][:12]}")
+            else:
+                _say(f"  {name}: no stored bodies")
+        _say_warnings(data["warnings"])
+    return _pdm_done(args, vault, data)
+
+
+def _pdm_diff(args: argparse.Namespace) -> int:
+    from . import pdm
+
+    vault = pdm.open(args.path)
+    data = vault.diff(
+        args.path,
+        args.older,
+        args.newer,
+        source=args.vault_source,
+        measure=not args.no_measures,
+        max_seconds=args.timeout,
+    )
+    if not args.json:
+        _say_version_diff(data)
+    return _pdm_done(args, vault, data)
+
+
+def _pdm_restore(args: argparse.Namespace) -> int:
+    from . import pdm
+
+    vault = pdm.open(args.path)
+    data = vault.restore(args.path, args.version, as_name=args.as_name)
+    if not args.json:
+        v = data["version"]
+        first = data["stored_first"]
+        if first is not None and first["new"]:
+            _say(f"stored the current file first as {first['version']}")
+        if not data["written"]:
+            _say(f"{data['path']} already holds v{v['number']}: nothing was written")
+        else:
+            _say(f"put v{v['number']} ({v['id']}) back as {data['path']}")
+    return _pdm_done(args, vault, data)
+
+
+PDM_ACTIONS: dict[str, Callable[[argparse.Namespace], int]] = {
+    "init": _pdm_init,
+    "status": _pdm_status,
+    "checkin": _pdm_checkin,
+    "scan": _pdm_scan,
+    "log": _pdm_log,
+    "show": _pdm_show,
+    "diff": _pdm_diff,
+    "restore": _pdm_restore,
+}
+
+
+def cmd_pdm(args: argparse.Namespace) -> int:
+    """``solidseas pdm ACTION`` (provisional, ``docs/PDM.md``): a library's history,
+    check-ins and restores, each printing a ``pdm_result`` under ``--json``."""
+    return PDM_ACTIONS[args.action](args)
 
 
 # --------------------------------------------------------------------------- command table
@@ -3423,6 +3627,7 @@ COMMANDS: dict[str, Command] = {
         Command("history", "file_history", "path", cmd_history),
         Command("snapshot", "snapshot_taken", "path", cmd_snapshot),
         Command("diff", "version_diff", "path", cmd_diff),
+        Command("pdm", "pdm_result", "none", cmd_pdm),
         Command("version", "version", "none", cmd_version),
         Command("schema", None, "none", cmd_schema),
         Command("openapi", "file_written", "none", cmd_openapi),
@@ -4441,6 +4646,90 @@ def build_parser() -> argparse.ArgumentParser:
         default=60.0,
         metavar="SECONDS",
         help="time for measuring the geometry of both versions (default 60)",
+    )
+    sp = add(
+        "pdm",
+        "a library's history: check files in with a note, see what changed and put a version back "
+        "(provisional; writes only the library's .solidseas folder and the file a restore puts back)",
+        target="none",
+    )
+    pdm_actions = sp.add_subparsers(dest="action", required=True, metavar="action")
+
+    def pdm_action(name: str, help_: str) -> argparse.ArgumentParser:
+        ap = pdm_actions.add_parser(name, help=help_, description=help_)
+        ap.add_argument(
+            "--json",
+            action="store_true",
+            default=argparse.SUPPRESS,
+            help="print one pdm_result JSON document on standard output and nothing on standard error",
+        )
+        return ap
+
+    def vault_source(ap: argparse.ArgumentParser) -> None:
+        ap.add_argument(
+            "--source",
+            dest="vault_source",  # args.source is the envelope's
+            choices=("vault", "git"),
+            default="vault",
+            help="read the versions from the library's vault (the default) or from Git",
+        )
+
+    ap = pdm_action("init", "make FOLDER a library: writes FOLDER/.solidseas/vault and changes nothing else")
+    ap.add_argument("folder", metavar="FOLDER", help="the library's top folder (it must exist)")
+    ap = pdm_action("status", "tracked files that are new, changed since their newest version, or gone")
+    ap.add_argument(
+        "path",
+        nargs="?",
+        default=".",
+        metavar="PATH",
+        help="the library, a project, a folder or a file (default: the current folder)",
+    )
+    ap.add_argument("--all", action="store_true", help="list the unchanged files too")
+    ap = pdm_action("checkin", "store a version of each changed file under PATH, with a note")
+    ap.add_argument("paths", nargs="+", metavar="PATH", help="files or folders in one library")
+    ap.add_argument("-m", "--note", required=True, metavar="NOTE", help="what changed and why")
+    ap.add_argument("--revision", default=None, metavar="R", help="a revision label, such as B")
+    ap.add_argument("--state", default=None, metavar="S", help="a state label, such as released")
+    ap.add_argument("--who", default=None, metavar="NAME", help="who checks in (default: vault.json's who)")
+    ap = pdm_action("scan", "store a version of every changed tracked file, with no note; safe to schedule")
+    ap.add_argument(
+        "path",
+        nargs="?",
+        default=".",
+        metavar="PATH",
+        help="the library or a folder in it (default: the current folder)",
+    )
+    ap = pdm_action("log", "a file's versions, newest first, with check-in notes and its Git commits")
+    ap.add_argument("path", metavar="FILE", help="a tracked file in a library (opened read-only)")
+    ap = pdm_action("show", "one version's document, properties, configurations and geometry")
+    ap.add_argument("path", metavar="FILE", help="a tracked file in a library (opened read-only)")
+    ap.add_argument("version", metavar="VERSION", help="working, latest, vN or an id from pdm log")
+    vault_source(ap)
+    ap = pdm_action("diff", "what changed between two versions of a file")
+    ap.add_argument("path", metavar="FILE", help="a tracked file in a library (opened read-only)")
+    ap.add_argument("older", nargs="?", metavar="A", help="a version (default: the one before B)")
+    ap.add_argument("newer", nargs="?", metavar="B", help="a version (default: the newest)")
+    vault_source(ap)
+    ap.add_argument("--no-measures", action="store_true", help="compare changed geometry by its counts alone")
+    ap.add_argument(
+        "--timeout",
+        type=_positive_float,
+        default=60.0,
+        metavar="SECONDS",
+        help="time for measuring the geometry of both versions (default 60)",
+    )
+    ap = pdm_action(
+        "restore",
+        "put a version back: the current file is stored as a version first; --as writes a new file instead",
+    )
+    ap.add_argument("path", metavar="FILE", help="a tracked file in a library")
+    ap.add_argument("version", metavar="VERSION", help="latest, vN or an id from pdm log")
+    ap.add_argument(
+        "--as",
+        dest="as_name",
+        default=None,
+        metavar="NAME",
+        help="write the version as a new file of this name in the same folder (never over a file)",
     )
     add("version", "the SolidSeas version, API version and each JSON kind's schema version", target="none")
     sp = add("schema", "print the JSON Schema of a kind's envelope, or list the kinds", target="none")

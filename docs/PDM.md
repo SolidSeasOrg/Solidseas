@@ -9,6 +9,10 @@ of it works without SOLIDWORKS running, because SolidSeas reads the files itself
 This document is the design. The user guide (`docs/guide/pdm.md`) covers how to use
 it.
 
+Status: step 1 of section 8 is built (provisional, `solidseas.pdm`, `docs/API.md`
+3.29): the vault, check-in, scan, status, log, show, diff and restore on the command
+line. The self-contained check and the library of common parts are being built.
+
 ## 1. What it is for
 
 - **History.** Every CAD file in the library has a history. You check files in with a

@@ -484,6 +484,13 @@ WARNING_CODES.update(
     }
 )
 
+# The PDM (docs/PDM.md)
+WARNING_CODES.update(
+    {
+        "git_unreadable": "the file's Git history could not be read: pdm log lists the vault alone",
+    }
+)
+
 
 class SolidSeasDeprecationWarning(DeprecationWarning):
     """Emitted when a deprecated SolidSeas name is used. ``docs/API.md`` section 9 lists

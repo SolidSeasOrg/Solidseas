@@ -174,6 +174,7 @@ def test_every_command_is_covered():
     covered |= {"clear-index"}
     covered |= {"drawing"}  # tests/test_drawing_cli.py runs it
     covered |= {"history", "snapshot", "diff"}  # tests/test_versions_cli.py runs them
+    covered |= {"pdm"}  # tests/test_pdm_vault.py runs it
     covered |= {"openapi"}  # tests/test_serve_openapi.py runs it
     assert covered == set(cli.COMMANDS)
 

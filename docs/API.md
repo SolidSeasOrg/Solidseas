@@ -599,6 +599,7 @@ A file's versions (3.26, provisional) add these:
 | `history_incomplete` | The repository is a shallow or partial clone: the history stops where its commits end |
 | `lfs_not_fetched` | Versions stored with Git LFS whose content is not on this machine; `git lfs fetch` brings them |
 | `measures_incomplete` | A version could not be measured whole within the time limit: its volume, area and box were not compared |
+| `git_unreadable` | `pdm log`: the file sits in a Git repository whose history could not be read; the library's versions are listed alone |
 
 ### 3.6 Folder listings: `scan`
 
@@ -5093,6 +5094,51 @@ def display_glb(doc, configuration=None, *, max_triangles=1_000_000,
   glTF rules it relies on, and another loads the service's answer with
   three.js's own `GLTFLoader` in Node.
 
+### 3.29 A library's history: `solidseas.pdm` (provisional)
+
+`docs/PDM.md` is the design and `docs/guide/pdm.md` the user's guide. A library is a
+folder that `init` gave a `.solidseas/vault` folder; the vault keeps every version of
+every tracked file in one snapshot store (3.26) keyed by the path below the library,
+and one record per check-in.
+
+```python
+from solidseas import pdm
+
+vault = pdm.init("D:/CAD")                        # Vault; vault.created is False for a library already made
+vault = pdm.open("D:/CAD/Jobs/1042")              # the nearest library at or above the path
+vault.settings                                    # Settings: vault.json, format 1
+vault.sections(), vault.projects()                # SectionInfo and Project lists
+vault.project_of(path), vault.tracked(path)
+st = vault.status(path=None, unchanged=False)     # Status: new, changed and gone files
+r = vault.checkin(paths, note, revision=None, state=None, who=None)   # CheckinResult
+r = vault.scan(path=None)                         # CheckinResult; r.checkin is None when nothing changed
+vault.checkins()                                  # every Checkin record, oldest first
+vault.log(file)                                   # the log part of pdm_result
+vault.show(file, version, source="vault")         # the show part
+vault.diff(file, older=None, newer=None, source="vault", measure=True, max_seconds=60.0)  # version_diff data
+vault.restore(file, version, as_name=None)        # the restore part
+```
+
+- **Settings.** `vault.json` is checked field by field when the library is opened: a
+  field that does not hold up is `invalid_argument`, rule `vault_settings`, with
+  `detail.parameter` naming the field. A path in no library is `invalid_argument`,
+  rule `not_a_library`; `init` inside another library is rule `inside_library`.
+- **Tracked files.** CAD formats SolidSeas lists (`formats.registry.extensions`), PDF
+  and DXF, and the settings' `tracked` extensions, below no hidden folder, not a `~$`
+  lock file and matching no `ignore` pattern. A link is never followed: `status` lists
+  it in `skipped` with reason `link`, and naming one is `link_refused`.
+- **Status.** A file whose size and modification time equal its newest version's is
+  unchanged and not read; any other is hashed (`hashed` counts them). A file gone since
+  its newest version stays `gone` until a check-in that covers it records it removed.
+- **Records.** Check-ins are `.solidseas/vault/checkins/<yyyy>/<time>-<id>.json`,
+  created with `O_EXCL` and never rewritten. Each is checked field by field when read,
+  and one that does not hold up (or sits in another year's folder) is skipped.
+- **Restore.** The current file is stored as a version first. Without `as_name` it is
+  replaced through a temporary name and a rename; with it, the version is written as a
+  new file in the same folder, and an existing name, link or not, is `output_refused`.
+  A file that changes meanwhile is `busy`, rule `file_changing`. The restored file is
+  checked in with a note naming the version.
+
 ## 4. JSON encoding
 
 ### 4.1 Envelope
@@ -5178,6 +5224,7 @@ renaming or retyping one, or changing its meaning, does. The API version is 1.
 | `file_history` | 1 | built, provisional | `history` | |
 | `snapshot_taken` | 1 | built, provisional | `snapshot` | |
 | `version_diff` | 1 | built, provisional | `diff` | |
+| `pdm_result` | 1 | built, provisional | `pdm` (every action) | |
 
 `/v1/preview` is the one route that answers with an image instead of a kind.
 `model_summary` stands in for `document_summary` on `info` and `/v1/document`
@@ -6225,6 +6272,22 @@ its newest snapshot and nothing was stored), `snapshot` (that snapshot's `versio
 | `changes` | Each count or measure that differs: `solid_bodies`, `sheet_bodies`, `wire_bodies`, `general_bodies`, `hidden_bodies`, `faces`, `edges`, `vertices`, `triangles`, `volume_mm3`, `area_mm2`, `size_x_mm`, `size_y_mm`, `size_z_mm`, `min_x_mm`, `min_y_mm`, `min_z_mm`. Measures are compared only when both versions were measured whole |
 | `warnings` | The history's warnings and `measures_incomplete` |
 
+### 5.20 `pdm_result` (v1, provisional)
+
+What `solidseas pdm ACTION` did (3.29): `action`, `library` (the library's folder),
+and one part per action, `init`, `status`, `checkin` (also a scan's), `log`, `show`,
+`diff` and `restore`, of which only the action's is not null.
+
+| Part | Fields |
+|---|---|
+| `init` | `created`, `settings` (`vault.json`), `sections` (`folder`, `depth`, `kind`: `projects`, `library` or `archive`) |
+| `status` | `library`, `scope` (the path below the library, empty for all of it), `counts` (`new`, `changed`, `gone`, `unchanged`), `hashed`, `files` (`path`, `state`, `size`, `modified_utc`, `sha256` when it was read, `version`: the newest version's id), `skipped` (`path`, `reason`) |
+| `checkin` | `checkin` (`id`, `when_utc`, `note`, `who`, `revision`, `state`, `auto`; null when a scan stored nothing), `record`, `scope`, `counts`, `stored`, `files` (`path`, `state` before the check-in, `sha256`, `size`, `version`, `stored`), `failed` (`path`, `code`, `message`), `skipped` |
+| `log` | `file`, `path`, `working` (as `file_history`'s), `git` (`work_tree`, `path`, `branch`, `head`, or null), `versions` newest first (`source`: `working`, `vault` or `git`; `number` for the vault's, `id`, `time_utc`, `author`, `subject`, `status`, `size`, `sha256`, `available`, and `checkins` naming the version), `warnings` (`git_unreadable`) |
+| `show` | `file`, `source`, `version`, `document` (as `version_diff`'s), `properties`, `configurations` (names), `geometry` (`reason`, and per configuration its geometry summary), `warnings` |
+| `diff` | `version_diff` data (5.19) |
+| `restore` | `file` (the file written), `path`, `from`, `version`, `replaced`, `written` (false when the file already held it), `stored_first` (`version`, `new`, `sha256` of the current file stored first, or null), `checkin` (null when nothing was written) |
+
 ## 6. Reading the JSON in JavaScript and TypeScript
 
 `JSON.parse` turns every number into a double, which keeps an integer exactly
@@ -6322,6 +6385,7 @@ it.
 | `history FILE` | `--source auto\|git\|snapshots` (default `auto`), `--project DIR` or `--store DIR`, `--max-commits N` (default 20,000), `--hashes` | `file_history` (provisional, section 5.19) |
 | `snapshot FILE` | `--project DIR` or `--store DIR`, `--note TEXT`; writes only into the snapshot store (3.26) | `snapshot_taken` (provisional) |
 | `diff FILE [OLDER] [NEWER]` | versions named `working`, `latest`, `vN` or by id; `--source auto\|git\|snapshots`, `--project DIR` or `--store DIR`, `--no-measures`, `--timeout SECONDS` (default 60) | `version_diff` (provisional) |
+| `pdm ACTION` | `init FOLDER`; `status [PATH]` with `--all`; `checkin PATH... -m NOTE` with `--revision R`, `--state S`, `--who NAME`; `scan [PATH]`; `log FILE`; `show FILE VERSION` and `diff FILE [A] [B]` with `--source vault\|git` (and `--no-measures`, `--timeout SECONDS` for `diff`); `restore FILE VERSION [--as NAME]`. Writes only the library's `.solidseas` folder and the file a restore puts back (3.29) | `pdm_result` (provisional, section 5.20) |
 | `version` | | `version` |
 | `schema [KIND]` | `--data` | none: prints the JSON Schema of the kind's envelope (of its `data` alone with `--data`), or with no KIND the list of kinds |
 | `openapi` | `-o FILE`, `--force` | none: prints the service's OpenAPI description (8.19, provisional); with `-o`, writes it to FILE and prints `file_written` |

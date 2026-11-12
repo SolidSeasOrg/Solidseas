@@ -6,6 +6,20 @@ while the project takes shape.
 
 ## [Unreleased]
 
+### Added
+
+- **A history for a whole folder of CAD projects.** `solidseas pdm init FOLDER`
+  makes a folder a library, and from then on `pdm status` lists the CAD files that
+  are new, changed or gone, `pdm checkin PATH -m NOTE` stores a version of each
+  changed file with your note (and a revision or state if you give one), and
+  `pdm scan` stores every changed file with no note, so it can run on a schedule.
+  `pdm log` lists a file's versions with their notes and its Git commits, `pdm show`
+  and `pdm diff` say what a version holds and what changed, and `pdm restore` puts a
+  version back, storing the current file first, or writes it as a new file with
+  `--as`. A part that sits in several projects is stored once. Everything is kept in
+  the library's own `.solidseas` folder, so it moves and backs up with the library.
+  This is provisional; the user guide's new page explains it.
+
 ## [0.2.570] - 2026-11-07
 
 ### Added

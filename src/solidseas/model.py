@@ -2017,6 +2017,23 @@ def build_version_diff(path, older=None, newer=None, **options: Any) -> dict[str
     return to_json_data(versions.compare(path, older, newer, **options))
 
 
+PDM_ACTIONS = ("init", "status", "checkin", "scan", "log", "show", "diff", "restore")
+
+
+def build_pdm_result(action: str, library: str, payload: Any) -> dict[str, Any]:
+    """``pdm_result`` data (provisional, ``docs/PDM.md``): what ``solidseas pdm ACTION``
+    did. ``payload`` is the action's own part (``checkin`` for a scan too); the other
+    actions' parts are null."""
+    if action not in PDM_ACTIONS:
+        raise InvalidArgumentError("not a PDM action", detail={"parameter": "action"})
+    data: dict[str, Any] = {"action": action, "library": library}
+    for name in PDM_ACTIONS:
+        if name != "scan":
+            data[name] = None
+    data["checkin" if action == "scan" else action] = payload
+    return to_json_data(data)
+
+
 def build_catalog_changes(cat, **options: Any) -> dict[str, Any]:
     """``catalog_changes`` data (``Catalog.changes``)."""
     return cat.changes(**options)
@@ -3939,6 +3956,166 @@ _VERSION_DIFF_SCHEMA = _obj(
         "warnings": _arr(_ref("warning")),
     }
 )
+_DEFS["checkin_brief"] = _obj(
+    {
+        "id": _STR,
+        "when_utc": _STR,
+        "note": _STR_N,
+        "who": _STR,
+        "revision": _STR_N,
+        "state": _STR_N,
+        "auto": _BOOL,
+    },
+    description="A PDM check-in without its files.",
+)
+_PDM_STATE = {"type": "string", "enum": ["new", "changed", "gone", "unchanged"]}
+_PDM_COUNTS = _obj({k: _INT for k in ("new", "changed", "gone", "unchanged")})
+_PDM_SKIPPED = _arr(_obj({"path": _STR, "reason": _STR}))
+_PDM_SCHEMA = _obj(
+    {
+        "action": {
+            "type": "string",
+            "enum": ["init", "status", "checkin", "scan", "log", "show", "diff", "restore"],
+        },
+        "library": _STR,
+        "init": _obj(
+            {
+                "created": _BOOL,
+                "settings": _obj(
+                    {
+                        "format": _INT,
+                        "sections": _arr(_obj({"folder": _STR, "depth": _INT})),
+                        "library": _STR,
+                        "archive": _arr(_STR),
+                        "tracked": _arr(_STR),
+                        "ignore": _arr(_STR),
+                        "who": _STR,
+                    }
+                ),
+                "sections": _arr(_obj({"folder": _STR, "depth": _INT, "kind": _STR})),
+            },
+            nullable=True,
+        ),
+        "status": _obj(
+            {
+                "library": _STR,
+                "scope": _STR,
+                "counts": _PDM_COUNTS,
+                "hashed": _INT,
+                "files": _arr(
+                    _obj(
+                        {
+                            "path": _STR,
+                            "state": _PDM_STATE,
+                            "size": _INT_N,
+                            "modified_utc": _STR_N,
+                            "sha256": _SHA256_N,
+                            "version": _STR_N,
+                        }
+                    )
+                ),
+                "skipped": _PDM_SKIPPED,
+            },
+            nullable=True,
+        ),
+        "checkin": _obj(
+            {
+                "checkin": _ref_n("checkin_brief"),
+                "record": _STR_N,
+                "scope": _arr(_STR),
+                "counts": _PDM_COUNTS,
+                "stored": _INT,
+                "files": _arr(
+                    _obj(
+                        {
+                            "path": _STR,
+                            "state": _PDM_STATE,
+                            "sha256": _SHA256_N,
+                            "size": _INT_N,
+                            "version": _STR_N,
+                            "stored": _BOOL,
+                        }
+                    )
+                ),
+                "failed": _arr(_obj({"path": _STR, "code": _STR, "message": _STR})),
+                "skipped": _PDM_SKIPPED,
+            },
+            nullable=True,
+            description="What pdm checkin or pdm scan did; checkin is null when a scan stored nothing.",
+        ),
+        "log": _obj(
+            {
+                "file": _ref("versioned_file"),
+                "path": _STR,
+                "working": _obj(
+                    {
+                        "state": _STR,
+                        "size": _INT_N,
+                        "modified_utc": _STR_N,
+                        "mtime_ns": {"type": ["string", "null"], "pattern": "^-?[0-9]+$"},
+                        "sha256": _SHA256_N,
+                    }
+                ),
+                "git": _obj(
+                    {"work_tree": _STR, "path": _STR, "branch": _STR_N, "head": _STR_N}, nullable=True
+                ),
+                "versions": _arr(
+                    _obj(
+                        {
+                            "source": {"type": "string", "enum": ["working", "vault", "git"]},
+                            "number": _INT_N,
+                            "id": _STR,
+                            "time_utc": _STR_N,
+                            "author": _STR_N,
+                            "subject": _STR_N,
+                            "status": _STR_N,
+                            "size": _INT_N,
+                            "sha256": _SHA256_N,
+                            "available": _BOOL,
+                            "checkins": _arr(_ref("checkin_brief")),
+                        }
+                    )
+                ),
+                "warnings": _arr(_ref("warning")),
+            },
+            nullable=True,
+        ),
+        "show": _obj(
+            {
+                "file": _ref("versioned_file"),
+                "source": _STR,
+                "version": _ref("version"),
+                "document": _ref("document_brief"),
+                "properties": _arr(_ref("property")),
+                "configurations": _arr(_STR_N),
+                "geometry": _obj(
+                    {
+                        "reason": _STR_N,
+                        "configurations": _arr(
+                            _obj({"configuration": _STR_N, "summary": _ref("geometry_summary")})
+                        ),
+                    }
+                ),
+                "warnings": _arr(_ref("warning")),
+            },
+            nullable=True,
+        ),
+        "diff": dict(_VERSION_DIFF_SCHEMA, type=["object", "null"]),
+        "restore": _obj(
+            {
+                "file": _ref("versioned_file"),
+                "path": _STR,
+                "from": _STR,
+                "version": _ref("version"),
+                "replaced": _BOOL,
+                "written": _BOOL,
+                "stored_first": _obj({"version": _STR, "new": _BOOL, "sha256": _SHA256}, nullable=True),
+                "checkin": _ref_n("checkin_brief"),
+            },
+            nullable=True,
+        ),
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -4271,6 +4448,23 @@ KINDS: dict[str, KindSpec] = {
             ("diff",),
             None,
         ),
+        _kind(
+            "pdm_result",
+            "SolidSeas PDM command result",
+            _PDM_SCHEMA,
+            (
+                "versioned_file",
+                "version",
+                "document_brief",
+                "property",
+                "geometry_summary",
+                "warning",
+                "checkin_brief",
+            ),
+            build_pdm_result,
+            ("pdm",),
+            None,
+        ),
         _kind("error", "SolidSeas error", _ERROR_SCHEMA, (), error_info, (), None),
     )
 }
@@ -4361,6 +4555,7 @@ __all__ = [
     "build_snapshot_taken",
     "build_streams",
     "build_version",
+    "build_pdm_result",
     "build_version_diff",
     "clean_text",
     "component_file_data",
