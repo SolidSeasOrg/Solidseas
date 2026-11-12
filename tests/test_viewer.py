@@ -1366,7 +1366,7 @@ def test_the_settings_menu_toggles_apply_at_once_and_are_saved(app, tmp_path):
     w.show()
     try:
         menus = [a.text() for a in w.menuBar().actions()]
-        assert menus == ["&File", "&Edit", "&View", "&Tools", "&Settings", "&Help"]
+        assert menus == ["&File", "&Edit", "&View", "&Tools", "P&DM", "&Settings", "&Help"]
         assert w.act_preferences.shortcut().toString() == "Ctrl+,"
         assert w.act_preferences in w.settings_menu.actions()
         pane = w.details.preview

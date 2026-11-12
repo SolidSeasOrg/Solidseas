@@ -25,6 +25,24 @@ while the project takes shape.
 
 ### Added
 
+- **A PDM menu in the viewer.** When the folder you open is in a library, the
+  PDM menu checks files in with a note, an optional revision and state, after
+  listing what changed; Changes lists the files that are new, changed or gone;
+  Check Project lists every reference of the project's documents that is
+  missing, outside the project or another document of that name, with the path
+  stored in it and where it was found; and Restore Version puts back the version
+  chosen on the History tab, keeping the file as it is now as a version first,
+  or writes it as a new file. Outside a library the menu offers to make the
+  opened folder one. The same entries are on the right-click menus of the file
+  list and the folder tree.
+
+- **The History tab shows a library's versions.** For a file in a library the
+  tab lists the library's versions with their check-in notes, revisions and
+  states, and the Git commits that changed it alongside. Snapshots kept in a
+  project's own folder (`snapshot --project`) are listed too. A line under the
+  buttons says when a history could not be read in full, and View > History
+  (Ctrl+Shift+H) shows the tab.
+
 - **The self-contained project check, in Python.** solidseas.pdm.check
   finds every reference of a project's documents the way SOLIDWORKS searches,
   past the project folder, and says for each whether it is in the project,

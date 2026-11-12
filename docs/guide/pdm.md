@@ -106,6 +106,15 @@ restore never loses work. Without `--as`, the file is replaced by that version. 
 existing file of that name is never replaced. Either way the restored file is
 checked in with a note that says which version it came from.
 
+## In the viewer
+
+SolidSeas Desktop has a PDM menu while the opened folder lies in a library: Check
+In (with the note, revision and state, after listing what changed), Changes,
+Check Project and Restore Version, which puts back the version chosen on the
+History tab. The History tab lists a library file's versions with their check-in
+notes. Outside a library the menu offers Make This Folder a Library, which does
+what `pdm init` does. See [The PDM menu](viewer.md#the-pdm-menu).
+
 ## What SolidSeas writes
 
 Only the library's own `.solidseas` folder, and the file a restore puts back. Each

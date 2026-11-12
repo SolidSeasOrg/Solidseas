@@ -1,11 +1,15 @@
 """The History tab: a file's versions, each one's preview, and what changed.
 
-**Versions.** For the document shown, :func:`version_rows` lists its versions newest
-first as plain :class:`VersionRow` values: the commits that changed it when it sits in
-a Git repository, else the snapshots SolidSeas keeps of it in the user's data folder
-(``solidseas.versions``), with the working copy on top when it differs from the
-newest one. That function is the tab's one source of versions, so another history (a
-PDM vault's check-ins) can supply rows of the same shape later.
+**Versions.** For the document shown, :func:`file_history` lists its versions newest
+first as plain :class:`VersionRow` values, with the working copy on top when it differs
+from the newest one. A file in a PDM library (``solidseas.pdm``) lists the library's
+versions with their check-in notes, and the Git commits that changed it when it also
+sits in a Git repository (``Vault.log``). Any other file lists the commits that
+changed it when it sits in a Git repository, else the snapshots SolidSeas keeps of it
+in the user's data folder (``solidseas.versions``) and, when a folder above it has a
+store of its own (``.solidseas/history``, ``snapshot --project``), that store's
+snapshots too. A controller can be given another source of rows; a row says which
+history it came from, so its preview and differences are read from that history.
 
 **A version.** Choosing a row shows that version's stored preview
 (``versions.open_version(...).preview()``) and the differences between it and the
@@ -14,8 +18,11 @@ configurations and geometry, as the ``diff`` command reports them.
 
 **Buttons.** Take Snapshot keeps a copy of the file as it is now in the user's data
 folder (``versions.snapshot``), never beside the file, and lists it; for a file in
-Git it is off, as its versions are its commits. Compare with Working Copy shows what
-changed from the chosen version to the file on disk.
+Git it is off, as its versions are its commits, and for a file in a library, whose
+versions are its check-ins (PDM > Check In). Compare with Working Copy shows what
+changed from the chosen version to the file on disk. A line under the buttons gives
+the history's warnings (a Git history cut short, a version that could not be read).
+View > History shows the tab (:attr:`HistoryController.act_history`).
 
 Every read, comparison and snapshot runs in a worker thread; the tab reads the
 versions only while it is shown, so selecting documents with another tab open costs
@@ -27,7 +34,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from PySide6.QtCore import QObject, Qt, QThreadPool, Signal
-from PySide6.QtGui import QPixmap
+from PySide6.QtGui import QAction, QKeySequence, QPixmap
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QHeaderView,
@@ -53,15 +60,21 @@ NO_HISTORY_TEXT = (
     "SolidSeas data folder, never beside the file, so you can see later what changed. A file in a "
     "Git repository lists the commits that changed it instead."
 )
+NO_LIBRARY_HISTORY_TEXT = (
+    "This file is in a library but has no version there yet. Check it in (PDM > Check In) to keep "
+    "its first version with a note."
+)
 
 
 # --------------------------------------------------------------------------- the versions
 @dataclass(frozen=True)
 class VersionRow:
     """One version as the tab lists it. ``ref`` names it to ``solidseas.versions``
-    (``working``, or a commit or snapshot id); ``kind`` is ``commit``, ``snapshot`` or
-    ``working``; ``note`` is the commit's subject, the snapshot's note or, for the
-    working copy, how it differs."""
+    (``working``, or a commit or snapshot id); ``kind`` is ``commit``, ``snapshot``,
+    ``vault`` (a version in a PDM library) or ``working``; ``note`` is the commit's
+    subject, the snapshot's note, the check-in's note or, for the working copy, how it
+    differs. ``library`` is the library's folder for a ``vault`` row, ``project`` the
+    folder whose own store holds a ``snapshot`` row (None for the user's store)."""
 
     ref: str
     number: int
@@ -72,6 +85,10 @@ class VersionRow:
     author: str | None = None
     available: bool = True
     deleted: bool = False
+    library: str | None = None
+    project: str | None = None
+    revision: str | None = None
+    state: str | None = None
 
     @property
     def label(self) -> str:
@@ -79,22 +96,60 @@ class VersionRow:
 
     @property
     def source(self) -> str:
-        return {"commit": "Git commit", "snapshot": "Snapshot", "working": "Working copy"}.get(
-            self.kind, self.kind
-        )
+        if self.kind == "snapshot" and self.project:
+            return "Project snapshot"
+        return {
+            "commit": "Git commit",
+            "snapshot": "Snapshot",
+            "vault": "Library",
+            "working": "Working copy",
+        }.get(self.kind, self.kind)
 
     @property
     def readable(self) -> bool:
         """Its content can be read here: not a deletion, not an LFS object missing here."""
         return self.available and not self.deleted
 
+    @property
+    def family(self) -> tuple:
+        """The history the row belongs to: rows of one family can be compared."""
+        return (self.kind, self.library, self.project)
 
-def version_rows(path: str) -> list[VersionRow]:
-    """The versions of the file at ``path``, newest first: the History tab's one source
-    of rows. Reads the file and its history read-only and writes nothing."""
-    from solidseas import versions
+    def options(self) -> dict[str, Any]:
+        """The ``solidseas.versions`` options that read this row's history."""
+        if self.kind == "vault":
+            from solidseas.pdm import VaultStore
 
-    data = versions.history(path)
+            return {"source": "snapshots", "store": VaultStore(self.library)}
+        if self.kind == "snapshot":
+            return (
+                {"source": "snapshots", "project": self.project} if self.project else {"source": "snapshots"}
+            )
+        if self.kind == "commit":
+            return {"source": "git"}
+        return {}
+
+
+@dataclass(frozen=True)
+class FileHistory:
+    """What a source of rows gives the tab: the rows, newest first, the history's
+    warnings in words, and the library's folder when the file is in one."""
+
+    rows: list[VersionRow]
+    warnings: tuple[str, ...] = ()
+    library: str | None = None
+
+
+def _warning_words(warnings) -> tuple[str, ...]:
+    out = []
+    for w in warnings or ():
+        text = str((w or {}).get("message") or "").strip()
+        if text:
+            out.append(text[:1].upper() + text[1:])
+    return tuple(out)
+
+
+def _rows_of(data: dict[str, Any], *, project: str | None = None) -> list[VersionRow]:
     git = data["source"] == "git"
     state = data["working"]["state"]
     working_note = {
@@ -117,18 +172,170 @@ def version_rows(path: str) -> list[VersionRow]:
                 author=v["author"],
                 available=v["available"],
                 deleted=v["status"] == "deleted",
+                project=None if working else project,
             )
         )
     return rows
 
 
+def project_store_of(path: str) -> str | None:
+    """The nearest folder above the file at ``path`` that holds a snapshot store of its
+    own (``.solidseas/history``, a real folder, not a link); None when there is none."""
+    from solidseas.versions.snapstore import PROJECT_FOLDER, STORE_FOLDER
+
+    cur = os.path.dirname(os.path.abspath(path))
+    while True:
+        own = os.path.join(cur, PROJECT_FOLDER)
+        store = os.path.join(own, STORE_FOLDER)
+        if not os.path.islink(own) and not os.path.islink(store) and os.path.isdir(store):
+            return cur
+        parent = os.path.dirname(cur)
+        if parent == cur:
+            return None
+        cur = parent
+
+
+def _by_time(rows: list[VersionRow]) -> list[VersionRow]:
+    return sorted(rows, key=lambda r: (r.time_utc or "", r.number), reverse=True)
+
+
+def snapshot_history(path: str) -> FileHistory:
+    """The versions of a file outside any library: its Git commits when it has some,
+    else the user's snapshots of it and those of the nearest project store above it.
+    Reads the file and its history read-only and writes nothing."""
+    from solidseas import versions
+
+    data = versions.history(path)
+    rows = _rows_of(data)
+    warnings = list(data.get("warnings") or ())
+    if data["source"] == "git":
+        return FileHistory(rows, _warning_words(warnings))
+    project = project_store_of(path)
+    if project is None:
+        return FileHistory(rows, _warning_words(warnings))
+    pdata = versions.history(path, source="snapshots", project=project)
+    prows = _rows_of(pdata, project=project)
+    pstored = [r for r in prows if r.kind != "working"]
+    if not pstored:
+        return FileHistory(rows, _warning_words(warnings))
+    warnings += list(pdata.get("warnings") or ())
+    stored = _by_time([r for r in rows if r.kind != "working"] + pstored)
+    # the working copy is listed when it differs from the newest version of the two stores
+    owner = rows if stored[0].project is None else prows
+    top = [r for r in owner if r.kind == "working"]
+    return FileHistory(top + stored, _warning_words(warnings))
+
+
+def version_rows(path: str) -> list[VersionRow]:
+    """The rows of :func:`snapshot_history`."""
+    return snapshot_history(path).rows
+
+
+def _checkin_note(checkins: list[dict[str, Any]]) -> tuple[str, str | None, str | None]:
+    """The note, revision and state a library version shows: its newest check-in's
+    note, and the newest revision and state any of its check-ins gave it."""
+    note = next((c["note"] for c in checkins if c.get("note")), "")
+    if not note and checkins and all(c.get("auto") for c in checkins):
+        note = "Stored by a scan"
+    revision = next((c["revision"] for c in checkins if c.get("revision")), None)
+    state = next((c["state"] for c in checkins if c.get("state")), None)
+    return note, revision, state
+
+
+def library_history(path: str, library: str | None = None) -> FileHistory:
+    """The versions of a file in a PDM library (``Vault.log``): the library's versions
+    with their check-in notes, the Git commits that changed it when it sits in a Git
+    repository, and the working copy on top when it differs from the newest library
+    version. Reads only."""
+    from solidseas import pdm
+
+    vault = pdm.open(library or path)
+    data = vault.log(path)
+    working_note = {
+        "changed": "Changed since the newest library version, not checked in",
+        "new": "Not checked in yet",
+    }.get(data["working"]["state"], "")
+    git_rows = [v for v in data["versions"] if v["source"] == "git"]
+    git_number = {v["id"]: len(git_rows) - i for i, v in enumerate(git_rows)}  # the oldest is v1
+    rows = []
+    for v in data["versions"]:
+        if v["source"] == "working":
+            rows.append(VersionRow("working", v["number"], "working", v["time_utc"], working_note, v["size"]))
+        elif v["source"] == "git":
+            rows.append(
+                VersionRow(
+                    v["id"],
+                    git_number[v["id"]],
+                    "commit",
+                    v["time_utc"],
+                    v["subject"] or "",
+                    v["size"],
+                    author=v["author"],
+                    available=v["available"],
+                    deleted=v["status"] == "deleted",
+                )
+            )
+        else:
+            checkins = v.get("checkins") or []
+            note, revision, state = _checkin_note(checkins)
+            who = next((c["who"] for c in checkins if c.get("who")), None)
+            rows.append(
+                VersionRow(
+                    v["id"],
+                    v["number"],
+                    "vault",
+                    v["time_utc"],
+                    note or (v["subject"] or ""),
+                    v["size"],
+                    author=who,
+                    available=v["available"],
+                    library=vault.root,
+                    revision=revision,
+                    state=state,
+                )
+            )
+    return FileHistory(rows, _warning_words(data.get("warnings")), vault.root)
+
+
+def file_history(path: str) -> FileHistory:
+    """The tab's default source: :func:`library_history` for a file in a PDM library,
+    :func:`snapshot_history` for any other."""
+    from solidseas import pdm
+
+    library = pdm.find_library(path)
+    if library is not None:
+        return library_history(path, library)
+    return snapshot_history(path)
+
+
 def has_history(rows: list[VersionRow]) -> bool:
-    """Whether any version is stored: a commit or a snapshot, not only the working copy."""
+    """Whether any version is stored: a commit, a snapshot or a library version, not
+    only the working copy."""
     return any(r.kind != "working" for r in rows)
 
 
 def from_git(rows: list[VersionRow]) -> bool:
     return any(r.kind == "commit" for r in rows)
+
+
+def previous_of(rows: list[VersionRow], index: int) -> VersionRow | None:
+    """The version before row ``index`` to compare it with: the next older row of the
+    same history (the next older row of any, for the working copy)."""
+    if not 0 <= index < len(rows):
+        return None
+    row = rows[index]
+    for older in rows[index + 1 :]:
+        if row.kind == "working" or older.family == row.family:
+            return older
+    return None
+
+
+def pair_options(a: VersionRow, b: VersionRow | None) -> dict[str, Any]:
+    """The options that read both rows: those of the one that is not the working copy."""
+    for r in (a, b):
+        if r is not None and r.kind != "working":
+            return r.options()
+    return {}
 
 
 def working_comparable(rows: list[VersionRow], index: int, exists: bool) -> bool:
@@ -146,11 +353,20 @@ def working_comparable(rows: list[VersionRow], index: int, exists: bool) -> bool
 # --------------------------------------------------------------------------- work, off the UI thread
 def load_work(path: str, source=None):
     """A Job's work: the rows of the file at ``path`` from ``source`` (default
-    :func:`version_rows`) and whether the file is on disk now."""
+    :func:`file_history`; a source gives a :class:`FileHistory` or a list of rows), its
+    warnings, its library and whether the file is on disk now."""
 
     def work(_emit, _cancelled) -> dict[str, Any]:
-        rows = (source or version_rows)(path)
-        return {"ok": True, "rows": rows, "exists": os.path.isfile(path)}
+        got = (source or file_history)(path)
+        if not isinstance(got, FileHistory):
+            got = FileHistory(list(got))
+        return {
+            "ok": True,
+            "rows": got.rows,
+            "warnings": list(got.warnings),
+            "library": got.library,
+            "exists": os.path.isfile(path),
+        }
 
     return work
 
@@ -167,7 +383,7 @@ def preview_of(path: str, row: VersionRow) -> dict[str, Any]:
     if not row.available:
         return {"image": None, "why": "This version is not on this computer."}
     try:
-        with versions.open_version(path, row.ref) as doc:
+        with versions.open_version(path, row.ref, **row.options()) as doc:
             p = doc.preview()
             image = thumbnail(p.data, PREVIEW_SIZE) if p is not None else None
     except Exception as exc:
@@ -199,18 +415,19 @@ def detail_work(path: str, row: VersionRow, previous: VersionRow | None):
                 else "One of the two versions is not on this computer, so they cannot be compared."
             )
             return {"ok": True, "diff": None, "why": why}
-        return compare_work(path, previous.ref, row.ref)(emit, cancelled)
+        return compare_work(path, previous.ref, row.ref, **pair_options(row, previous))(emit, cancelled)
 
     return work
 
 
-def compare_work(path: str, older: str, newer: str):
-    """A Job's work: ``version_diff`` data from ``older`` to ``newer``."""
+def compare_work(path: str, older: str, newer: str, **options: Any):
+    """A Job's work: ``version_diff`` data from ``older`` to ``newer`` (``options``:
+    those of ``solidseas.versions.compare`` that name the history)."""
 
     def work(_emit, _cancelled) -> dict[str, Any]:
         from solidseas import versions
 
-        return {"ok": True, "diff": versions.compare(path, older, newer), "why": ""}
+        return {"ok": True, "diff": versions.compare(path, older, newer, **options), "why": ""}
 
     return work
 
@@ -339,17 +556,18 @@ def diff_groups(diff: dict[str, Any]) -> list[tuple[str, list[tuple[str, str, st
     return groups
 
 
-def _side(v: dict[str, Any]) -> str:
+def _side(v: dict[str, Any], library: bool = False) -> str:
     if v["kind"] == "working":
         return f"v{v['number']}, the working copy"
-    what = "Git commit" if v["kind"] == "commit" else "snapshot"
+    what = "Git commit" if v["kind"] == "commit" else "library version" if library else "snapshot"
     when = time_text(v["time_utc"])
     return f"v{v['number']} ({what}{', ' + when if when else ''})"
 
 
-def diff_caption(diff: dict[str, Any]) -> str:
-    """The sentence above the differences: which two versions, and when there are none."""
-    text = f"Changes from {_side(diff['from'])} to {_side(diff['to'])}."
+def diff_caption(diff: dict[str, Any], *, library: bool = False) -> str:
+    """The sentence above the differences: which two versions (``library``: of a PDM
+    library's), and when there are none."""
+    text = f"Changes from {_side(diff['from'], library)} to {_side(diff['to'], library)}."
     if diff["same_content"]:
         return text + " The two versions are the same file."
     if not any(name != "Notes" for name, _rows in diff_groups(diff)):
@@ -358,6 +576,15 @@ def diff_caption(diff: dict[str, Any]) -> str:
 
 
 # --------------------------------------------------------------------------- the tab
+def note_text(row: VersionRow) -> str:
+    """The Note column: the note, then the revision and state a check-in gave it."""
+    labels = [f"rev {row.revision}"] if row.revision else []
+    labels += [row.state] if row.state else []
+    if not labels:
+        return row.note
+    return f"{row.note} ({', '.join(labels)})" if row.note else ", ".join(labels).capitalize()
+
+
 class HistoryPane(QWidget):
     """The tab's content: a line on top with the two buttons, the versions, and under them
     the chosen version's preview beside its differences. ``versionChosen`` carries the
@@ -385,6 +612,11 @@ class HistoryPane(QWidget):
         top.addWidget(self.status, 1)
         top.addWidget(self.snapshot_button)
         top.addWidget(self.compare_button)
+        self.warnings = QLabel()
+        self.warnings.setTextFormat(Qt.TextFormat.PlainText)
+        self.warnings.setWordWrap(True)
+        self.warnings.setContentsMargins(6, 0, 6, 4)
+        self.warnings.hide()
 
         self.tree = QTreeWidget()
         self.tree.setColumnCount(5)
@@ -432,6 +664,7 @@ class HistoryPane(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addLayout(top)
+        layout.addWidget(self.warnings)
         layout.addWidget(split, 1)
         self.rows: list[VersionRow] = []
 
@@ -443,7 +676,14 @@ class HistoryPane(QWidget):
         self.rows = []
         self.tree.clear()
         self.status.setText("")
+        self.show_warnings([])
         self.clear_version("")
+
+    def show_warnings(self, warnings: list[str]) -> None:
+        """The history's warnings in one plain line under the buttons; hidden when none."""
+        words = [w[:1].upper() + w[1:].rstrip(".") + "." for w in warnings if w]
+        self.warnings.setText("Note: " + " ".join(words) if words else "")
+        self.warnings.setVisible(bool(words))
 
     def clear_version(self, text: str) -> None:
         """The preview and the differences say ``text`` until the chosen version is read."""
@@ -459,7 +699,13 @@ class HistoryPane(QWidget):
         self.tree.clear()
         for r in rows:
             item = QTreeWidgetItem(
-                [r.label, time_text(r.time_utc), r.source, r.note, size_text(r.size) if r.readable else ""]
+                [
+                    r.label,
+                    time_text(r.time_utc),
+                    r.source,
+                    note_text(r),
+                    size_text(r.size) if r.readable else "",
+                ]
             )
             item.setTextAlignment(4, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
             lines = [f"{r.source} {r.ref}" if r.kind != "working" else "The file as it is now"]
@@ -467,13 +713,17 @@ class HistoryPane(QWidget):
                 lines.append(f"By {r.author}")
             if r.note:
                 lines.append(r.note)
+            labels = [f"revision {r.revision}"] if r.revision else []
+            labels += [f"state {r.state}"] if r.state else []
+            if labels:
+                lines.append(", ".join(labels).capitalize())
             if r.deleted:
                 lines.append("The file was deleted in this commit.")
             elif not r.available:
                 lines.append("Its content is not on this computer (a Git LFS object that was not fetched).")
             item.setToolTip(0, tip("\n".join(lines)))
-            if r.note:
-                item.setToolTip(3, tip(r.note))
+            if note_text(r):
+                item.setToolTip(3, tip(note_text(r)))
             if not r.readable:
                 for c in range(5):
                     item.setForeground(c, self.palette().placeholderText())
@@ -545,8 +795,16 @@ class HistoryController(QObject):
         self.pane.snapshotRequested.connect(self.take_snapshot)
         self.pane.compareRequested.connect(self.compare_with_working)
         window.details.tabs.currentChanged.connect(lambda _i: self._load_if_shown())
+        self.act_history = QAction("&History", window)
+        self.act_history.setShortcut(QKeySequence("Ctrl+Shift+H"))
+        self.act_history.setStatusTip("Show the versions of the selected file and what changed in each")
+        self.act_history.triggered.connect(self.show_tab)
+        view_menu = getattr(window, "view_menu", None)
+        if view_menu is not None:
+            view_menu.addAction(self.act_history)
         self.path: str | None = None
         self.rows: list[VersionRow] = []
+        self.library: str | None = None
         self.exists = False
         self._loaded = False
         self._generation = 0  # of the document shown and its list
@@ -557,12 +815,35 @@ class HistoryController(QObject):
     def showing(self) -> bool:
         return self.w.details.tabs.currentWidget() is self.page
 
+    def show_tab(self) -> None:
+        tabs = self.w.details.tabs
+        tabs.setCurrentIndex(tabs.indexOf(self.page))
+
+    def chosen_row(self) -> VersionRow | None:
+        """The version chosen in the list, when one is."""
+        index = self.pane.chosen
+        return self.rows[index] if 0 <= index < len(self.rows) else None
+
+    def refresh(self, paths: list[str] | None = None) -> None:
+        """Read the versions again (now when the tab is shown, else when it is next
+        shown), when the file shown is one of ``paths`` or lies below one (any, when None)."""
+        if self.path is None:
+            return
+        if paths is not None:
+            key = os.path.normcase(os.path.abspath(self.path))
+            folders = [os.path.normcase(os.path.abspath(p)) for p in paths]
+            if not any(key == f or key.startswith(f.rstrip(os.sep) + os.sep) for f in folders):
+                return
+        self._loaded = False
+        self._load_if_shown()
+
     def document_shown(self, entry: dict[str, Any] | None, source) -> None:
         """The details panel shows another document: its versions are read when the tab is shown."""
         self._generation += 1
         self._detail += 1
         self.path = None
         self.rows = []
+        self.library = None
         self._loaded = False
         self.pane.clear()
         if entry is None or source is None:
@@ -603,26 +884,48 @@ class HistoryController(QObject):
             self.shown.emit(result)
             return
         self.rows, self.exists = result["rows"], result["exists"]
+        self.library = result.get("library")
         git = from_git(self.rows)
-        if not has_history(self.rows):
+        library = self.library is not None
+        if library and not any(r.kind == "vault" for r in self.rows):
+            status = NO_LIBRARY_HISTORY_TEXT
+            if git:
+                status += " The commits that changed it in its Git repository are listed."
+        elif library:
+            status = "The versions of this file in the library, newest first, with their check-in notes."
+            if git:
+                status += " The commits that changed it in its Git repository are listed with them."
+        elif not has_history(self.rows):
             status = NO_HISTORY_TEXT
         elif git:
             status = "The commits that changed this file in its Git repository, newest first."
+        elif any(r.project for r in self.rows):
+            status = (
+                "The snapshots of this file in your SolidSeas data folder and in its project's own "
+                "store, newest first."
+            )
         else:
             status = "The snapshots of this file in your SolidSeas data folder, newest first."
         if not self.exists:
             status += " The file is not on disk now."
         self.pane.status.setText(status)
-        self.pane.snapshot_button.setEnabled(self.exists and not git and not self._snapshotting)
-        self.pane.snapshot_button.setToolTip(
-            tip(
-                "This file's versions are its Git commits: commit it to add one."
-                if git
-                else "Keep a copy of the file as it is now in your SolidSeas data folder, never beside the "
+        self.pane.show_warnings(result.get("warnings") or [])
+        self.pane.snapshot_button.setEnabled(
+            self.exists and not git and not library and not self._snapshotting
+        )
+        if library:
+            snapshot_tip = (
+                "This file is in a library: check it in (PDM > Check In) to keep a version with a note."
+            )
+        elif git:
+            snapshot_tip = "This file's versions are its Git commits: commit it to add one."
+        else:
+            snapshot_tip = (
+                "Keep a copy of the file as it is now in your SolidSeas data folder, never beside the "
                 "file, and add it to this list. Nothing is stored when the file has not changed since its "
                 "newest snapshot."
             )
-        )
+        self.pane.snapshot_button.setToolTip(tip(snapshot_tip))
         self.pane.compare_button.setEnabled(False)
         self.pane.show_rows(self.rows)
         self.page.show_content()
@@ -637,7 +940,7 @@ class HistoryController(QObject):
             return
         self.pane.compare_button.setEnabled(working_comparable(self.rows, index, self.exists))
         row = self.rows[index]
-        previous = self.rows[index + 1] if index + 1 < len(self.rows) else None
+        previous = previous_of(self.rows, index)
         self._detail += 1
         detail = self._detail
         self.pane.clear_version("Reading this version...")
@@ -665,7 +968,9 @@ class HistoryController(QObject):
         elif result.get("diff") is None:
             self.pane.show_diff(result.get("why") or "", None)
         else:
-            self.pane.show_diff(diff_caption(result["diff"]), result["diff"])
+            self.pane.show_diff(
+                diff_caption(result["diff"], library=self.library is not None), result["diff"]
+            )
         self.shown.emit(result)
 
     def compare_with_working(self) -> None:
@@ -677,7 +982,8 @@ class HistoryController(QObject):
         detail = self._detail
         self.pane.diff.clear()
         self.pane.diff_caption.setText("Comparing with the working copy...")
-        job = Job(compare_work(self.path, self.rows[index].ref, "working"))
+        row = self.rows[index]
+        job = Job(compare_work(self.path, row.ref, "working", **row.options()))
         self.w._start(self.pool, job, on_finished=lambda result, d=detail: self._compared(d, result))
 
     def take_snapshot(self) -> None:
@@ -707,7 +1013,7 @@ class HistoryController(QObject):
                 self.load()
             else:
                 self.pane.status.setText(text)
-                self.pane.snapshot_button.setEnabled(self.exists)
+                self.pane.snapshot_button.setEnabled(self.exists and self.library is None)
         self.shown.emit(result)
 
     def stop(self) -> None:
@@ -717,12 +1023,17 @@ class HistoryController(QObject):
 
 __all__ = [
     "TAB",
+    "FileHistory",
     "HistoryController",
     "HistoryPane",
     "VersionRow",
     "diff_caption",
     "diff_groups",
+    "file_history",
     "has_history",
+    "library_history",
+    "previous_of",
+    "snapshot_history",
     "version_rows",
     "working_comparable",
 ]

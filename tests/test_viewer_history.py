@@ -98,12 +98,16 @@ def test_the_differences_in_words(tmp_path):
 
 
 def test_a_source_of_rows_can_be_given(tmp_path):
-    """The tab's one source of rows can be replaced (a PDM vault, later)."""
+    """The tab's one source of rows can be replaced: by a list of rows, or by a
+    FileHistory with its warnings and library."""
     from solidseas_app.viewer import history
 
     row = history.VersionRow("abcd1234", 1, "snapshot", "2026-11-01T10:00:00Z", "checked in", 10)
     got = history.load_work(str(tmp_path / "none.3mf"), lambda p: [row])(None, lambda: False)
-    assert got == {"ok": True, "rows": [row], "exists": False}
+    assert got == {"ok": True, "rows": [row], "warnings": [], "library": None, "exists": False}
+    full = history.FileHistory([row], ("The history was cut short",), str(tmp_path))
+    got = history.load_work(str(tmp_path / "none.3mf"), lambda p: full)(None, lambda: False)
+    assert got["warnings"] == ["The history was cut short"] and got["library"] == str(tmp_path)
 
 
 # --------------------------------------------------------------------------- the window

@@ -161,6 +161,7 @@ from .lookstore import LookStore
 from .menus import relay_status_tips
 from .meshproc import MeshReader
 from .modelpool import ModelPool
+from .pdmaction import PdmController
 from .preferences import BOXES_NOTE, POINTER_TIP, VIEW_3D_STATUS, VIEW_CUBE_TIP
 from .preview import MODEL
 from .printaction import HERE_TEXT, HERE_TIP, PrintController, PrintTarget
@@ -581,6 +582,7 @@ class MainWindow(QMainWindow):
         self._build_status()
         self.where_used = WhereUsedController(self)  # indexing, the Where Used tab and the filter
         self.file_history = HistoryController(self)  # the History tab: a file's versions
+        self.pdm = PdmController(self)  # the PDM menu: check-ins, changes, project check, restore
         self.connector = ConnectorService(self, self.store)  # Settings > Connector's local API
         self.apply_settings(self.settings, save=False, initial=True)
         if self.store.reset_keys:
@@ -646,6 +648,8 @@ class MainWindow(QMainWindow):
         self.tree = QTreeWidget()
         self.tree.setHeaderLabels(["Folders"])
         self.tree.itemSelectionChanged.connect(self._folder_selected)
+        self.tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.tree.customContextMenuRequested.connect(self._folder_menu)  # the PDM entries, in a library
 
         self.table = QTableView()
         self.table.setSortingEnabled(True)
@@ -1412,6 +1416,7 @@ class MainWindow(QMainWindow):
             self._history.clear()
         self.folder = folder
         self.where_used.folder_opened(folder)
+        self.pdm.folder_opened(folder)  # the PDM menu follows the library the folder is in
         self.connector.folder_opened(folder)  # the local API, when on, follows the open folder
         self._pending_select = select
         self._cache = IndexCache()
@@ -1676,6 +1681,14 @@ class MainWindow(QMainWindow):
     def _folder_selected(self) -> None:
         items = self.tree.selectedItems()
         self.proxy.set_folder((items[0].data(0, _FolderRole) or "") if items else "")
+
+    def current_folder(self) -> str | None:
+        """The folder chosen in the folder tree, as a path (the opened folder when none is)."""
+        if self.folder is None:
+            return None
+        items = self.tree.selectedItems()
+        rel = (items[0].data(0, _FolderRole) or "") if items else ""
+        return reading.host_path(self.folder, rel) if rel else self.folder
 
     # -- views -----------------------------------------------------------------------
     def set_view(self, view: str) -> None:
@@ -2686,7 +2699,8 @@ class MainWindow(QMainWindow):
         """The context menu of the list's row at ``index`` (of the list's model): Open and
         Show in File Explorer for a file (:meth:`open_externally`), Open in F3D for a file F3D
         reads while it is installed (:meth:`open_in_f3d`), then 3D Print for a
-        part or an assembly; None for a folder or a SOLIDWORKS lock file."""
+        part or an assembly, then the PDM entries in a library (:meth:`.PdmController.add_to_menu`);
+        None for a folder or a SOLIDWORKS lock file."""
         entry = self.model.entry(self.proxy.mapToSource(index)) if index.isValid() else None
         if entry is None or self.folder is None or entry["type"] != "file" or is_lock_file(entry):
             return None
@@ -2716,7 +2730,30 @@ class MainWindow(QMainWindow):
             self.printer.add_action(
                 menu, f"3D Print {name}", lambda: self.entry_print_target(entry), what=name
             )
+        self.pdm.add_to_menu(menu, path, folder=False)
         return menu
+
+    def folder_menu(self, item: QTreeWidgetItem | None) -> QMenu | None:
+        """The context menu of a folder in the folder tree: the PDM entries for it in a
+        library (:meth:`.PdmController.add_to_menu`); None outside one."""
+        if item is None or self.folder is None:
+            return None
+        rel = item.data(0, _FolderRole) or ""
+        menu = relay_status_tips(QMenu(self))
+        menu.setToolTipsVisible(True)
+        if not self.pdm.add_to_menu(
+            menu, reading.host_path(self.folder, rel) if rel else self.folder, folder=True
+        ):
+            menu.deleteLater()
+            return None
+        menu.removeAction(menu.actions()[0])  # the separator before the PDM entries
+        return menu
+
+    def _folder_menu(self, pos: QPoint) -> None:
+        menu = self.folder_menu(self.tree.itemAt(pos))
+        if menu is not None:
+            menu.exec(self.tree.viewport().mapToGlobal(pos))
+            menu.deleteLater()
 
     def _list_menu(self, view: QAbstractItemView, pos: QPoint) -> None:
         menu = self.list_menu(view.indexAt(pos))
@@ -3276,6 +3313,7 @@ class MainWindow(QMainWindow):
         self.thumbnailer.stop()
         self.where_used.stop()  # the indexer process stops between files
         self.file_history.stop()
+        self.pdm.stop()
         self.connector.shutdown()  # the local API's process, when it runs
         self.models.close()  # its workers end; a read waiting on one gets an error at once
         pools = (
@@ -3290,6 +3328,7 @@ class MainWindow(QMainWindow):
             self.thumbnailer.pool,
             *self.where_used.pools,
             self.file_history.pool,
+            self.pdm.pool,
         )
         for pool in pools:
             pool.clear()

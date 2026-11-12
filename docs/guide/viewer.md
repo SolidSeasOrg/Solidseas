@@ -27,7 +27,10 @@ The viewer never changes a file. It writes only:
 - an animation you save from the 3D view with the video export extension, where
   you choose;
 - the snapshots you take on the History tab, in your own data folder, never
-  beside the file (see [A file's history](#a-files-history)).
+  beside the file (see [A file's history](#a-files-history));
+- in a library, what you ask for on the PDM menu: the library's own
+  `.solidseas` folder, and the file a restore puts back (see
+  [The PDM menu](#the-pdm-menu)).
 
 The one way a file of yours can change is a setting you turn on yourself: with
 Open 3MF and STL Files As They Are, your slicer opens your own 3MF or STL file,
@@ -240,11 +243,17 @@ assembly, or one that was not found, has it greyed with the reason.
 
 ## A file's history
 
-The History tab lists the versions of the selected file, newest first, with
-when each was made, where it comes from, its note and its size. In a Git
-repository the versions are the commits that changed the file, with their
-messages. Anywhere else they are the snapshots you take. When the file on disk
-differs from its newest version, it is listed on top as the working copy.
+The History tab (View > History, Ctrl+Shift+H) lists the versions of the
+selected file, newest first, with when each was made, where it comes from, its
+note and its size. In a library (see [The PDM menu](#the-pdm-menu)) the versions
+are the library's, each with the note of its check-in and the revision and state
+it was given, and the Git commits that changed the file are listed with them
+when the library is also a Git repository. Elsewhere, in a Git repository the
+versions are the commits that changed the file, with their messages, and
+anywhere else they are the snapshots you take. When the file on disk differs
+from its newest version, it is listed on top as the working copy. A line under
+the buttons says when the history could not be read in full, such as a Git
+history that was cut short.
 
 Click a version to see the preview image it stores and what changed from the
 version before it: its custom and configuration properties, its configurations,
@@ -257,13 +266,36 @@ now.
 folder (`%LOCALAPPDATA%\SolidSeas\history` on Windows), never beside the file,
 and adds it to the list. A file that has not changed since its newest snapshot
 stores nothing new. For a file in a Git repository the button is off: commit
-the file to add a version. Snapshots taken on the command line with `--project`
-live in that project's folder and are not listed here yet.
+the file to add a version. For a file in a library it is off too: check the file
+in from the PDM menu instead. Snapshots taken on the command line with
+`--project` live in that project's own folder; they are listed too, as Project
+snapshot.
 
 The tab reads the versions only while it is shown, in the background, and
 nothing it does changes the file or the repository. The same history is on the
 command line as `solidseas history`, `snapshot` and `diff` (see
 [A file's versions](command-line.md#a-files-versions)).
+
+## The PDM menu
+
+When the folder you open lies in a library (a folder made one with
+`solidseas pdm init`, or with the menu below; see
+[A library's history](pdm.md)), the PDM menu keeps its history:
+
+| Entry | What it does |
+|---|---|
+| Check In... | Keeps a version of each changed file, with your note. Choose the selected file or the folder chosen in the folder tree; the window lists what changed there (new, changed or gone) before you check in. A revision such as B and a state such as released are optional. |
+| Changes | Lists the files in the chosen folder that are new, changed since their newest version, or gone. Check In there opens the check-in for the same folder. |
+| Check Project | Checks that the project holding the chosen folder holds every file its assemblies, parts and drawings reference. The findings are grouped (not found anywhere, another document of that name, found only outside the project, Toolbox hardware, stored inside its assembly, found in the project), each with the document, the path stored in it and where the file was found. Nothing is copied or changed. |
+| Restore Version... | Puts back the library version chosen on the History tab. The file as it is now is kept as a version in the library first, so nothing is lost. You can also restore it as a new file beside it, which never replaces another file. |
+
+Outside a library the menu has one entry, **Make This Folder a Library...**. It
+asks first, then adds a `.solidseas` folder to the opened folder, where the
+versions and check-ins are kept. Nothing else in the folder changes.
+
+The same entries are on the right-click menu of a file in the list and of a
+folder in the folder tree, where they apply. Every check-in, check and restore
+runs in the background.
 
 ## Opening a file in F3D
 

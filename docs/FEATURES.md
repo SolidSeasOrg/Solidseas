@@ -80,7 +80,8 @@ for.
 | BOM tab | An assembly's bill of materials, top level, parts only or indented, with File > Export BOM to CSV or JSON | Preview | | [Bills of materials](guide/where-used-and-bom.md#bills-of-materials) |
 | BOM editor | Edit BOM... on the BOM tab: choose columns, reorder and hide rows, type over cells, save as a `.ssbom` file and export CSV, Excel or PDF | Preview | | [Bills of materials](guide/where-used-and-bom.md#bills-of-materials) |
 | Where Used | Indexes each folder you open, then shows which assemblies and drawings use a document, and finds documents by part number or property | Preview | | [Where Used](guide/where-used-and-bom.md#where-used) |
-| History tab | A file's Git commits or snapshots, newest first, with each one's preview and what changed in it; Take Snapshot and Compare with Working Copy | Provisional | | [A file's history](guide/viewer.md#a-files-history) |
+| History tab | A file's library versions with their check-in notes, Git commits or snapshots, newest first, with each one's preview and what changed in it; Take Snapshot and Compare with Working Copy | Provisional | | [A file's history](guide/viewer.md#a-files-history) |
+| PDM menu | In a library: Check In with a note, Changes, Check Project and Restore Version; outside one, Make This Folder a Library | Provisional | | [The PDM menu](guide/viewer.md#the-pdm-menu) |
 
 ### Conversion and export
 
