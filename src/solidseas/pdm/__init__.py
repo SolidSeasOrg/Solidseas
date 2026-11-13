@@ -24,7 +24,7 @@ puts back and the library's copies, never through a link (``docs/PDM.md`` 7).
 from __future__ import annotations
 
 from .checkins import Checkin, CheckinFile, parse_checkin
-from .library import Item, Library, Link, parse_item, parse_link
+from .library import Item, ItemEdit, Library, Link, parse_edit, parse_item, parse_link
 from .settings import Section, Settings
 from .vault import (
     CheckinResult,
@@ -47,6 +47,7 @@ __all__ = [
     "CheckinResult",
     "FileState",
     "Item",
+    "ItemEdit",
     "Library",
     "Link",
     "Project",
@@ -61,6 +62,7 @@ __all__ = [
     "open",
     "open_vault",
     "parse_checkin",
+    "parse_edit",
     "parse_item",
     "parse_link",
 ]

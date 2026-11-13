@@ -56,7 +56,7 @@ self-contained check, read-only (`docs/API.md` 8.6).
   - `ignore`: glob patterns that are never tracked.
 - `.solidseas/vault/store/`: the snapshot store, `objects/` and `files/`, as `docs/VERSIONS.md` 4.2 describes, keyed by the path relative to the library.
 - `.solidseas/vault/checkins/<yyyy>/<time>-<id>.json`: one record per check-in. It holds the id, when, the note, an optional name for who (from the settings, empty by default), and for each file its relative path, SHA-256, size and snapshot id. It may also carry a revision label and a state. Records are never rewritten. A later record can supersede a label or state.
-- `.solidseas/vault/library/items/<item id>.json` and `.../links/<time>-<id>.json`: library items and the record of each copy made into a project (section 6). These are append-only like the rest.
+- `.solidseas/vault/library/items/<item id>.json`, `.../links/<time>-<id>.json` and `.../edits/<time>-<id>.json`: library items, the record of each copy made into a project, and the changes of an item's number or description (section 6). These are append-only like the rest.
 
 Everything is plain JSON and content files. Nothing in the vault needs SQLite. The
 folder catalog (`solidseas index`) is the fast index over it, and a vault can be read
@@ -74,7 +74,7 @@ with the catalog cleared.
 | `pdm show FILE VERSION` and `pdm diff FILE A B` | One version's facts, or what changed between two (`docs/VERSIONS.md` 5 and 6). |
 | `pdm restore FILE VERSION [--as NAME]` | Put a version back. The current file is stored as a version first. Without `--as` it replaces the file. With `--as` it writes a new file. |
 | `pdm check [PROJECT]` | References that leave the project, are missing, or are ambiguous (section 5). |
-| `pdm library ...` | `candidates`, `add`, `list`, `use`, `updates`, `update` (section 6). |
+| `pdm library ...` | `candidates`, `add`, `list`, `use`, `updates`, `update`, `edit` (section 6). |
 
 Every command takes `--json`, the same envelope as the rest of the command line.
 
@@ -156,6 +156,7 @@ documents again for that.
 - `pdm library use ITEM PROJECT [--to SUBFOLDER]` copies the item's current version into the project (the project's root folder by default, where SOLIDWORKS' search finds it from any folder below) and writes a link record. A file of that name that already exists in the project is never replaced. The command stops and says so instead.
 - `pdm library updates` lists links whose library item has a newer version than the copy, and copies that were edited in the project since they were made.
 - `pdm library update PROJECT ITEM` replaces the project's copy with the item's current version. It stores the current copy as a version first, and it refuses when the copy was edited in the project unless `--force` is given.
+- `pdm library edit ITEM [--number N] [--description D]` changes an item's number or description by writing an edit record that names the item by the number its item record has; the item record itself is never rewritten. The edits apply oldest first. The numbers an item had stay its aliases: they still find it, so link records made under an old number keep their item, and no other item can be given one (an item may take back its own). An edit that would give an item a number another item has or had, or that names no item, is skipped when the records are read, like any record that does not hold up.
 
 In SOLIDWORKS, insert a library part from the project's own copy, not from the
 library folder. `pdm check` reports a reference into the library as **outside**.

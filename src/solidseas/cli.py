@@ -3754,6 +3754,20 @@ def _library_update(args: argparse.Namespace, vault: Any) -> dict[str, Any]:
     return data
 
 
+def _library_edit(args: argparse.Namespace, vault: Any) -> dict[str, Any]:
+    data = vault.library.edit(args.item, number=args.number, description=args.description)
+    if not args.json:
+        i, before = data["item"], data["from"]
+        if not data["changed"]:
+            _say(f"library item {i['item']} already has that number and description")
+        else:
+            if i["item"] != before["item"]:
+                _say(f"library item {before['item']} is {i['item']} now ({before['item']} still finds it)")
+            if i["description"] != before["description"]:
+                _say(f"{i['item']}: {i['description'] or 'no description'}")
+    return data
+
+
 LIBRARY_ACTIONS: dict[str, Callable[[argparse.Namespace, Any], dict[str, Any]]] = {
     "candidates": _library_candidates,
     "add": _library_add,
@@ -3761,6 +3775,7 @@ LIBRARY_ACTIONS: dict[str, Callable[[argparse.Namespace, Any], dict[str, Any]]] 
     "use": _library_use,
     "updates": _library_updates,
     "update": _library_update,
+    "edit": _library_edit,
 }
 
 
@@ -4984,7 +4999,9 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="count Toolbox parts as files to copy in, for an installation without Toolbox",
     )
-    ap = pdm_action("library", "the library of common parts: candidates, add, list, use, updates, update")
+    ap = pdm_action(
+        "library", "the library of common parts: candidates, add, list, use, updates, update, edit"
+    )
     library_actions = ap.add_subparsers(dest="library_action", required=True, metavar="action")
 
     def library_action(name: str, help_: str) -> argparse.ArgumentParser:
@@ -5026,6 +5043,11 @@ def build_parser() -> argparse.ArgumentParser:
     lp.add_argument("project", metavar="PROJECT", help="a project folder, or a folder in one")
     lp.add_argument("item", metavar="ITEM", help="the item number")
     lp.add_argument("--force", action="store_true", help="replace a copy edited in the project too")
+    lp = library_action("edit", "change an item's number or description; its old number still finds it")
+    lp.add_argument("item", metavar="ITEM", help="the item number (or one it had)")
+    lp.add_argument("path", nargs="?", default=".", metavar="PATH", help="a folder in the library")
+    lp.add_argument("--number", default=None, metavar="N", help="its new item number")
+    lp.add_argument("-d", "--description", default=None, metavar="D", help="its new description")
     add("version", "the SolidSeas version, API version and each JSON kind's schema version", target="none")
     sp = add("schema", "print the JSON Schema of a kind's envelope, or list the kinds", target="none")
     sp.add_argument("kind", nargs="?", help="a JSON kind, such as document_summary or listing")

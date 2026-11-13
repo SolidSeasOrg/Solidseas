@@ -5,12 +5,19 @@ projects use. Each part there that the vault knows as an item has a record,
 ``.solidseas/vault/library/items/<item>.json``, with its item number and description.
 Using an item copies its current version into a project and writes a link record,
 ``.solidseas/vault/library/links/<time>-<id>.json``, that says which version went where.
-A later link record for the same project file supersedes an earlier one.
+A later link record for the same project file supersedes an earlier one. An item's
+number and description are changed by an edit record,
+``.solidseas/vault/library/edits/<time>-<id>.json``, which names the item by the number
+its item record has and gives the number and description from then on. The edits apply
+oldest first; the numbers an item had before stay its aliases, so a link record made
+under an old number still finds its item, and no other item can take one.
 
-**Records.** Both kinds are written once, through a temporary name and a rename that
+**Records.** Every kind is written once, through a temporary name and a rename that
 fails on an existing name, and never rewritten. They are data from a folder others may
-write to, so :func:`parse_item` and :func:`parse_link` check every field and return
-None for a record that does not hold up, which the reader skips.
+write to, so :func:`parse_item`, :func:`parse_link` and :func:`parse_edit` check every field
+and return None for a record that does not hold up, which the reader skips. An edit
+that would give an item a number another item has, or an edit of no item, is skipped
+the same way.
 
 **What it writes.** The copies ``add``, ``use``, ``update`` and ``check --fix`` make,
 and the vault's own folder. A copy is written under a temporary name in the folder it
@@ -33,7 +40,7 @@ import os
 import re
 import secrets
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
@@ -122,7 +129,9 @@ def _size(value: Any) -> bool:
 class Item:
     """A library item: its number, the file in the library section (``path`` below the
     library), its description, the version it was added as, and where it was copied
-    from (``source``, None when the file was already in the library section)."""
+    from (``source``, None when the file was already in the library section). ``id``
+    and ``description`` are the newest edit's (:class:`ItemEdit`); ``aliases`` are the
+    numbers it had before, oldest first, and ``edited`` the newest edit's time."""
 
     id: str
     when: datetime.datetime
@@ -134,11 +143,24 @@ class Item:
     source: str | None
     solidseas: str
     record: str = ""
+    aliases: tuple[str, ...] = ()
+    edited: datetime.datetime | None = None
+
+    @property
+    def first(self) -> str:
+        """The number the item was added with, which names its item record."""
+        return self.record[: -len(".json")] if self.record.endswith(".json") else self.id
+
+    @property
+    def numbers(self) -> tuple[str, ...]:
+        """Its number and its aliases."""
+        return (self.id, *self.aliases)
 
     def to_json(self) -> dict[str, Any]:
+        """The item record as it was added (an edit never rewrites it)."""
         return {
             "v": RECORD_VERSION,
-            "item": self.id,
+            "item": self.first,
             "when_utc": self.when.strftime(_TIME_FORMAT),
             "path": self.path,
             "description": self.description,
@@ -157,6 +179,34 @@ class Item:
             "added_utc": _brief_time(self.when),
             "source": self.source,
             "first_version": self.snapshot,
+            "aliases": list(self.aliases),
+            "edited_utc": None if self.edited is None else _brief_time(self.edited),
+        }
+
+
+@dataclass(frozen=True)
+class ItemEdit:
+    """A change of a library item's number or description: ``item`` is the number its
+    item record has (the number it was added with), ``number`` and ``description`` what
+    it has from ``when`` on."""
+
+    id: str
+    when: datetime.datetime
+    item: str
+    number: str
+    description: str
+    solidseas: str
+    record: str = ""
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "v": RECORD_VERSION,
+            "id": self.id,
+            "when_utc": self.when.strftime(_TIME_FORMAT),
+            "item": self.item,
+            "number": self.number,
+            "description": self.description,
+            "solidseas": self.solidseas,
         }
 
 
@@ -297,6 +347,27 @@ def parse_link(data: bytes, name: str) -> Link | None:
         made_by,
         name,
     )
+
+
+def parse_edit(data: bytes, name: str) -> ItemEdit | None:
+    """The edit a record file holds, or None when its name or any field does not hold up."""
+    m = LINK_NAME.match(name)
+    obj = _load(data)
+    if m is None or obj is None or obj.get("id") != m.group(2):
+        return None
+    when = _parse_time(obj.get("when_utc"))
+    if when is None or _stamp(when) != m.group(1):
+        return None
+    item, number, desc, made_by = (obj.get(k) for k in ("item", "number", "description", "solidseas"))
+    if (
+        not valid_item_id(item)
+        or not valid_item_id(number)
+        or not _valid_description(desc)
+        or not isinstance(made_by, str)
+        or len(made_by) > 40
+    ):
+        return None
+    return ItemEdit(m.group(2), when, item, number, desc, made_by, name)
 
 
 # --------------------------------------------------------------------------- writing files
@@ -479,7 +550,8 @@ class Library:
             return None
 
     def items(self) -> list[Item]:
-        """Every item whose record holds up and names a file in the library section, by number."""
+        """Every item whose record holds up and names a file in the library section, by
+        number, with its edits applied (:meth:`edits`)."""
         folder, names = self._records("items")
         out: dict[str, Item] = {}
         for name in names:
@@ -490,18 +562,66 @@ class Library:
             if item is None or not self.in_section(item.path):
                 continue
             out.setdefault(fold(item.id), item)  # two names that fold alike: the first, by name
-        return sorted(out.values(), key=lambda i: (i.id.casefold(), i.id))
+        return sorted(self._edited(out).values(), key=lambda i: (i.id.casefold(), i.id))
+
+    def edits(self) -> list[ItemEdit]:
+        """Every edit record that holds up, oldest first."""
+        folder, names = self._records("edits")
+        out = []
+        for name in names:
+            if not LINK_NAME.match(name):
+                continue
+            data = self._read(folder, name)
+            edit = None if data is None else parse_edit(data, name)
+            if edit is not None:
+                out.append(edit)
+        out.sort(key=lambda e: (e.when, e.id))
+        return out
+
+    def _edited(self, items: dict[str, Item]) -> dict[str, Item]:
+        """``items`` (by their first number, folded) with the edits applied, oldest first.
+        An edit of no item, or one that gives a number another item has or had, is
+        skipped."""
+        edits = self.edits() if items else []
+        if not edits:
+            return items
+        owner = {key: key for key in items}  # every number taken, folded, and whose it is
+        for edit in edits:
+            key = fold(edit.item)
+            it = items.get(key)
+            if it is None:
+                continue
+            new = fold(edit.number)
+            if owner.get(new, key) != key:
+                continue
+            aliases = list(it.aliases)
+            if new != fold(it.id):
+                aliases = [a for a in aliases if fold(a) != new] + [it.id]
+            owner[new] = key
+            items[key] = replace(
+                it, id=edit.number, description=edit.description, aliases=tuple(aliases), edited=edit.when
+            )
+        return items
 
     def item(self, ident: str) -> Item:
-        """The item of that number (case does not matter); ``invalid_argument`` (rule
-        ``unknown_item``) when there is none."""
-        for it in self.items():
-            if fold(it.id) == fold(str(ident)):
-                return it
+        """The item of that number, or that had it (an alias); case does not matter.
+        ``invalid_argument`` (rule ``unknown_item``) when there is none."""
+        found = self._by_number(self.items()).get(fold(str(ident)))
+        if found is not None:
+            return found
         raise InvalidArgumentError(
             f"{ident}: no library item has that number (pdm library list shows them)",
             detail={"rule": "unknown_item", "parameter": "item"},
         )
+
+    @staticmethod
+    def _by_number(items: list[Item]) -> dict[str, Item]:
+        """Each item by its number and by each alias, folded."""
+        out: dict[str, Item] = {}
+        for it in items:
+            for n in it.numbers:
+                out.setdefault(fold(n), it)
+        return out
 
     def links(self) -> list[Link]:
         """Every link record that holds up, oldest first."""
@@ -754,7 +874,7 @@ class Library:
                 detail={"rule": "not_tracked", "parameter": "path"},
             )
         existing = self.items()
-        taken = {fold(i.id) for i in existing}
+        taken = {fold(n) for i in existing for n in i.numbers}  # an alias is never given again
         if item is not None and fold(item) in taken:
             raise OutputRefusedError(
                 f"{item}: a library item already has that number", detail={"rule": "item_exists"}
@@ -814,9 +934,7 @@ class Library:
         else:  # pragma: no cover (a hundred numbers taken meanwhile)
             raise BusyError("no free item number was found: try again", detail={"rule": "item_numbers"})
         assert note is not None and snap is not None
-        record = Item(
-            *(getattr(record, f) for f in Item.__dataclass_fields__ if f != "record"), f"{ident}.json"
-        )
+        record = replace(record, record=f"{ident}.json")
         checkin = self._checkin(entries, note, who)
         return {
             "item": record.data(),
@@ -825,13 +943,62 @@ class Library:
             "checkin": None if checkin is None else checkin.brief(),
         }
 
+    def edit(self, ident: str, number: str | None = None, description: str | None = None) -> dict[str, Any]:
+        """Change the item's number, its description or both, by writing an edit record
+        (the item record is never rewritten). The number it had stays an alias, so its
+        copies' link records still find it and no other item can take it; giving it back
+        one of its own aliases is allowed. A number another item has or had is refused
+        (``output_refused``, rule ``item_exists``)."""
+        if number is None and description is None:
+            raise InvalidArgumentError(
+                "nothing to change: give a new item number, a new description or both",
+                detail={"parameter": "number"},
+            )
+        if number is not None and not valid_item_id(number):
+            raise InvalidArgumentError(
+                f"{number!r}: an item number is 1 to 40 letters, digits, dots, hyphens and underscores",
+                detail={"parameter": "number"},
+            )
+        if description is not None and not _valid_description(description):
+            raise InvalidArgumentError(
+                f"a description is one line of at most {MAX_DESCRIPTION} characters",
+                detail={"parameter": "description"},
+            )
+        items = self.items()
+        item = self._by_number(items).get(fold(str(ident)))
+        if item is None:
+            item = self.item(ident)  # raises unknown_item
+        new_number = item.id if number is None else number
+        new_description = item.description if description is None else description
+        owner = self._by_number(items).get(fold(new_number))
+        if owner is not None and owner.first != item.first:
+            raise OutputRefusedError(
+                f"{new_number}: a library item has or had that number", detail={"rule": "item_exists"}
+            )
+        before = {"item": item.id, "description": item.description}
+        if new_number == item.id and new_description == item.description:
+            return {"item": item.data(), "from": before, "changed": False}
+        store = self.vault.store
+        store._make_root()
+        folder = store._folder(store._folder(self.vault.folder, "library", create=True), "edits", create=True)
+        when = _now()
+        edit = ItemEdit(secrets.token_hex(6), when, item.first, new_number, new_description, __version__)
+        _write_record(folder, f"{_stamp(when)}-{edit.id}.json", edit.to_json())
+        after = self._by_number(self.items()).get(fold(item.first))
+        if after is None or after.id != new_number:  # another item took the number meanwhile
+            raise OutputRefusedError(
+                f"{new_number}: a library item has or had that number", detail={"rule": "item_exists"}
+            )
+        return {"item": after.data(), "from": before, "changed": True}
+
     def list(self) -> dict[str, Any]:
         """Every item with its current version and the number of projects using it."""
         current = self.current_links()
         rows = []
         for item in self.items():
             state = self._item_state(item)
-            links = [link for link in current.values() if fold(link.item) == fold(item.id)]
+            numbers = {fold(n) for n in item.numbers}
+            links = [link for link in current.values() if fold(link.item) in numbers]
             snap = state.snapshot
             rows.append(
                 {
@@ -923,7 +1090,7 @@ class Library:
         (``gone``). ``project`` limits it to one project; ``all_links`` lists the current
         copies too."""
         proj = None if project is None else self._project(project)
-        items = {fold(i.id): i for i in self.items()}
+        items = self._by_number(self.items())
         states: dict[str, _ItemState] = {}
         rows = []
         counts = {"current": 0, "behind": 0, "edited": 0, "gone": 0, "unknown_item": 0}
@@ -988,10 +1155,11 @@ class Library:
         v = self.vault
         item = self.item(ident)
         proj = self._project(project)
+        numbers = {fold(n) for n in item.numbers}
         links = [
             link
             for link in self.current_links().values()
-            if _key(link.project) == _key(proj.path) and fold(link.item) == fold(item.id)
+            if _key(link.project) == _key(proj.path) and fold(link.item) in numbers
         ]
         if not links:
             raise InvalidArgumentError(
@@ -1300,6 +1468,7 @@ def check(
 __all__ = [
     "HOW",
     "Item",
+    "ItemEdit",
     "Library",
     "Link",
     "check",
@@ -1307,6 +1476,7 @@ __all__ = [
     "check_report",
     "library_folder",
     "library_items",
+    "parse_edit",
     "parse_item",
     "parse_link",
     "valid_item_id",
