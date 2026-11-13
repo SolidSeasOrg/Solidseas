@@ -287,6 +287,83 @@ def test_the_library_and_the_project_are_looked_up_off_the_ui_thread(app, window
 
 
 @needs_qt
+def test_the_right_click_menus_never_open_the_library_on_the_ui_thread(app, window, tmp_path, monkeypatch):
+    """The file list's and the folder tree's right-click menus are built from what the
+    lookups answered: the vault is opened, and a folder's project found, only in a
+    worker thread."""
+    import threading
+
+    from solidseas_app.viewer import pdmaction
+
+    cad = library(tmp_path)
+    vault = pdm.open(cad)
+    vault.library.add(cad / "Jobs" / "1042" / "lid.3mf", "LID")
+    threads: list = []
+    real_open, real_folders = pdm.open, pdmaction.project_folders
+
+    def open_vault(path):
+        threads.append(threading.current_thread())
+        return real_open(path)
+
+    def project_folders(path):
+        threads.append(threading.current_thread())
+        return real_folders(path)
+
+    monkeypatch.setattr(pdm, "open", open_vault)
+    monkeypatch.setattr(pdmaction, "project_folders", project_folders)
+    w = window
+    _open(app, w, cad)
+    assert threads and threading.main_thread() not in threads
+    menu = w.list_menu(w.proxy.mapFromSource(w.model.index(w.model.find("Jobs/1042/box.3mf"), 0)))
+    assert "Add box.3mf to the Library..." in _texts(menu) and "Check In box.3mf..." in _texts(menu)
+    menu = w.list_menu(w.proxy.mapFromSource(w.model.index(w.model.find("Library/lid.3mf"), 0)))
+    assert "Check In lid.3mf..." in _texts(menu) and not any("to the Library" in t for t in _texts(menu))
+    menu = w.folder_menu(w._folders["Jobs/1042"])
+    assert _texts(menu)[-1] == "Check Project (looking for the project...)"
+    _wait(app, lambda: w.pdm.idle)
+    assert _texts(w.folder_menu(w._folders["Jobs/1042"]))[-1] == "Check Project"
+    # the items not known (a lookup that could not read them): Add waits for a reading
+    w.pdm.item_files = None
+    menu = w.list_menu(w.proxy.mapFromSource(w.model.index(w.model.find("Jobs/1042/box.3mf"), 0)))
+    (add,) = [a for a in menu.actions() if "to the Library" in a.text()]
+    assert add.text() == "Add box.3mf to the Library... (reading the library's items...)"
+    assert not add.isEnabled()
+    _wait(app, lambda: w.pdm.item_files is not None)
+    assert w.pdm.is_item(str(cad / "Library" / "lid.3mf"))
+    assert threading.main_thread() not in threads
+
+
+@needs_qt
+def test_closing_does_not_wait_for_a_lookup(app, window, tmp_path, monkeypatch):
+    """A lookup only reads, so a window that closes while one is held up by a slow share
+    cancels it and does not wait: its answer, when it comes, changes nothing."""
+    import threading
+
+    cad = library(tmp_path)
+    gate = threading.Event()
+    real_find = pdm.find_library
+
+    def find_library(folder):
+        assert gate.wait(30)
+        return real_find(folder)
+
+    monkeypatch.setattr(pdm, "find_library", find_library)
+    w = window
+    w.open_folder(str(cad / "Jobs"))
+    _wait(app, lambda: w.listing_info is not None)
+    assert not w.pdm.answered
+    start = time.monotonic()
+    assert w.shutdown(timeout_ms=5000)
+    assert time.monotonic() - start < 4
+    gate.set()
+    end = time.monotonic() + 2
+    while time.monotonic() < end:
+        app.processEvents()
+        time.sleep(0.01)
+    assert w.pdm.library is None and not w.pdm.answered  # the late answer was ignored
+
+
+@needs_qt
 def test_check_in_from_the_dialog_and_the_history_of_a_library_file(app, window, tmp_path):
     from solidseas_app.viewer import history
 
@@ -449,7 +526,17 @@ def test_a_folder_s_menu_and_check_project(app, window, tmp_path, fake_drive_q):
     _menu(app, w)
     assert w.pdm.act_check.text().endswith("(choose a folder in a project)")
     menu = w.folder_menu(w._folders["A"])  # the folder tree's right-click menu
+    # A's project has not been looked up: the entry waits for the lookup the menu started
+    assert [a.text() for a in menu.actions()] == [
+        "Check In A...",
+        "Changes in A",
+        "Check Project (looking for the project...)",
+    ]
+    assert not menu.actions()[2].isEnabled()
+    _wait(app, lambda: w.pdm.idle)
+    menu = w.folder_menu(w._folders["A"])
     assert [a.text() for a in menu.actions()] == ["Check In A...", "Changes in A", "Check Project"]
+    assert menu.actions()[2].isEnabled()
     menu = w.folder_menu(w._folders[""])  # Jobs, a section: no project
     assert [a.text() for a in menu.actions()] == ["Check In Jobs...", "Changes in Jobs"]
     w.tree.setCurrentItem(w._folders["A"])
@@ -638,6 +725,55 @@ def test_the_library_window_adds_uses_and_updates_items(app, window, tmp_path, m
     assert sum(1 for v in log if v["source"] == "vault") == 3  # the copy, as edited, and as updated
     _library(app, w, start)
     assert dialog.items.topLevelItem(0).text(5) == "No"
+    dialog.reject()
+
+
+@needs_qt
+def test_the_library_window_edits_an_item(app, window, tmp_path):
+    cad = library(tmp_path)
+    vault = pdm.open(cad)
+    vault.library.add(cad / "Jobs" / "1042" / "box.3mf", "SS-00001", "box")
+    vault.library.add(cad / "Jobs" / "1042" / "lid.3mf", "LID", "lid")
+    vault.library.use("SS-00001", cad / "Jobs" / "1042", to="parts")
+    w = window
+    _open(app, w, cad)
+    dialog = w.pdm.open_library()
+    _library(app, w, 0)
+    assert not dialog.edit_button.isEnabled()  # no item chosen
+    assert dialog.choose("SS-00001") and dialog.edit_button.isEnabled()
+    edit = w.pdm.edit_item()
+    assert edit.item.text() == "SS-00001" and edit.description.text() == "box"
+    assert "SS-00001 still finds the item" in edit.line.text()
+    assert not edit.ok.isEnabled()  # nothing changed yet
+    edit.item.setText("LID")  # another item's number
+    start = len(w.test_shown)
+    edit.ok.click()
+    got = _kind(app, w, "library_edit", start)
+    assert not got["ok"]
+    assert got["text"] == (
+        "SS-00001 was not changed. Another library item has or had that number. Choose another."
+    )
+    edit = w.pdm.edit_item()
+    edit.item.setText("BOX-30")
+    edit.description.setText("Box  30 mm")
+    start = len(w.test_shown)
+    edit.ok.click()
+    got = _kind(app, w, "library_edit", start)
+    assert got["ok"] and got["text"] == "SS-00001 is BOX-30 now. SS-00001 still finds it."
+    _library(app, w, w.test_shown.index(got))  # the reading the edit asked for
+    assert _tops(dialog.items) == ["BOX-30", "LID"]
+    row = dialog.chosen_item()  # the edited item stays chosen
+    assert row["item"] == "BOX-30" and row["description"] == "Box 30 mm" and row["aliases"] == ["SS-00001"]
+    assert dialog.items.topLevelItem(0).text(4) == "1"  # its copy, made as SS-00001, is still its
+    dialog.search.setText("ss-00001")  # an old number finds it
+    assert [dialog.items.topLevelItem(i).isHidden() for i in range(2)] == [False, True]
+    dialog.search.setText("")
+    edit = w.pdm.edit_item()
+    edit.description.setText("Box, 30 mm high")
+    start = len(w.test_shown)
+    edit.ok.click()
+    assert _kind(app, w, "library_edit", start)["text"] == "Changed the description of BOX-30."
+    assert pdm.open(cad).library.item("SS-00001").description == "Box, 30 mm high"
     dialog.reject()
 
 

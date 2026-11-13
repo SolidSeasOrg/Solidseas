@@ -299,8 +299,11 @@ versions and check-ins are kept. Nothing else in the folder changes.
 
 The same entries are on the right-click menu of a file in the list and of a
 folder in the folder tree, where they apply. A CAD file that is not a library
-item yet also has **Add to the Library...** there. Every check-in, check,
-restore and copy runs in the background.
+item yet also has **Add to the Library...** there. The right-click menu opens at
+once, even on a slow network share: it uses what SolidSeas has already found out
+in the background, and an entry that still waits for an answer, such as Check
+Project for a folder whose project is being looked up, is greyed out and says
+so. Every check-in, check, restore and copy runs in the background.
 
 ### Making a project self-contained
 
@@ -323,13 +326,15 @@ item, so the Library window can tell you when it falls behind.
 **PDM > Library of Common Parts...** lists the library's items: the item
 number, the description, the file in the Library folder, how many versions it
 has, how many projects use it and whether any copy is behind. The search box
-narrows the list by number, description or file name.
+narrows the list by number, description or file name, and an item's earlier
+numbers find it too.
 
 | Button | What it does |
 |---|---|
 | Use in Project... | Copies the chosen item into a project you pick, into its top folder or a folder you name inside it, and says where the copy went. A file of that name already there is never replaced. In SOLIDWORKS, insert the part from the project's copy. |
 | Show Copies | Lists the projects that have a copy of the item, and for each copy whether it is unchanged, edited in its project, gone or behind the library's version. |
 | Update Copies... | Brings the copies that are behind up to date with the library's version, keeping each as a version first. When a copy was edited in its project, it asks before replacing it; choose No to update only the copies that were not edited. |
+| Edit... | Changes the chosen item's number or description. Its old number still finds it, so the copies made under that number stay linked to it, and no other item can take that number. |
 | Add to Library... | Makes the file selected in the list a library item, with an optional item number and a description. The file is copied into the Library folder, and the file itself is not changed. |
 
 The **Candidates** tab lists the parts and assemblies whose identical content

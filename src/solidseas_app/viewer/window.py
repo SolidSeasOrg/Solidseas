@@ -3314,7 +3314,7 @@ class MainWindow(QMainWindow):
         self.thumbnailer.stop()
         self.where_used.stop()  # the indexer process stops between files
         self.file_history.stop()
-        self.pdm.stop()
+        self.pdm.stop()  # its lookups only read: cancelled, never waited for
         self.connector.shutdown()  # the local API's process, when it runs
         self.models.close()  # its workers end; a read waiting on one gets an error at once
         pools = (
