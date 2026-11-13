@@ -2,10 +2,12 @@
 scans, logs and restores, on temporary folders and synthetic files, and ``solidseas pdm``
 printing one strict JSON document per action."""
 
+import hashlib
 import json
 import os
 import shutil
 import sys
+import threading
 import time
 
 import pytest
@@ -14,6 +16,7 @@ from jsonschema_subset import validate
 from solidseas import cli, model, pdm, versions
 from solidseas.errors import InvalidArgumentError, LinkRefusedError, OutputRefusedError, PathRefusedError
 from solidseas.pdm.checkins import parse_checkin
+from solidseas.versions import snapstore
 from support import FIXTURES
 
 XB_A = FIXTURES / "o02_boxA.x_b"  # SOLIDWORKS' own Parasolid exports, public fixtures
@@ -306,6 +309,163 @@ def test_scan(lib):
     data = vault.scan(lib / "Jobs").data()
     assert data["stored"] == 1 and data["counts"]["gone"] == 1
     assert vault.status().counts["gone"] == 1  # a scan only reports a gone file
+
+
+# --------------------------------------------------------------------------- storing in batches
+def many(lib, n: int = 7) -> list:
+    """``n`` more parts in one project, each its own content, two of them alike."""
+    paths = []
+    for i in range(n):
+        path = lib / "Jobs" / "2000" / f"p{i}.sldprt"
+        write(path, f"part {min(i, n - 2)}" * 50)
+        paths.append(path)
+    return paths
+
+
+def store_state(lib) -> tuple[list, list, list]:
+    """``(records, objects, temporary copies)`` of the vault's store, each record parsed."""
+    store = lib / ".solidseas" / "vault" / "store"
+    recs = [snapstore.parse_record(p.read_bytes(), p.name) for p in sorted((store / "files").rglob("*.json"))]
+    objs = [p for p in (store / "objects").rglob("*") if p.is_file() and not p.name.startswith(".tmp-")]
+    tmps = [p for p in (store / "objects").rglob(".tmp-*")]
+    return recs, objs, tmps
+
+
+def assert_every_record_has_its_object(lib) -> None:
+    store = lib / ".solidseas" / "vault" / "store"
+    recs, _objs, tmps = store_state(lib)
+    assert tmps == []
+    for r in recs:
+        assert r is not None
+        obj = store / "objects" / r.sha256[:2] / r.sha256
+        assert hashlib.sha256(obj.read_bytes()).hexdigest() == r.sha256
+
+
+def test_objects_are_on_disk_before_a_record_names_them(lib, monkeypatch):
+    """Copies are flushed before they get their object names, objects and their folders
+    before the first record naming them, and records before the check-in record."""
+    many(lib)
+    vault = pdm.init(lib)
+    monkeypatch.setattr(snapstore, "BATCH_FILES", 3)  # 10 files: four batches
+    events: list[tuple[str, str]] = []
+    lock = threading.Lock()
+
+    def spy(kind, real):
+        def inner(path, *rest):
+            out = real(path, *rest)
+            with lock:
+                events.append((kind, os.fspath(path), *(os.fspath(r) for r in rest)))
+            return out
+
+        return inner
+
+    monkeypatch.setattr(snapstore, "sync_file", spy("file", snapstore.sync_file))
+    monkeypatch.setattr(snapstore, "sync_folder", spy("folder", snapstore.sync_folder))
+    monkeypatch.setattr(snapstore.os, "rename", spy("rename", os.rename))
+    real_record = snapstore.SnapshotStore._write_record
+    monkeypatch.setattr(
+        snapstore.SnapshotStore,
+        "_write_record",
+        lambda self, full, snap: spy("record", lambda _sha: real_record(self, full, snap))(snap.sha256),
+    )
+    real_checkin = pdm.Vault._write_checkin
+    monkeypatch.setattr(
+        pdm.Vault, "_write_checkin", lambda self, c: spy("checkin", lambda _x: real_checkin(self, c))("")
+    )
+    data = vault.scan().data()
+    assert data["stored"] == 10 and not data["failed"]
+    store = lib / ".solidseas" / "vault" / "store"
+    synced: set[str] = set()
+    placed: dict[str, int] = {}  # object path -> when it was renamed into place
+    durable: set[str] = set()
+    records_seen = []
+    for n, (kind, path, *rest) in enumerate(events):
+        if kind in ("file", "folder"):
+            synced.add(path)
+            for obj, at in placed.items():
+                if kind == "folder" and os.path.dirname(obj) == path and at < n:
+                    durable.add(os.path.basename(obj))
+        elif kind == "rename":
+            assert path in synced, "a copy got its object name before it was flushed"
+            placed[rest[0]] = n
+        elif kind == "record":
+            assert path in durable, "a record was written before its object was on disk"
+            records_seen.append(n)
+        elif kind == "checkin":
+            recs = list((store / "files").rglob("*.json"))
+            assert len(recs) == 10 and all(str(r) in synced for r in recs)
+            assert all(str(r.parent) in synced for r in recs)
+    assert len(records_seen) == 10 and events[-1][0] == "checkin"
+    assert_every_record_has_its_object(lib)
+
+
+@pytest.mark.parametrize("where", ["flushing the copies", "writing the records"])
+def test_a_failure_part_way_leaves_no_record_without_its_object_and_a_rerun_completes(
+    lib, monkeypatch, where
+):
+    """A crash, simulated by an error no caller catches, between copying and naming the
+    objects or between the objects and the records: no record names a missing object, no
+    check-in is written, and the next scan stores everything."""
+    many(lib)
+    vault = pdm.init(lib)
+    monkeypatch.setattr(snapstore, "BATCH_FILES", 4)
+    calls = []
+
+    def crash(*args, **kwargs):
+        if where == "writing the records" or ".tmp-" in os.fspath(args[0][0]):
+            calls.append(args)
+        if len(calls) == (2 if where == "flushing the copies" else 6):  # in the second batch
+            raise KeyboardInterrupt
+        return real(*args, **kwargs)
+
+    if where == "flushing the copies":
+        real = snapstore._sync_files
+        monkeypatch.setattr(snapstore, "_sync_files", crash)
+    else:
+        real = snapstore.SnapshotStore._write_record
+        monkeypatch.setattr(snapstore.SnapshotStore, "_write_record", crash)
+    with pytest.raises(KeyboardInterrupt):
+        vault.scan()
+    monkeypatch.undo()
+    assert records(lib) == []
+    assert_every_record_has_its_object(lib)
+    recs, objs, _ = store_state(lib)
+    assert 0 < len(recs) < 10 and len(objs) < 9
+    data = vault.scan().data()
+    assert not data["failed"] and data["stored"] == 10 - len(recs)
+    assert vault.status().counts == {"new": 0, "changed": 0, "gone": 0, "unchanged": 10}
+    assert_every_record_has_its_object(lib)
+    assert len(store_state(lib)[0]) == 10 and len(objects(lib)) == 8
+
+
+def test_a_copy_that_cannot_be_flushed_is_not_stored(lib, monkeypatch):
+    vault = pdm.init(lib)
+
+    def failing(paths, pool=None):
+        raise OSError(5, "Input/output error")
+
+    monkeypatch.setattr(snapstore, "_sync_files", failing)
+    data = vault.scan().data()
+    assert data["checkin"] is None and data["stored"] == 0 and len(data["failed"]) == 3
+    monkeypatch.undo()
+    recs, objs, tmps = store_state(lib)
+    assert (recs, objs, tmps) == ([], [], [])
+    assert vault.scan().data()["stored"] == 3
+
+
+def test_a_long_scan_says_how_far_it_is(capsys, lib, monkeypatch):
+    many(lib)
+    monkeypatch.setattr(snapstore, "BATCH_FILES", 3)
+    monkeypatch.setattr(cli._StoreProgress, "EVERY", 0.0)
+    assert cli.main(["pdm", "init", str(lib)]) == 0
+    capsys.readouterr()
+    assert cli.main(["pdm", "scan", str(lib)]) == 0
+    out, err = capsys.readouterr()
+    assert "check-in" in out and "solidseas: stored " in err and " of 10 files (" in err
+    write(lib / "Jobs" / "3000" / "a.sldprt", "a")
+    write(lib / "Jobs" / "3000" / "b.sldprt", "b")
+    code, env = run(capsys, "pdm", "scan", str(lib))  # nothing on standard error with --json
+    assert code == 0 and env["data"]["checkin"]["stored"] == 2
 
 
 # --------------------------------------------------------------------------- log

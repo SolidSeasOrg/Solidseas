@@ -20,6 +20,12 @@ then renamed into place. The source is read with
 that is a link, a cloud placeholder or not a regular file is refused, and a file that
 changes while it is copied is not kept (``busy``, rule ``file_changing``).
 
+**Flushed in batches.** :meth:`SnapshotStore.add_many` copies many files at once and
+flushes them to disk a batch at a time, in an order that keeps a crash harmless: the
+copies before they get their object names, the objects and their folders before any
+record that names them, the records before the caller writes anything that names them
+(``docs/VERSIONS.md`` 4.3).
+
 **No shared file is rewritten**, so two processes, or two people sharing a project's
 store, never lose each other's snapshots, and no lock is needed: unlike the catalog's
 SQLite, the store may live on a network share when the project does.
@@ -39,6 +45,8 @@ import re
 import secrets
 import stat
 import sys
+from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from typing import Any
 
@@ -64,6 +72,9 @@ MAX_RECORDS = 10_000  # the newest records of one file read
 MAX_RECORD_BYTES = 64 << 10
 MAX_NOTE = 1000
 COPY_CHUNK = 1 << 20
+BATCH_FILES = 1000  # files copied before a batch is flushed to disk at once
+COPY_WORKERS = 4  # files copied at once: the work waits on the disk, not the processor
+SYNC_WORKERS = 32  # flushes at once: the disk commits flushes that wait together in one go
 _RECORD_NAME = re.compile(r"(\d{8}T\d{12}Z)-([0-9a-f]{12})\.json\Z")
 _SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 _FOLD_PATHS = sys.platform in ("win32", "darwin")
@@ -333,14 +344,223 @@ class SnapshotStore:
         """Take a snapshot of the file at ``path``: ``(snapshot, new)``. When the file's
         content is that of its newest snapshot, nothing is written and that snapshot is
         returned with ``new`` False."""
+        (result,) = self.add_many([path], note=note, max_file_bytes=max_file_bytes, workers=1)
+        if isinstance(result, BaseException):
+            raise result
+        return result
+
+    def add_many(
+        self,
+        paths: list[str],
+        *,
+        note: str | None = None,
+        max_file_bytes: int | None = None,
+        workers: int | None = None,
+        progress: Callable[[int, int], None] | None = None,
+    ) -> list[tuple[Snapshot, bool] | OSError | SolidSeasError]:
+        """Take a snapshot of each file in ``paths``, as :meth:`add` does, and return one
+        result per path in the same order: ``(snapshot, new)``, or the error that file met
+        (any other error is raised). Files are copied ``workers`` at a time and flushed
+        to disk in batches of :data:`BATCH_FILES`, :data:`SYNC_WORKERS` flushes at once:
+        every copy of a batch is flushed before it gets its object name, and every object
+        and its folder before the first record that names it is written; the records are
+        created in the order of ``paths`` and flushed with their folders before this
+        returns. ``progress(done, bytes)`` is called as copies finish."""
         if note is not None and (not isinstance(note, str) or len(note) > MAX_NOTE or "\0" in note):
             raise InvalidArgumentError(
                 f"a note is text of at most {MAX_NOTE} characters", detail={"parameter": "note"}
             )
-        full = os.path.abspath(os.fspath(path))
-        recorded = self.recorded_path(full)
+        if workers is None:
+            workers = COPY_WORKERS
+        fulls = [os.path.abspath(os.fspath(p)) for p in paths]
+        results: list[Any] = [None] * len(fulls)
+        if not fulls:
+            return results
         self._make_root()
         objects = self._folders("objects", create=True)
+        done = [0, 0]
+        many = len(fulls) > 1
+        pool = ThreadPoolExecutor(workers) if workers > 1 and many else None
+        flusher = ThreadPoolExecutor(SYNC_WORKERS) if many else None
+        try:
+            for start in range(0, len(fulls), BATCH_FILES):
+                self._add_batch(
+                    fulls,
+                    range(start, min(start + BATCH_FILES, len(fulls))),
+                    results,
+                    objects,
+                    note,
+                    max_file_bytes,
+                    pool,
+                    flusher,
+                    progress,
+                    done,
+                )
+        finally:
+            for executor in (pool, flusher):
+                if executor is not None:
+                    executor.shutdown(wait=True, cancel_futures=True)
+        return results
+
+    def _add_batch(
+        self,
+        fulls: list[str],
+        indices: range,
+        results: list[Any],
+        objects: str,
+        note: str | None,
+        max_file_bytes: int | None,
+        pool: ThreadPoolExecutor | None,
+        flusher: ThreadPoolExecutor | None,
+        progress: Callable[[int, int], None] | None,
+        done: list[int],
+    ) -> None:
+        copies: dict[int, _Copy] = {}
+        try:
+            # 1. copy each file to a temporary name, hashing as it goes; nothing synced yet
+            def finished(i: int, outcome: _Copy | BaseException) -> None:
+                if isinstance(outcome, _Copy):
+                    copies[i] = outcome
+                    done[1] += outcome.size
+                else:
+                    results[i] = outcome
+                done[0] += 1
+                if progress is not None:
+                    progress(done[0], done[1])
+
+            if pool is None:
+                for i in indices:
+                    finished(i, self._copy_or_error(fulls[i], objects, max_file_bytes))
+            else:
+                futures = {
+                    pool.submit(self._copy_or_error, fulls[i], objects, max_file_bytes): i for i in indices
+                }
+                try:
+                    for fut in as_completed(futures):
+                        finished(futures[fut], fut.result())
+                except BaseException:
+                    # stop the copies not started, and let the ones running finish, so
+                    # that their temporary copies are removed below too
+                    for fut in futures:
+                        fut.cancel()
+                    for fut, i in futures.items():
+                        if (
+                            not fut.cancelled()
+                            and fut.exception() is None
+                            and isinstance(fut.result(), _Copy)
+                        ):
+                            copies.setdefault(i, fut.result())
+                    raise
+
+            # 2. in order: which copies become objects, and which files get a record
+            place: dict[str, _Copy] = {}  # sha -> the copy that becomes its object
+            records: list[int] = []
+            planned: dict[str, tuple[str, int]] = {}  # key -> (sha, index) of a record planned here
+            alias: dict[int, int] = {}  # the same file named twice with the same content
+            for i in indices:
+                c = copies.get(i)
+                if c is None:
+                    continue
+                try:
+                    key = self.key(c.full)
+                    if key in planned and planned[key][0] == c.sha:
+                        alias[i] = planned[key][1]
+                        continue
+                    if key not in planned:
+                        existing = self.snapshots(c.full)
+                        if existing and existing[-1].sha256 == c.sha:
+                            results[i] = (existing[-1], False)
+                    if c.sha not in place and not (
+                        self.has_object(c.sha, c.size) and self._intact(c.sha, c.size)
+                    ):
+                        place[c.sha] = c  # also puts back a newest snapshot's copy that is damaged or gone
+                except (OSError, SolidSeasError) as exc:
+                    results[i] = exc
+                    continue
+                if results[i] is None:
+                    planned[key] = (c.sha, i)
+                    records.append(i)
+
+            # 3. flush the copies, give them their object names, flush their folders
+            failed_objects: dict[str, BaseException] = {}
+            if place:
+                try:
+                    _sync_files([c.tmp for c in place.values()], flusher)
+                except OSError as exc:
+                    failed_objects = dict.fromkeys(place, exc)
+                folders = set()
+                for sha, c in place.items():
+                    if sha in failed_objects:
+                        continue
+                    try:
+                        self._place(c.tmp, sha, c.size)
+                        folders.add(os.path.join(objects, sha[:2]))
+                    except (OSError, SolidSeasError) as exc:
+                        failed_objects[sha] = exc
+                try:
+                    _sync_folders([*sorted(folders), objects], flusher)
+                except OSError as exc:
+                    failed_objects.update(dict.fromkeys(place, exc))
+            for i in indices:
+                c = copies.get(i)
+                if c is not None and c.sha in failed_objects:
+                    results[i] = failed_objects[c.sha]
+
+            # 4. the records, created in order, then flushed with their folders
+            written: list[int] = []
+            for i in records:
+                c = copies[i]
+                if c.sha in failed_objects:
+                    continue
+                snap = Snapshot(
+                    secrets.token_hex(6),
+                    datetime.datetime.now(datetime.UTC),
+                    c.sha,
+                    c.size,
+                    c.recorded,
+                    c.mtime_ns,
+                    note,
+                    __version__,
+                    "",
+                )
+                try:
+                    snap = self._write_record(c.full, snap)
+                except (OSError, SolidSeasError) as exc:
+                    results[i] = exc
+                    continue
+                results[i] = (snap, True)
+                written.append(i)
+            if written:
+                folders = sorted({self._record_folder(copies[i].full) for i in written})
+                try:
+                    _sync_files(
+                        [
+                            os.path.join(self._record_folder(copies[i].full), results[i][0].record)
+                            for i in written
+                        ],
+                        flusher,
+                    )
+                    _sync_folders([*folders, os.path.join(self.root, "files"), self.root], flusher)
+                except OSError as exc:
+                    for i in written:
+                        results[i] = exc
+            for i, j in alias.items():
+                results[i] = (results[j][0], False) if isinstance(results[j], tuple) else results[j]
+        finally:
+            for c in copies.values():
+                if os.path.lexists(c.tmp):
+                    os.remove(c.tmp)
+
+    def _copy_or_error(self, full: str, objects: str, max_file_bytes: int | None) -> _Copy | BaseException:
+        try:
+            return self._copy(full, objects, max_file_bytes)
+        except (OSError, SolidSeasError) as exc:
+            return exc
+
+    def _copy(self, full: str, objects: str, max_file_bytes: int | None) -> _Copy:
+        """Copy the file to a new temporary name in ``objects``, hashing as it goes. The
+        copy is not flushed to disk here: :meth:`_add_batch` flushes a batch at once."""
+        recorded = self.recorded_path(full)
         tmp = os.path.join(objects, f".tmp-{secrets.token_hex(8)}")
         h = hashlib.sha256()
         count = 0
@@ -362,8 +582,6 @@ class SnapshotStore:
                         out.write(chunk)
                         count += len(chunk)
                     after = os.fstat(src.fileno())
-                out.flush()
-                os.fsync(out.fileno())
             if (before.st_size, before.st_mtime_ns) != (
                 after.st_size,
                 after.st_mtime_ns,
@@ -372,28 +590,11 @@ class SnapshotStore:
                     "the file changed while it was copied: take the snapshot again once it is saved",
                     detail={"rule": "file_changing"},
                 )
-            sha = h.hexdigest()
-            existing = self.snapshots(full)
-            same = bool(existing) and existing[-1].sha256 == sha
-            if not (same and self._intact(sha, count)):
-                self._place(tmp, sha, count)  # a newest snapshot whose copy is damaged or gone gets it back
-            if same:
-                return existing[-1], False
-        finally:
+        except BaseException:
             if os.path.lexists(tmp):
                 os.remove(tmp)
-        snap = Snapshot(
-            secrets.token_hex(6),
-            datetime.datetime.now(datetime.UTC),
-            sha,
-            count,
-            recorded,
-            after.st_mtime_ns,
-            note,
-            __version__,
-            "",
-        )
-        return self._write_record(full, snap), True
+            raise
+        return _Copy(full, recorded, tmp, h.hexdigest(), count, after.st_mtime_ns)
 
     def _intact(self, sha: str, size: int) -> bool:
         """Whether the object named ``sha`` holds content of that hash and size."""
@@ -412,8 +613,9 @@ class SnapshotStore:
         return n == size and h.hexdigest() == sha
 
     def _place(self, tmp: str, sha: str, size: int) -> None:
-        """Move the copy at ``tmp`` to its object name, keeping an object already there
-        only when its content is intact; any other is replaced by the copy."""
+        """Move the copy at ``tmp``, already flushed to disk, to its object name, keeping an
+        object already there only when its content is intact; any other is replaced by the
+        copy."""
         folder = self._folders("objects", sha[:2], create=True)
         final = os.path.join(folder, sha)
         for _ in range(2):
@@ -436,7 +638,12 @@ class SnapshotStore:
             os.replace(tmp, final)  # a damaged copy: replaced by this one
             return
 
+    def _record_folder(self, full: str) -> str:
+        return os.path.join(self.root, "files", self.key(full))
+
     def _write_record(self, full: str, snap: Snapshot) -> Snapshot:
+        """Create the record of ``snap`` under its new name. It is not flushed here: the
+        caller flushes it with its folder once the batch's records are written."""
         folder = self._folders("files", self.key(full), create=True)
         stamp = snap.taken.strftime("%Y%m%dT%H%M%S%f") + "Z"
         name = f"{stamp}-{snap.id}.json"
@@ -445,8 +652,6 @@ class SnapshotStore:
         fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | _O_BINARY | _O_NOFOLLOW | _O_CLOEXEC, 0o600)
         with os.fdopen(fd, "wb") as out:
             out.write(data)
-            out.flush()
-            os.fsync(out.fileno())
         return Snapshot(
             snap.id,
             snap.taken,
@@ -458,6 +663,65 @@ class SnapshotStore:
             snap.solidseas,
             name,
         )
+
+
+@dataclass(frozen=True)
+class _Copy:
+    """A file copied to a temporary name in ``objects``, not yet flushed to disk."""
+
+    full: str
+    recorded: str
+    tmp: str
+    sha: str
+    size: int
+    mtime_ns: int
+
+
+def sync_file(path: str) -> None:
+    """Flush the file at ``path`` to disk (``FlushFileBuffers`` on Windows, which needs it
+    opened for writing). It is never created, truncated or followed as a link."""
+    mode = os.O_WRONLY if os.name == "nt" else os.O_RDONLY
+    fd = os.open(path, mode | _O_BINARY | _O_NOFOLLOW | _O_CLOEXEC)
+    try:
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+
+
+def sync_folder(path: str) -> None:
+    """Flush a folder's entries to disk, so a name just made or renamed in it survives a
+    crash. Windows keeps no such handle open to a folder and needs none: it does nothing
+    there."""
+    if os.name == "nt":
+        return
+    fd = os.open(path, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | _O_NOFOLLOW | _O_CLOEXEC)
+    try:
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+
+
+def _sync_all(fn: Callable[[str], None], paths: list[str], pool: ThreadPoolExecutor | None) -> None:
+    """Call ``fn`` on every path, on the pool's threads when there is one: a disk that
+    takes many flushes at once commits them together. The first error is raised once all
+    have run."""
+    if pool is None or len(paths) < 2:
+        for p in paths:
+            fn(p)
+        return
+    futures = [pool.submit(fn, p) for p in paths]
+    errors = [fut.exception() for fut in futures]
+    first = next((e for e in errors if e is not None), None)
+    if first is not None:
+        raise first
+
+
+def _sync_files(paths: list[str], pool: ThreadPoolExecutor | None = None) -> None:
+    _sync_all(sync_file, paths, pool)
+
+
+def _sync_folders(paths: list[str], pool: ThreadPoolExecutor | None = None) -> None:
+    _sync_all(sync_folder, paths, pool)
 
 
 def open_store(
@@ -493,4 +757,6 @@ __all__ = [
     "data_dir",
     "open_store",
     "parse_record",
+    "sync_file",
+    "sync_folder",
 ]

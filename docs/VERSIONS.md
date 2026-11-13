@@ -176,6 +176,28 @@ store down is checked with `lstat` before it is used and made owner-only on Linu
 macOS; records and objects are created with `O_EXCL`, so never over an existing name and
 never through a link planted under one.
 
+Many files at once (a PDM check-in or scan) are taken in batches of 1,000, copied four
+at a time, and flushed to disk once per batch rather than once per file. The order in a
+batch is what keeps a crash harmless:
+
+1. Each file is copied to its temporary name, unflushed.
+2. Every copy that becomes an object is flushed (`fsync`, `FlushFileBuffers` on
+   Windows), then renamed to its object name, then each object folder is flushed. A
+   crash before this leaves only temporary copies, never a half-written object under its
+   final name.
+3. The records are created in the order the files were named, then flushed with their
+   folders. A crash before this leaves at most records cut short, which do not parse and
+   are passed over (4.4), and objects no record names yet.
+4. Only then does the PDM write its check-in record, flushed with its folder.
+
+So no record ever names an object that is not on disk, and a check-in never names a
+record that is not. Running the check-in or scan again stores what the interrupted one
+did not. The flushes of a batch run on 32 threads, which lets the disk commit flushes
+that wait together in one go. On the development machine, a first scan of 30,000 new
+files (3.8 GB) took 22.6 minutes with a flush per file and 4.0 minutes with batches,
+about 41 to 49 ms a file against 5 to 7. A snapshot of one file (`versions snapshot`, a
+restore) flushes the same way, as a batch of one.
+
 ### 4.4 Reading them back
 
 Records are data from a folder others may write to: each is checked field by field and

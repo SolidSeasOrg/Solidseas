@@ -312,3 +312,22 @@ def test_bad_arguments(source):
         with pytest.raises(Exception) as err:
             versions.history(source, **kwargs)
         assert err.value.detail["parameter"] == parameter
+
+
+@pytest.mark.parametrize("batch", [2, 5])
+def test_many_files_at_once_keep_their_order_and_their_errors(source, tmp_path, monkeypatch, batch):
+    monkeypatch.setattr(snapstore, "BATCH_FILES", batch)
+    other = source.parent / "plate.bin"
+    other.write_bytes(content(2))
+    store = snapstore.open_store(store=tmp_path / "store")
+    missing = source.parent / "gone.bin"
+    paths = [str(source), str(missing), str(other), str(source), str(other)]
+    results = store.add_many(paths, note="all at once", workers=3)
+    first, gone, plate, again, plate_again = results
+    assert isinstance(gone, FileNotFoundError)
+    assert first[1] and plate[1] and first[0].sha256 != plate[0].sha256
+    # a file named twice: stored once, in its own batch or in the same one
+    assert again == (first[0], False) and plate_again == (plate[0], False)
+    assert [s.id for s in store.snapshots(str(source))] == [first[0].id]
+    assert store.read(first[0], limit=1 << 20) == content(1) and first[0].note == "all at once"
+    assert not any(p.name.startswith(".tmp-") for p in (tmp_path / "store" / "objects").iterdir())

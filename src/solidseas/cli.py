@@ -3450,11 +3450,39 @@ def _say_checkin(data: dict[str, Any], *, scan: bool) -> None:
         _say(f"check-in {c['id']}: {data['stored']:,} stored, {unchanged:,} unchanged{label}")
 
 
+class _StoreProgress:
+    """A line on standard error every few seconds while a long check-in or scan stores
+    files, so a first scan of a large library does not look stuck. Nothing with --json."""
+
+    EVERY = 3.0
+
+    def __init__(self, args: argparse.Namespace) -> None:
+        self._quiet = bool(args.json)
+        self._next = time.monotonic() + self.EVERY
+
+    def __call__(self, done: int, total: int, nbytes: int) -> None:
+        if self._quiet or done >= total:
+            return
+        now = time.monotonic()
+        if now < self._next:
+            return
+        self._next = now + self.EVERY
+        sys.stderr.write(f"solidseas: stored {done:,} of {total:,} files ({nbytes / 1e6:,.0f} MB)\n")
+        sys.stderr.flush()
+
+
 def _pdm_checkin(args: argparse.Namespace) -> int:
     from . import pdm
 
     vault = pdm.open(args.paths[0])
-    result = vault.checkin(args.paths, args.note, revision=args.revision, state=args.state, who=args.who)
+    result = vault.checkin(
+        args.paths,
+        args.note,
+        revision=args.revision,
+        state=args.state,
+        who=args.who,
+        progress=_StoreProgress(args),
+    )
     data = result.data()
     if not args.json:
         _say_checkin(data, scan=False)
@@ -3465,7 +3493,7 @@ def _pdm_scan(args: argparse.Namespace) -> int:
     from . import pdm
 
     vault = pdm.open(args.path)
-    data = vault.scan(args.path).data()
+    data = vault.scan(args.path, progress=_StoreProgress(args)).data()
     if not args.json:
         _say_checkin(data, scan=True)
     return _pdm_done(args, vault, data)
