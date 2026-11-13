@@ -408,6 +408,37 @@ def test_a_bare_name_found_only_in_a_folder_above_needs_confirmation(tmp_path):
     assert by_name(check_project(a))["asm.SLDASM", "w.SLDPRT"].result == "ok"
 
 
+def test_another_document_reached_only_by_the_bare_name_above_is_missing(tmp_path):
+    """The bare name above is no step of the help topic, so another document found only
+    there decides nothing: the reference is missing, and the file is noted."""
+    a = tmp_path / "Projects" / "A"
+    write(a / "w.SLDPRT", part(OTHER))
+    doc = write(a / "sub" / "asm.SLDASM", assembly(["Q:\\Z\\w.SLDPRT"]))
+    from solidseas.formats.solidworks import open_document
+
+    with open_document(doc, hold_open=True) as d:
+        inp = ResolutionInput.from_document(d)
+    r = resolve_references(
+        inp,
+        {"project": str(a)},
+        allow_outside_roots=True,
+        search_above_roots=True,
+        search="documented",
+    ).results["2"]
+    assert (r.status, r.match, r.rule) == ("missing", None, None)
+    assert [(c.location.path, c.found_by, c.identity) for c in r.candidates] == [
+        ("w.SLDPRT", "bare_name_above", "differ")
+    ]
+    assert "other_document_above" in [w.code for w in r.warnings]
+    assert "identity_mismatch" not in [w.code for w in r.warnings]
+    res = check_project(a)
+    w = by_name(res)["asm.SLDASM", "w.SLDPRT"]
+    assert (w.result, w.found, w.rule, w.searched) == ("missing", None, None, False)
+    assert "other_document_above" in w.warnings
+    assert res.counts()["different_document"] == 0 and res.counts()["missing"] == 1
+    assert plan_copies(res).copies == ()
+
+
 def test_a_copy_beside_the_document_never_goes_over_another_file(tmp_path):
     """The file is in a folder above the document, but beside the document is a file of
     that name made as another document: the plan cannot put the copy there and says so."""

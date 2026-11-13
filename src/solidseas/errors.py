@@ -352,6 +352,7 @@ WARNING_CODES: dict[str, str] = {
     # reference resolution (docs/API.md section 5.10)
     "identity_mismatch": "the file chosen has another creation time than the one the document stored",
     "stored_path_also_exists": "another file still exists at the stored path",
+    "other_document_above": "only the bare name in a folder above reached a file, and it is another document",
     "case_differs": "the file's name differs from the stored name only by case",
     "normalization_differs": "the name matches the stored one only after Unicode normalisation",
     "stored_unc_not_checked": "the stored path is on a network share and was never touched",

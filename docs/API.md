@@ -1016,8 +1016,10 @@ def resolve_references(
   no file with an acceptable identity is found. The first file reached decides: when
   its identity differs, the search stops there and returns it with
   `identity_mismatch` (for an imported component, `inside_parent` with that file as a
-  candidate), even when a later step would find a match. An unknown identity counts
-  as found. The name index never decides: a reference no step finds is `missing`,
+  candidate), even when a later step would find a match. `bare_name_above` is the
+  exception: a file only it reaches that is another document decides nothing, and the
+  reference is `missing` with that file among its candidates (identity `differ`) and
+  the warning `other_document_above`. An unknown identity counts as found. The name index never decides: a reference no step finds is `missing`,
   with the files of that name in the roots as its candidates. The PDM's
   self-contained check uses it; every other caller keeps the default, `"solidseas"`.
 - Besides SOLIDWORKS documents, the rules look up the names of the files a part
@@ -5790,6 +5792,7 @@ Resolution warning codes (an open set):
 |---|---|
 | `identity_mismatch` | The file chosen has another creation time than the stored one |
 | `stored_path_also_exists` | Another file still exists at the stored path (a copied project); it is among the candidates |
+| `other_document_above` | Documented search only: the bare name in a folder above reached a file made as another document, which was passed over; it is among the candidates |
 | `case_differs` | The file's name differs from the stored name only by case |
 | `normalization_differs` | The name matches only after Unicode normalisation |
 | `stored_unc_not_checked` | The stored path is on a network share and was never touched |

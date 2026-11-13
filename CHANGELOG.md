@@ -28,6 +28,14 @@ while the project takes shape.
   viewer's Check Project, the REST service's `/v1/pdm/check` and the MCP
   check_project tool. Other reference resolution is unchanged.
 
+- **pdm check no longer calls a file above the assembly another document.** When
+  the only file of that name the search reached was its bare name in a folder above
+  the document, and that file was made as another document, the reference was
+  reported as another document. SOLIDWORKS does not document looking there, so the
+  reference is now reported as missing, with the warning `other_document_above`
+  naming why. The resolver's documented search lists that file among the
+  candidates, marked as another document.
+
 - **A part's external files are listed.** The references of a part now list the
   files it uses: its base part, the part it mirrors, the assembly it was edited
   in, and the STEP or other file it was imported from, each with a relation

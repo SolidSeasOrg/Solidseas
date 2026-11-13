@@ -73,9 +73,11 @@ In the documented search the first file reached decides: when its identity diffe
 warning ``identity_mismatch``, even if a later step would find a file that matches;
 for an imported component that means ``inside_parent``, with the file as a
 candidate. An unknown identity (no stored creation time, or an import source)
-counts as found. The name index is not consulted for a decision: a reference no
-step finds is ``missing``, and the files of that name in the roots are listed as
-its candidates.
+counts as found. ``bare_name_above`` is the exception: a file it alone reaches that
+is another document decides nothing, and the reference is ``missing`` with that file
+among its candidates (identity ``differ``) and the warning ``other_document_above``.
+The name index is not consulted for a decision: a reference no step finds is
+``missing``, and the files of that name in the roots are listed as its candidates.
 
 Phase 1 resolves the top document's own tree in the top document's context
 (C7): files inside sub-assemblies are resolved from the paths the top document
@@ -807,14 +809,24 @@ class Resolver:
         for rule in DOCUMENTED_RULES if self.documented else POSITIONAL_RULES:
             for group in ref.groups.get(rule, ()):
                 acceptable = []
+                # The bare name above is no step SOLIDWORKS documents: another document there
+                # is passed over, so the reference is missing with that file as a candidate.
+                above = self.documented and rule == "bare_name_above"
                 for h in group:
                     if h.state == "differ":
-                        if ref.fallback is None:
+                        if ref.fallback is None and not above:
                             ref.fallback = h
                         ref.others.append(h)
                     else:
                         acceptable.append(h)
                 if not acceptable:
+                    if above:
+                        self._note(
+                            ref,
+                            "other_document_above",
+                            "only the bare name in a folder above reached a file, and it is another document",
+                        )
+                        continue
                     if self.documented:  # the first file reached is another document: it decides
                         return None
                     continue

@@ -30,7 +30,8 @@ Each reference gets one :class:`Finding`, with one of :data:`RESULTS`:
   first, and is ``inside_parent`` only when no file of that name that could be it
   is found);
 * ``missing``: not found where SOLIDWORKS looks (a file of that name elsewhere in
-  the project or the library is in ``candidates``);
+  the project or the library is in ``candidates``; another document reached only as
+  the bare name in a folder above carries the warning ``other_document_above``);
 * ``different_document``: the first file the search reaches by that name is
   another document (its stored creation time differs);
 * ``ambiguous``: several files could be it, and none could be chosen.
