@@ -395,8 +395,8 @@ def test_each_primitive_is_written_exactly():
     assert spline.points(10)[1] == pytest.approx((140.0, 210.0))
     assert spline.all(41) == []  # not rational
     poly = doc.find("LWPOLYLINE", "CENTER")[0]
-    assert poly.int(90) == 3 and poly.points(10) == pytest.approx(
-        [(120.0, 150.0), (170.0, 148.0), (220.0, 150.0)]
+    assert poly.int(90) == 3 and [c for p in poly.points(10) for c in p] == pytest.approx(
+        [120.0, 150.0, 170.0, 148.0, 220.0, 150.0]
     )
     hidden = doc.find("LINE", "HIDDEN")
     assert len(hidden) == 1 and hidden[0].get(6) is None  # by layer
@@ -430,7 +430,7 @@ def test_a_painted_bezier_is_an_exact_cubic_spline_and_a_fill_a_solid_or_hatch()
     doc = read(D.Sheet("A", 279.4, 215.9, painted=(stroke, triangle, disc)))
     s = doc.find("SPLINE", "NOTES")[0]
     assert [float(k) for k in s.all(40)] == [0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 2]
-    assert s.points(10)[:4] == pytest.approx([(0, 0), (1, 2), (3, 2), (4, 0)])
+    assert [c for p in s.points(10)[:4] for c in p] == pytest.approx([0, 0, 1, 2, 3, 2, 4, 0])
     solid = doc.find("SOLID", "NOTES")[0]
     assert solid.point(12) == solid.point(13)  # a triangle repeats its last corner
     h = doc.find("HATCH", "HATCH")[0]

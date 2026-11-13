@@ -198,7 +198,7 @@ def test_boundary_points_on_one_uv_point_are_spread_towards_the_next():
     got = _spread(Open, loop)
     assert [p[2] for p in got] == [1, 2, 3, 4, 5, 6]
     want = [(1.0, 0.0), (1.0, 1 / 3), (1.0, 2 / 3), (1.0, 1.0)]
-    assert [(u, v) for u, v, _p in got[1:5]] == pytest.approx(want)
+    assert [c for u, v, _p in got[1:5] for c in (u, v)] == pytest.approx([c for uv in want for c in uv])
     seam = [(3.0, 0.0, 1), (3.0, 0.0, 2), (-3.0, 0.0, 3), (0.0, 1.0, 4)]
     u1 = _spread(Round, seam)[1][0]
     assert 3.0 < u1 < 3.2  # across the seam, not back through nought

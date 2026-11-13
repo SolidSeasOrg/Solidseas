@@ -190,7 +190,7 @@ MIRROR = Placement(((-1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0)), (0.0, 0
 def test_a_placed_model_is_moved_whole():
     m = _box_model()
     p = facegraph.place(m, TURN)
-    assert [TURN.apply(q) for q in m.points] == pytest.approx(list(p.points))
+    assert [c for q in m.points for c in TURN.apply(q)] == pytest.approx([c for q in p.points for c in q])
     assert p.diagonal == pytest.approx(m.diagonal) and p.tolerance == m.tolerance
     for f, g in zip(m.faces, p.faces, strict=True):
         assert TURN.apply(f.surface.origin) == pytest.approx(g.surface.origin)
@@ -199,7 +199,7 @@ def test_a_placed_model_is_moved_whole():
     assert {f.signature for f in p.faces}.isdisjoint({f.signature for f in m.faces})
     for e in m.edges.values():
         q = p.edges[e.key]
-        assert [TURN.apply(x) for x in e.points] == pytest.approx(list(q.points))
+        assert [c for x in e.points for c in TURN.apply(x)] == pytest.approx([c for x in q.points for c in x])
     assert p.signatures() == facegraph.place(m, TURN).signatures()  # the same placement, the same names
     same = facegraph.place(m, Placement(((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0)), (0.0, 0.0, 0.0)))
     assert same.signatures() == m.signatures() and same.points == m.points

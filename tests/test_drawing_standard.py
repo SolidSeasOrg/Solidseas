@@ -150,6 +150,13 @@ def _centres(d) -> dict[str, tuple[float, float]]:
     return {v: ((b[0] + b[2]) / 2, (b[1] + b[3]) / 2) for v, b in boxes.items()}
 
 
+def _same_centres(a: dict[str, tuple[float, float]], b: dict[str, tuple[float, float]]) -> bool:
+    """The same views at the same centres, within approx's default tolerance."""
+    return a.keys() == b.keys() and [c for v in sorted(a) for c in a[v]] == pytest.approx(
+        [c for v in sorted(b) for c in b[v]]
+    )
+
+
 def _angles(d) -> list[str]:
     return [a.angle for a in d.sheet.annotations if isinstance(a, D.ProjectionSymbol)]
 
@@ -213,10 +220,10 @@ def test_an_iso_part_drawing_names_the_iso_gps_system():
 
 def test_the_projection_chosen_overrides_the_standards():
     third = _drawn("iso", "third").drawing
-    assert _centres(third) == pytest.approx(_centres(_drawn().drawing))  # placed as ASME places them
+    assert _same_centres(_centres(third), _centres(_drawn().drawing))  # placed as ASME places them
     assert _angles(third) == ["third"] and _block(_part("iso", "third").drawing)[-1] == "TOLERANCING ISO 8015"
     first = _drawn("asme", "first").drawing
-    assert _centres(first) == pytest.approx(_centres(_drawn("iso").drawing))
+    assert _same_centres(_centres(first), _centres(_drawn("iso").drawing))
     assert (
         _angles(first) == ["first"] and _block(_part("asme", "first").drawing)[-1] == standards.INTERPRETATION
     )
