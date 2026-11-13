@@ -28,7 +28,7 @@ import re
 import secrets
 import stat
 import sys
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -670,9 +670,11 @@ class Vault:
         return out
 
     def _write_checkin(self, c: Checkin) -> Checkin:
+        """Create the check-in record and flush it and its folders to disk. It is written
+        only after every version it names, object and record, is on disk itself."""
         self.store._make_root()
-        folder = self.store._folder(self.folder, "checkins", create=True)
-        folder = self.store._folder(folder, f"{c.when.year:04d}", create=True)
+        base = self.store._folder(self.folder, "checkins", create=True)
+        folder = self.store._folder(base, f"{c.when.year:04d}", create=True)
         name = c.name()
         data = json.dumps(c.to_json(), ensure_ascii=True, sort_keys=True).encode("ascii")
         fd = os.open(os.path.join(folder, name), _NEW_FILE, 0o600)
@@ -680,6 +682,8 @@ class Vault:
             out.write(data)
             out.flush()
             os.fsync(out.fileno())
+        snapstore.sync_folder(folder)
+        snapstore.sync_folder(base)
         return Checkin(
             c.id,
             c.when,
@@ -694,11 +698,30 @@ class Vault:
         )
 
     def _store_files(
-        self, states: list[FileState], note: str | None, *, removals: bool
+        self,
+        states: list[FileState],
+        note: str | None,
+        *,
+        removals: bool,
+        progress: Callable[[int, int, int], None] | None = None,
     ) -> tuple[list[CheckinFile], list[dict[str, Any]]]:
+        """Store a version of each new or changed file in ``states`` and return the
+        check-in's entries and the files that failed. The versions are stored in batches
+        (:meth:`~solidseas.versions.snapstore.SnapshotStore.add_many`), and all of them are
+        on disk when this returns, before the check-in record that names them is written.
+        ``progress(done, total, bytes)`` is called as files are copied."""
+        from ..model import error_code
+
+        snap_note = None if note is None else note[: snapstore.MAX_NOTE]
+        to_store = [f for f in states if f.state not in ("gone", "unchanged")]
+        total = len(to_store)
+        report = None if progress is None else (lambda done, nbytes: progress(done, total, nbytes))
+        results = self.store.add_many(
+            [self.absolute(f.path) for f in to_store], note=snap_note, progress=report
+        )
+        stored = {id(f): r for f, r in zip(to_store, results, strict=True)}
         entries: list[CheckinFile] = []
         failed: list[dict[str, Any]] = []
-        snap_note = None if note is None else note[: snapstore.MAX_NOTE]
         for f in states:
             if f.state == "gone":
                 if removals:
@@ -708,13 +731,11 @@ class Vault:
                 if f.snapshot is not None:
                     entries.append(CheckinFile(f.path, f.snapshot.sha256, f.snapshot.size, f.snapshot.id))
                 continue
-            try:
-                snap, new = self.store.add(self.absolute(f.path), note=snap_note)
-            except (OSError, SolidSeasError) as exc:
-                from ..model import error_code
-
-                failed.append({"path": f.path, "code": error_code(exc), "message": str(exc)})
+            result = stored[id(f)]
+            if isinstance(result, BaseException):
+                failed.append({"path": f.path, "code": error_code(result), "message": str(result)})
                 continue
+            snap, new = result
             entries.append(CheckinFile(f.path, snap.sha256, snap.size, snap.id, new))
         return entries, failed
 
@@ -749,12 +770,14 @@ class Vault:
         revision: str | None = None,
         state: str | None = None,
         who: str | None = None,
+        progress: Callable[[int, int, int], None] | None = None,
     ) -> CheckinResult:
         """Store a version of each new or changed tracked file under ``paths`` (files or
         folders) and write one check-in record with ``note``. Unchanged files are listed
         in the record with the version they already have and are not stored again; gone
         files are recorded as removed, so status stops listing them. ``revision`` and
-        ``state`` are labels of at most 64 characters; ``who`` defaults to the settings'."""
+        ``state`` are labels of at most 64 characters; ``who`` defaults to the settings'.
+        ``progress(done, total, bytes)`` is called as the new and changed files are copied."""
         if not isinstance(note, str) or not note.strip() or len(note) > snapstore.MAX_NOTE or "\0" in note:
             raise InvalidArgumentError(
                 f"a check-in needs a note of at most {snapstore.MAX_NOTE} characters",
@@ -796,19 +819,24 @@ class Vault:
                 f"a check-in holds at most {MAX_CHECKIN_FILES:,} files: check in a smaller folder",
                 detail={"parameter": "paths"},
             )
-        entries, failed = self._store_files(ordered, note, removals=True)
+        entries, failed = self._store_files(ordered, note, removals=True, progress=progress)
         record = (
             self._new_checkin(entries, note, who=who, revision=revision, state=state) if entries else None
         )
         return CheckinResult(record, ordered, failed, scope, skipped)
 
-    def scan(self, path: str | os.PathLike | None = None) -> CheckinResult:
+    def scan(
+        self,
+        path: str | os.PathLike | None = None,
+        progress: Callable[[int, int, int], None] | None = None,
+    ) -> CheckinResult:
         """Store a version of every new or changed tracked file below ``path`` (the
         library when None), as an automatic check-in with no note. Nothing is written when
-        nothing changed, so it is safe to run on a schedule. Gone files are only reported."""
+        nothing changed, so it is safe to run on a schedule. Gone files are only reported.
+        ``progress`` is called as :meth:`checkin`'s is."""
         st = self.status(path)
         changed = [f for f in st.files if f.state in ("new", "changed")]
-        entries, failed = self._store_files(changed, None, removals=False)
+        entries, failed = self._store_files(changed, None, removals=False, progress=progress)
         record = self._new_checkin(entries, None, who=self.settings.who, auto=True) if entries else None
         return CheckinResult(record, st.files, failed, [st.scope], st.skipped, dict(st.counts))
 

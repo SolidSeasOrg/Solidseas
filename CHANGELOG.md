@@ -6,6 +6,17 @@ while the project takes shape.
 
 ## [Unreleased]
 
+### Changed
+
+- **A library's first pdm scan is much faster.** A check-in or scan of many new
+  files now writes them to disk in batches instead of waiting for the disk after
+  every file, and copies several files at once. A first scan of 30,000 files took
+  about 23 minutes on the development machine and now takes about 4. A long
+  check-in or scan prints a line every few seconds saying how many files it has
+  stored (not with `--json`). The guarantees are unchanged: nothing is ever
+  recorded before its stored copy is safely on disk, and a scan that is stopped
+  part way can simply be run again.
+
 ### Fixed
 
 - **The viewer's PDM menu no longer holds the window on a slow folder.** Finding

@@ -76,6 +76,11 @@ solidseas pdm scan D:\CAD
 when nothing changed, so it is safe to run every hour from Task Scheduler. A file
 saved in SOLIDWORKS and never checked in still gets its earlier versions this way.
 
+The first scan of a large library stores every file and can take a while. It prints a
+line every few seconds saying how many files it has stored so far. If it is stopped
+part way, or the computer goes off, run it again: it carries on with the files it had
+not stored, and nothing it stored is lost or left half-written.
+
 ## A file's history
 
 ```bash
