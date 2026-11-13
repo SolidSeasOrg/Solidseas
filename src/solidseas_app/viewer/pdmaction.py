@@ -292,13 +292,17 @@ def status_line(st, scope: str = "") -> str:
 
 
 def checkin_summary(data: dict[str, Any]) -> str:
-    """The status bar's line after a check-in."""
-    files = data["files"]
+    """The status bar's line after a check-in: the files its record names (the unchanged
+    ones too when it gave a revision or state) and how many versions it stored."""
+    c = data["checkin"]
     stored = data["stored"]
-    if data["checkin"] is None:
+    if c is None:
         text = "Nothing was checked in."
     else:
-        text = f"Checked in {plural(len(files), 'file')}: {plural(stored, 'new version')} stored."
+        named = sum(1 for f in data["files"] if f["state"] != "unchanged")
+        if c["revision"] is not None or c["state"] is not None:
+            named += data["counts"]["unchanged"]
+        text = f"Checked in {plural(named, 'file')}: {plural(stored, 'new version')} stored."
     if data["failed"]:
         text += f" {plural(len(data['failed']), 'file')} could not be stored."
     return text

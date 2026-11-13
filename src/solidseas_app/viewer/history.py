@@ -89,6 +89,7 @@ class VersionRow:
     project: str | None = None
     revision: str | None = None
     state: str | None = None
+    labels: tuple[str, ...] = ()  # each revision or state a check-in gave it, with its time
 
     @property
     def label(self) -> str:
@@ -231,15 +232,30 @@ def version_rows(path: str) -> list[VersionRow]:
     return snapshot_history(path).rows
 
 
-def _checkin_note(checkins: list[dict[str, Any]]) -> tuple[str, str | None, str | None]:
-    """The note, revision and state a library version shows: its newest check-in's
-    note, and the newest revision and state any of its check-ins gave it."""
-    note = next((c["note"] for c in checkins if c.get("note")), "")
-    if not note and checkins and all(c.get("auto") for c in checkins):
+def _first_up(text: str) -> str:
+    """``text`` with its first letter a capital and the rest as given (a label keeps its case)."""
+    return text[:1].upper() + text[1:]
+
+
+def _checkin_note(v: dict[str, Any]) -> tuple[str, str | None, str | None, tuple[str, ...]]:
+    """The note, revision, state and label lines a library version shows: the note of the
+    check-in that stored it (a later check-in that names the version again does not
+    replace it), the newest revision and state any check-in gave it, and each of those
+    labels with its time."""
+    stored_by = v.get("stored_by")
+    note = v.get("note") or ""
+    if not note and stored_by is not None and stored_by.get("auto"):
         note = "Stored by a scan"
-    revision = next((c["revision"] for c in checkins if c.get("revision")), None)
-    state = next((c["state"] for c in checkins if c.get("state")), None)
-    return note, revision, state
+    labels = v.get("labels") or []
+    revision = next((x["revision"] for x in labels if x.get("revision")), None)
+    state = next((x["state"] for x in labels if x.get("state")), None)
+    lines = []
+    for x in labels:
+        words = [f"revision {x['revision']}"] if x.get("revision") else []
+        words += [f"state {x['state']}"] if x.get("state") else []
+        who = f" by {x['who']}" if x.get("who") else ""
+        lines.append(f"{_first_up(', '.join(words))}, {time_text(x.get('when_utc'))}{who}")
+    return note, revision, state, tuple(lines)
 
 
 def library_history(path: str, library: str | None = None) -> FileHistory:
@@ -276,9 +292,9 @@ def library_history(path: str, library: str | None = None) -> FileHistory:
                 )
             )
         else:
-            checkins = v.get("checkins") or []
-            note, revision, state = _checkin_note(checkins)
-            who = next((c["who"] for c in checkins if c.get("who")), None)
+            note, revision, state, labels = _checkin_note(v)
+            stored_by = v.get("stored_by")
+            who = stored_by.get("who") if stored_by is not None else None
             rows.append(
                 VersionRow(
                     v["id"],
@@ -292,6 +308,7 @@ def library_history(path: str, library: str | None = None) -> FileHistory:
                     library=vault.root,
                     revision=revision,
                     state=state,
+                    labels=labels,
                 )
             )
     return FileHistory(rows, _warning_words(data.get("warnings")), vault.root)
@@ -582,7 +599,7 @@ def note_text(row: VersionRow) -> str:
     labels += [row.state] if row.state else []
     if not labels:
         return row.note
-    return f"{row.note} ({', '.join(labels)})" if row.note else ", ".join(labels).capitalize()
+    return f"{row.note} ({', '.join(labels)})" if row.note else _first_up(", ".join(labels))
 
 
 class HistoryPane(QWidget):
@@ -715,8 +732,10 @@ class HistoryPane(QWidget):
                 lines.append(r.note)
             labels = [f"revision {r.revision}"] if r.revision else []
             labels += [f"state {r.state}"] if r.state else []
-            if labels:
-                lines.append(", ".join(labels).capitalize())
+            if r.labels:
+                lines.extend(r.labels)
+            elif labels:
+                lines.append(_first_up(", ".join(labels)))
             if r.deleted:
                 lines.append("The file was deleted in this commit.")
             elif not r.available:

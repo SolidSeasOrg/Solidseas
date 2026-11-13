@@ -299,3 +299,37 @@ def test_a_file_in_git_lists_its_commits(app, window, tmp_path):
     assert pane.diff_caption.text().startswith("Changes from v1 (Git commit, ")
     assert ["  Size in z", "30 mm", "31 mm"] in _diff(w)["Geometry"]
     assert _state(repo.root) == before
+
+
+@needs_qt
+def test_a_library_version_shows_the_note_of_the_check_in_that_stored_it(app, tmp_path):
+    from solidseas import pdm
+    from solidseas_app.viewer import history
+
+    cad = tmp_path / "CAD"
+    job = cad / "Jobs" / "1042"
+    job.mkdir(parents=True)
+    path = job / "box.3mf"
+    path.write_bytes(part(30))
+    (job / "lid.3mf").write_bytes(part(5))
+    vault = pdm.init(cad)
+    vault.checkin([cad], "baseline")
+    (cad / "Jobs" / ".dot" / "x.3mf").parent.mkdir()
+    (cad / "Jobs" / ".dot" / "x.3mf").write_bytes(part(7))
+    # a whole-library check-in written the old way, naming every unchanged file
+    states = vault.status(cad, unchanged=True).files
+    entries, _failed = vault._store_files(states, "dot-named files", removals=True, unchanged=True)
+    vault._new_checkin(entries, "dot-named files", who="D. M.")
+    vault.checkin([cad], "issued for quote", revision="C", who="Pat")
+    rows = history.file_history(str(path)).rows
+    assert [(r.label, r.note, r.revision, r.state) for r in rows] == [("v1", "baseline", "C", None)]
+    assert history.note_text(rows[0]) == "baseline (rev C)"
+    assert len(rows[0].labels) == 1 and rows[0].labels[0].startswith("Revision C, ")
+    assert rows[0].labels[0].endswith(" by Pat")
+    pane = history.HistoryPane()
+    pane.show_rows(rows)
+    item = pane.tree.topLevelItem(0)
+    assert item.text(3) == "baseline (rev C)"
+    assert "baseline" in item.toolTip(0) and "Revision C, " in item.toolTip(0)
+    assert "dot-named files" not in item.toolTip(0)
+    pane.deleteLater()

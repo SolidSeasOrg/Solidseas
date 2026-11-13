@@ -16,6 +16,23 @@ while the project takes shape.
 
 ### Changed
 
+- **A check-in records only what it stored.** A check-in used to name every file
+  under its path, unchanged ones included, so checking in 39 new files in a library
+  of 19,000 wrote a 5 MB record and printed almost 7 MB of JSON. It now names the
+  files it stored and the ones it records as removed, and only counts the unchanged
+  ones. With `--revision` or `--state` it still names every unchanged file with the
+  version it has, so the label covers the whole set. `pdm checkin --list-unchanged`
+  lists the unchanged files in the output, and a check-in with nothing changed and
+  no label writes nothing.
+
+- **A version keeps the note it was checked in with.** `pdm log`, `pdm show`, the
+  service's log and the History tab showed, for every file, the note of the newest
+  check-in that named it, so after a check-in of the whole library every file
+  carried that check-in's note. A version now shows the note of the check-in that
+  stored it. A revision or state a later check-in gave it is listed as a label with
+  its time, and `log --json` gives each version's `note`, `stored_by` and `labels`.
+  Libraries with records written the old way show the right notes too.
+
 - **pdm check --plan accounts for the project's own documents finding the new
   copies.** A document in a subfolder that was missing a part may find the copy
   planned for another assembly in a folder above it, which SOLIDWORKS may not do.

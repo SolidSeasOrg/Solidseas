@@ -57,7 +57,9 @@ self-contained check, read-only (`docs/API.md` 8.6).
   - `ignore`: glob patterns that are never tracked.
 - `.solidseas/vault/store/`: the snapshot store, `objects/` and `files/`, as `docs/VERSIONS.md` 4.2 describes, keyed by the path relative to the library, and `marks/`, a note of the record folders each batch of versions changed (`docs/VERSIONS.md` 4.5).
 - `.solidseas/vault/newest.json`: the newest version of every file, a cache that `status` reads instead of every file's records (`docs/VERSIONS.md` 4.5). It is made from the records and may be deleted at any time.
-- `.solidseas/vault/checkins/<yyyy>/<time>-<id>.json`: one record per check-in. It holds the id, when, the note, an optional name for who (from the settings, empty by default), and for each file its relative path, SHA-256, size and snapshot id. It may also carry a revision label and a state. Records are never rewritten. A later record can supersede a label or state.
+- `.solidseas/vault/checkins/<yyyy>/<time>-<id>.json`: one record per check-in. It holds the id, when, the note, an optional name for who (from the settings, empty by default), and for each file its relative path, SHA-256, size and snapshot id, with `new` when the check-in stored that version and `removed` when it recorded the file as gone. It may also carry a revision label and a state. A record names only the files it stored and the ones it records as removed, so a check-in of two changed files in a library of 20,000 stays under a kilobyte. With a revision or state it also names every unchanged file under its paths with the version it already has, so the label covers the whole set. Records written before this rule name every unchanged file in every check-in; they read the same. Records are never rewritten. A later record can supersede a label or state.
+
+  A version's note is the note of the check-in that stored it: the earliest record that names that version with `new` true, or, when none does, the note the version was stored with. A later check-in that names the same version does not change its note. When it carries a revision or state, that is a label of the version, listed with its time and who, newest first. A later check-in with neither adds nothing to the version's history, so the old records that named every unchanged file in a whole-library check-in no longer give each file that check-in's note.
 - `.solidseas/vault/library/items/<item id>.json`, `.../links/<time>-<id>.json` and `.../edits/<time>-<id>.json`: library items, the record of each copy made into a project, and the changes of an item's number or description (section 6). These are append-only like the rest.
 
 Everything is plain JSON and content files. Nothing in the vault needs SQLite, so a
@@ -71,9 +73,9 @@ with the catalog cleared.
 |---|---|
 | `pdm init FOLDER` | Make FOLDER a library: writes `vault.json` and an empty store. Changes nothing else. |
 | `pdm status [PATH]` | Tracked files that are new, changed since their newest version, or gone, for the library, a project or a folder. |
-| `pdm checkin PATH... -m NOTE [--revision R] [--state S]` | Store a version of each changed file under PATH and write one check-in record. Unchanged files are listed as such and not stored again. |
+| `pdm checkin PATH... -m NOTE [--revision R] [--state S] [--list-unchanged]` | Store a version of each changed file under PATH and write one check-in record (section 3). Unchanged files are counted and not stored again; `--list-unchanged` lists them in the output. Nothing is written when nothing changed and no label is given. |
 | `pdm scan [PATH]` | Store a version of every changed tracked file, as an automatic check-in with no note. Safe to run on a schedule. |
-| `pdm log FILE` | The file's versions, newest first, with check-in notes, revisions and states. Git history is included when the file sits in a Git repository. |
+| `pdm log FILE` | The file's versions, newest first, each with the note of the check-in that stored it and its revision and state labels (section 3). Git history is included when the file sits in a Git repository. |
 | `pdm show FILE VERSION` and `pdm diff FILE A B` | One version's facts, or what changed between two (`docs/VERSIONS.md` 5 and 6). |
 | `pdm restore FILE VERSION [--as NAME]` | Put a version back. The current file is stored as a version first. Without `--as` it replaces the file. With `--as` it writes a new file. |
 | `pdm check [PROJECT]` | References that leave the project, are missing, or are ambiguous (section 5). |

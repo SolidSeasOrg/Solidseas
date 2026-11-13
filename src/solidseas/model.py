@@ -4005,6 +4005,16 @@ _DEFS["checkin_brief"] = _obj(
     },
     description="A PDM check-in without its files.",
 )
+_DEFS["version_label"] = _obj(
+    {
+        "revision": _STR_N,
+        "state": _STR_N,
+        "when_utc": _STR,
+        "who": _STR,
+        "checkin": _STR,
+    },
+    description="A revision or state a PDM check-in gave a version, with when and by whom.",
+)
 _PDM_STATE = {"type": "string", "enum": ["new", "changed", "gone", "unchanged"]}
 _PDM_COUNTS = _obj({k: _INT for k in ("new", "changed", "gone", "unchanged")})
 _PDM_SKIPPED = _arr(_obj({"path": _STR, "reason": _STR}))
@@ -4241,6 +4251,9 @@ _PDM_SCHEMA = _obj(
                             "size": _INT_N,
                             "sha256": _SHA256_N,
                             "available": _BOOL,
+                            "note": _STR_N,
+                            "stored_by": _ref_n("checkin_brief"),
+                            "labels": _arr(_ref("version_label")),
                             "checkins": _arr(_ref("checkin_brief")),
                         }
                     )
@@ -4254,6 +4267,10 @@ _PDM_SCHEMA = _obj(
                 "file": _ref("versioned_file"),
                 "source": _STR,
                 "version": _ref("version"),
+                "note": _STR_N,
+                "stored_by": _ref_n("checkin_brief"),
+                "labels": _arr(_ref("version_label")),
+                "checkins": _arr(_ref("checkin_brief")),
                 "document": _ref("document_brief"),
                 "properties": _arr(_ref("property")),
                 "configurations": _arr(_STR_N),
@@ -4863,6 +4880,7 @@ KINDS: dict[str, KindSpec] = {
                 "geometry_summary",
                 "warning",
                 "checkin_brief",
+                "version_label",
                 "pdm_project",
                 "library_item",
                 "library_version",
@@ -4885,7 +4903,7 @@ KINDS: dict[str, KindSpec] = {
             "pdm_log",
             "SolidSeas PDM file history",
             _PDM_LOG_SCHEMA,
-            ("checkin_brief", "warning"),
+            ("checkin_brief", "version_label", "warning"),
             build_pdm_answer,
             (),
             "/v1/pdm/log",
@@ -4912,7 +4930,15 @@ KINDS: dict[str, KindSpec] = {
             "pdm_version",
             "SolidSeas PDM version",
             _PDM_VERSION_SCHEMA,
-            ("version", "document_brief", "property", "geometry_summary", "warning"),
+            (
+                "version",
+                "document_brief",
+                "property",
+                "geometry_summary",
+                "warning",
+                "checkin_brief",
+                "version_label",
+            ),
             build_pdm_answer,
             (),
             "/v1/pdm/version",

@@ -5140,7 +5140,7 @@ vault.settings                                    # Settings: vault.json, format
 vault.sections(), vault.projects()                # SectionInfo and Project lists
 vault.project_of(path), vault.tracked(path)
 st = vault.status(path=None, unchanged=False)     # Status: new, changed and gone files
-r = vault.checkin(paths, note, revision=None, state=None, who=None)   # CheckinResult
+r = vault.checkin(paths, note, revision=None, state=None, who=None, list_unchanged=False)  # CheckinResult
 r = vault.scan(path=None)                         # CheckinResult; r.checkin is None when nothing changed
 vault.checkins()                                  # every Checkin record, oldest first
 vault.log(file)                                   # the log part of pdm_result
@@ -5182,7 +5182,18 @@ lib.edit(item, number=None, description=None)     # the library_edit part
   hold up, and may be deleted at any time.
 - **Records.** Check-ins are `.solidseas/vault/checkins/<yyyy>/<time>-<id>.json`,
   created with `O_EXCL` and never rewritten. Each is checked field by field when read,
-  and one that does not hold up (or sits in another year's folder) is skipped.
+  and one that does not hold up (or sits in another year's folder) is skipped. A record
+  names the files the check-in stored (`new`) and the ones it recorded as `removed`;
+  only with a revision or state does it also name the unchanged files under its paths,
+  with the version they have. `checkin` writes nothing when nothing changed and no label
+  is given. Its result counts the unchanged files and lists them only with
+  `list_unchanged` (`--list-unchanged`).
+- **Notes and labels.** A vault version's `note` is that of the check-in that stored it
+  (the earliest naming it with `new`), else the note it was stored with; `stored_by` is
+  that check-in. Every check-in naming the version with a revision or state gives a
+  label (`labels`, newest first). A check-in that names a version again without a label
+  is not listed, so a record written before this rule, which named every unchanged file,
+  does not change any version's note. `log` and `show` give the same three fields.
 - **Restore.** The current file is stored as a version first. Without `as_name` it is
   replaced through a temporary name and a rename; with it, the version is written as a
   new file in the same folder, and an existing name, link or not, is `output_refused`.
@@ -6393,9 +6404,9 @@ description was last changed, or null). A version is `id`, `number`
 |---|---|
 | `init` | `created`, `settings` (`vault.json`), `sections` (`folder`, `depth`, `kind`: `projects`, `library` or `archive`) |
 | `status` | `library`, `scope` (the path below the library, empty for all of it), `counts` (`new`, `changed`, `gone`, `unchanged`), `hashed`, `files` (`path`, `state`, `size`, `modified_utc`, `sha256` when it was read, `version`: the newest version's id), `skipped` (`path`, `reason`) |
-| `checkin` | `checkin` (`id`, `when_utc`, `note`, `who`, `revision`, `state`, `auto`; null when a scan stored nothing), `record`, `scope`, `counts`, `stored`, `files` (`path`, `state` before the check-in, `sha256`, `size`, `version`, `stored`), `failed` (`path`, `code`, `message`), `skipped` |
-| `log` | `file`, `path`, `working` (as `file_history`'s), `git` (`work_tree`, `path`, `branch`, `head`, or null), `versions` newest first (`source`: `working`, `vault` or `git`; `number` for the vault's, `id`, `time_utc`, `author`, `subject`, `status`, `size`, `sha256`, `available`, and `checkins` naming the version), `warnings` (`git_unreadable`) |
-| `show` | `file`, `source`, `version`, `document` (as `version_diff`'s), `properties`, `configurations` (names), `geometry` (`reason`, and per configuration its geometry summary), `warnings` |
+| `checkin` | `checkin` (`id`, `when_utc`, `note`, `who`, `revision`, `state`, `auto`; null when nothing was written), `record`, `scope`, `counts`, `stored`, `files` (the new, changed and gone files, and the unchanged ones only with `--list-unchanged`: `path`, `state` before the check-in, `sha256`, `size`, `version`, `stored`), `failed` (`path`, `code`, `message`), `skipped` |
+| `log` | `file`, `path`, `working` (as `file_history`'s), `git` (`work_tree`, `path`, `branch`, `head`, or null), `versions` newest first (`source`: `working`, `vault` or `git`; `number` for the vault's, `id`, `time_utc`, `author`, `subject`, `status`, `size`, `sha256`, `available`, `note` (the note of the check-in that stored it, else `subject`), `stored_by` (that check-in, or null), `labels` (`revision`, `state`, `when_utc`, `who`, `checkin`, newest first), and `checkins`: the one that stored it and those that gave it a label, newest first), `warnings` (`git_unreadable`) |
+| `show` | `file`, `source`, `version`, `note`, `stored_by`, `labels` and `checkins` (as `log` gives them; for a Git version, `note` is its subject and the rest empty), `document` (as `version_diff`'s), `properties`, `configurations` (names), `geometry` (`reason`, and per configuration its geometry summary), `warnings` |
 | `diff` | `version_diff` data (5.19) |
 | `restore` | `file` (the file written), `path`, `from`, `version`, `replaced`, `written` (false when the file already held it), `stored_first` (`version`, `new`, `sha256` of the current file stored first, or null), `checkin` (null when nothing was written) |
 | `check` | `scope` (the project, empty for every project), `copy_toolbox`, `plan`, `fix`, `self_contained` (how many projects are), `projects`: each `project`, `documents`, `counts` (per result: `ok`, `outside`, `needs_confirmation`, `toolbox`, `inside_parent`, `missing`, `different_document`, `ambiguous`; and `toolbox_not_found`, the `toolbox` findings found nowhere), `problems` (how many findings are problems), `self_contained`, `findings` (the problems only, each as in `pdm_check`, with absolute paths), `unreadable` (`path`, `exception`), `plan` (`rounds`, the rounds the plan took; `copies` and `present`: `source`, `destination`, `referenced_by`, `place`, `item`, `round`; `conflicts`: `source`, `destination`, `referenced_by`, `reason`, `round`; `unplaced`, references of planned copies no copy places: `document`, `source`, `name`, `reason` (`missing`, `different_document`, `ambiguous`, `unreadable` or `round_limit`), `round`, `found`, `error`; null unless asked), `fix` (`copied`: `source`, `destination`, `item`, `link`; `failed`: `source`, `destination`, `code`, `message`; `checkin`; null without `--fix`) |
@@ -6418,7 +6429,7 @@ root (empty when it is the root), or null when it lies above the root.
 |---|---|
 | `pdm_status` | `library`, `scope` (the folder or file asked for), `counts`, `hashed`, `files` and `skipped`, as `pdm_result`'s `status`. Files of the vault outside the root are left out |
 | `pdm_log` | `library`, `path`, `name`, `working`, `git` (`branch` and `head`, or null), `versions` and `warnings`, as `pdm_result`'s `log`. A warning whose text names a folder on the server has that text replaced |
-| `pdm_version` | `library`, `path`, `name`, `source` (`vault` or `git`, as asked), `version`, `document`, `properties`, `configurations`, `geometry` and `warnings`, as `pdm_result`'s `show` |
+| `pdm_version` | `library`, `path`, `name`, `source` (`vault` or `git`, as asked), `version`, `note`, `stored_by`, `labels`, `checkins`, `document`, `properties`, `configurations`, `geometry` and `warnings`, as `pdm_result`'s `show` |
 | `pdm_checkins` | `library`, `scope`, `scans`, `checkins` newest first (`id`, `when_utc`, `note`, `who`, `revision`, `state`, `auto`, `files_total`, `files_truncated`, and `files`: `path`, `sha256`, `size`, `version`, `new`, `removed`, at most 100), `next_cursor` |
 | `pdm_check` | `library`, `copy_toolbox`, then one project as `pdm_result`'s `check` gives each (one function builds both): `project` (`path`, `name`, `section`, `archived`), `documents`, `counts` (per result, and `toolbox_not_found`: the `toolbox` findings found nowhere, which are counted in `toolbox` too), `problems`, `self_contained`, `findings` (every finding, not only the problems), `unreadable` (`path`, `exception`) and `plan` (with `plan`, the copies `pdm check --plan` lists, each path a `{"root", "path"}` or null; null otherwise). Every path is relative to the root |
 

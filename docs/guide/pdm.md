@@ -68,10 +68,15 @@ solidseas pdm checkin D:\CAD\Jobs\1042 -m "holes moved for the new bracket" --re
 ```
 
 This stores a version of each new or changed file under the path and writes one
-check-in with your note. Files that have not changed are listed in the check-in with
-the version they already have, so a revision label covers the whole project. A file
-that is gone is recorded as removed, and `status` stops listing it. `--state` adds a
-label such as `released`, and `--who` a name.
+check-in with your note. The check-in records the files it stored and the ones that
+are gone, which it records as removed so `status` stops listing them. Files that have
+not changed are counted, not stored again, and left out of the check-in, so checking
+in a whole library after changing two files writes a small record. `--list-unchanged`
+lists them in the output too. When nothing changed, nothing is written.
+
+`--revision` and `--state` (a label such as `released`) are the exception: with
+either, the check-in also names every unchanged file under the path with the version
+it already has, so the label covers the whole project. `--who` adds a name.
 
 A part that sits in two projects with the same content is stored once, and a file
 whose content the library already holds is read but not copied again.
@@ -99,8 +104,10 @@ solidseas pdm show D:\CAD\Jobs\1042\bracket.SLDPRT v2
 solidseas pdm diff D:\CAD\Jobs\1042\bracket.SLDPRT v2 v3
 ```
 
-`log` lists the file's versions, newest first, with the notes, revisions and states
-of the check-ins that name them. When the file on disk differs from its newest
+`log` lists the file's versions, newest first. Each shows the note of the check-in
+that stored it; a later check-in of the whole folder does not replace it. A revision
+or state a check-in gave the version is listed under it with when it was given and by
+whom. `show` prints the same note and labels. When the file on disk differs from its newest
 version it is listed on top as the working copy. When the project folder is also a
 Git repository, the commits that changed the file are listed too.
 
@@ -245,7 +252,8 @@ SolidSeas Desktop has a PDM menu while the opened folder lies in a library: Chec
 In (with the note, revision and state, after listing what changed), Changes,
 Check Project, Library of Common Parts and Restore Version, which puts back the
 version chosen on the History tab. The History tab lists a library file's
-versions with their check-in notes. Outside a library the menu offers Make This
+versions, each with the note of the check-in that stored it and its newest revision
+and state; the tip on a version lists every label with its time. Outside a library the menu offers Make This
 Folder a Library, which does what `pdm init` does.
 
 Check Project's Make Copies does what `check --plan` and `check --fix` do: it

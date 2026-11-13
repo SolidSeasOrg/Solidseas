@@ -273,7 +273,43 @@ def test_checkin_stores_shared_content_once(lib):
     assert all(f.new and not f.removed for f in c.files)
     again = vault.checkin([lib / "Jobs" / "1042"], "label it", revision="B").data()
     assert again["stored"] == 0 and again["counts"]["unchanged"] == 2 and len(records(lib)) == 2
-    assert all(not f["stored"] and f["version"] for f in again["files"])
+    assert again["files"] == []  # counted, not listed
+    rec = records(lib)[-1]
+    c = parse_checkin(rec.read_bytes(), rec.name, rec.parent.name)
+    assert sorted(f.path for f in c.files) == ["Jobs/1042/bracket.sldprt", "Jobs/1042/plate.step"]
+    assert all(not f.new and f.snapshot for f in c.files)  # the revision covers the unchanged files
+    listed = vault.checkin([lib / "Jobs" / "1042"], "label it", state="draft", list_unchanged=True).data()
+    assert len(listed["files"]) == 2 and all(not f["stored"] and f["version"] for f in listed["files"])
+    nothing = vault.checkin([lib / "Jobs"], "no change, no label").data()
+    assert nothing["checkin"] is None and nothing["counts"]["unchanged"] == 3 and len(records(lib)) == 3
+
+
+def test_a_checkin_records_only_what_it_stored(lib, monkeypatch):
+    vault = pdm.init(lib)
+    for k in range(2000):
+        write(lib / "Jobs" / f"p{k % 20:02d}" / f"part{k:04d}.sldprt", f"{k}")
+    with monkeypatch.context() as m:
+        m.setattr(os, "fsync", lambda fd: None)
+        vault.checkin([lib], "all of them")
+    write(lib / "Jobs" / "p03" / "part0003.sldprt", "three, changed")
+    write(lib / "Jobs" / "p07" / "part0007.sldprt", "seven, changed")
+    (lib / "Jobs" / "1042" / "plate.step").unlink()
+    data = vault.checkin([lib], "two changed").data()
+    assert data["stored"] == 2 and data["counts"] == {"new": 0, "changed": 2, "gone": 1, "unchanged": 2000}
+    assert sorted((f["path"], f["state"]) for f in data["files"]) == [
+        ("Jobs/1042/plate.step", "gone"),
+        ("Jobs/p03/part0003.sldprt", "changed"),
+        ("Jobs/p07/part0007.sldprt", "changed"),
+    ]
+    assert len(json.dumps(data)) < 4000
+    rec = records(lib)[-1]
+    assert rec.stat().st_size < 2000  # it was about 300 KB when every unchanged file was named
+    c = parse_checkin(rec.read_bytes(), rec.name, rec.parent.name)
+    assert sorted((f.path, f.new, f.removed) for f in c.files) == [
+        ("Jobs/1042/plate.step", False, True),
+        ("Jobs/p03/part0003.sldprt", True, False),
+        ("Jobs/p07/part0007.sldprt", True, False),
+    ]
 
 
 def test_checkin_records_gone_files(lib):
@@ -489,9 +525,45 @@ def test_log_is_newest_first_with_notes(lib):
     assert [v["source"] for v in log["versions"]] == ["working", "vault", "vault", "vault"]
     assert [v["number"] for v in log["versions"]] == [4, 3, 2, 1]
     v3, v2, v1 = log["versions"][1:]
-    assert [c["note"] for c in v3["checkins"]] == ["same file, labelled again", "holes moved"]
-    assert v3["checkins"][1]["revision"] == "B" and v3["checkins"][1]["state"] == "released"
-    assert v2["checkins"][0]["auto"] and v1["checkins"][0]["note"] == "first cut"
+    assert v3["note"] == "holes moved" and v3["stored_by"]["note"] == "holes moved"
+    assert [c["note"] for c in v3["checkins"]] == ["holes moved"]  # naming it again adds nothing
+    assert [(x["revision"], x["state"]) for x in v3["labels"]] == [("B", "released")]
+    assert v2["checkins"][0]["auto"] and v2["stored_by"]["auto"] and v2["labels"] == []
+    assert v1["note"] == "first cut" and [x["revision"] for x in v1["labels"]] == ["A"]
+
+
+def old_style_checkin(vault, paths, note, **labels):
+    """A check-in written as records were before they named only what they stored: every
+    unchanged file under the paths named with the version it already had."""
+    states = [f for p in paths for f in vault.status(p, unchanged=True).files]
+    entries, failed = vault._store_files(states, note, removals=True, unchanged=True)
+    assert not failed
+    return vault._new_checkin(entries, note, who="D. M.", **labels)
+
+
+def test_an_old_style_record_does_not_replace_a_version_s_note(lib):
+    vault = pdm.init(lib)
+    part = lib / "Jobs" / "1042" / "bracket.sldprt"
+    shutil.copyfile(XB_A, lib / "Jobs" / "1042" / "model.x_b")
+    vault.checkin([lib], "baseline")
+    write(lib / "Jobs" / ".hidden" / "dot.sldprt", "a dot-named file")
+    old_style_checkin(vault, [lib], "Files and folders whose names start with a dot")
+    rec = records(lib)[-1]
+    c = parse_checkin(rec.read_bytes(), rec.name, rec.parent.name)
+    assert len(c.files) == 5 and sum(f.new for f in c.files) == 1  # it names the unchanged ones
+    for name in ("bracket.sldprt", "plate.step", "model.x_b"):
+        (v1,) = vault.log(lib / "Jobs" / "1042" / name)["versions"]
+        assert v1["note"] == "baseline" and v1["labels"] == []
+        assert [c["note"] for c in v1["checkins"]] == ["baseline"]
+    (dot,) = vault.log(lib / "Jobs" / ".hidden" / "dot.sldprt")["versions"]
+    assert dot["note"] == "Files and folders whose names start with a dot"
+    old_style_checkin(vault, [lib], "whole library, issued", revision="C", state="issued")
+    (v1,) = vault.log(part)["versions"]
+    assert v1["note"] == "baseline"  # a revision is a label, not the version's note
+    assert [(x["revision"], x["state"]) for x in v1["labels"]] == [("C", "issued")]
+    assert [c["note"] for c in v1["checkins"]] == ["whole library, issued", "baseline"]
+    shown = vault.show(lib / "Jobs" / "1042" / "model.x_b", "v1")
+    assert shown["note"] == "baseline" and [x["revision"] for x in shown["labels"]] == ["C"]
 
 
 # --------------------------------------------------------------------------- restore
@@ -606,6 +678,7 @@ def test_malformed_records_are_skipped(lib):
     (folder / "29990101T000000000000Z-ffffffffffff.json").write_bytes(b"{broken")
     log = vault.log(part)
     assert [v["checkins"][0]["note"] for v in log["versions"]] == ["good one"]
+    assert [v["note"] for v in log["versions"]] == ["good one"]
     assert vault.status().counts == {"new": 2, "changed": 0, "gone": 0, "unchanged": 1}
 
 
@@ -673,7 +746,7 @@ def test_plain_words(capsys, lib):
     write(part, "bracket two")
     assert cli.main(["pdm", "log", str(part)]) == 0
     out = capsys.readouterr().out
-    assert "working copy" in out and "first issue [revision A]" in out
+    assert "working copy" in out and "first issue" in out and "revision A, " in out
     assert cli.main(["pdm", "restore", str(part), "v1"]) == 0
     out = capsys.readouterr().out
     assert "stored the current file first" in out and "put v1" in out

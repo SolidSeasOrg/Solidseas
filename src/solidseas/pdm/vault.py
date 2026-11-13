@@ -498,12 +498,17 @@ class CheckinResult:
     scope: list[str]
     skipped: list[dict[str, Any]] = field(default_factory=list)
     counts: dict[str, int] | None = None  # a scan's, from its status (its files leave out unchanged ones)
+    list_unchanged: bool = False
 
     def data(self) -> dict[str, Any]:
+        """The result as JSON: the stored, gone and failed files are listed, the
+        unchanged ones only counted unless ``list_unchanged`` was asked for."""
         c = self.checkin
         stored = {f.path: f for f in c.files} if c is not None else {}
         rows = []
         for f in self.files:
+            if f.state == "unchanged" and not self.list_unchanged:
+                continue
             entry = stored.get(f.path)
             rows.append(
                 {
@@ -524,7 +529,7 @@ class CheckinResult:
             "record": None if c is None else c.record,
             "scope": list(self.scope),
             "counts": counts,
-            "stored": sum(1 for r in rows if r["stored"]),
+            "stored": sum(1 for e in stored.values() if e.new),
             "files": rows,
             "failed": list(self.failed),
             "skipped": list(self.skipped),
@@ -954,10 +959,14 @@ class Vault:
         note: str | None,
         *,
         removals: bool,
+        unchanged: bool = False,
         progress: Callable[[int, int, int], None] | None = None,
     ) -> tuple[list[CheckinFile], list[dict[str, Any]]]:
         """Store a version of each new or changed file in ``states`` and return the
-        check-in's entries and the files that failed. The versions are stored in batches
+        check-in's entries and the files that failed. The entries name the stored files,
+        the gone ones with ``removals`` and the unchanged ones (with the version they
+        have) only with ``unchanged``, which a revision or state needs to cover them. The
+        versions are stored in batches
         (:meth:`~solidseas.versions.snapstore.SnapshotStore.add_many`), and all of them are
         on disk when this returns, before the check-in record that names them is written.
         ``progress(done, total, bytes)`` is called as files are copied."""
@@ -979,7 +988,7 @@ class Vault:
                     entries.append(CheckinFile(f.path, None, None, None, False, True))
                 continue
             if f.state == "unchanged":
-                if f.snapshot is not None:
+                if unchanged and f.snapshot is not None:
                     entries.append(CheckinFile(f.path, f.snapshot.sha256, f.snapshot.size, f.snapshot.id))
                 continue
             result = stored[id(f)]
@@ -1022,13 +1031,18 @@ class Vault:
         state: str | None = None,
         who: str | None = None,
         progress: Callable[[int, int, int], None] | None = None,
+        list_unchanged: bool = False,
     ) -> CheckinResult:
         """Store a version of each new or changed tracked file under ``paths`` (files or
-        folders) and write one check-in record with ``note``. Unchanged files are listed
-        in the record with the version they already have and are not stored again; gone
-        files are recorded as removed, so status stops listing them. ``revision`` and
-        ``state`` are labels of at most 64 characters; ``who`` defaults to the settings'.
-        ``progress(done, total, bytes)`` is called as the new and changed files are copied."""
+        folders) and write one check-in record with ``note``. The record names the files
+        it stored and the gone ones, recorded as removed so status stops listing them.
+        Unchanged files are not stored again, and the record names them, with the version
+        they already have, only when a ``revision`` or ``state`` is given, so the label
+        covers the whole set. Nothing is written when nothing changed and no label is
+        given. ``revision`` and ``state`` are labels of at most 64 characters; ``who``
+        defaults to the settings'. The result counts the unchanged files and lists them
+        only with ``list_unchanged``. ``progress(done, total, bytes)`` is called as the
+        new and changed files are copied."""
         if not isinstance(note, str) or not note.strip() or len(note) > snapstore.MAX_NOTE or "\0" in note:
             raise InvalidArgumentError(
                 f"a check-in needs a note of at most {snapstore.MAX_NOTE} characters",
@@ -1065,16 +1079,20 @@ class Vault:
                 "there is no tracked file there to check in",
                 detail={"rule": "nothing_tracked", "parameter": "paths"},
             )
-        if len(ordered) > MAX_CHECKIN_FILES:
+        labelled = revision is not None or state is not None
+        named = len(ordered) if labelled else sum(1 for f in ordered if f.state != "unchanged")
+        if named > MAX_CHECKIN_FILES:
             raise InvalidArgumentError(
                 f"a check-in holds at most {MAX_CHECKIN_FILES:,} files: check in a smaller folder",
                 detail={"parameter": "paths"},
             )
-        entries, failed = self._store_files(ordered, note, removals=True, progress=progress)
+        entries, failed = self._store_files(
+            ordered, note, removals=True, unchanged=labelled, progress=progress
+        )
         record = (
             self._new_checkin(entries, note, who=who, revision=revision, state=state) if entries else None
         )
-        return CheckinResult(record, ordered, failed, scope, skipped)
+        return CheckinResult(record, ordered, failed, scope, skipped, list_unchanged=list_unchanged)
 
     def scan(
         self,
@@ -1113,21 +1131,35 @@ class Vault:
             return versions.timeline(full, source="git")
         return versions.timeline(full, source="snapshots", store=self.store)
 
+    def _version_checkins(self, rel: str) -> dict[str, tuple[Checkin | None, list[Checkin]]]:
+        """For each version of the file, keyed by its id: the check-in that stored it (the
+        earliest that names it as new) and the check-ins that gave it a revision or state,
+        newest first. A check-in that only names a version the file already had, as a
+        whole-folder check-in once named every unchanged file, adds nothing."""
+        key = _folded(rel)
+        stored: dict[str, Checkin] = {}
+        labelled: dict[str, list[Checkin]] = {}
+        for c in self.checkins():  # oldest first
+            for f in c.files:
+                if f.snapshot is None or _folded(f.path) != key:
+                    continue
+                if f.new and f.snapshot not in stored:
+                    stored[f.snapshot] = c
+                if c.revision is not None or c.state is not None:
+                    labelled.setdefault(f.snapshot, []).insert(0, c)
+        return {s: (stored.get(s), labelled.get(s, [])) for s in set(stored) | set(labelled)}
+
     def log(self, path: str | os.PathLike) -> dict[str, Any]:
-        """The file's versions, newest first: the vault's, each with the check-ins that
-        name it (note, revision, state, who), and the Git commits that changed it when the
+        """The file's versions, newest first: the vault's, each with its note (that of the
+        check-in that stored it, else the version's own), the revision and state labels
+        check-ins gave it, and those check-ins; and the Git commits that changed it when the
         file sits in a Git repository. The working copy is on top when it differs from the
         newest version in the vault."""
         from .. import versions
         from ..versions import gitrepo
 
         full, rel = self._file(path)
-        by_snapshot: dict[str, list[dict[str, Any]]] = {}
-        key = _folded(rel)
-        for c in self.checkins():
-            for f in c.files:
-                if f.snapshot is not None and _folded(f.path) == key:
-                    by_snapshot.setdefault(f.snapshot, []).insert(0, c.brief())  # newest first
+        by_snapshot = self._version_checkins(rel)
         entries: list[dict[str, Any]] = []
         warnings: list[dict[str, Any]] = []
         with self._timeline(full, "vault") as t:
@@ -1135,7 +1167,7 @@ class Vault:
             for v in t.versions:
                 row = _log_row(v.data(), "working" if v.kind == "working" else "vault")
                 if v.kind == "snapshot":
-                    row["checkins"] = by_snapshot.get(v.id, [])
+                    row.update(_version_notes(row["subject"], *by_snapshot.get(v.id, (None, []))))
                 entries.append(row)
         git = None
         repo = gitrepo.find_repository(full)
@@ -1179,17 +1211,23 @@ class Vault:
         from ..versions import DEFAULT_MAX_VERSION_BYTES
         from ..versions.versiondiff import Side, _document_brief
 
-        full, _rel = self._file(path)
+        full, rel = self._file(path)
         with self._timeline(full, source) as t:
             v = t.find(version)
             data = t.read(v, limit=DEFAULT_MAX_VERSION_BYTES)
             v.sha256 = v.sha256 or hashlib.sha256(data).hexdigest()
+            vdata = v.data()
+            if source == "vault" and v.kind == "snapshot":
+                notes = _version_notes(vdata["subject"], *self._version_checkins(rel).get(v.id, (None, [])))
+            else:
+                notes = {"note": vdata["subject"], "stored_by": None, "labels": [], "checkins": []}
             with Side(data, os.path.basename(full)) as side:
                 summary = side.summary
                 return {
                     "file": {"name": os.path.basename(full), "path": full},
                     "source": t.source,
-                    "version": v.data(),
+                    "version": vdata,
+                    **notes,
                     "document": _document_brief(summary),
                     "properties": list(summary.get("properties") or []),
                     "configurations": [c.get("name") for c in summary.get("configurations") or []],
@@ -1333,7 +1371,38 @@ def _log_row(v: dict[str, Any], source: str) -> dict[str, Any]:
         "size": v["size"],
         "sha256": v["sha256"],
         "available": v["available"],
+        "note": v["subject"],
+        "stored_by": None,
+        "labels": [],
         "checkins": [],
+    }
+
+
+def _version_notes(subject: str | None, stored: Checkin | None, labelled: list[Checkin]) -> dict[str, Any]:
+    """A vault version's ``note``, ``stored_by``, ``labels`` and ``checkins``
+    (``docs/PDM.md`` 3): the note of the check-in that stored it, else the version's own;
+    that check-in; each revision or state a check-in gave it, newest first, with its time;
+    and those check-ins, newest first."""
+    labels = [
+        {
+            "revision": c.revision,
+            "state": c.state,
+            "when_utc": c.when.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "who": c.who,
+            "checkin": c.id,
+        }
+        for c in labelled
+    ]
+    named = list(labelled)
+    if stored is not None and all(c is not stored for c in named):
+        named.append(stored)
+    named.sort(key=lambda c: (c.when, c.id), reverse=True)
+    note = stored.note if stored is not None and stored.note else subject
+    return {
+        "note": note,
+        "stored_by": None if stored is None else stored.brief(),
+        "labels": labels,
+        "checkins": [c.brief() for c in named],
     }
 
 

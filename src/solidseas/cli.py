@@ -3482,6 +3482,7 @@ def _pdm_checkin(args: argparse.Namespace) -> int:
         state=args.state,
         who=args.who,
         progress=_StoreProgress(args),
+        list_unchanged=args.list_unchanged,
     )
     data = result.data()
     if not args.json:
@@ -3516,20 +3517,23 @@ def _pdm_log(args: argparse.Namespace) -> int:
                     f"{'git':<5}{v['id'][:12]:<14}{_when(v['time_utc'])}  {who}{v['subject'] or ''}".rstrip()
                 )
                 continue
-            notes = [c for c in v["checkins"] if not c["auto"]]
-            words = "; ".join(
-                (c["note"] or "")
-                + "".join(f" [{k} {c[k]}]" for k in ("revision", "state") if c[k] is not None)
-                + (f" ({c['who']})" if c["who"] else "")
-                for c in notes
-            )
-            if not notes:
-                words = v["subject"] or ("scan" if v["checkins"] else "")
+            words = v["note"] or ("scan" if v["stored_by"] and v["stored_by"]["auto"] else "")
+            stored_by = v["stored_by"]
+            if stored_by is not None and stored_by["who"] and not stored_by["auto"]:
+                words += f" ({stored_by['who']})"
             _say(f"v{v['number']:<4}{v['id']:<14}{_when(v['time_utc'])}  {words}".rstrip())
+            for label in v["labels"]:
+                _say(f"{'':<18}{_say_label(label)}")
         if data["working"]["state"] == "missing":
             _say("the file does not exist now")
         _say_warnings(data["warnings"])
     return _pdm_done(args, vault, data)
+
+
+def _say_label(label: dict[str, Any]) -> str:
+    words = ", ".join(f"{k} {label[k]}" for k in ("revision", "state") if label[k] is not None)
+    who = f" by {label['who']}" if label["who"] else ""
+    return f"{words}, {_when(label['when_utc'])}{who}"
 
 
 def _pdm_show(args: argparse.Namespace) -> int:
@@ -3540,6 +3544,10 @@ def _pdm_show(args: argparse.Namespace) -> int:
     if not args.json:
         v, d = data["version"], data["document"]
         _say(f"{data['file']['name']} v{v['number']} ({_version_label(v)}, {_when(v['time_utc'])})")
+        if data["note"]:
+            _say(f"  {data['note']}")
+        for label in data["labels"]:
+            _say(f"  {_say_label(label)}")
         kind = " ".join(x for x in (d["format"], d["type"]) if x)
         saved = f", saved by {d['saved_version']}" if d["saved_version"] else ""
         _say(f"  {kind}{saved}, {d['configurations']} configurations, {d['properties']} properties")
@@ -4938,6 +4946,9 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument("--revision", default=None, metavar="R", help="a revision label, such as B")
     ap.add_argument("--state", default=None, metavar="S", help="a state label, such as released")
     ap.add_argument("--who", default=None, metavar="NAME", help="who checks in (default: vault.json's who)")
+    ap.add_argument(
+        "--list-unchanged", action="store_true", help="list the unchanged files too (they are always counted)"
+    )
     ap = pdm_action("scan", "store a version of every changed tracked file, with no note; safe to schedule")
     ap.add_argument(
         "path",
