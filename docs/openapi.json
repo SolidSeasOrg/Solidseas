@@ -42,6 +42,10 @@
     {
       "name": "catalog",
       "description": "Queries of the catalog the service keeps of its roots when started with `--catalog` (provisional). Without it they answer 403 `feature_disabled`, and before the first scan has finished 503 `busy`."
+    },
+    {
+      "name": "pdm",
+      "description": "The history of the PDM library that holds a root's files, when the service is started with `--pdm` (provisional): what changed, each file's versions with their check-in notes, one version's facts, recent check-ins and a project's self-contained check. Without it they answer 403 `feature_disabled`, and for a path in no library 404 `not_a_library`. Every path is relative to the root, and the library's files outside the root are left out."
     }
   ],
   "paths": {
@@ -5567,6 +5571,1417 @@
         },
         "x-solidseas-provisional": true
       }
+    },
+    "/v1/pdm/status": {
+      "get": {
+        "operationId": "getPdmStatus",
+        "tags": [
+          "pdm"
+        ],
+        "summary": "List the files changed since their last version",
+        "description": "The tracked files below a folder of the root (or one file) that are new, changed since their newest version in the PDM library, or gone, with counts of each. A file whose size and time match its newest version is not read.\n\nDeadline 60 s by default (504 `timeout` past it); an answer over 8 MiB answers 422 `response_too_large`.\n\nProvisional: it may change in any release, with a note in the changelog (docs/API.md section 9).\n\nHEAD is answered too, with the headers alone. Reference: docs/API.md section 5.21.",
+        "parameters": [
+          {
+            "name": "root",
+            "in": "query",
+            "required": true,
+            "description": "The id of a root, as `/v1/roots` lists them.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z0-9_-]{1,32}$"
+            }
+          },
+          {
+            "name": "path",
+            "in": "query",
+            "required": false,
+            "description": "A folder or one file, `/`-separated and relative to the root. Leave it out for the whole root. A file that is gone is named by its folder and its name.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1024
+            }
+          },
+          {
+            "name": "unchanged",
+            "in": "query",
+            "required": false,
+            "description": "Also list the files that have not changed (they are always counted). `true` or `false`; `1` and `0` are accepted too.",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
+            "$ref": "#/components/parameters/IfNoneMatch"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The `pdm_status` envelope.",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PdmStatusEnvelope"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not modified since the ETag sent in `If-None-Match`; no body.",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            }
+          },
+          "400": {
+            "description": "The request is not valid.\n\n- `duplicate_parameter`: A request parameter appears more than once.\n- `invalid_argument`: An argument is missing or not valid.\n- `unknown_parameter`: The request has a parameter this route does not accept.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid bearer token. The answer carries `WWW-Authenticate`.\n\n- `unauthorized`: A valid bearer token is required.",
+            "headers": {
+              "WWW-Authenticate": {
+                "$ref": "#/components/headers/WWW-Authenticate"
+              },
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Refused.\n\n- `feature_disabled`: This feature is switched off in the configuration.\n- `forbidden_host`: The Host header names a host this service does not serve.\n- `forbidden_origin`: Cross-site browser requests are refused.\n- `link_refused`: The path goes through a link or junction, which is never followed.\n- `path_refused`: The path was refused by a safety rule.\n- `permission_denied`: The operating system denied access to the file.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.\n\n- `not_a_library`: The folder is not inside a PDM library.\n- `not_found`: The file or folder does not exist.\n- `root_not_found`: No root has that id.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Not available as it is.\n\n- `placeholder_file`: The file is a cloud placeholder whose data is not on this machine.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "414": {
+            "description": "The URL is longer than 4 KiB.\n\n- `uri_too_long`: The request URL is too long.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The file, or the answer, is beyond what the service reads or sends.\n\n- `damaged_file`: The file is damaged or is not a complete SOLIDWORKS document.\n- `response_too_large`: The response would exceed its size limit.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many failed attempts from this address; wait for `Retry-After`.\n\n- `too_many_failures`: Too many failed authentication attempts.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              },
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "The headers are too large or too many.\n\n- `headers_too_large`: The request headers are too large or too many.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The service failed. Quote `X-Request-Id`, which its log line carries.\n\n- `internal`: An internal error occurred.\n- `worker_crashed`: The worker reading the file stopped unexpectedly.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Busy or unavailable; try again after `Retry-After`.\n\n- `busy`: The service is busy. Try again shortly.\n- `root_unavailable`: The root folder is not available right now.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              },
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Not finished within the route's deadline.\n\n- `timeout`: Reading the file did not finish in time.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "x-solidseas-provisional": true
+      }
+    },
+    "/v1/pdm/log": {
+      "get": {
+        "operationId": "getPdmLog",
+        "tags": [
+          "pdm"
+        ],
+        "summary": "Get a file's history",
+        "description": "Every version the library keeps of a file, newest first, each with the check-ins that name it (note, revision, state, who), the working copy on top when it differs from the newest version, and the Git commits that changed it when it sits in a Git repository. A file that is gone from the folder still has its history.\n\nDeadline 60 s by default (504 `timeout` past it); an answer over 8 MiB answers 422 `response_too_large`.\n\nProvisional: it may change in any release, with a note in the changelog (docs/API.md section 9).\n\nHEAD is answered too, with the headers alone. Reference: docs/API.md section 5.21.",
+        "parameters": [
+          {
+            "name": "root",
+            "in": "query",
+            "required": true,
+            "description": "The id of a root, as `/v1/roots` lists them.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z0-9_-]{1,32}$"
+            }
+          },
+          {
+            "name": "path",
+            "in": "query",
+            "required": true,
+            "description": "The file, `/`-separated and relative to the root. A file that is gone from its folder is found by its folder and its name, and still has its history.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1024
+            }
+          },
+          {
+            "$ref": "#/components/parameters/IfNoneMatch"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The `pdm_log` envelope.",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PdmLogEnvelope"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not modified since the ETag sent in `If-None-Match`; no body.",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            }
+          },
+          "400": {
+            "description": "The request is not valid.\n\n- `duplicate_parameter`: A request parameter appears more than once.\n- `invalid_argument`: An argument is missing or not valid.\n- `unknown_parameter`: The request has a parameter this route does not accept.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid bearer token. The answer carries `WWW-Authenticate`.\n\n- `unauthorized`: A valid bearer token is required.",
+            "headers": {
+              "WWW-Authenticate": {
+                "$ref": "#/components/headers/WWW-Authenticate"
+              },
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Refused.\n\n- `feature_disabled`: This feature is switched off in the configuration.\n- `forbidden_host`: The Host header names a host this service does not serve.\n- `forbidden_origin`: Cross-site browser requests are refused.\n- `link_refused`: The path goes through a link or junction, which is never followed.\n- `path_refused`: The path was refused by a safety rule.\n- `permission_denied`: The operating system denied access to the file.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.\n\n- `not_a_library`: The folder is not inside a PDM library.\n- `not_found`: The file or folder does not exist.\n- `root_not_found`: No root has that id.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Not available as it is.\n\n- `placeholder_file`: The file is a cloud placeholder whose data is not on this machine.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "414": {
+            "description": "The URL is longer than 4 KiB.\n\n- `uri_too_long`: The request URL is too long.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The file, or the answer, is beyond what the service reads or sends.\n\n- `damaged_file`: The file is damaged or is not a complete SOLIDWORKS document.\n- `response_too_large`: The response would exceed its size limit.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many failed attempts from this address; wait for `Retry-After`.\n\n- `too_many_failures`: Too many failed authentication attempts.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              },
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "The headers are too large or too many.\n\n- `headers_too_large`: The request headers are too large or too many.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The service failed. Quote `X-Request-Id`, which its log line carries.\n\n- `internal`: An internal error occurred.\n- `worker_crashed`: The worker reading the file stopped unexpectedly.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Busy or unavailable; try again after `Retry-After`.\n\n- `busy`: The service is busy. Try again shortly.\n- `root_unavailable`: The root folder is not available right now.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              },
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Not finished within the route's deadline.\n\n- `timeout`: Reading the file did not finish in time.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "x-solidseas-provisional": true
+      }
+    },
+    "/v1/pdm/version": {
+      "get": {
+        "operationId": "getPdmVersion",
+        "tags": [
+          "pdm"
+        ],
+        "summary": "Get one version of a file",
+        "description": "One version's facts, as `solidseas pdm show` gives them: the version, its document's format, type and release, its properties and configurations, and each configuration's geometry counts and fingerprint. The version is read in a worker from the library's store (or from Git).\n\nDeadline 60 s by default (504 `timeout` past it); an answer over 8 MiB answers 422 `response_too_large`.\n\nProvisional: it may change in any release, with a note in the changelog (docs/API.md section 9).\n\nHEAD is answered too, with the headers alone. Reference: docs/API.md section 5.21.",
+        "parameters": [
+          {
+            "name": "root",
+            "in": "query",
+            "required": true,
+            "description": "The id of a root, as `/v1/roots` lists them.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z0-9_-]{1,32}$"
+            }
+          },
+          {
+            "name": "path",
+            "in": "query",
+            "required": true,
+            "description": "The file, `/`-separated and relative to the root, as for `/v1/pdm/log`.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1024
+            }
+          },
+          {
+            "name": "version",
+            "in": "query",
+            "required": true,
+            "description": "The version, as `/v1/pdm/log` lists it: `v1` (the oldest), `v2` and so on, `latest`, `working` (the file on disk) or the first characters of its id.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "pattern": "^[^\\u0000-\\u001f\\u007f]*$"
+            }
+          },
+          {
+            "name": "source",
+            "in": "query",
+            "required": false,
+            "description": "`vault` for the library's versions, `git` for the Git repository's.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "vault",
+                "git"
+              ],
+              "default": "vault"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/IfNoneMatch"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The `pdm_version` envelope.",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PdmVersionEnvelope"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not modified since the ETag sent in `If-None-Match`; no body.",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            }
+          },
+          "400": {
+            "description": "The request is not valid.\n\n- `duplicate_parameter`: A request parameter appears more than once.\n- `invalid_argument`: An argument is missing or not valid.\n- `unknown_parameter`: The request has a parameter this route does not accept.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid bearer token. The answer carries `WWW-Authenticate`.\n\n- `unauthorized`: A valid bearer token is required.",
+            "headers": {
+              "WWW-Authenticate": {
+                "$ref": "#/components/headers/WWW-Authenticate"
+              },
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Refused.\n\n- `feature_disabled`: This feature is switched off in the configuration.\n- `forbidden_host`: The Host header names a host this service does not serve.\n- `forbidden_origin`: Cross-site browser requests are refused.\n- `link_refused`: The path goes through a link or junction, which is never followed.\n- `path_refused`: The path was refused by a safety rule.\n- `permission_denied`: The operating system denied access to the file.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.\n\n- `not_a_library`: The folder is not inside a PDM library.\n- `not_found`: The file or folder does not exist.\n- `root_not_found`: No root has that id.\n- `version_not_found`: The file has no version by that name.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Not available as it is.\n\n- `placeholder_file`: The file is a cloud placeholder whose data is not on this machine.\n- `version_unavailable`: That version's content is not on this machine.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "414": {
+            "description": "The URL is longer than 4 KiB.\n\n- `uri_too_long`: The request URL is too long.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The file, or the answer, is beyond what the service reads or sends.\n\n- `damaged_file`: The file is damaged or is not a complete SOLIDWORKS document.\n- `file_too_large`: The file is larger than the configured maximum.\n- `format_not_supported`: SolidSeas cannot read this file's format, or a feature this file uses.\n- `limit_exceeded`: The document exceeds a safety limit.\n- `response_too_large`: The response would exceed its size limit.\n- `unknown_format`: The file is not a SOLIDWORKS document.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many failed attempts from this address; wait for `Retry-After`.\n\n- `too_many_failures`: Too many failed authentication attempts.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              },
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "The headers are too large or too many.\n\n- `headers_too_large`: The request headers are too large or too many.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The service failed. Quote `X-Request-Id`, which its log line carries.\n\n- `internal`: An internal error occurred.\n- `worker_crashed`: The worker reading the file stopped unexpectedly.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Busy or unavailable; try again after `Retry-After`.\n\n- `busy`: The service is busy. Try again shortly.\n- `root_unavailable`: The root folder is not available right now.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              },
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Not finished within the route's deadline.\n\n- `timeout`: Reading the file did not finish in time.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "x-solidseas-provisional": true
+      }
+    },
+    "/v1/pdm/checkins": {
+      "get": {
+        "operationId": "listPdmCheckins",
+        "tags": [
+          "pdm"
+        ],
+        "summary": "List recent check-ins",
+        "description": "The check-ins that name a file below a folder of the root, newest first, each with its note, revision, state, who and its files below the root (at most 100 listed). Automatic scans are left out unless `scans` is given. A page over the size cap holds fewer check-ins, and `next_cursor` continues from where it stops.\n\nDeadline 60 s by default (504 `timeout` past it); an answer over 8 MiB answers 422 `response_too_large`.\n\nProvisional: it may change in any release, with a note in the changelog (docs/API.md section 9).\n\nHEAD is answered too, with the headers alone. Reference: docs/API.md section 5.21.",
+        "parameters": [
+          {
+            "name": "root",
+            "in": "query",
+            "required": true,
+            "description": "The id of a root, as `/v1/roots` lists them.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z0-9_-]{1,32}$"
+            }
+          },
+          {
+            "name": "path",
+            "in": "query",
+            "required": false,
+            "description": "A folder, `/`-separated and relative to the root: only check-ins that name a file below it. Leave it out for the whole root.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1024
+            }
+          },
+          {
+            "name": "scans",
+            "in": "query",
+            "required": false,
+            "description": "Also list the automatic scans, which have no note. `true` or `false`; `1` and `0` are accepted too.",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "The most rows a page holds.",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 1,
+              "maximum": 500,
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "The `next_cursor` of the previous page, sent back as it was, with the other parameters unchanged. A cursor from another query answers 400.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4096,
+              "pattern": "^[^\\u0000-\\u001f\\u007f]*$"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/IfNoneMatch"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The `pdm_checkins` envelope.",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PdmCheckinsEnvelope"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not modified since the ETag sent in `If-None-Match`; no body.",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            }
+          },
+          "400": {
+            "description": "The request is not valid.\n\n- `duplicate_parameter`: A request parameter appears more than once.\n- `invalid_argument`: An argument is missing or not valid.\n- `unknown_parameter`: The request has a parameter this route does not accept.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid bearer token. The answer carries `WWW-Authenticate`.\n\n- `unauthorized`: A valid bearer token is required.",
+            "headers": {
+              "WWW-Authenticate": {
+                "$ref": "#/components/headers/WWW-Authenticate"
+              },
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Refused.\n\n- `feature_disabled`: This feature is switched off in the configuration.\n- `forbidden_host`: The Host header names a host this service does not serve.\n- `forbidden_origin`: Cross-site browser requests are refused.\n- `link_refused`: The path goes through a link or junction, which is never followed.\n- `path_refused`: The path was refused by a safety rule.\n- `permission_denied`: The operating system denied access to the file.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.\n\n- `not_a_library`: The folder is not inside a PDM library.\n- `not_found`: The file or folder does not exist.\n- `root_not_found`: No root has that id.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Not available as it is.\n\n- `placeholder_file`: The file is a cloud placeholder whose data is not on this machine.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "414": {
+            "description": "The URL is longer than 4 KiB.\n\n- `uri_too_long`: The request URL is too long.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The file, or the answer, is beyond what the service reads or sends.\n\n- `damaged_file`: The file is damaged or is not a complete SOLIDWORKS document.\n- `response_too_large`: The response would exceed its size limit.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many failed attempts from this address; wait for `Retry-After`.\n\n- `too_many_failures`: Too many failed authentication attempts.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              },
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "The headers are too large or too many.\n\n- `headers_too_large`: The request headers are too large or too many.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The service failed. Quote `X-Request-Id`, which its log line carries.\n\n- `internal`: An internal error occurred.\n- `worker_crashed`: The worker reading the file stopped unexpectedly.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Busy or unavailable; try again after `Retry-After`.\n\n- `busy`: The service is busy. Try again shortly.\n- `root_unavailable`: The root folder is not available right now.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              },
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Not finished within the route's deadline.\n\n- `timeout`: Reading the file did not finish in time.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "x-solidseas-provisional": true
+      }
+    },
+    "/v1/pdm/check": {
+      "get": {
+        "operationId": "checkPdmProject",
+        "tags": [
+          "pdm"
+        ],
+        "summary": "Check that a project holds every file it uses",
+        "description": "Reads every SOLIDWORKS document of the project that holds the folder, read-only, and resolves each reference the way SOLIDWORKS searches, from the document's folder up past the project (docs/PDM.md section 5). A file found in another of the service's roots is named by its root and path; one found outside every root only says so (`outside_roots`).\n\nDeadline 180 s by default (504 `timeout` past it); an answer over 8 MiB answers 422 `response_too_large`.\n\nProvisional: it may change in any release, with a note in the changelog (docs/API.md section 9).\n\nHEAD is answered too, with the headers alone. Reference: docs/API.md section 5.21.",
+        "parameters": [
+          {
+            "name": "root",
+            "in": "query",
+            "required": true,
+            "description": "The id of a root, as `/v1/roots` lists them.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z0-9_-]{1,32}$"
+            }
+          },
+          {
+            "name": "path",
+            "in": "query",
+            "required": false,
+            "description": "A project folder, or a folder inside one, `/`-separated and relative to the root. Leave it out when the root is the project.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1024
+            }
+          },
+          {
+            "name": "copy_toolbox",
+            "in": "query",
+            "required": false,
+            "description": "Treat Toolbox parts as files the project must hold, instead of ones SOLIDWORKS loads from its installation. `true` or `false`; `1` and `0` are accepted too.",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
+            "$ref": "#/components/parameters/IfNoneMatch"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The `pdm_check` envelope.",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PdmCheckEnvelope"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not modified since the ETag sent in `If-None-Match`; no body.",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            }
+          },
+          "400": {
+            "description": "The request is not valid.\n\n- `duplicate_parameter`: A request parameter appears more than once.\n- `invalid_argument`: An argument is missing or not valid.\n- `unknown_parameter`: The request has a parameter this route does not accept.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid bearer token. The answer carries `WWW-Authenticate`.\n\n- `unauthorized`: A valid bearer token is required.",
+            "headers": {
+              "WWW-Authenticate": {
+                "$ref": "#/components/headers/WWW-Authenticate"
+              },
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Refused.\n\n- `feature_disabled`: This feature is switched off in the configuration.\n- `forbidden_host`: The Host header names a host this service does not serve.\n- `forbidden_origin`: Cross-site browser requests are refused.\n- `link_refused`: The path goes through a link or junction, which is never followed.\n- `path_refused`: The path was refused by a safety rule.\n- `permission_denied`: The operating system denied access to the file.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.\n\n- `not_a_library`: The folder is not inside a PDM library.\n- `not_found`: The file or folder does not exist.\n- `root_not_found`: No root has that id.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Not available as it is.\n\n- `placeholder_file`: The file is a cloud placeholder whose data is not on this machine.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "414": {
+            "description": "The URL is longer than 4 KiB.\n\n- `uri_too_long`: The request URL is too long.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The file, or the answer, is beyond what the service reads or sends.\n\n- `damaged_file`: The file is damaged or is not a complete SOLIDWORKS document.\n- `response_too_large`: The response would exceed its size limit.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "423": {
+            "description": "The file is locked.\n\n- `locked`: Another program holds the file locked. Try again shortly.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many failed attempts from this address; wait for `Retry-After`.\n\n- `too_many_failures`: Too many failed authentication attempts.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              },
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "The headers are too large or too many.\n\n- `headers_too_large`: The request headers are too large or too many.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The service failed. Quote `X-Request-Id`, which its log line carries.\n\n- `internal`: An internal error occurred.\n- `worker_crashed`: The worker reading the file stopped unexpectedly.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Busy or unavailable; try again after `Retry-After`.\n\n- `busy`: The service is busy. Try again shortly.\n- `root_unavailable`: The root folder is not available right now.",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              },
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Not finished within the route's deadline.\n\n- `timeout`: Reading the file did not finish in time.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "x-solidseas-provisional": true
+      }
     }
   },
   "components": {
@@ -5890,6 +7305,7 @@
               "link_refused",
               "locked",
               "no_preview",
+              "not_a_library",
               "not_found",
               "not_implemented",
               "not_in_catalog",
@@ -5907,6 +7323,8 @@
               "unknown_format",
               "unknown_parameter",
               "uri_too_long",
+              "version_not_found",
+              "version_unavailable",
               "worker_crashed"
             ]
           },
@@ -6164,6 +7582,136 @@
               },
               "data": {
                 "$ref": "#/components/schemas/PathReport"
+              }
+            }
+          }
+        ]
+      },
+      "PdmCheck": {
+        "type": "object",
+        "description": "The `pdm_check` kind, schema version 1: docs/API.md section 5.21. `solidseas schema pdm_check` prints its full JSON Schema.",
+        "additionalProperties": true
+      },
+      "PdmCheckEnvelope": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Envelope"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "pdm_check"
+                ]
+              },
+              "data": {
+                "$ref": "#/components/schemas/PdmCheck"
+              }
+            }
+          }
+        ]
+      },
+      "PdmCheckins": {
+        "type": "object",
+        "description": "The `pdm_checkins` kind, schema version 1: docs/API.md section 5.21. `solidseas schema pdm_checkins` prints its full JSON Schema.",
+        "additionalProperties": true
+      },
+      "PdmCheckinsEnvelope": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Envelope"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "pdm_checkins"
+                ]
+              },
+              "data": {
+                "$ref": "#/components/schemas/PdmCheckins"
+              }
+            }
+          }
+        ]
+      },
+      "PdmLog": {
+        "type": "object",
+        "description": "The `pdm_log` kind, schema version 1: docs/API.md section 5.21. `solidseas schema pdm_log` prints its full JSON Schema.",
+        "additionalProperties": true
+      },
+      "PdmLogEnvelope": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Envelope"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "pdm_log"
+                ]
+              },
+              "data": {
+                "$ref": "#/components/schemas/PdmLog"
+              }
+            }
+          }
+        ]
+      },
+      "PdmStatus": {
+        "type": "object",
+        "description": "The `pdm_status` kind, schema version 1: docs/API.md section 5.21. `solidseas schema pdm_status` prints its full JSON Schema.",
+        "additionalProperties": true
+      },
+      "PdmStatusEnvelope": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Envelope"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "pdm_status"
+                ]
+              },
+              "data": {
+                "$ref": "#/components/schemas/PdmStatus"
+              }
+            }
+          }
+        ]
+      },
+      "PdmVersion": {
+        "type": "object",
+        "description": "The `pdm_version` kind, schema version 1: docs/API.md section 5.21. `solidseas schema pdm_version` prints its full JSON Schema.",
+        "additionalProperties": true
+      },
+      "PdmVersionEnvelope": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Envelope"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "pdm_version"
+                ]
+              },
+              "data": {
+                "$ref": "#/components/schemas/PdmVersion"
               }
             }
           }

@@ -115,3 +115,22 @@ of its history, and it moves with the library.
 
 Every command takes `--json` and prints one `pdm_result` document, described in
 [API.md](../API.md).
+
+## Read the history from another program
+
+The REST service and the MCP server can answer from a library too, read-only, when
+you start them with `--pdm`:
+
+```bash
+solidseas serve --root jobs=D:\CAD\Jobs --pdm
+solidseas mcp --root jobs=D:\CAD\Jobs --pdm
+```
+
+They then answer what `status`, `log` and `show` print, the recent check-ins and
+`pdm check`'s findings for a project, for the library that holds each root (the root
+itself, a folder above it or one inside it). Every path in an answer is relative to the
+root, and the history of files outside the root is left out. The routes are off unless
+you ask for them, because they send your check-in notes and the facts of earlier
+versions, deleted files included, to whoever holds a token or uses the app. The routes
+and their answers are in [API.md](../API.md) (8.6 and 5.21), and the MCP tools in
+[MCP.md](../MCP.md).

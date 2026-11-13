@@ -77,7 +77,14 @@ meets them:
     or changes over it holds fewer rows, its cursor continuing from there. Before
     the first scan has finished they answer 503 ``busy``, and without
     ``--catalog`` 403 ``feature_disabled``.
-11. **Logging.** One line per request: time, request id, client (the token's
+11. **The PDM** (``--pdm``, provisional). ``/v1/pdm/status``, ``/v1/pdm/log``,
+    ``/v1/pdm/version``, ``/v1/pdm/checkins`` and ``/v1/pdm/check`` read the history
+    of the PDM library (:mod:`solidseas.pdm`) that holds the requested path, in a
+    worker, with a deadline (:mod:`.pdm`). The library may be the root, a folder above
+    it or one inside it; every path in an answer is relative to the root, and the
+    vault's files outside the root are left out. A path in no library answers 404
+    ``not_a_library``, and without ``--pdm`` every one of them 403 ``feature_disabled``.
+12. **Logging.** One line per request: time, request id, client (the token's
     name), peer, method, route, root id, status, error code, refusal rule and
     component index, duration and bytes. Never a path, a query, a token or
     anything read from a file.
@@ -85,7 +92,7 @@ meets them:
 The service never writes, renames or deletes anything under a root; its only
 writes are its own token file and identity key file, on the first start that
 finds none, besides the catalog in the cache folder and the OCCT helper's
-temporary copies (item 8).
+temporary copies (item 8). The PDM routes only read the vault.
 """
 
 import base64
@@ -173,6 +180,10 @@ DEFAULT_DEADLINES: dict[str, float] = {
     # the assembly's own reading and the resolution in this process
     "bom": 120.0,
     "catalog": 5.0,
+    # the PDM's reads: a status hashes the files whose size or time changed
+    "pdm": 60.0,
+    # a project's self-contained check reads every document in it
+    "pdm_check": 180.0,
     # a part stored without a display mesh is drawn from its bodies, which may take 30 s
     "mesh": 60.0,
 }
@@ -185,6 +196,7 @@ DEFAULT_CAPS: dict[str, int] = {
     "list": 8 << 20,
     "preview": 16 << 20,
     "catalog": 1 << 20,
+    "pdm": 8 << 20,
     # a GLB: the triangle cap of solidseas.gltf keeps one near 40 MB
     "mesh": 64 << 20,
 }
@@ -249,6 +261,9 @@ class ServeConfig:
     catalog: bool = False
     catalog_rescan_s: float = 300.0
     catalog_cache_dir: str | None = None
+    # The PDM routes (/v1/pdm/..., provisional): a library's history, check-in notes and
+    # project checks, off by default like the catalog (docs/API.md 8.6).
+    pdm: bool = False
     # The file formats the service reads (provisional): "solidworks", "all" or format ids.
     formats: Any = registry.SOLIDWORKS
     # The bounds of every model-file read (provisional): a Limits, a mapping of changes to
@@ -656,11 +671,71 @@ ROUTES: dict[str, Route] = {
             deadline="catalog",
             cap="catalog",
         ),
+        Route(
+            "/v1/pdm/status",
+            "pdm_status",
+            {"root": _ROOT, "path": Param("path", default=""), "unchanged": Param("bool", default=False)},
+            job="pdm_status",
+            deadline="pdm",
+            cap="pdm",
+        ),
+        Route(
+            "/v1/pdm/log",
+            "pdm_log",
+            {"root": _ROOT, "path": _FILE},
+            job="pdm_log",
+            deadline="pdm",
+            cap="pdm",
+        ),
+        Route(
+            "/v1/pdm/version",
+            "pdm_version",
+            {
+                "root": _ROOT,
+                "path": _FILE,
+                "version": Param("text", required=True, max_len=64),
+                "source": Param("enum", choices=("vault", "git"), default="vault"),
+            },
+            job="pdm_version",
+            deadline="pdm",
+            cap="pdm",
+        ),
+        Route(
+            "/v1/pdm/checkins",
+            "pdm_checkins",
+            {
+                "root": _ROOT,
+                "path": Param("path", default=""),
+                "scans": Param("bool", default=False),
+                "limit": Param("int", low=1, high=500, default=50),
+                "cursor": Param("cursor"),
+            },
+            job="pdm_checkins",
+            deadline="pdm",
+            cap="pdm",
+        ),
+        Route(
+            "/v1/pdm/check",
+            "pdm_check",
+            {"root": _ROOT, "path": Param("path", default=""), "copy_toolbox": Param("bool", default=False)},
+            job="pdm_check",
+            deadline="pdm_check",
+            cap="pdm",
+        ),
     )
 }
 # The catalog's pages: a page over the route's size cap is asked for again with fewer rows.
 _CATALOG_PAGES = ("duplicates", "missing_references", "catalog_changes")
 CATALOG_KINDS = ("catalog", "where_used", "catalog_search", *_CATALOG_PAGES)
+# The PDM's routes (--pdm), by kind: whether each names a file, a folder, or either.
+PDM_TARGETS = {
+    "pdm_status": "any",
+    "pdm_log": "file",
+    "pdm_version": "file",
+    "pdm_checkins": "folder",
+    "pdm_check": "folder",
+}
+PDM_KINDS = tuple(PDM_TARGETS)
 # the worker job's parameters, from the route's query parameters
 _JOB_PARAMS = {
     "/v1/document": ("nested",),
@@ -1055,6 +1130,98 @@ class Server:
         answer.content_type, answer.body, answer.csp = f.content_type, f.body, f.csp
         answer.not_modified_for(if_none_match)
         return answer
+
+    # ------------------------------------------------------------------ the PDM
+    def _pdm_target(self, s: "_RootState", text: str, want: str) -> Located:
+        """The file or folder a PDM route names, found as every route finds a path. A file
+        that is gone (the history of a removed file) is its folder, found that way, and its
+        name, checked as text; the worker refuses a name that is a link."""
+        if want == "folder" or (want == "any" and not text):
+            parts = check_path_text(text, want="folder")
+            return locate(s.index, parts, want="folder", root_dev=s.root_dev)
+        # any file name: the vault decides which files it tracks (its settings may add kinds)
+        parts = check_path_text(text, want="file", extensions=("",))
+        if want == "any":
+            try:
+                return locate(s.index, parts, want="folder", root_dev=s.root_dev)
+            except InvalidArgumentError as exc:  # a file, not a folder
+                if not exc.detail or exc.detail.get("rule") != "not_a_folder":
+                    raise
+            except FileNotFoundError:
+                pass
+        try:
+            return locate(s.index, parts, want="file", root_dev=s.root_dev)
+        except FileNotFoundError:
+            folder = locate(s.index, parts[:-1], want="folder", root_dev=s.root_dev)
+            rel = "/".join((*([folder.rel] if folder.rel else []), parts[-1]))
+            return Located(rel, os.path.join(folder.host, parts[-1]), parts[-1], False, None, None)
+
+    def pdm_answer(
+        self, route: Route, q: dict[str, Any], canonical, started: float, if_none_match: str | None
+    ) -> "_Answer":
+        """``/v1/pdm/status``, ``/v1/pdm/log``, ``/v1/pdm/version``, ``/v1/pdm/checkins``
+        and ``/v1/pdm/check`` (provisional, ``--pdm``): the vault of the library that holds
+        the path, read in a worker (:mod:`.pdm`), every path relative to the root. The
+        answer depends on the vault, not on one file, so its tag is taken from the answer."""
+        from ..pdm import find_library
+        from .pdm import not_a_library
+
+        if not self.config.pdm:
+            raise ServiceError("feature_disabled", "the PDM routes are off: start the service with --pdm")
+        s = self._ready(q["root"])
+        if not s.root.recursive:
+            raise InvalidArgumentError(
+                "a root served without its subfolders has no PDM routes",
+                detail={"parameter": "root", "rule": "flat_root"},
+            )
+        loc = self._pdm_target(s, q["path"], PDM_TARGETS[route.kind])
+        source: dict[str, Any] = {"root": s.id, "path": loc.rel}
+        if find_library(loc.host) is None:  # an lstat of the vault's settings file at and above it
+            raise not_a_library()
+        answer = _Answer(source=source, cap=self.config.response_caps[route.cap])
+        deadline = started + self.config.deadlines[route.deadline]
+        params: dict[str, Any] = {"path": loc.host, "within": s.root.path}
+        qhash = ""
+        if route.kind == "pdm_status":
+            params["unchanged"] = q["unchanged"]
+        elif route.kind == "pdm_version":
+            params.update(version=q["version"], source=q["source"])
+        elif route.kind == "pdm_checkins":
+            qhash = hashlib.sha256(
+                repr([p for p in canonical if p[0] not in ("cursor", "limit")]).encode()
+            ).hexdigest()[:16]
+            params["scans"] = q["scans"]
+            if q.get("cursor") is not None:
+                params["after"] = _decode_cursor(q["cursor"], qhash)
+        elif route.kind == "pdm_check":
+            params["copy_toolbox"] = q["copy_toolbox"]
+            params["roots"] = [
+                {"id": x.root.id, "path": x.root.path, "recursive": x.root.recursive} for x in self._states
+            ]
+        with self.slot():
+            if route.kind != "pdm_checkins":
+                data = self.call(route.job, params, deadline, answer.cap).data
+            else:
+                data = self._pdm_page(route, params, q["limit"], qhash, source, deadline, answer.cap)
+        if not isinstance(data, dict):
+            raise WorkerCrashedError("the worker's answer was not what the job returns")
+        answer.json(model.envelope(route.kind, data, source=source))
+        answer.etag = self.etag(route.kind, hashlib.sha256(answer.body).hexdigest())
+        answer.not_modified_for(if_none_match)
+        return answer
+
+    def _pdm_page(self, route: Route, params, limit: int, qhash: str, source, deadline: float, cap: int):
+        """A page of check-ins: one over the size cap is asked for again with half as many
+        check-ins, so its ``next_cursor`` still continues where it stops."""
+        while True:
+            data = self.call(route.job, {**params, "limit": limit}, deadline, cap).data
+            if not isinstance(data, dict):
+                raise WorkerCrashedError("the worker's answer was not what the job returns")
+            after = data.pop("next_after", None)
+            data["next_cursor"] = None if after is None else _encode_cursor(qhash, after)
+            if limit == 1 or len(model.dumps(model.envelope(route.kind, data, source=source))) <= cap:
+                return data
+            limit = max(1, limit // 2)
 
     @staticmethod
     def _catalog_page(cat, kind: str, q: dict[str, Any], cap: int | None) -> dict[str, Any]:
@@ -2103,6 +2270,8 @@ class _Handler(BaseHTTPRequestHandler):
             return app.bom(route, q, canonical, self._t0, inm)
         if route.kind in CATALOG_KINDS:
             return app.catalog_answer(route, q, canonical, inm)
+        if route.kind in PDM_KINDS:
+            return app.pdm_answer(route, q, canonical, self._t0, inm)
         return app.document(route, q, canonical, self._t0, inm)
 
 
@@ -2159,6 +2328,7 @@ __all__ = [
     "DEFAULT_CAPS",
     "DEFAULT_DEADLINES",
     "DEFAULT_PORT",
+    "PDM_KINDS",
     "ROUTES",
     "Route",
     "SECURITY_HEADERS",

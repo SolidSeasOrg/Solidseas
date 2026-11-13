@@ -11,7 +11,9 @@ it.
 
 Status: step 1 of section 8 is built (provisional, `solidseas.pdm`, `docs/API.md`
 3.29): the vault, check-in, scan, status, log, show, diff and restore on the command
-line. The self-contained check and the library of common parts are being built.
+line. The self-contained check and the library of common parts are being built. Step 5
+is built too: `serve --pdm` and `mcp --pdm` answer status, logs, versions, check-ins and
+the self-contained check, read-only (`docs/API.md` 8.6).
 
 ## 1. What it is for
 

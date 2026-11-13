@@ -20,7 +20,7 @@ import pytest
 from fakefs import ARCHIVE, FakeEntry, fake_tree
 from jsonschema_subset import validate
 from serve_support import TOKEN, Running, wait_for
-from solidseas import AddressUnavailableError, Root, Roots, cli, model, open_document
+from solidseas import AddressUnavailableError, Root, Roots, cli, model, open_document, pdm
 from solidseas.resolve import resolve_references
 from solidseas.serve import ROUTES, ServeConfig, Server
 from solidseas.serve import server as server_mod
@@ -66,7 +66,7 @@ def test_the_routes_are_the_registrys():
     assert all(p.startswith("/v1/") for p in ROUTES)
 
 
-def test_every_json_answer_matches_its_schema(srv):
+def test_every_json_answer_matches_its_schema(srv, tmp_path):
     calls = [
         ("health", {}),
         ("identity", {"client": "tests", "nonce": "n" * 43}),
@@ -106,6 +106,26 @@ def test_every_json_answer_matches_its_schema(srv):
             assert validate(env, model.envelope_schema(env["kind"]), strict=True) == [], (route, env["kind"])
     finally:
         cataloged.close()
+    # the PDM's routes, over a library around a copy of the root (tests/test_serve_pdm.py has the rest)
+    library = tmp_path / "library"
+    project = library / "Jobs" / "1042"
+    shutil.copytree(srv.server.config.roots["jobs"].path, project)
+    pdm.init(library).checkin([project], "first")
+    with_pdm = Running({"jobs": library}, pdm=True)
+    try:
+        for route, params in (
+            ("pdm/status", {"root": "jobs"}),
+            ("pdm/log", {"root": "jobs", "path": "Jobs/1042/o02_boxA.SLDPRT"}),
+            ("pdm/version", {"root": "jobs", "path": "Jobs/1042/o02_boxA.SLDPRT", "version": "latest"}),
+            ("pdm/checkins", {"root": "jobs"}),
+            ("pdm/check", {"root": "jobs", "path": "Jobs/1042"}),
+            ("pdm/status", {"root": "jobs", "path": "Jobs/none"}),
+        ):
+            env = with_pdm.get(route, **params).json()
+            kinds.append(env["kind"])
+            assert validate(env, model.envelope_schema(env["kind"]), strict=True) == [], (route, env["kind"])
+    finally:
+        with_pdm.close()
     served = {name for name, spec in model.KINDS.items() if spec.rest_route and spec.alternate_of is None}
     assert set(kinds) == served | {"error"} and len(served) >= 10
 

@@ -2010,6 +2010,7 @@ def _serve_settings(args: argparse.Namespace) -> dict[str, Any]:
         "allow_origins": args.allow_origin,
         "catalog": args.catalog,
         "catalog_rescan": args.catalog_rescan,
+        "pdm": args.pdm,
         "formats": args.formats,
         "viewer": args.viewer,
     }
@@ -2022,6 +2023,7 @@ def _serve_settings(args: argparse.Namespace) -> dict[str, Any]:
         "allow_origins": [],
         "catalog": False,
         "catalog_rescan": 300.0,
+        "pdm": False,
         "formats": registry.SOLIDWORKS,
         "viewer": False,
     }
@@ -2056,7 +2058,9 @@ def cmd_mcp(args: argparse.Namespace) -> int:
     args.json = False
     projects = _root_args(args.root, "project", "--root")
     roots = _service_roots(projects + _root_args(args.library, "library", "--library"), "mcp")
-    return serve_stdio(Roots(roots), workers=args.workers or DEFAULT_WORKERS, catalog=bool(args.catalog))
+    return serve_stdio(
+        Roots(roots), workers=args.workers or DEFAULT_WORKERS, catalog=bool(args.catalog), pdm=bool(args.pdm)
+    )
 
 
 def cmd_serve(args: argparse.Namespace) -> int:
@@ -2097,6 +2101,7 @@ def cmd_serve(args: argparse.Namespace) -> int:
         workers=s["workers"] or default_workers(),
         catalog=s["catalog"],
         catalog_rescan_s=s["catalog_rescan"],
+        pdm=s["pdm"],
         formats=s["formats"],
         identity_key=identity_key,
         identity_addresses=tuple(s["identity_addresses"]),
@@ -4281,6 +4286,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="scan the roots for the catalog again after this many seconds (default 300)",
     )
     sp.add_argument(
+        "--pdm",
+        action="store_true",
+        default=None,
+        help="answer /v1/pdm/status, /v1/pdm/log, /v1/pdm/version, /v1/pdm/checkins and /v1/pdm/check "
+        "from the PDM library that holds the roots (provisional): file history, check-in notes and "
+        "project checks",
+    )
+    sp.add_argument(
         "--formats",
         default=None,
         metavar="IDS",
@@ -4315,6 +4328,12 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="keep a catalog of the roots in your cache folder and offer search, where_used, duplicates, "
         "missing_references and recent_changes",
+    )
+    sp.add_argument(
+        "--pdm",
+        action="store_true",
+        help="offer pdm_status, file_history, file_version, recent_checkins and check_project from the PDM "
+        "library that holds the roots (provisional)",
     )
 
     def add_catalog_choice(sp: argparse.ArgumentParser) -> None:

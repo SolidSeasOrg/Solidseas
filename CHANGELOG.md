@@ -25,6 +25,19 @@ while the project takes shape.
 
 ### Added
 
+- **A library's history over the REST service and MCP (provisional).** Start
+  solidseas serve or solidseas mcp with --pdm, and other programs and chat apps
+  can read the history of the PDM library that holds your folders: which files
+  changed since their last version, a file's versions with their check-in notes,
+  one version's properties and geometry, the recent check-ins a page at a time,
+  and whether a project holds every file it uses. The routes are
+  /v1/pdm/status, /v1/pdm/log, /v1/pdm/version, /v1/pdm/checkins and
+  /v1/pdm/check, and the MCP tools pdm_status, file_history, file_version,
+  recent_checkins and check_project. They only read. Every path in an answer is
+  relative to the served folder, files outside it are left out, and a folder in
+  no library answers not_a_library. They are off by default, like the catalog,
+  because check-in notes and earlier versions say more than the files do.
+
 - **The self-contained project check, in Python.** solidseas.pdm.check
   finds every reference of a project's documents the way SOLIDWORKS searches,
   past the project folder, and says for each whether it is in the project,

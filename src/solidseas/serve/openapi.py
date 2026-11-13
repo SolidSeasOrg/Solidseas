@@ -78,6 +78,8 @@ _READS = (
     "worker_crashed",
 )
 _CATALOG = ("catalog_incompatible", "feature_disabled", "response_too_large", "timeout")
+# the PDM's routes: a root and a path, the library's vault read in a worker
+_PDM = (*_ROOTED, "damaged_file", "feature_disabled", "not_a_library", "worker_crashed")
 _PROVISIONAL_NOTE = (
     "Provisional: it may change in any release, with a note in the changelog (docs/API.md section 9)."
 )
@@ -302,6 +304,73 @@ _OPERATIONS: dict[str, tuple[str, str, str, str, tuple[str, ...], bool, str]] = 
         True,
         "5.15",
     ),
+    "/v1/pdm/status": (
+        "getPdmStatus",
+        "pdm",
+        "List the files changed since their last version",
+        "The tracked files below a folder of the root (or one file) that are new, changed since their "
+        "newest version in the PDM library, or gone, with counts of each. A file whose size and time "
+        "match its newest version is not read.",
+        _PDM,
+        True,
+        "5.21",
+    ),
+    "/v1/pdm/log": (
+        "getPdmLog",
+        "pdm",
+        "Get a file's history",
+        "Every version the library keeps of a file, newest first, each with the check-ins that name "
+        "it (note, revision, state, who), the working copy on top when it differs from the newest "
+        "version, and the Git commits that changed it when it sits in a Git repository. A file that is "
+        "gone from the folder still has its history.",
+        _PDM,
+        True,
+        "5.21",
+    ),
+    "/v1/pdm/version": (
+        "getPdmVersion",
+        "pdm",
+        "Get one version of a file",
+        "One version's facts, as `solidseas pdm show` gives them: the version, its document's format, "
+        "type and release, its properties and configurations, and each configuration's geometry "
+        "counts and fingerprint. The version is read in a worker from the library's store (or from "
+        "Git).",
+        (
+            *_PDM,
+            "file_too_large",
+            "format_not_supported",
+            "limit_exceeded",
+            "unknown_format",
+            "version_not_found",
+            "version_unavailable",
+        ),
+        True,
+        "5.21",
+    ),
+    "/v1/pdm/checkins": (
+        "listPdmCheckins",
+        "pdm",
+        "List recent check-ins",
+        "The check-ins that name a file below a folder of the root, newest first, each with its note, "
+        "revision, state, who and its files below the root (at most 100 listed). Automatic scans are "
+        "left out unless `scans` is given. A page over the size cap holds fewer check-ins, and "
+        "`next_cursor` continues from where it stops.",
+        _PDM,
+        True,
+        "5.21",
+    ),
+    "/v1/pdm/check": (
+        "checkPdmProject",
+        "pdm",
+        "Check that a project holds every file it uses",
+        "Reads every SOLIDWORKS document of the project that holds the folder, read-only, and resolves "
+        "each reference the way SOLIDWORKS searches, from the document's folder up past the project "
+        "(docs/PDM.md section 5). A file found in another of the service's roots is named by its root "
+        "and path; one found outside every root only says so (`outside_roots`).",
+        (*_PDM, "locked"),
+        True,
+        "5.21",
+    ),
 }
 
 _TAGS = (
@@ -319,6 +388,14 @@ _TAGS = (
         "Queries of the catalog the service keeps of its roots when started with `--catalog` "
         "(provisional). Without it they answer 403 `feature_disabled`, and before the first scan has "
         "finished 503 `busy`.",
+    ),
+    (
+        "pdm",
+        "The history of the PDM library that holds a root's files, when the service is started with "
+        "`--pdm` (provisional): what changed, each file's versions with their check-in notes, one "
+        "version's facts, recent check-ins and a project's self-contained check. Without it they "
+        "answer 403 `feature_disabled`, and for a path in no library 404 `not_a_library`. Every path "
+        "is relative to the root, and the library's files outside the root are left out.",
     ),
 )
 
@@ -370,6 +447,22 @@ _PARAMETERS: dict[tuple[str, str] | str, str] = {
     "sort": "`relevance`, `name` or `modified` (newest first).",
     "names": "Also list files that share a name but differ in content.",
     "since": "Only changes since then: `7d`, `12h`, `2w` or a date such as `2026-09-01`.",
+    ("/v1/pdm/status", "path"): "A folder or one file, `/`-separated and relative to the root. Leave it out "
+    "for the whole root. A file that is gone is named by its folder and its name.",
+    ("/v1/pdm/log", "path"): "The file, `/`-separated and relative to the root. A file that is gone from "
+    "its folder is found by its folder and its name, and still has its history.",
+    ("/v1/pdm/version", "path"): "The file, `/`-separated and relative to the root, as for `/v1/pdm/log`.",
+    ("/v1/pdm/checkins", "path"): "A folder, `/`-separated and relative to the root: only check-ins that "
+    "name a file below it. Leave it out for the whole root.",
+    ("/v1/pdm/check", "path"): "A project folder, or a folder inside one, `/`-separated and relative to "
+    "the root. Leave it out when the root is the project.",
+    "unchanged": "Also list the files that have not changed (they are always counted).",
+    "version": "The version, as `/v1/pdm/log` lists it: `v1` (the oldest), `v2` and so on, `latest`, "
+    "`working` (the file on disk) or the first characters of its id.",
+    "source": "`vault` for the library's versions, `git` for the Git repository's.",
+    "scans": "Also list the automatic scans, which have no note.",
+    "copy_toolbox": "Treat Toolbox parts as files the project must hold, instead of ones SOLIDWORKS "
+    "loads from its installation.",
     "client": "The name of the client's line in the service's token file.",
     "nonce": "A fresh random value for this check alone, such as 32 random bytes in hex or base64url.",
 }
@@ -616,6 +709,7 @@ _KIND_SECTIONS = {
         "catalog_changes",
     ),
     "5.16": ("model_summary",),
+    "5.21": ("pdm_status", "pdm_log", "pdm_version", "pdm_checkins", "pdm_check"),
 }
 
 
