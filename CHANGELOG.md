@@ -25,6 +25,24 @@ while the project takes shape.
 
 ### Added
 
+- **A Library of Common Parts window in the viewer.** PDM > Library of Common
+  Parts lists the library's items with their description, file, versions, the
+  projects using them and whether any copy is behind, with a search box. Use in
+  Project copies an item into a project you pick and says where the copy went,
+  never over a file. Show Copies lists each project's copy as unchanged, edited,
+  gone or behind. Update Copies brings the copies that are behind up to date,
+  and asks before replacing one that was edited in its project. Add to Library
+  makes the file selected in the list an item, and a Candidates tab lists the
+  parts that two or more projects share, most widely shared first. A file in
+  the list that is not an item yet has Add to the Library on its right-click
+  menu.
+
+- **Check Project makes the copies.** The Check Project window's Make Copies
+  lists each file that would be copied into the project, where it would go and
+  why, and the copies that cannot be made. After you confirm, it makes them as
+  new files, never over a file already there, and shows the project checked
+  again.
+
 - **A PDM menu in the viewer.** When the folder you open is in a library, the
   PDM menu checks files in with a note, an optional revision and state, after
   listing what changed; Changes lists the files that are new, changed or gone;

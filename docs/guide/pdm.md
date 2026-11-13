@@ -203,10 +203,18 @@ replaced unless you add `--force`.
 
 SolidSeas Desktop has a PDM menu while the opened folder lies in a library: Check
 In (with the note, revision and state, after listing what changed), Changes,
-Check Project and Restore Version, which puts back the version chosen on the
-History tab. The History tab lists a library file's versions with their check-in
-notes. Outside a library the menu offers Make This Folder a Library, which does
-what `pdm init` does. See [The PDM menu](viewer.md#the-pdm-menu).
+Check Project, Library of Common Parts and Restore Version, which puts back the
+version chosen on the History tab. The History tab lists a library file's
+versions with their check-in notes. Outside a library the menu offers Make This
+Folder a Library, which does what `pdm init` does.
+
+Check Project's Make Copies does what `check --plan` and `check --fix` do: it
+lists the copies, asks, makes them and shows the project checked again. The
+Library of Common Parts window does what `pdm library` does: it lists the items
+with a search box, and Use in Project, Show Copies, Update Copies and Add to
+Library work on the chosen item. Its Candidates tab lists the parts that several
+projects share. A file in the list that is not an item yet has Add to the
+Library on its right-click menu. See [The PDM menu](viewer.md#the-pdm-menu).
 
 ## What SolidSeas writes
 

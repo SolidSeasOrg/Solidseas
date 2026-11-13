@@ -401,3 +401,260 @@ def test_a_folder_s_menu_and_check_project(app, window, tmp_path):
     assert outside.text(2) == f"{cad / 'Library' / 'bolt.SLDPRT'} (in the library)"
     assert dialog.tree.topLevelItem(0).child(0).text(2) == "Not found"
     dialog.reject()
+
+
+# --------------------------------------------------------------------------- the library of common parts
+def _kind(app, w, kind: str, start: int) -> dict:
+    """The first result of ``kind`` shown since ``start``."""
+    _wait(app, lambda: any(r.get("kind") == kind for r in w.test_shown[start:]))
+    return next(r for r in w.test_shown[start:] if r.get("kind") == kind)
+
+
+def _library(app, w, start: int) -> dict:
+    """The Library window's newest reading, once it is shown."""
+    _wait(app, lambda: any(r.get("kind") == "library" and r["latest"] for r in w.test_shown[start:]))
+    return next(r for r in w.test_shown[start:] if r.get("kind") == "library" and r["latest"])
+
+
+def _later(path: Path) -> None:
+    """A written file's time moved on, so a size and time check sees the change."""
+    st = path.stat()
+    os.utime(path, ns=(st.st_atime_ns, st.st_mtime_ns + 2_000_000_000))
+
+
+def _texts(menu) -> list[str]:
+    return [a.text() for a in menu.actions()]
+
+
+def test_the_library_words():
+    from solidseas_app.viewer import pdmlibrary
+
+    row = {"copy": "unchanged", "behind": False, "number": 1, "newest_number": 1}
+    assert pdmlibrary.copy_state(row) == "Unchanged"
+    row.update(behind=True, newest_number=2)
+    assert pdmlibrary.copy_state(row) == "Behind: the copy is v1, the library has v2"
+    row["copy"] = "edited"
+    assert pdmlibrary.copy_state(row) == "Edited in the project. Behind: the copy is v1, the library has v2"
+    assert pdmlibrary.copy_state({"copy": "gone", "behind": True}) == "Gone from the project"
+    item = {"exists": True, "stored": True, "version": {"number": 3}}
+    assert pdmlibrary.versions_text(item) == "3"
+    assert pdmlibrary.versions_text({**item, "stored": False}) == "3, changed since"
+    assert pdmlibrary.versions_text({**item, "exists": False}) == "File gone"
+    fix = {"copied": [{}, {}], "failed": [{"destination": "/p/a.SLDPRT", "message": "it is there"}]}
+    assert pdmlibrary.fix_line(fix) == (
+        "Made 2 copies in the project. 1 copy could not be made: a.SLDPRT (it is there)."
+    )
+    assert pdmlibrary.problem_text({"detail": {"rule": "exists"}}).startswith(
+        "A file of that name is already"
+    )
+
+
+@needs_qt
+def test_the_library_window_adds_uses_and_updates_items(app, window, tmp_path, monkeypatch):
+    cad = library(tmp_path, make=False)
+    job = cad / "Jobs" / "1042"
+    other = cad / "Jobs" / "1043"
+    other.mkdir()
+    (other / "base.3mf").write_bytes(part(2))
+    pdm.init(cad)
+    w = window
+    _open(app, w, job)
+    w.pdm.update_actions()
+    assert "&Library of Common Parts..." in _visible(w) and w.pdm.act_library.isEnabled()
+    _select(app, w, "box.3mf")
+    menu = w.list_menu(w.proxy.mapFromSource(w.model.index(w.model.find("box.3mf"), 0)))
+    assert "Add box.3mf to the Library..." in _texts(menu)
+    box = (job / "box.3mf").read_bytes()
+
+    dialog = w.pdm.open_library()
+    got = _library(app, w, 0)
+    assert got["ok"] and got["items"] == [] and got["projects"] == ["Jobs/1042", "Jobs/1043"]
+    assert dialog.line.text().startswith("The library has no items yet.")
+    assert not dialog.use_button.isEnabled() and dialog.add_button.isEnabled()
+
+    # Add to Library, from the file selected in the list
+    start = len(w.test_shown)
+    add = w.pdm.add_selected()
+    assert "box.3mf itself is not changed" in add.line.text()
+    add.description.setText("Box  30 mm")
+    add.ok.click()
+    got = _kind(app, w, "library_add", start)
+    assert got["ok"], got
+    assert got["text"] == (
+        "Added box.3mf to the library as SS-00001. The copy is Library/box.3mf; box.3mf itself is unchanged."
+    )
+    assert (cad / "Library" / "box.3mf").read_bytes() == box and (job / "box.3mf").read_bytes() == box
+    _library(app, w, start)
+    assert _tops(dialog.items) == ["SS-00001"]
+    top = dialog.items.topLevelItem(0)
+    assert [top.text(c) for c in range(6)] == ["SS-00001", "Box 30 mm", "Library/box.3mf", "1", "0", "No"]
+    assert w.pdm.is_item(str(cad / "Library" / "box.3mf")) and not w.pdm.is_item(str(job / "box.3mf"))
+    start = len(w.test_shown)
+    w.pdm.add_now(str(job / "box.3mf"))  # again: a file of that name is in Library already
+    got = _kind(app, w, "library_add", start)
+    assert not got["ok"] and got["text"] == (
+        "box.3mf was not added to the library. A file of that name is already there, and a copy never "
+        "replaces a file, so nothing was copied."
+    )
+
+    # Use in Project, into a folder of 1043
+    dialog.items.setCurrentItem(top)
+    assert dialog.use_button.isEnabled() and dialog.show_button.isEnabled()
+    assert not dialog.update_button.isEnabled()
+    use = w.pdm.use_in_project()
+    assert use.project.currentText() == "Jobs/1042"  # the project of the opened folder
+    assert "never replaced" in use.line.text()
+    use.project.setCurrentIndex(1)
+    use.to.setText("parts")
+    start = len(w.test_shown)
+    use.ok.click()
+    got = _kind(app, w, "library_use", start)
+    copy = other / "parts" / "box.3mf"
+    assert got["ok"] and got["text"] == f"Copied SS-00001 v1 to {copy}."
+    assert copy.read_bytes() == box and w.statusBar().currentMessage() == got["text"]
+    start = len(w.test_shown)
+    w.pdm.use_now("SS-00001", "Jobs/1043", "parts")  # never over a file
+    got = _kind(app, w, "library_use", start)
+    assert not got["ok"] and "never replaces a file" in got["text"]
+    _library(app, w, start)
+    assert dialog.items.topLevelItem(0).text(4) == "1"
+
+    # the library part changes: the copy is behind
+    (cad / "Library" / "box.3mf").write_bytes(part(40))
+    _later(cad / "Library" / "box.3mf")
+    start = len(w.test_shown)
+    w.pdm.refresh_library()
+    _library(app, w, start)
+    assert dialog.items.topLevelItem(0).text(5) == "1 of 1 copies"
+    assert dialog.items.topLevelItem(0).text(3) == "1, changed since"
+    dialog.items.setCurrentItem(dialog.items.topLevelItem(0))
+    assert dialog.update_button.isEnabled()
+    dialog.show_button.click()
+    assert dialog.copies_line.text() == "SS-00001 is copied into 1 project (1 copy):"
+    row = dialog.copies.topLevelItem(0)
+    assert [row.text(c) for c in range(2)] == ["Jobs/1043", "Jobs/1043/parts/box.3mf"]
+    assert row.text(2).startswith("Behind: the copy is v1, the library has ")
+
+    # Update Copies: an edited copy only when the person says so
+    copy.write_bytes(part(7))
+    _later(copy)
+    edited = copy.read_bytes()
+    start = len(w.test_shown)
+    w.pdm.refresh_library()
+    _library(app, w, start)
+    dialog.items.setCurrentItem(dialog.items.topLevelItem(0))
+    asked: list = []
+    monkeypatch.setattr(w.pdm, "ask", lambda title, text: asked.append(text) or False)
+    w.pdm.update_copies()
+    assert "Replace the edited copies with the library's version too?" in asked[0]
+    assert "Jobs/1043/parts/box.3mf" in asked[0]
+    assert (
+        dialog.copies_line.text() == "Nothing was updated: every copy of SS-00001 that is behind was edited."
+    )
+    assert copy.read_bytes() == edited
+    monkeypatch.setattr(w.pdm, "ask", lambda title, text: True)
+    start = len(w.test_shown)
+    w.pdm.update_copies()
+    got = _kind(app, w, "library_update", start)
+    assert got["text"] == "Updated 1 copy of SS-00001. Each was kept as a version first."
+    assert copy.read_bytes() == (cad / "Library" / "box.3mf").read_bytes()
+    log = pdm.open(cad).log(copy)["versions"]
+    assert sum(1 for v in log if v["source"] == "vault") == 3  # the copy, as edited, and as updated
+    _library(app, w, start)
+    assert dialog.items.topLevelItem(0).text(5) == "No"
+    dialog.reject()
+
+
+@needs_qt
+def test_the_candidates_tab_adds_a_shared_part(app, window, tmp_path):
+    cad = library(tmp_path, make=False)
+    for job in ("1042", "1043"):
+        (cad / "Jobs" / job).mkdir(parents=True, exist_ok=True)
+        (cad / "Jobs" / job / "bolt.sldprt").write_bytes(b"the same bolt")
+    pdm.init(cad)
+    before = _state(cad / "Jobs")
+    w = window
+    _open(app, w, cad / "Jobs")
+    dialog = w.pdm.open_library()
+    _library(app, w, 0)
+    start = len(w.test_shown)
+    dialog.tabs.setCurrentIndex(1)
+    got = _kind(app, w, "candidates", start)
+    assert got["ok"] and _tops(dialog.candidates_tree) == ["bolt.sldprt"]
+    row = dialog.candidates_tree.topLevelItem(0)
+    assert [row.text(c) for c in range(4)] == ["bolt.sldprt", "2", "2", "Jobs/1042, Jobs/1043"]
+    assert dialog.candidates_line.text().startswith("1 part sits in two or more projects")
+    assert not dialog.candidate_button.isEnabled()
+    dialog.candidates_tree.setCurrentItem(row)
+    assert dialog.candidate_button.isEnabled()
+    add = w.pdm.add_candidate()
+    assert add.path == str(cad / "Jobs" / "1042" / "bolt.sldprt")
+    add.item.setText("BOLT-1")
+    start = len(w.test_shown)
+    add.ok.click()
+    got = _kind(app, w, "library_add", start)
+    assert got["ok"] and got["data"]["item"]["item"] == "BOLT-1"
+    got = _kind(app, w, "candidates", start)  # looked for again: the library holds it now
+    assert got["data"]["candidates"] == [] and dialog.candidates_line.text().startswith("No part sits")
+    assert _state(cad / "Jobs") == before  # the projects' files are as they were
+    assert (cad / "Library" / "bolt.sldprt").read_bytes() == b"the same bolt"
+    dialog.reject()
+
+
+@needs_qt
+def test_check_project_makes_the_planned_copies(app, window, tmp_path, monkeypatch):
+    from builders import TreeXml, part_with_creation_time, resolving_assembly
+
+    ct = 1_700_000_000
+    cad = tmp_path / "CAD"
+    a = cad / "Jobs" / "A"
+    a.mkdir(parents=True)
+    (cad / "Library").mkdir(parents=True)
+    bolt = part_with_creation_time(ct)
+    (cad / "Library" / "bolt.SLDPRT").write_bytes(bolt)
+    t = TreeXml()
+    t.top("m1")
+    t.file("2", "bolt.SLDPRT", swCreationTime=str(ct))
+    t.model("m2", "2")
+    t.ref("m1", "c2", 1, "m2")
+    (a / "asm.SLDASM").write_bytes(resolving_assembly(t))
+    asm = (a / "asm.SLDASM").read_bytes()
+    vault = pdm.init(cad)
+    vault.library.add(cad / "Library" / "bolt.SLDPRT", "BOLT-1")
+    w = window
+    _open(app, w, a)
+    dialog = w.pdm.check_project(str(a))
+    got = _kind(app, w, "check", 0)
+    assert got["ok"] and dialog.make_button.isEnabled()
+    assert _tops(dialog.tree)[0] == "Found only outside the project (1)"
+
+    plan = w.pdm.plan_copies(dialog)
+    assert _tops(plan.tree) == ["Copies to make (1)"]
+    row = plan.tree.topLevelItem(0).child(0)
+    assert [row.text(c) for c in range(3)] == [
+        str(cad / "Library" / "bolt.SLDPRT"),
+        "bolt.SLDPRT",
+        "Used by asm.SLDASM; found in the library; library item BOLT-1",
+    ]
+    assert plan.ok.text() == "Make 1 Copy" and plan.ok.isEnabled()
+    asked: list = []
+    monkeypatch.setattr(w.pdm, "ask", lambda title, text: asked.append(text) or False)
+    plan.ok.click()
+    assert asked[0].startswith("Copy 1 file into Jobs/A?")
+    assert "Nothing already in the project is replaced" in asked[0]
+    assert not (a / "bolt.SLDPRT").exists()  # the answer was no
+
+    plan = w.pdm.plan_copies(dialog)
+    monkeypatch.setattr(w.pdm, "ask", lambda title, text: True)
+    start = len(w.test_shown)
+    plan.ok.click()
+    got = _kind(app, w, "check", start)
+    assert got["ok"] and got["fix"]["copied"][0]["item"] == "BOLT-1"
+    assert (a / "bolt.SLDPRT").read_bytes() == bolt and (a / "asm.SLDASM").read_bytes() == asm
+    assert dialog.line.text().startswith("Made 1 copy in the project. Jobs/A: 1 reference in 2 documents.")
+    assert dialog.line.text().endswith("The project holds every file its documents reference.")
+    assert _tops(dialog.tree) == ["Found in the project (1)"]
+    links = pdm.open(cad).library.updates(all_links=True)["links"]
+    assert [(r["item"], r["path"]) for r in links] == [("BOLT-1", "Jobs/A/bolt.SLDPRT")]
+    assert not dialog.make_button.isEnabled()
+    dialog.reject()

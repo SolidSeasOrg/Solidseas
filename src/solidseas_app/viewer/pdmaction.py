@@ -11,6 +11,10 @@ PDM menu, between Tools and Settings, offers:
 * **Check Project**: whether the project that holds the chosen folder holds every file
   its documents reference (``solidseas.pdm.check.check_project``), the findings
   grouped by result in plain words, each with the stored path and where it was found.
+  Its Make Copies button lists the copies that would make the project self-contained
+  and, after a confirmation, makes them (new files only) and checks again.
+* **Library of Common Parts...**: the library's common parts and the parts several
+  projects share, in a window of their own (:mod:`.pdmlibrary`).
 * **Restore Version...**: the version chosen in the History tab put back, after a
   confirmation that says the file as it is now is kept as a version first, either over
   the file or as a new file beside it (``Vault.restore``).
@@ -20,7 +24,8 @@ what it creates and asks before calling ``pdm.init`` on the opened folder. The f
 list's right-click menu has the same entries where they apply (:meth:`PdmController.add_to_menu`).
 
 Every read and write runs in a worker thread. The PDM writes only in the library: its
-own ``.solidseas`` folder and the file a restore puts back (``docs/PDM.md`` 7). The
+own ``.solidseas`` folder, the file a restore puts back and the library copies the
+person asks for (``docs/PDM.md`` 7). The
 dialogs open without blocking the window; the confirmations go through
 :meth:`PdmController.ask`, which tests stand in for, as for the other dialogs.
 """
@@ -49,6 +54,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from . import pdmlibrary
 from .reading import time_text
 from .wording import error_message, plural, tip
 from .workers import Job
@@ -169,7 +175,18 @@ def check_work(path: str):
             return {"ok": True, "kind": "check", "project": None, "result": None}
         folder, library, name = found
         result = check_project(Path(folder), library=Path(library) if library else None)
-        return {"ok": True, "kind": "check", "project": folder, "name": name, "result": result}
+        from solidseas import pdm
+        from solidseas.pdm.check import plan_copies
+
+        return {
+            "ok": True,
+            "kind": "check",
+            "project": folder,
+            "name": name,
+            "result": result,
+            "plan": plan_copies(result),
+            "items": pdmlibrary.item_paths(pdm.open(folder)),
+        }
 
     return work
 
@@ -448,7 +465,11 @@ class CheckDialog(QDialog):
             "Reading every assembly, part and drawing in the project and following its references..."
         )
         self.tree = _tree(["Document", "Stored path", "Where it was found"])
+        self.result: dict[str, Any] | None = None
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        self.make_button = buttons.addButton("Make Copies...", QDialogButtonBox.ButtonRole.ActionRole)
+        self.make_button.setToolTip(tip(pdmlibrary.MAKE_COPIES_TIP))
+        self.make_button.setEnabled(False)
         buttons.rejected.connect(self.reject)
         layout = QVBoxLayout(self)
         layout.addWidget(self.line)
@@ -456,8 +477,14 @@ class CheckDialog(QDialog):
         layout.addWidget(buttons)
         self.resize(820, 480)
 
+    def working(self) -> None:
+        self.make_button.setEnabled(False)
+        self.line.setText("Copying the files into the project, then checking it again...")
+
     def show_result(self, result: dict[str, Any]) -> None:
         self.tree.clear()
+        self.result = None
+        self.make_button.setEnabled(False)
         if not result.get("ok"):
             self.line.setText("The project could not be checked. " + error_message(result.get("error")))
             return
@@ -465,7 +492,13 @@ class CheckDialog(QDialog):
         if check is None:
             self.line.setText("The folder is not in a project of the library.")
             return
-        self.line.setText(check_line(result["name"], check))
+        self.result = result
+        line = check_line(result["name"], check)
+        if result.get("fix") is not None:
+            line = pdmlibrary.fix_line(result["fix"]) + " " + line
+        self.line.setText(line)
+        plan = result.get("plan")
+        self.make_button.setEnabled(plan is not None and bool(plan.copies or plan.conflicts))
         fine = {"ok", "inside_parent", "toolbox"}
         for kind, rows in finding_rows(check):
             words = RESULT_WORDS.get(kind, "Could not be read" if kind == "unreadable" else kind)
@@ -544,7 +577,9 @@ class PdmController(QObject):
         self.pool.setMaxThreadCount(2)  # a check-in's status and a project check at once
         self.library: str | None = None
         self.dialogs: list[QDialog] = []
+        self.library_dialog: pdmlibrary.LibraryDialog | None = None
         self._generation = 0
+        self._library_generation = 0
 
         def action(text: str, status: str, slot) -> QAction:
             a = QAction(text, window)
@@ -556,11 +591,12 @@ class PdmController(QObject):
         self.act_checkin = action(CHECKIN_TEXT, CHECKIN_TIP, self.check_in)
         self.act_changes = action(CHANGES_TEXT, CHANGES_TIP, self.show_changes)
         self.act_check = action(CHECK_TEXT, CHECK_TIP, self.check_project)
+        self.act_library = action(pdmlibrary.LIBRARY_TEXT, pdmlibrary.LIBRARY_TIP, self.open_library)
         self.act_restore = action(RESTORE_TEXT, RESTORE_TIP, self.restore_version)
         self.act_make = action(MAKE_TEXT, MAKE_TIP, self.make_library)
         menu = QMenu(MENU_TEXT, window)
         menu.setToolTipsVisible(True)
-        for a in (self.act_checkin, self.act_changes, self.act_check):
+        for a in (self.act_checkin, self.act_changes, self.act_check, self.act_library):
             menu.addAction(a)
         menu.addSeparator()
         menu.addAction(self.act_restore)
@@ -629,7 +665,7 @@ class PdmController(QObject):
     def update_actions(self) -> None:
         inside = self.library is not None
         opened = self.w.folder is not None
-        for a in (self.act_checkin, self.act_changes, self.act_check, self.act_restore):
+        for a in (self.act_checkin, self.act_changes, self.act_check, self.act_library, self.act_restore):
             a.setVisible(inside)
         self.act_make.setVisible(not inside)
         self.act_make.setEnabled(opened)
@@ -652,8 +688,9 @@ class PdmController(QObject):
     def add_to_menu(self, menu: QMenu, path: str, *, folder: bool) -> bool:
         """The PDM entries of the file list's right-click menu for ``path``: Check In and
         Changes for a folder or a tracked file, Check Project for a folder in a project,
-        Restore Version for the file the History tab shows with a library version chosen.
-        False when none applies (outside a library)."""
+        Restore Version for the file the History tab shows with a library version chosen,
+        Add to Library for a file that is not a library item yet. False when none applies
+        (outside a library)."""
         if self.library is None or not _inside(path, self.library):
             return False
         if not folder and not self.tracked(path):
@@ -675,7 +712,24 @@ class PdmController(QObject):
             a = menu.addAction(f"Restore {found[1].label}...")
             a.setToolTip(tip(RESTORE_TIP))
             a.triggered.connect(lambda _on=False: self.restore_version())
+        if not folder and not self.is_item(path):
+            a = menu.addAction(f"Add {name} to the Library...")
+            a.setToolTip(tip(pdmlibrary.ADD_TIP))
+            a.triggered.connect(lambda _on=False: self.add_to_library(path))
         return True
+
+    def is_item(self, path: str) -> bool:
+        """Whether the file at ``path`` is one of the library's items."""
+        if self.library is None:
+            return False
+        from solidseas import pdm
+
+        try:
+            vault = pdm.open(self.library)
+            key = os.path.normcase(os.path.abspath(path))
+            return any(os.path.normcase(vault.absolute(i.path)) == key for i in vault.library.items())
+        except Exception:
+            return False
 
     # -- asking ------------------------------------------------------------------------
     def ask(self, title: str, text: str) -> bool:
@@ -818,6 +872,7 @@ class PdmController(QObject):
         if project is None:
             return None
         dialog = CheckDialog(self.w, os.path.basename(project))
+        dialog.make_button.clicked.connect(lambda: self.plan_copies(dialog))
         self._open(dialog)
 
         def done(result: dict[str, Any]) -> None:
@@ -827,6 +882,282 @@ class PdmController(QObject):
 
         self._start(check_work(project), done)
         return dialog
+
+    def plan_copies(self, check: CheckDialog) -> QDialog | None:
+        """Check Project's Make Copies: the plan, and the copies made once confirmed."""
+        result = check.result
+        if result is None or result.get("plan") is None:
+            return None
+        project = result["project"]
+        dialog = pdmlibrary.PlanDialog(
+            self.w, result["name"], result["plan"], project, result.get("items") or {}
+        )
+
+        def accepted() -> None:
+            n = len(result["plan"].copies)
+            text = (
+                f"Copy {plural(n, 'file')} into {result['name']}?\n\nEach copy is a new file. "
+                "Nothing already in the project is replaced, and the assemblies, parts and drawings "
+                "themselves are not changed."
+            )
+            if self.ask("Make Copies", text):
+                self.fix_now(check, result["plan"])
+
+        dialog.accepted.connect(accepted)
+        self._open(dialog)
+        return dialog
+
+    def fix_now(self, check: CheckDialog, plan) -> None:
+        """Make the copies of ``plan`` in the project ``check`` shows, in a worker thread,
+        then show the project checked again."""
+        result = check.result
+        if result is None:
+            return
+        check.working()
+        self._message("Copying the files into the project...", 0)
+
+        def done(new: dict[str, Any]) -> None:
+            if new.get("ok") and new.get("fix") is not None:
+                text = pdmlibrary.fix_line(new["fix"])
+            else:
+                text = "The copies could not be made. " + error_message(new.get("error"))
+            new["text"] = text
+            new.setdefault("kind", "check")
+            self._message(text)
+            if check in self.dialogs:
+                check.show_result(new)
+            self.refresh_library()
+            self.shown.emit(new)
+
+        self._start(pdmlibrary.fix_work(result["project"], plan), done)
+
+    # -- Library of Common Parts --------------------------------------------------------
+    def open_library(self) -> QDialog | None:
+        """The Library of Common Parts window (one per window), read in a worker thread."""
+        if self.library is None:
+            return None
+        if self.library_dialog is not None and self.library_dialog in self.dialogs:
+            self.library_dialog.raise_()
+            self.library_dialog.activateWindow()
+            self.refresh_library()
+            return self.library_dialog
+        dialog = pdmlibrary.LibraryDialog(self.w, self.library)
+        self.library_dialog = dialog
+        dialog.destroyed.connect(lambda _o=None: setattr(self, "library_dialog", None))
+        dialog.use_button.clicked.connect(lambda: self.use_in_project())
+        dialog.show_button.clicked.connect(
+            lambda: dialog.show_copies(dialog.chosen_item()["item"]) if dialog.chosen_item() else None
+        )
+        dialog.update_button.clicked.connect(lambda: self.update_copies())
+        dialog.add_button.clicked.connect(lambda: self.add_selected())
+        dialog.candidate_button.clicked.connect(lambda: self.add_candidate())
+        dialog.items.itemDoubleClicked.connect(lambda *_a: dialog.show_button.click())
+        dialog.tabs.currentChanged.connect(lambda i: self.load_candidates() if i == 1 else None)
+        self._open(dialog)
+        self.refresh_library()
+        return dialog
+
+    def refresh_library(self) -> None:
+        dialog = self.library_dialog
+        if dialog is None or dialog not in self.dialogs or self.library is None:
+            return
+        root = dialog.library
+        self._library_generation += 1
+        g = self._library_generation
+
+        def done(result: dict[str, Any]) -> None:
+            result.setdefault("kind", "library")
+            result["latest"] = g == self._library_generation
+            if dialog in self.dialogs and result["latest"]:  # an older reading never covers a newer one
+                dialog.show_result(result)
+            self.shown.emit(result)
+
+        self._start(pdmlibrary.library_work(root), done)
+
+    def load_candidates(self, again: bool = False) -> None:
+        dialog = self.library_dialog
+        if dialog is None or dialog not in self.dialogs or (dialog.candidates is not None and not again):
+            return
+        dialog.candidates = []  # asked for: once is enough until something changes
+        dialog.candidates_line.setText(
+            "Looking for parts that two or more projects share. Only files that share a size with another "
+            "are read..."
+        )
+
+        def done(result: dict[str, Any]) -> None:
+            result.setdefault("kind", "candidates")
+            if dialog in self.dialogs:
+                dialog.show_candidates(result)
+            self.shown.emit(result)
+
+        self._start(pdmlibrary.candidates_work(dialog.library), done)
+
+    def _say(self, text: str) -> None:
+        """A result line in the status bar, and in the Library window when it is open."""
+        self._message(text)
+        dialog = self.library_dialog
+        if dialog is not None and dialog in self.dialogs:
+            dialog.copies_line.setText(text)
+
+    def use_in_project(self) -> QDialog | None:
+        """Use in Project for the item chosen in the Library window."""
+        dialog = self.library_dialog
+        if dialog is None or dialog.data is None:
+            return None
+        row = dialog.chosen_item()
+        if row is None:
+            return None
+        projects = dialog.data["projects"]
+        here = self.project_of(self.w.current_folder() or self.library)
+        chosen = None
+        if here is not None:
+            rel = os.path.relpath(here, dialog.library).replace(os.sep, "/")
+            chosen = rel
+        use = pdmlibrary.UseDialog(self.w, row, projects, chosen)
+        use.accepted.connect(lambda: self.use_now(row["item"], *use.values()))
+        self._open(use)
+        return use
+
+    def use_now(self, item: str, project: str, to: str | None = None) -> None:
+        """Copy library item ``item`` into ``project`` (below the library), in a worker thread."""
+        if self.library is None:
+            return
+        self._message(f"Copying {item} into {project}...", 0)
+
+        def done(result: dict[str, Any]) -> None:
+            if result.get("ok"):
+                data = result["data"]
+                text = f"Copied {item} v{data['version']['number']} to {data['file']['path']}."
+            else:
+                text = f"{item} was not copied into {project}. " + pdmlibrary.problem_text(
+                    result.get("error")
+                )
+            result["text"] = text
+            result.setdefault("kind", "library_use")
+            self._say(text)
+            self.refresh_library()
+            self.shown.emit(result)
+
+        self._start(pdmlibrary.use_work(self.library, item, project, to), done)
+
+    def update_copies(self) -> None:
+        """Update Copies for the item chosen in the Library window: the copies that are
+        behind, an edited one only when the person says so."""
+        dialog = self.library_dialog
+        row = None if dialog is None else dialog.chosen_item()
+        if dialog is None or row is None:
+            return
+        item = row["item"]
+        links = dialog.links_of(item)
+        projects = sorted({r["project"] for r in links if r["behind"]}, key=str.casefold)
+        if not projects:
+            self._say(f"Every copy of {item} is up to date.")
+            return
+        edited = [r for r in links if r["project"] in projects and r["copy"] == "edited"]
+        force = False
+        if edited:
+            names = "\n".join(f"  {r['path']}" for r in edited)
+            force = self.ask(
+                "Update Copies",
+                f"{plural(len(edited), 'copy', 'copies')} of {item} {'was' if len(edited) == 1 else 'were'} "
+                f"edited in {'its project' if len(edited) == 1 else 'their projects'} since it was copied:\n"
+                f"{names}\n\nReplace the edited copies with the library's version too? Each is kept as a "
+                "version in the library first, so Restore Version can bring it back.\n\n"
+                "Choose No to update only the copies that were not edited.",
+            )
+            if not force:
+                left = {r["project"] for r in edited}
+                projects = [p for p in projects if p not in left]
+                if not projects:
+                    self._say(f"Nothing was updated: every copy of {item} that is behind was edited.")
+                    return
+        self.update_now(item, [(p, force) for p in projects])
+
+    def update_now(self, item: str, projects: list[tuple[str, bool]]) -> None:
+        if self.library is None:
+            return
+        self._message(f"Updating the copies of {item}...", 0)
+
+        def done(result: dict[str, Any]) -> None:
+            if result.get("ok"):
+                written = sum(
+                    1 for d in result["done"] if d["ok"] for c in d["data"]["copies"] if c["written"]
+                )
+                text = f"Updated {plural(written, 'copy', 'copies')} of {item}."
+                if written:
+                    text += " Each was kept as a version first."
+                for d in result["done"]:
+                    if not d["ok"]:
+                        text += f" {d['project']}: {pdmlibrary.problem_text(d['error'])}"
+            else:
+                text = f"The copies of {item} could not be updated. " + error_message(result.get("error"))
+            result["text"] = text
+            result.setdefault("kind", "library_update")
+            self._say(text)
+            self.refresh_library()
+            self.shown.emit(result)
+
+        self._start(pdmlibrary.update_work(self.library, item, projects), done)
+
+    def add_selected(self) -> QDialog | None:
+        path = self.selected_file()
+        if path is None or not self.tracked(path):
+            self._say("Select a CAD file of the library in the list first, then Add to Library.")
+            return None
+        if self.is_item(path):
+            self._say(f"{os.path.basename(path)} is already a library item.")
+            return None
+        return self.add_to_library(path)
+
+    def add_candidate(self) -> QDialog | None:
+        dialog = self.library_dialog
+        row = None if dialog is None else dialog.chosen_candidate()
+        if dialog is None or row is None:
+            return None
+        return self.add_to_library(os.path.join(dialog.library, *row["copies"][0]["path"].split("/")))
+
+    def add_to_library(self, path: str) -> QDialog | None:
+        """The Add to Library dialog for the file at ``path``."""
+        if self.library is None or not _inside(path, self.library):
+            return None
+        from solidseas import pdm
+
+        try:
+            vault = pdm.open(self.library)
+            section = vault.library.section
+            in_section = vault.library.in_section(vault.relative(path))
+        except Exception:
+            return None
+        dialog = pdmlibrary.AddDialog(self.w, path, section, in_section)
+        dialog.accepted.connect(lambda: self.add_now(path, *dialog.values()))
+        self._open(dialog)
+        return dialog
+
+    def add_now(self, path: str, item: str | None = None, description: str = "") -> None:
+        """Make the file at ``path`` a library item, in a worker thread."""
+        name = os.path.basename(path)
+        self._message(f"Adding {name} to the library...", 0)
+
+        def done(result: dict[str, Any]) -> None:
+            if result.get("ok"):
+                ident = result["data"]["item"]["item"]
+                text = f"Added {name} to the library as {ident}."
+                if result["data"]["copied"]:
+                    text += f" The copy is {result['data']['item']['path']}; {name} itself is unchanged."
+            else:
+                text = f"{name} was not added to the library. " + pdmlibrary.problem_text(result.get("error"))
+            result["text"] = text
+            result.setdefault("kind", "library_add")
+            self._say(text)
+            dialog = self.library_dialog
+            if result.get("ok") and dialog is not None and dialog in self.dialogs:
+                if dialog.candidates is not None:
+                    self.load_candidates(again=True)
+            self.refresh_library()
+            self.w.file_history.refresh([path])
+            self.shown.emit(result)
+
+        self._start(pdmlibrary.add_work(path, item, description), done)
 
     # -- Restore Version ------------------------------------------------------------------
     def restore_version(self) -> QDialog | None:

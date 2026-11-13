@@ -13,7 +13,9 @@ Status: steps 1 to 3 of section 8 are built (provisional, `solidseas.pdm`,
 `docs/API.md` 3.29): the vault, check-in, scan, status, log, show, diff and restore,
 `pdm check` with `--plan` and `--fix`, and the library of common parts, on the
 command line. Candidates are found from file sizes and the vault's newest versions,
-not from the folder catalog. The viewer's part (step 4) is next.
+not from the folder catalog. The viewer's part (step 4) is built too: the History
+tab, the PDM menu, the Library of Common Parts window and Check Project's Make
+Copies (`solidseas_app/viewer/pdmaction.py` and `pdmlibrary.py`). Step 5 is next.
 
 ## 1. What it is for
 

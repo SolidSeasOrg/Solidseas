@@ -29,7 +29,9 @@ The viewer never changes a file. It writes only:
 - the snapshots you take on the History tab, in your own data folder, never
   beside the file (see [A file's history](#a-files-history));
 - in a library, what you ask for on the PDM menu: the library's own
-  `.solidseas` folder, and the file a restore puts back (see
+  `.solidseas` folder, the file a restore puts back, and the copies you make
+  from the Library of Common Parts window and Check Project's Make Copies,
+  each a new file or a library copy kept as a version first (see
   [The PDM menu](#the-pdm-menu)).
 
 The one way a file of yours can change is a setting you turn on yourself: with
@@ -286,7 +288,8 @@ When the folder you open lies in a library (a folder made one with
 |---|---|
 | Check In... | Keeps a version of each changed file, with your note. Choose the selected file or the folder chosen in the folder tree; the window lists what changed there (new, changed or gone) before you check in. A revision such as B and a state such as released are optional. |
 | Changes | Lists the files in the chosen folder that are new, changed since their newest version, or gone. Check In there opens the check-in for the same folder. |
-| Check Project | Checks that the project holding the chosen folder holds every file its assemblies, parts and drawings reference. The findings are grouped (not found anywhere, another document of that name, found only outside the project, Toolbox hardware, stored inside its assembly, found in the project), each with the document, the path stored in it and where the file was found. Nothing is copied or changed. |
+| Check Project | Checks that the project holding the chosen folder holds every file its assemblies, parts and drawings reference. The findings are grouped (not found anywhere, another document of that name, found only outside the project, Toolbox hardware, stored inside its assembly, found in the project), each with the document, the path stored in it and where the file was found. Make Copies lists the copies that would make the project self-contained (see below). |
+| Library of Common Parts... | Opens the library's common parts in a window of their own (see below). |
 | Restore Version... | Puts back the library version chosen on the History tab. The file as it is now is kept as a version in the library first, so nothing is lost. You can also restore it as a new file beside it, which never replaces another file. |
 
 Outside a library the menu has one entry, **Make This Folder a Library...**. It
@@ -294,8 +297,41 @@ asks first, then adds a `.solidseas` folder to the opened folder, where the
 versions and check-ins are kept. Nothing else in the folder changes.
 
 The same entries are on the right-click menu of a file in the list and of a
-folder in the folder tree, where they apply. Every check-in, check and restore
-runs in the background.
+folder in the folder tree, where they apply. A CAD file that is not a library
+item yet also has **Add to the Library...** there. Every check-in, check,
+restore and copy runs in the background.
+
+### Making a project self-contained
+
+In the Check Project window, **Make Copies...** lists each file found outside
+the project with the folder it would be copied to and why: the documents that
+use it, where it was found, and its library item number when it comes from the
+library. Each copy goes into the deepest folder that holds every document using
+it, so SOLIDWORKS finds it from each of them. A copy that cannot be made, because
+the folder already has a different file of that name, is listed with the reason,
+and files already in place are listed too. Make Copies asks before it copies
+anything: each copy is a new file, nothing already in the project is replaced,
+and the assemblies themselves are not changed. The window then shows the project
+checked again. A file copied from the library is remembered as a copy of that
+item, so the Library window can tell you when it falls behind.
+
+### The Library of Common Parts window
+
+**PDM > Library of Common Parts...** lists the library's items: the item
+number, the description, the file in the Library folder, how many versions it
+has, how many projects use it and whether any copy is behind. The search box
+narrows the list by number, description or file name.
+
+| Button | What it does |
+|---|---|
+| Use in Project... | Copies the chosen item into a project you pick, into its top folder or a folder you name inside it, and says where the copy went. A file of that name already there is never replaced. In SOLIDWORKS, insert the part from the project's copy. |
+| Show Copies | Lists the projects that have a copy of the item, and for each copy whether it is unchanged, edited in its project, gone or behind the library's version. |
+| Update Copies... | Brings the copies that are behind up to date with the library's version, keeping each as a version first. When a copy was edited in its project, it asks before replacing it; choose No to update only the copies that were not edited. |
+| Add to Library... | Makes the file selected in the list a library item, with an optional item number and a description. The file is copied into the Library folder, and the file itself is not changed. |
+
+The **Candidates** tab lists the parts and assemblies whose identical content
+sits in two or more projects, the most widely shared first, with the projects
+they are in. Add to Library makes the chosen one an item, from its first copy.
 
 ## Opening a file in F3D
 
