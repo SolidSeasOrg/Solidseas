@@ -20,8 +20,10 @@ The Python API of this package is provisional until 0.2.0.
 from .core import (
     CONFIDENCE,
     DOCUMENT_ROOT_ID,
+    DOCUMENTED_RULES,
     POSITIONAL_RULES,
     RULES,
+    SEARCHES,
     STATUSES,
     Candidate,
     IndexCache,
@@ -39,8 +41,10 @@ from .names import fold, parse_path_map, parse_stored
 __all__ = [
     "CONFIDENCE",
     "DOCUMENT_ROOT_ID",
+    "DOCUMENTED_RULES",
     "POSITIONAL_RULES",
     "RULES",
+    "SEARCHES",
     "STATUSES",
     "Candidate",
     "Gateway",

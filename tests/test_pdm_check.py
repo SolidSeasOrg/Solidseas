@@ -25,6 +25,7 @@ from solidseas.pdm.check import (
     is_toolbox_path,
     plan_copies,
 )
+from solidseas.resolve import ResolutionInput, resolve_references
 from solidseas.resolve import gateway as gateway_mod
 
 CT = 1_700_000_000
@@ -53,9 +54,10 @@ def write(path: Path, data: bytes) -> Path:
     return path
 
 
-def assembly(refs, *, imported=()) -> bytes:
+def assembly(refs, *, imported=(), folder_at_save: str = "") -> bytes:
     """A top assembly using one instance of each stored path in ``refs``; file keys are
-    "2", "3"... in order, and the indexes in ``imported`` carry ``swImportedPath``."""
+    "2", "3"... in order, and the indexes in ``imported`` carry ``swImportedPath``.
+    ``folder_at_save`` is the folder the assembly says it was saved in."""
     t = TreeXml()
     t.top("m1")
     for i, stored in enumerate(refs, start=2):
@@ -65,7 +67,7 @@ def assembly(refs, *, imported=()) -> bytes:
         t.file(str(i), stored, **attrs)
         t.model(f"m{i}", str(i))
         t.ref("m1", f"c{i}", 1, f"m{i}")
-    return resolving_assembly(t)
+    return resolving_assembly(t, folder_at_save=folder_at_save)
 
 
 @pytest.fixture
@@ -136,11 +138,13 @@ def test_each_reference_gets_a_result(vault):
     assert res.counts() == {
         "ok": 1,
         "outside": 3,
+        "needs_confirmation": 0,
         "toolbox": 2,
         "inside_parent": 1,
         "missing": 1,
         "different_document": 1,
         "ambiguous": 0,
+        "toolbox_not_found": 1,
     }
     assert not res.self_contained and len(res.problems()) == 7
 
@@ -149,6 +153,10 @@ def test_toolbox_parts_are_no_problem_by_default_because_the_installation_loads_
     res = check_project(vault / "Projects" / "A", library=vault / "Library")
     assert "toolbox" not in {f.result for f in res.problems()}
     assert all(c.source.name != "hex.SLDPRT" for c in plan_copies(res).copies)
+    # the one found nowhere is counted on its own, though it is no problem either
+    nut = by_name(res)["asm.SLDASM", "nut.SLDPRT"]
+    assert (nut.result, nut.found) == ("toolbox", None) and nut not in res.problems()
+    assert res.counts()["toolbox"] == 2 and res.counts()["toolbox_not_found"] == 1
 
 
 def test_without_the_library_a_file_there_is_elsewhere(vault):
@@ -184,16 +192,22 @@ def test_a_parts_external_files_and_its_import_source_are_checked(tmp_path):
     assert (found["base_part"].result, found["base_part"].place) == ("outside", "other_project")
 
 
-def test_plan_copies_puts_each_file_where_every_document_using_it_finds_it(vault):
+def test_plan_copies_puts_each_file_beside_each_document_using_it(vault):
+    """SOLIDWORKS tries the bare name only in the document's own folder, so a copy in a
+    folder above it would not be found: each document's folder gets its own copy."""
     a = vault / "Projects" / "A"
     plan = plan_copies(check_project(a, library=vault / "Library", copy_toolbox=True))
-    copies = {c.source.name: c for c in plan.copies}
-    assert set(copies) == {"b.SLDPRT", "bolt.SLDPRT", "hex.SLDPRT"}
-    b = copies["b.SLDPRT"]
-    assert b.source == vault / "Projects" / "B" / "b.SLDPRT"
-    assert b.destination == a / "b.SLDPRT"  # the folder that holds asm and sub/asm2
-    assert set(b.referenced_by) == {a / "asm.SLDASM", a / "sub" / "asm2.SLDASM"}
-    assert (copies["bolt.SLDPRT"].destination, copies["bolt.SLDPRT"].place) == (a / "bolt.SLDPRT", "library")
+    copies = {c.destination: c for c in plan.copies}
+    assert set(copies) == {
+        a / "b.SLDPRT",
+        a / "sub" / "b.SLDPRT",
+        a / "bolt.SLDPRT",
+        a / "hex.SLDPRT",
+    }
+    b = copies[a / "b.SLDPRT"]
+    assert b.source == vault / "Projects" / "B" / "b.SLDPRT" and b.referenced_by == (a / "asm.SLDASM",)
+    assert copies[a / "sub" / "b.SLDPRT"].referenced_by == (a / "sub" / "asm2.SLDASM",)
+    assert copies[a / "bolt.SLDPRT"].place == "library"
     assert plan.conflicts == () and plan.present == ()
     assert not (a / "b.SLDPRT").exists()  # a plan writes nothing
 
@@ -236,6 +250,111 @@ def test_an_unreadable_document_is_listed_not_raised(tmp_path):
     assert not res.self_contained
     with pytest.raises(FileNotFoundError):
         check_project(tmp_path / "nowhere")
+
+
+# --------------------------------------------------------------------------- the documented search order
+def resolve_default(doc: Path, project: Path):
+    """The resolver's default rules, as every caller but the check uses them."""
+    from solidseas.formats.solidworks import open_document
+
+    with open_document(doc, hold_open=True) as d:
+        inp = ResolutionInput.from_document(d)
+    return resolve_references(inp, {"project": str(project)}, search_above_roots=True)
+
+
+def test_a_copy_beside_the_document_wins_over_the_old_relative_position(tmp_path):
+    """The assembly was saved in Q:\\Old\\A and stores Q:\\Old\\B\\b.SLDPRT. Projects A
+    and B were copied side by side, so the old relative position still holds a file,
+    but the same file sits beside the assembly too: SOLIDWORKS' search looks there
+    first, and has no relative-position step."""
+    projects = tmp_path / "Projects"
+    a = projects / "A"
+    write(projects / "B" / "b.SLDPRT", part())
+    write(a / "b.SLDPRT", part())
+    doc = write(a / "asm.SLDASM", assembly(["Q:\\Old\\B\\b.SLDPRT"], folder_at_save="Q:\\Old\\A\\"))
+    assert resolve_default(doc, a).results["2"].rule == "rebased"  # the default rules are unchanged
+    (f,) = check_project(a).findings
+    assert (f.result, f.rule, f.found, f.identity) == ("ok", "same_folder", a / "b.SLDPRT", "match")
+    assert plan_copies(check_project(a)).copies == ()
+
+
+def test_an_imported_bare_name_with_a_real_file_beside_it_is_that_file(tmp_path):
+    a = tmp_path / "Projects" / "A"
+    write(a / "real.SLDPRT", part())  # the stored creation time: the file the assembly used
+    write(a / "other.SLDPRT", part(OTHER))  # that name, but another document
+    write(a / "deep" / "far.SLDPRT", part())  # only below the folder: SOLIDWORKS would not look
+    doc = write(
+        a / "asm.SLDASM",
+        assembly(
+            ["real.SLDPRT", "other.SLDPRT", "far.SLDPRT", "gone.SLDPRT"],
+            imported=(0, 1, 2, 3),
+        ),
+    )
+    assert resolve_default(doc, a).results["2"].status == "inside_parent"  # the default rules
+    f = by_name(check_project(a))
+    real = f["asm.SLDASM", "real.SLDPRT"]
+    assert (real.result, real.rule, real.found, real.identity) == (
+        "ok",
+        "same_folder",
+        a / "real.SLDPRT",
+        "match",
+    )
+    for name in ("other.SLDPRT", "far.SLDPRT", "gone.SLDPRT"):
+        got = f["asm.SLDASM", name]
+        assert (got.result, got.status, got.found) == ("inside_parent", "inside_parent", None), name
+
+
+def test_a_bare_name_found_only_in_a_folder_above_needs_confirmation(tmp_path):
+    """The help topic tries the bare name only in the document's own folder, so a file
+    found only as the bare name in a folder above is reported for the user to confirm
+    in SOLIDWORKS, and the plan copies it beside the document."""
+    a = tmp_path / "Projects" / "A"
+    write(a / "w.SLDPRT", part())
+    write(a / "sub" / "Z" / "z.SLDPRT", part())  # under a stored tail: the documented search
+    doc = write(
+        a / "sub" / "asm.SLDASM",
+        assembly(["Q:\\Z\\w.SLDPRT", "Q:\\Y\\Z\\z.SLDPRT"]),
+    )
+    assert resolve_default(doc, a).results["2"].rule == "suffix_probe"  # the default rules
+    res = check_project(a)
+    f = by_name(res)
+    w = f["asm.SLDASM", "w.SLDPRT"]
+    assert (w.result, w.rule, w.found, w.place, w.searched) == (
+        "needs_confirmation",
+        "bare_name_above",
+        a / "w.SLDPRT",
+        "project",
+        False,
+    )
+    assert w in res.problems() and not res.self_contained
+    z = f["asm.SLDASM", "z.SLDPRT"]
+    assert (z.result, z.rule) == ("ok", "suffix_probe")
+    assert res.counts()["needs_confirmation"] == 1
+    plan = plan_copies(res)
+    assert [(c.source, c.destination, c.place) for c in plan.copies] == [
+        (a / "w.SLDPRT", a / "sub" / "w.SLDPRT", "project")
+    ]
+    assert plan.conflicts == () and not (a / "sub" / "w.SLDPRT").exists()
+    # with that copy made, the document finds it in its own folder
+    write(a / "sub" / "w.SLDPRT", part())
+    assert by_name(check_project(a))["asm.SLDASM", "w.SLDPRT"].result == "ok"
+
+
+def test_a_copy_beside_the_document_never_goes_over_another_file(tmp_path):
+    """Beside the document is a file of that name made as another document, so the search
+    passes over it and finds the stored one only as the bare name above: the plan cannot
+    put the copy there and says so."""
+    a = tmp_path / "Projects" / "A"
+    write(a / "w.SLDPRT", part())
+    write(a / "sub" / "w.SLDPRT", part(OTHER))
+    write(a / "sub" / "asm.SLDASM", assembly(["Q:\\Z\\w.SLDPRT"]))
+    res = check_project(a)
+    (f,) = res.findings
+    assert (f.result, f.found, f.identity) == ("needs_confirmation", a / "w.SLDPRT", "match")
+    plan = plan_copies(res)
+    assert plan.copies == ()
+    assert [(c.source, c.destination) for c in plan.conflicts] == [(a / "w.SLDPRT", a / "sub" / "w.SLDPRT")]
+    assert (a / "sub" / "w.SLDPRT").read_bytes() == part(OTHER)
 
 
 @pytest.mark.parametrize(
@@ -301,15 +420,18 @@ def test_pdm_check_fix_copies_in_new_files_and_checks_again(capsys, vault):
     data = checked(env)
     (p,) = data["projects"]
     assert code == 0 and data["fix"] and data["plan"]
-    copied = {Path(c["destination"]).name: c for c in p["fix"]["copied"]}
-    assert set(copied) == {"b.SLDPRT", "bolt.SLDPRT"} and p["fix"]["failed"] == []
-    assert copied["bolt.SLDPRT"]["item"] == "SS-00001" and copied["bolt.SLDPRT"]["link"]["how"] == "fix"
-    assert copied["b.SLDPRT"]["link"] is None
+    copied = {Path(c["destination"]): c for c in p["fix"]["copied"]}
+    assert set(copied) == {a / "b.SLDPRT", a / "sub" / "b.SLDPRT", a / "bolt.SLDPRT"}
+    assert p["fix"]["failed"] == []
+    bolt = copied[a / "bolt.SLDPRT"]
+    assert bolt["item"] == "SS-00001" and bolt["link"]["how"] == "fix"
+    assert copied[a / "b.SLDPRT"]["link"] is None
     assert (a / "b.SLDPRT").read_bytes() == (vault / "Projects" / "B" / "b.SLDPRT").read_bytes()
+    assert (a / "sub" / "b.SLDPRT").read_bytes() == (vault / "Projects" / "B" / "b.SLDPRT").read_bytes()
     # checked again: what is left cannot be fixed by a copy
     assert sorted(f["result"] for f in p["findings"]) == ["different_document", "missing"]
     assert p["plan"]["copies"] == []
-    assert p["fix"]["checkin"]["note"].startswith("Copied 2 files into Projects/A")
+    assert p["fix"]["checkin"]["note"].startswith("Copied 3 files into Projects/A")
     lib = pdm.open(vault).library
     (link,) = lib.links()
     assert (link.item, link.path, link.how) == ("SS-00001", "Projects/A/bolt.SLDPRT", "fix")
@@ -326,7 +448,7 @@ def test_pdm_check_fix_never_writes_over_another_file(capsys, vault):
     write(a / "bolt.SLDPRT", part(OTHER))  # another document of that name, already there
     code, env = run(capsys, "pdm", "check", str(a), "--fix")
     p = checked(env)["projects"][0]
-    assert [Path(c["destination"]).name for c in p["fix"]["copied"]] == ["b.SLDPRT"]
+    assert [Path(c["destination"]) for c in p["fix"]["copied"]] == [a / "b.SLDPRT", a / "sub" / "b.SLDPRT"]
     assert (a / "bolt.SLDPRT").read_bytes() == part(OTHER)
 
 
@@ -352,6 +474,7 @@ def test_pdm_check_plain_words(capsys, vault):
     out = capsys.readouterr().out
     assert "Projects/A: 5 problems in 4 documents" in out
     assert "in another project" in out and "would copy" in out
+    assert "1 Toolbox part found nowhere" in out
     assert cli.main(["pdm", "check", str(vault / "Projects" / "B")]) == 0
     assert "Projects/B: self-contained (1 document)" in capsys.readouterr().out
     assert cli.main(["pdm", "check", str(a), "--fix"]) == 0

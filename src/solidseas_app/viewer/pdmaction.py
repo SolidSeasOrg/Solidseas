@@ -85,6 +85,7 @@ RESULT_WORDS = {
     "different_document": "Another document has that name",
     "ambiguous": "Several files could be it",
     "outside": "Found only outside the project",
+    "needs_confirmation": "Found only by a search SOLIDWORKS may not make",
     "toolbox": "Toolbox hardware",
     "inside_parent": "Stored inside its assembly",
     "ok": "Found in the project",
@@ -99,6 +100,11 @@ RESULT_TIPS = {
     "outside": (
         "The file is found only outside the project folder: in the library, in another project or "
         "elsewhere. Copy it into the project to make the project self-contained."
+    ),
+    "needs_confirmation": (
+        "The file was found only by its name in a folder above the document, where SOLIDWORKS' "
+        "documented search does not look. Confirm by opening the assembly in SOLIDWORKS, or copy "
+        "the file beside the document."
     ),
     "toolbox": (
         "Toolbox hardware, which SOLIDWORKS loads from the installation's own Toolbox folder: no copy "
@@ -285,6 +291,19 @@ def check_line(name: str, result) -> str:
         return head + " The project holds every file its documents reference."
     verb = "keeps" if problems == 1 else "keep"
     return head + f" {plural(problems, 'finding')} {verb} the project from being self-contained."
+
+
+def toolbox_line(result) -> str:
+    """A sentence on the Toolbox parts found nowhere, which are not counted as problems
+    unless Toolbox parts are copied; empty when there are none."""
+    nowhere = result.counts().get("toolbox_not_found", 0)
+    if not nowhere or result.copy_toolbox:
+        return ""
+    verb = "was" if nowhere == 1 else "were"
+    return (
+        f" {plural(nowhere, 'Toolbox part')} {verb} found nowhere: SOLIDWORKS needs "
+        f"{'it' if nowhere == 1 else 'them'} in its Toolbox to open the project."
+    )
 
 
 # --------------------------------------------------------------------------- the windows
@@ -493,7 +512,7 @@ class CheckDialog(QDialog):
             self.line.setText("The folder is not in a project of the library.")
             return
         self.result = result
-        line = check_line(result["name"], check)
+        line = check_line(result["name"], check) + toolbox_line(check)
         if result.get("fix") is not None:
             line = pdmlibrary.fix_line(result["fix"]) + " " + line
         self.line.setText(line)

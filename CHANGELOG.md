@@ -8,6 +8,20 @@ while the project takes shape.
 
 ### Fixed
 
+- **pdm check searches in the order the SOLIDWORKS help gives.** The
+  self-contained check now looks in the document's own folder first, then in the
+  folders above it under the folders the reference was saved in, then at the saved
+  path. A copy beside an assembly is no longer passed over for a file at its old
+  position in a neighbouring project, and an imported component whose file sits
+  beside the assembly is found there instead of being reported as kept inside it.
+  A file found only by its name in a folder above the document is now reported as
+  to confirm (needs_confirmation), because SOLIDWORKS may not look there: open the
+  assembly in SOLIDWORKS to check, or let `--plan` and `--fix` copy it beside the
+  document. Every copy now goes beside the documents that use the file. The summary
+  also says how many Toolbox parts were found nowhere. The same applies to the
+  viewer's Check Project, the REST service's `/v1/pdm/check` and the MCP
+  check_project tool. Other reference resolution is unchanged.
+
 - **A part's external files are listed.** The references of a part now list the
   files it uses: its base part, the part it mirrors, the assembly it was edited
   in, and the STEP or other file it was imported from, each with a relation

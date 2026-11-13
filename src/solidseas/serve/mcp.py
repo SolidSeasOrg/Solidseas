@@ -340,10 +340,13 @@ TOOLS: tuple[Tool, ...] = (
         "/v1/pdm/check",
         "Check that a project holds every file it uses",
         "Reads every SOLIDWORKS document of the project that holds the folder and resolves each "
-        "reference the way SOLIDWORKS searches. Each finding is ok, outside (found only outside the "
-        "project: in the library, another project or elsewhere), toolbox, inside_parent, missing, "
-        "different_document or ambiguous; problem marks the ones that keep the project from being "
-        "self-contained. It can take a minute or more on a large project.",
+        "reference in the order of the SOLIDWORKS help's search routine. Each finding is ok, outside "
+        "(found only outside the project: in the library, another project or elsewhere), "
+        "needs_confirmation (found only by a search SOLIDWORKS may not make; confirm by opening the "
+        "assembly in SOLIDWORKS), toolbox, inside_parent, missing, different_document or ambiguous; "
+        "problem marks the ones that keep the project from being self-contained, and "
+        "counts.toolbox_not_found says how many Toolbox parts were found nowhere. It can take a "
+        "minute or more on a large project.",
         {
             "root": _ROOT,
             "path": "A project folder, or a folder inside one, relative to the root; the root itself "

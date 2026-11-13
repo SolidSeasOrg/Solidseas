@@ -967,6 +967,7 @@ def resolve_references(
     cache=None,                   # an IndexCache shared by many calls
     skip_unavailable_roots=False, # search without a root that cannot be walked
     search_above_roots=False,     # the folder probe climbs past the roots to the filesystem root
+    search="solidseas",           # or "documented": the SOLIDWORKS help's search order
 ) -> Resolution
 ```
 
@@ -1002,6 +1003,18 @@ def resolve_references(
   lookups that never follow a link. A file it finds there has `root` null. It
   needs `allow_outside_roots`. The PDM's self-contained check (`docs/PDM.md` 5)
   sets it, because that is where a reference leaks into a neighbouring project.
+- `search="documented"` replaces rules 1 to 6 with the order of the SOLIDWORKS
+  help topic "Search Routine for Referenced Documents": `path_map`; `same_folder`
+  (the bare name in the document's own folder, the only folder where the bare name
+  is tried); `suffix_probe` with tails of one or more components, the document's
+  folder first and then each folder above it, shortest tail first; `stored_path`;
+  and last `bare_name_above`, the bare name in a folder above the document, which
+  the help topic does not list and which is there so a caller can tell a file that
+  depends on it. There is no `stored_unmoved` and no `rebased` step. An imported
+  component whose stored name has no folder is looked up by the same rules (but
+  neither `bare_name_above` nor the name index) and is `inside_parent` only when
+  no file with an acceptable identity is found. The PDM's self-contained check
+  uses it; every other caller keeps the default, `"solidseas"`.
 - Besides SOLIDWORKS documents, the rules look up the names of the files a part
   is imported from (STEP, IGES, Parasolid, ACIS, STL, 3MF, VRML, IFC, JT, Rhino,
   DXF and DWG, and the native files of Inventor, Creo, NX, CATIA and Solid Edge).
@@ -1017,7 +1030,7 @@ remembered and skipped.
 | 2 | `path_map` | The first path mapping that matches the stored path |
 | 3 | `rebased` | The stored path relative to the folder at save, from where the document is now |
 | 4 | `same_folder` | The name in the document's folder |
-| 5 | `suffix_probe` | SOLIDWORKS' probe: from the document's folder up to the root that holds it, the name under the stored folder's last 0, 1, 2... components. It goes above that root, by point lookups up to the filesystem root, only when the caller asks (`search_above_roots`, which the PDM's self-contained check sets). Whether SOLIDWORKS tries the longer tails first is not settled; the order lives in `resolve.names.suffix_tails` |
+| 5 | `suffix_probe` | SOLIDWORKS' probe: from the document's folder up to the root that holds it, the name under the stored folder's last 0, 1, 2... components. It goes above that root, by point lookups up to the filesystem root, only when the caller asks (`search_above_roots`, which the PDM's self-contained check sets). The order lives in `resolve.names.suffix_tails`, shortest tail first, as in the worked example of the SOLIDWORKS help topic "Search Routine for Referenced Documents"; that topic tries the bare name only in the document's own folder (see `search="documented"` above) |
 | 6 | `stored_path` | The stored path, for a document that has moved |
 | 7 | `name_index`, `name_index_suffix` | The name anywhere under each root, in root order. Files whose identity differs are dropped and identity matches preferred. One left is the match; of several, the one with the unique highest folder-suffix score against the stored folder, when above 0 (`name_index_suffix`); otherwise the result is `ambiguous` |
 | 8 | | A file found earlier whose identity differs, with confidence `low` and the warning `identity_mismatch`; otherwise `missing` |
@@ -6364,7 +6377,7 @@ path it was copied from, or null) and `first_version`. A version is `id`, `numbe
 | `show` | `file`, `source`, `version`, `document` (as `version_diff`'s), `properties`, `configurations` (names), `geometry` (`reason`, and per configuration its geometry summary), `warnings` |
 | `diff` | `version_diff` data (5.19) |
 | `restore` | `file` (the file written), `path`, `from`, `version`, `replaced`, `written` (false when the file already held it), `stored_first` (`version`, `new`, `sha256` of the current file stored first, or null), `checkin` (null when nothing was written) |
-| `check` | `scope` (the project, empty for every project), `copy_toolbox`, `plan`, `fix`, `self_contained` (how many projects are), `projects`: each `project`, `documents`, `counts` (per result: `ok`, `outside`, `toolbox`, `inside_parent`, `missing`, `different_document`, `ambiguous`), `self_contained`, `findings` (the problems: `document`, `key`, `stored_path`, `file_name`, `relation`, `result`, `found`, `place`, `found_in`, `status`, `rule`, `identity`, `searched`, `toolbox`, `warnings`), `unreadable` (`path`, `error`), `plan` (`copies` and `present`: `source`, `destination`, `referenced_by`, `place`, `item`; `conflicts`: `source`, `destination`, `referenced_by`, `reason`; null unless asked), `fix` (`copied`: `source`, `destination`, `item`, `link`; `failed`: `source`, `destination`, `code`, `message`; `checkin`; null without `--fix`) |
+| `check` | `scope` (the project, empty for every project), `copy_toolbox`, `plan`, `fix`, `self_contained` (how many projects are), `projects`: each `project`, `documents`, `counts` (per result: `ok`, `outside`, `needs_confirmation`, `toolbox`, `inside_parent`, `missing`, `different_document`, `ambiguous`; and `toolbox_not_found`, the `toolbox` findings found nowhere), `self_contained`, `findings` (the problems: `document`, `key`, `stored_path`, `file_name`, `relation`, `result`, `found`, `place`, `found_in`, `status`, `rule`, `identity`, `searched`, `toolbox`, `warnings`), `unreadable` (`path`, `error`), `plan` (`copies` and `present`: `source`, `destination`, `referenced_by`, `place`, `item`; `conflicts`: `source`, `destination`, `referenced_by`, `reason`; null unless asked), `fix` (`copied`: `source`, `destination`, `item`, `link`; `failed`: `source`, `destination`, `code`, `message`; `checkin`; null without `--fix`) |
 | `library_candidates` | `documents` (parts and assemblies looked at), `hashed`, `total`, `candidates` most widely shared first (`name`: the commonest, `names`, `sha256`, `size`, `projects`, `copies`: `path`, `project`), `skipped` |
 | `library_add` | `item`, `copied` (false for a file already in the library section), `version`, `checkin` |
 | `library_list` | `section`, `items`: each item with `exists`, `sha256` (the file now), `version` (its newest version, or null), `stored` (whether the file still holds it), `copies` and `projects` |
@@ -6385,13 +6398,15 @@ root (empty when it is the root), or null when it lies above the root.
 | `pdm_log` | `library`, `path`, `name`, `working`, `git` (`branch` and `head`, or null), `versions` and `warnings`, as `pdm_result`'s `log`. A warning whose text names a folder on the server has that text replaced |
 | `pdm_version` | `library`, `path`, `name`, `source` (`vault` or `git`, as asked), `version`, `document`, `properties`, `configurations`, `geometry` and `warnings`, as `pdm_result`'s `show` |
 | `pdm_checkins` | `library`, `scope`, `scans`, `checkins` newest first (`id`, `when_utc`, `note`, `who`, `revision`, `state`, `auto`, `files_total`, `files_truncated`, and `files`: `path`, `sha256`, `size`, `version`, `new`, `removed`, at most 100), `next_cursor` |
-| `pdm_check` | `library`, `project` (`path`, `name`, `section`, `archived`), `copy_toolbox`, `documents`, `self_contained`, `problems`, `counts` (per result), `findings` and `unreadable` (`path`, `exception`) |
+| `pdm_check` | `library`, `project` (`path`, `name`, `section`, `archived`), `copy_toolbox`, `documents`, `self_contained`, `problems`, `counts` (per result, and `toolbox_not_found`: the `toolbox` findings found nowhere, which are counted in `toolbox` too), `findings` and `unreadable` (`path`, `exception`) |
 
 Each finding of `pdm_check` is one reference of one document (`docs/PDM.md` 5):
 `document`, `key`, `stored_path`, `file_name`, `relation` (a part's `base_part`,
 `mirrored_part`, `in_context`, `import_source` or `external`, else null), `result`
-(`ok`, `outside`, `toolbox`, `inside_parent`, `missing`, `different_document`,
-`ambiguous`; an open set), `problem` (it keeps the project from being
+(`ok`, `outside`, `needs_confirmation`, `toolbox`, `inside_parent`, `missing`,
+`different_document`, `ambiguous`; an open set; `needs_confirmation` means found
+only by a search SOLIDWORKS may not make, so confirm by opening the assembly in
+SOLIDWORKS), `problem` (it keeps the project from being
 self-contained), `found` and `found_in` (`{"root", "path"}` in one of the service's
 roots, or null), `outside_roots` (found, but outside every root, so not named),
 `place` (`project`, `library`, `other_project` or `elsewhere`), `status`, `rule`,

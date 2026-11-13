@@ -2,21 +2,30 @@
 
 :func:`check_project` reads every SOLIDWORKS document in a project folder and
 resolves each of its references with SolidSeas' resolver
-(:func:`solidseas.resolve.resolve_references`), the way SOLIDWORKS searches: from
-the document's folder up. The folder probe goes on past the project folder, to the
-filesystem root (``search_above_roots``), because that is where a reference leaks
-into a neighbouring project. The library folder, when one is given, is a second
-root, so a file that SOLIDWORKS' search would not find but the library holds is
-reported as found there.
+(:func:`solidseas.resolve.resolve_references`) in the order the SOLIDWORKS help
+topic "Search Routine for Referenced Documents" gives (``search="documented"``):
+the document's own folder (the bare name, then the stored folder's tails, shortest
+first), then each folder above it under tails of one or more components, then the
+stored path. There is no step for the file's old position relative to the document.
+The climb goes on past the project folder, to the filesystem root
+(``search_above_roots``), because that is where a reference leaks into a
+neighbouring project. The library folder, when one is given, is a second root, so a
+file that SOLIDWORKS' search would not find but the library holds is reported as
+found there.
 
 Each reference gets one :class:`Finding`, with one of :data:`RESULTS`:
 
 * ``ok``: found inside the project;
 * ``outside``: found only outside it, in the library, another project (a folder
   beside the project) or elsewhere;
+* ``needs_confirmation``: found only as the bare name in a folder above the
+  document, a place the help topic does not say SOLIDWORKS searches; confirm by
+  opening the assembly in SOLIDWORKS;
 * ``toolbox``: Toolbox hardware not found inside the project;
-* ``inside_parent``: a virtual component or an imported one, stored inside its
-  assembly;
+* ``inside_parent``: a virtual component, or an imported one stored inside its
+  assembly (an imported one whose stored name has no folder is looked for on disk
+  first, and is ``inside_parent`` only when no file of that name that could be it
+  is found);
 * ``missing``: not found anywhere;
 * ``different_document``: the only file found by that name is another document
   (its stored creation time differs);
@@ -25,9 +34,7 @@ Each reference gets one :class:`Finding`, with one of :data:`RESULTS`:
 :func:`plan_copies` lists the copies that would make the project self-contained.
 It plans only: nothing here writes a file.
 
-The order in which the folder probe tries the stored folder's tails is the
-resolver's (:func:`solidseas.resolve.names.suffix_tails`), the bare name first.
-Whether SOLIDWORKS tries the longest tail first is not settled yet.
+Nothing here has been tried in SOLIDWORKS itself: the order is the help topic's.
 
 A sub-assembly's own components are checked when that sub-assembly is: a
 reference the top document stores only for a file inside a sub-assembly is left
@@ -49,7 +56,16 @@ from ..resolve.names import DOCUMENT_EXTENSIONS, fold, parse_stored
 from ..roots import Root, Roots
 from ..walk import Walk
 
-RESULTS = ("ok", "outside", "toolbox", "inside_parent", "missing", "different_document", "ambiguous")
+RESULTS = (
+    "ok",
+    "outside",
+    "needs_confirmation",
+    "toolbox",
+    "inside_parent",
+    "missing",
+    "different_document",
+    "ambiguous",
+)
 PLACES = ("project", "library", "other_project", "elsewhere")
 # The rules that follow SOLIDWORKS' own search (the name index is SolidSeas' own).
 SEARCH_RULES = frozenset(("embedded", *POSITIONAL_RULES))
@@ -70,7 +86,8 @@ class Finding:
     folder, or for ``elsewhere`` the file's own folder. ``status``, ``rule``,
     ``identity`` and ``warnings`` are the resolver's. ``searched`` is True when one of
     SOLIDWORKS' own search rules found the file, False when only SolidSeas' name index
-    did (SOLIDWORKS itself would not find it there)."""
+    did (SOLIDWORKS itself would not find it there) or only the bare name in a folder
+    above the document (rule ``bare_name_above``)."""
 
     document: Path
     key: str
@@ -102,9 +119,12 @@ class CheckResult:
     unreadable: tuple[tuple[Path, str], ...] = ()
 
     def counts(self) -> dict[str, int]:
+        """How many findings have each of :data:`RESULTS`, and ``toolbox_not_found``: how
+        many of the ``toolbox`` ones were found nowhere (counted in ``toolbox`` too)."""
         out = dict.fromkeys(RESULTS, 0)
         for f in self.findings:
             out[f.result] = out.get(f.result, 0) + 1
+        out["toolbox_not_found"] = sum(1 for f in self.findings if f.result == "toolbox" and f.found is None)
         return out
 
     def problems(self) -> list[Finding]:
@@ -213,6 +233,8 @@ def _finding(document: Path, f, r, project: Path, library: Path | None) -> Findi
         result = "toolbox" if toolbox else "missing"
     elif r.identity == "differ":
         result = "different_document"
+    elif r.rule == "bare_name_above" and (place == "project" or not toolbox):
+        result = "needs_confirmation"
     elif place == "project":
         result = "ok"
     else:
@@ -236,9 +258,7 @@ def _finding(document: Path, f, r, project: Path, library: Path | None) -> Findi
     )
 
 
-def check_project(
-    project: Path, *, library: Path | None = None, copy_toolbox: bool = False
-) -> CheckResult:
+def check_project(project: Path, *, library: Path | None = None, copy_toolbox: bool = False) -> CheckResult:
     """Check that every reference of every SOLIDWORKS document in ``project`` resolves
     inside it (see the module notes). ``library`` is the common-parts library folder:
     a file found there is reported as ``outside`` with place ``library``.
@@ -276,6 +296,7 @@ def check_project(
             allow_outside_roots=True,
             search_above_roots=True,
             skip_unavailable_roots=True,
+            search="documented",
         )
         for f in inp.files:
             if f.direct is False:  # checked when its own sub-assembly is
@@ -291,7 +312,7 @@ def check_project(
 def _needs_copy(f: Finding, copy_toolbox: bool) -> bool:
     if f.found is None:
         return False
-    if f.result == "outside":
+    if f.result in ("outside", "needs_confirmation"):
         return True
     return f.result == "toolbox" and copy_toolbox
 
@@ -305,32 +326,28 @@ def _same_content(a: Path, b: Path) -> bool:
 
 def plan_copies(result: CheckResult) -> CopyPlan:
     """The copies that would make ``result``'s project self-contained, without making
-    them. Each file found outside the project (and each Toolbox part, when
-    ``copy_toolbox``) is copied once, into the deepest folder that holds every
-    document referring to it, so SOLIDWORKS' search finds it from each of them; that
-    folder is the project's own when it would lie outside it. A destination that
-    already holds a file of that name is never written over: with the same content
-    the copy is listed in ``present``, otherwise in ``conflicts``."""
-    project = result.project
-    groups: dict[str, tuple[Path, list[Path], str | None]] = {}
+    them. Each file found outside the project, each one found only by a search
+    SOLIDWORKS may not make (``needs_confirmation``), and each Toolbox part when
+    ``copy_toolbox``, is copied into the folder of each document referring to it,
+    once per folder: the bare name in the document's own folder is the first place
+    SOLIDWORKS looks, and the only folder where it tries the bare name. A destination
+    that already holds a file of that name is never written over: with the same
+    content the copy is listed in ``present``, otherwise in ``conflicts``."""
+    groups: dict[tuple[str, str], tuple[Path, Path, list[Path], str | None]] = {}
     for f in result.findings:
         if not _needs_copy(f, result.copy_toolbox) or f.found is None:
             continue
-        src, users, place = groups.setdefault(_key(f.found), (f.found, [], f.place))
+        dest = f.document.parent / f.found.name
+        _src, _dest, users, _place = groups.setdefault(
+            (_key(f.found), _key(dest)), (f.found, dest, [], f.place)
+        )
         if f.document not in users:
             users.append(f.document)
     copies: list[PlannedCopy] = []
     conflicts: list[CopyConflict] = []
     present: list[PlannedCopy] = []
     taken: dict[str, Path] = {}
-    for src, users, place in groups.values():
-        try:
-            folder = Path(os.path.commonpath([str(u.parent) for u in users]))
-        except ValueError:  # different drives
-            folder = project
-        if not _inside(folder, project):
-            folder = project
-        dest = folder / src.name
+    for src, dest, users, place in groups.values():
         by = tuple(users)
         if _key(dest) in taken:
             conflicts.append(CopyConflict(src, dest, by, "another planned copy has this name here"))

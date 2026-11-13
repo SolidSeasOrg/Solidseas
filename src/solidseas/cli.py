@@ -3565,6 +3565,7 @@ def _pdm_restore(args: argparse.Namespace) -> int:
 
 _CHECK_WORDS = {
     "outside": "outside",
+    "needs_confirmation": "to confirm",
     "toolbox": "Toolbox",
     "missing": "missing",
     "different_document": "another document",
@@ -3607,6 +3608,17 @@ def _pdm_check(args: argparse.Namespace) -> int:
                 _say(f"  {what:<17}{doc}: {f['file_name'] or f['key']}{where}")
             for u in p["unreadable"]:
                 _say(f"  {'unreadable':<17}{os.path.relpath(u['path'], top)} ({u['error']})")
+            if p["counts"].get("needs_confirmation"):
+                _say(
+                    "  to confirm: found only by a search SOLIDWORKS may not make; confirm by opening "
+                    "the assembly in SOLIDWORKS"
+                )
+            nowhere = p["counts"].get("toolbox_not_found", 0)
+            if nowhere and not data["copy_toolbox"]:
+                _say(
+                    f"  {nowhere:,} Toolbox part{'' if nowhere == 1 else 's'} found nowhere on this "
+                    "computer: SOLIDWORKS needs them in its Toolbox to open the project"
+                )
             if plan is not None and fix is None:
                 for c in plan["copies"]:
                     _say(f"  would copy {c['source']} to {c['destination']}")

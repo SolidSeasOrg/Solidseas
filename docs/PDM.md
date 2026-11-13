@@ -80,23 +80,43 @@ Every command takes `--json`, the same envelope as the rest of the command line.
 
 ## 5. Self-contained check
 
-For each SOLIDWORKS document in a project, every reference is resolved the way
-SOLIDWORKS searches, from the document's folder climbing up. The climb continues
+For each SOLIDWORKS document in a project, every reference is resolved in the
+order the SOLIDWORKS help topic "Search Routine for Referenced Documents" gives
+(`resolve_references(search="documented")`), taking each document as the one
+opened:
+
+1. the document's own folder: the bare name, then the stored folder's tails under
+   it, shortest first (`p.SLDPRT`, `xx\p.SLDPRT`, `yy\xx\p.SLDPRT`);
+2. each folder above it in turn, with tails of one or more components only: the
+   bare name is not tried there;
+3. the stored path.
+
+There is no step for the old position relative to the document: a file there is
+found only when the climb reaches the folder the two share. The climb continues
 past the project folder to the drive root, because that is where a reference leaks
-into a neighbouring project. A result is one of these:
+into a neighbouring project. Nothing of this has been tried in SOLIDWORKS itself
+yet (bead SolidSeas-bx4q): the order is the help topic's worked example. A
+reference that only the bare name in a folder above the document finds is reported
+on its own, for the user to confirm in SOLIDWORKS.
+
+A result is one of these:
 
 - **ok**: found inside the project.
 - **outside**: found only outside the project. The finding names the folder and whether it is the library, another project or elsewhere.
-- **toolbox**: Toolbox hardware. This is reported, and it is ok when the installation loads Toolbox from its own folder.
-- **inside the parent**: a virtual component, or one stored inside its assembly (an imported STEP assembly).
+- **needs confirmation**: found only as the bare name in a folder above the document, a search SOLIDWORKS may not make. Confirm by opening the assembly in SOLIDWORKS. It counts as a problem, and the plan copies the file beside the document.
+- **toolbox**: Toolbox hardware. This is reported, and it is ok when the installation loads Toolbox from its own folder. The ones found nowhere are counted on their own (`toolbox_not_found`), so a summary can say SOLIDWORKS needs them in its Toolbox.
+- **inside the parent**: a virtual component, or one stored inside its assembly (an imported STEP assembly). An imported component whose stored name has no folder is looked for on disk first, by the same search, and is inside the parent only when no file of that name with its stored creation time is found.
 - **missing**: not found anywhere.
 - **different document**: the search finds a file of that name whose identity (stored creation time) is another document.
 
 A part's own external files (base part, mirrored part, in-context assembly, import
 source) are checked like an assembly's components. `pdm check --plan` lists the
 copies that would make a project self-contained without making them, and
-`pdm check --fix` makes them: each copy is a new file in the project and is recorded
-as a library link when its source is a library item.
+`pdm check --fix` makes them: each copy goes beside each document that refers to the
+file (once per folder), because the document's own folder is the only one where
+SOLIDWORKS tries the bare name. Each copy is a new file in the project, never one
+over an existing file, and is recorded as a library link when its source is a
+library item.
 
 ## 6. The common-parts library
 

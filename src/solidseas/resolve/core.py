@@ -55,6 +55,19 @@ reads it in a worker process, as JSON, and resolves in its own process, which
 never opens a CAD file; the library and the CLI read it from the open
 document.
 
+**The documented search** (``search="documented"``, which the PDM's
+self-contained check uses) follows the SOLIDWORKS help topic "Search Routine for
+Referenced Documents" instead of rules 1 to 6: ``path_map``; ``same_folder``
+(the bare name, in the document's own folder only); ``suffix_probe`` with tails
+of one or more components, the document's folder first and then each folder
+above it, shortest tail first; ``stored_path``; then ``bare_name_above``, the bare
+name in a folder above the document, which the help topic does not list and which
+is tried only so that a caller can say a file depends on it. There is no
+``stored_unmoved`` and no ``rebased`` step. An imported component whose stored
+name has no folder is looked up on disk by the same rules (but neither
+``bare_name_above`` nor the name index); it is ``inside_parent`` only when no file
+with an acceptable identity is found.
+
 Phase 1 resolves the top document's own tree in the top document's context
 (C7): files inside sub-assemblies are resolved from the paths the top document
 stored (warning ``from_parent_tree``), and a file used by more than one parent
@@ -94,7 +107,11 @@ DEFAULT_MAX_IDENTITY_READS = 5_000
 DOCUMENT_ROOT_ID = "document"
 
 POSITIONAL_RULES = ("stored_unmoved", "path_map", "rebased", "same_folder", "suffix_probe", "stored_path")
-RULES = ("embedded", *POSITIONAL_RULES, "name_index", "name_index_suffix")
+# The order of the SOLIDWORKS help topic "Search Routine for Referenced Documents", and
+# last the bare name in a folder above the document, which that topic does not list.
+DOCUMENTED_RULES = ("path_map", "same_folder", "suffix_probe", "stored_path", "bare_name_above")
+RULES = ("embedded", *POSITIONAL_RULES, "name_index", "name_index_suffix", "bare_name_above")
+SEARCHES = ("solidseas", "documented")
 STATUSES = (
     "resolved",
     "moved",
@@ -123,8 +140,9 @@ CONFIDENCE: dict[str, tuple[str, str]] = {
     "stored_path": ("medium", "low"),
     "name_index": ("high", "low"),
     "name_index_suffix": ("low", "low"),
+    "bare_name_above": ("medium", "low"),
 }
-_ALSO_EXISTS_RULES = ("rebased", "same_folder", "suffix_probe")
+_ALSO_EXISTS_RULES = ("rebased", "same_folder", "suffix_probe", "bare_name_above")
 
 
 # --------------------------------------------------------------------------- results
@@ -395,6 +413,7 @@ class _Ref:
     fallback: _Hit | None = None
     result: ResolvedReference | None = None
     skipped_reads: bool = False
+    imported: bool = False  # an inside_parent component looked up on disk (documented search)
 
 
 def _warn(code: str, message: str) -> ReaderWarning:
@@ -444,6 +463,7 @@ class Resolver:
         gateway: Gateway | None,
         skip_unavailable_roots: bool = False,
         search_above_roots: bool = False,
+        search: str = "solidseas",
     ) -> None:
         for value, name, low in (
             (max_examined, "max_examined", 1),
@@ -484,6 +504,9 @@ class Resolver:
                 "search_above_roots is true or false", detail={"parameter": "search_above_roots"}
             )
         self.search_above_roots = search_above_roots
+        if search not in SEARCHES:
+            raise InvalidArgumentError("search is solidseas or documented", detail={"parameter": "search"})
+        self.documented = search == "documented"
         self.unavailable: list[str] = []  # ids of roots whose folder could not be walked
         self._memo: dict[tuple, list | str] = {}
 
@@ -616,6 +639,9 @@ class Resolver:
 
     # ------------------------------------------------------------------ step 1: positional candidates
     def _positional(self, ref: _Ref) -> None:
+        if self.documented:
+            self._positional_documented(ref)
+            return
         sp = ref.stored
         groups = ref.groups
         stored_hits = self._stored_lookup(ref, "stored_path")
@@ -660,12 +686,55 @@ class Resolver:
         if stored_hits:
             groups["stored_path"] = [stored_hits]
 
-    def _suffix_probe(self, ref: _Ref, a: HostPath, name: str) -> list[list[_Hit]]:
+    def _positional_documented(self, ref: _Ref) -> None:
+        """The candidates in the order of the SOLIDWORKS help topic (see the module notes)."""
+        sp = ref.stored
+        groups = ref.groups
+        stored_hits = self._stored_lookup(ref, "stored_path")
+        ref.stored_hits = stored_hits
+        for mapping in self.path_map:
+            target = mapping.apply(sp)
+            if target is not None:
+                found = self._lookup(target, "path_map", configured=mapping.target)
+                if not isinstance(found, str) and found:
+                    groups["path_map"] = [found]
+                break
+        name = sp.name if sp.name_ok else None
+        a = self.folder
+        if a is not None and name is not None:
+            found = self._lookup(a.child(name), "same_folder", trusted=len(a.parts))
+            if not isinstance(found, str) and found:
+                groups["same_folder"] = [found]
+            tails = [t for t in suffix_tails(sp.folder if sp.usable else ()) if t]
+            probe = self._suffix_probe(ref, a, name, tails=tails) if tails else []
+            if probe:
+                groups["suffix_probe"] = probe
+        if stored_hits:
+            groups["stored_path"] = [stored_hits]
+        if a is not None and name is not None and not ref.imported:
+            above = self._suffix_probe(ref, a, name, tails=[()], rule="bare_name_above", own_folder=False)
+            if above:
+                groups["bare_name_above"] = above
+
+    def _suffix_probe(
+        self,
+        ref: _Ref,
+        a: HostPath,
+        name: str,
+        *,
+        tails: list[tuple[str, ...]] | None = None,
+        rule: str = "suffix_probe",
+        own_folder: bool = True,
+    ) -> list[list[_Hit]]:
+        """The folder probe from ``a`` up: in each folder, ``name`` under each of ``tails``
+        (by default every tail of the stored folder, the bare name first). Without
+        ``own_folder`` it starts in the folder above ``a``."""
         index = next((i for i in self.indexes if i.covers(a) is not None), None)
         if index is None:
             return []
         below = index.covers(a) or ()
-        tails = suffix_tails(ref.stored.folder if ref.stored.usable else ())
+        if tails is None:
+            tails = suffix_tails(ref.stored.folder if ref.stored.usable else ())
         out: list[list[_Hit]] = []
         seen: set[tuple] = set()
 
@@ -676,10 +745,10 @@ class Resolver:
                 out.append(group)
             return sum(len(g) for g in out) >= self.max_candidates
 
-        for j in range(len(below), -1, -1):
+        for j in range(len(below) if own_folder else len(below) - 1, -1, -1):
             for tail in tails:
                 files, nfc = index.lookup((*below[:j], *tail), name)
-                if add([self._index_hit(index, f, "suffix_probe", nfc) for f in files]):
+                if add([self._index_hit(index, f, rule, nfc) for f in files]):
                     return out
         if self.search_above_roots:
             # Past the root, folder by folder to the filesystem root, as SOLIDWORKS does: a
@@ -688,7 +757,7 @@ class Resolver:
             for k in range(len(top.parts) - 1, -1, -1):
                 for tail in tails:
                     target = HostPath(top.anchor, (*top.parts[:k], *tail, name))
-                    found = self._lookup(target, "suffix_probe", trusted=k)
+                    found = self._lookup(target, rule, trusted=k)
                     if not isinstance(found, str) and add(found):
                         return out
         return out
@@ -726,7 +795,7 @@ class Resolver:
 
     # ------------------------------------------------------------------ step 3: decide
     def _decide_positional(self, ref: _Ref) -> tuple[_Hit, str] | list[_Hit] | None:
-        for rule in POSITIONAL_RULES:
+        for rule in DOCUMENTED_RULES if self.documented else POSITIONAL_RULES:
             for group in ref.groups.get(rule, ()):
                 acceptable = []
                 for h in group:
@@ -885,7 +954,11 @@ class Resolver:
         )
 
     def _embedded(
-        self, f: InputFile, stored_ct: int | None, warnings: list[ReaderWarning]
+        self,
+        f: InputFile,
+        stored_ct: int | None,
+        warnings: list[ReaderWarning],
+        candidates: tuple[Candidate, ...] = (),
     ) -> ResolvedReference:
         status = f.embedded
         identity, confidence = "unknown", "none"
@@ -910,7 +983,7 @@ class Resolver:
             confidence=confidence,
             identity=identity,
             nested=f.nested if status == "embedded" else None,
-            candidates=(),
+            candidates=candidates,
             warnings=tuple(warnings),
         )
 
@@ -933,11 +1006,12 @@ class Resolver:
             if f.parent_documents > 1:
                 warnings.append(_warn("context_varies", "the file is used by more than one parent document"))
             stored_ct = f.stored_creation_time
-            if f.embedded is not None:
+            imported = self.documented and f.embedded == "inside_parent"
+            if f.embedded is not None and not imported:
                 results[f.key] = self._embedded(f, stored_ct, warnings)
                 continue
             sp = parse_stored(f.stored_path)
-            ref = _Ref(f, sp, stored_ct, warnings)
+            ref = _Ref(f, sp, stored_ct, warnings, imported=imported)
             if sp.problem is not None:
                 self._note(
                     ref, "stored_path_refused", f"the stored path is not used as a location ({sp.problem})"
@@ -964,7 +1038,13 @@ class Resolver:
         undecided: list[_Ref] = []
         for ref in pending:
             decision = self._decide_positional(ref)
-            if decision is None and ref.stored.name_ok:
+            if ref.imported:
+                if decision is None:  # no file with an acceptable identity: the assembly holds it
+                    found = self._candidates(ref.others)
+                    ref.result = self._embedded(ref.file, ref.stored_ct, ref.warnings, found)
+                else:
+                    ref.result = self._finish(ref, decision)
+            elif decision is None and ref.stored.name_ok:
                 undecided.append(ref)
             else:
                 ref.result = self._finish(ref, decision)
@@ -1021,6 +1101,7 @@ def resolve_references(
     gateway: Gateway | None = None,
     skip_unavailable_roots: bool = False,
     search_above_roots: bool = False,
+    search: str = "solidseas",
 ) -> Resolution:
     """Resolve every file ``doc`` references (``docs/API.md`` section 3.10).
 
@@ -1041,6 +1122,9 @@ def resolve_references(
     ``search_above_roots`` lets the folder probe (rule 5) climb past the root that
     holds the document to the filesystem root, by point lookups (it needs
     ``allow_outside_roots``); the PDM's self-contained check sets it.
+    ``search`` is ``"solidseas"`` (the rules above) or ``"documented"``, the order of the
+    SOLIDWORKS help topic "Search Routine for Referenced Documents" (see the module
+    notes), which the PDM's self-contained check uses.
     """
     inp = doc if isinstance(doc, ResolutionInput) else ResolutionInput.from_document(doc)
     return Resolver(
@@ -1056,15 +1140,18 @@ def resolve_references(
         gateway=gateway,
         skip_unavailable_roots=skip_unavailable_roots,
         search_above_roots=search_above_roots,
+        search=search,
     ).run()
 
 
 __all__ = [
     "CONFIDENCE",
     "DOCUMENT_ROOT_ID",
+    "DOCUMENTED_RULES",
     "MAX_REFERENCES",
     "POSITIONAL_RULES",
     "RULES",
+    "SEARCHES",
     "STATUSES",
     "Candidate",
     "IndexCache",

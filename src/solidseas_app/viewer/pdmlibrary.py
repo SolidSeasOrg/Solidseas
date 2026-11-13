@@ -616,9 +616,9 @@ class PlanDialog(QDialog):
         n = len(plan.copies)
         if n:
             text = (
-                f"{plural(n, 'file')} found outside the project can be copied into it. Each copy goes into "
-                "the deepest folder that holds every document using it, so SOLIDWORKS finds it from each "
-                "of them. Each copy is a new file: nothing in the project is replaced, and the documents "
+                f"{plural(n, 'copy', 'copies')} can make the project self-contained. Each copy goes beside"
+                " the documents that use the file, the only folder where SOLIDWORKS looks for it by its name "
+                "alone. Each copy is a new file: nothing in the project is replaced, and the documents "
                 "themselves are not changed."
             )
         else:

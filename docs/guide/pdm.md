@@ -116,18 +116,23 @@ solidseas pdm check                  # every project in the library
 ```
 
 `check` reads every SOLIDWORKS document in the project and looks for each file it
-references the way SOLIDWORKS does, starting in the document's folder and climbing
-up. It keeps climbing past the project folder, because that is how a part in a
-neighbouring project ends up in an assembly without anyone noticing. Each reference
-that is not found inside the project is listed:
+references in the order the SOLIDWORKS help describes: in the document's own folder
+first, then in each folder above it under the folders the reference was saved in,
+then at the saved path. It keeps climbing past the project folder, because that is
+how a part in a neighbouring project ends up in an assembly without anyone noticing.
+Each reference that is not found inside the project is listed:
 
 | Result | What it means |
 |---|---|
 | outside | found only outside the project: in the library, in another project, or elsewhere |
+| to confirm | found only by its name in a folder above the document, where SOLIDWORKS may not look; open the assembly in SOLIDWORKS to confirm |
 | Toolbox | Toolbox hardware not in the project; fine when SOLIDWORKS loads Toolbox from its own folder |
 | missing | not found anywhere |
 | another document | a file of that name was found, but it is a different document |
 | ambiguous | several files could be it |
+
+Toolbox parts found nowhere on the computer are not listed, but the summary says how
+many there are: SOLIDWORKS needs them in its Toolbox to open the project.
 
 Without a project, `check` goes through every project in the library and says which
 are self-contained. Projects in the archive sections are left out.
@@ -138,8 +143,9 @@ solidseas pdm check D:\CAD\Jobs\1042 --fix
 ```
 
 `--plan` lists the copies that would make the project self-contained: each file found
-outside goes into the deepest folder that holds every document using it, so
-SOLIDWORKS finds it from each of them. `--fix` makes those copies and checks the
+outside, or only by a search to confirm, goes beside each document that uses it,
+because the document's own folder is the only one where SOLIDWORKS looks for the
+file by its name alone. `--fix` makes those copies and checks the
 project again. A copy is always a new file. When a file of that name is already
 there, nothing is copied and `check` says why. A file copied from the library is
 remembered as a copy of that library item, so `pdm library updates` can tell you

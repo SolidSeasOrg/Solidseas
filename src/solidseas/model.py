@@ -4007,7 +4007,16 @@ _DEFS["checkin_brief"] = _obj(
 _PDM_STATE = {"type": "string", "enum": ["new", "changed", "gone", "unchanged"]}
 _PDM_COUNTS = _obj({k: _INT for k in ("new", "changed", "gone", "unchanged")})
 _PDM_SKIPPED = _arr(_obj({"path": _STR, "reason": _STR}))
-_CHECK_RESULTS = ("ok", "outside", "toolbox", "inside_parent", "missing", "different_document", "ambiguous")
+_CHECK_RESULTS = (
+    "ok",
+    "outside",
+    "needs_confirmation",
+    "toolbox",
+    "inside_parent",
+    "missing",
+    "different_document",
+    "ambiguous",
+)
 _PDM_FINDING = _obj(
     {
         "document": _STR,
@@ -4206,7 +4215,11 @@ _PDM_SCHEMA = _obj(
                         {
                             "project": _ref("pdm_project"),
                             "documents": _INT,
-                            "counts": _obj({k: _INT for k in _CHECK_RESULTS}),
+                            "counts": _obj(
+                                {k: _INT for k in (*_CHECK_RESULTS, "toolbox_not_found")},
+                                description="Findings per result, and toolbox_not_found: the toolbox "
+                                "ones found nowhere (counted in toolbox too).",
+                            ),
                             "self_contained": _BOOL,
                             "findings": _arr(_PDM_FINDING),
                             "unreadable": _arr(_obj({"path": _STR, "error": _STR})),
@@ -4451,7 +4464,12 @@ _PDM_CHECK_SCHEMA = _obj(
         "documents": _INT,
         "self_contained": _BOOL,
         "problems": _INT,
-        "counts": {"type": "object", "additionalProperties": _INT},
+        "counts": {
+            "type": "object",
+            "additionalProperties": _INT,
+            "description": "Findings per result, and toolbox_not_found: the toolbox findings found "
+            "nowhere (counted in toolbox too).",
+        },
         "findings": _arr(
             _obj(
                 {
@@ -4462,8 +4480,9 @@ _PDM_CHECK_SCHEMA = _obj(
                     "relation": _STR_N,
                     "result": {
                         "type": "string",
-                        "description": "ok, outside, toolbox, inside_parent, missing, different_document "
-                        "or ambiguous (an open set)",
+                        "description": "ok, outside, needs_confirmation, toolbox, inside_parent, missing, "
+                        "different_document or ambiguous (an open set). needs_confirmation: found only by "
+                        "a search SOLIDWORKS may not make; confirm by opening the assembly in SOLIDWORKS",
                     },
                     "problem": _BOOL,
                     "found": _PDM_PLACE,

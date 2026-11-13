@@ -288,7 +288,7 @@ When the folder you open lies in a library (a folder made one with
 |---|---|
 | Check In... | Keeps a version of each changed file, with your note. Choose the selected file or the folder chosen in the folder tree; the window lists what changed there (new, changed or gone) before you check in. A revision such as B and a state such as released are optional. |
 | Changes | Lists the files in the chosen folder that are new, changed since their newest version, or gone. Check In there opens the check-in for the same folder. |
-| Check Project | Checks that the project holding the chosen folder holds every file its assemblies, parts and drawings reference. The findings are grouped (not found anywhere, another document of that name, found only outside the project, Toolbox hardware, stored inside its assembly, found in the project), each with the document, the path stored in it and where the file was found. Make Copies lists the copies that would make the project self-contained (see below). |
+| Check Project | Checks that the project holding the chosen folder holds every file its assemblies, parts and drawings reference. The findings are grouped (not found anywhere, another document of that name, found only outside the project, found only by a search SOLIDWORKS may not make, Toolbox hardware, stored inside its assembly, found in the project), and the summary says how many Toolbox parts were found nowhere, each with the document, the path stored in it and where the file was found. Make Copies lists the copies that would make the project self-contained (see below). |
 | Library of Common Parts... | Opens the library's common parts in a window of their own (see below). |
 | Restore Version... | Puts back the library version chosen on the History tab. The file as it is now is kept as a version in the library first, so nothing is lost. You can also restore it as a new file beside it, which never replaces another file. |
 
@@ -306,8 +306,10 @@ restore and copy runs in the background.
 In the Check Project window, **Make Copies...** lists each file found outside
 the project with the folder it would be copied to and why: the documents that
 use it, where it was found, and its library item number when it comes from the
-library. Each copy goes into the deepest folder that holds every document using
-it, so SOLIDWORKS finds it from each of them. A copy that cannot be made, because
+library. Each copy goes beside the documents that use the file, the only folder
+where SOLIDWORKS looks for it by its name alone; a file found only by its name in a
+folder above a document (to confirm) is copied beside it the same way. A copy that
+cannot be made, because
 the folder already has a different file of that name, is listed with the reason,
 and files already in place are listed too. Make Copies asks before it copies
 anything: each copy is a new file, nothing already in the project is replaced,

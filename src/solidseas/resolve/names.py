@@ -295,9 +295,11 @@ def suffix_tails(folder: Sequence[str]) -> list[tuple[str, ...]]:
     """The tails of a stored folder that SOLIDWORKS' folder probe puts between each
     folder it searches and the name, in the order they are tried: none (the bare
     name), then the last 1, 2... components. Every search for a reference by folder
-    takes its order from here. Whether SOLIDWORKS itself tries the longest tail first
-    is not settled (bead SolidSeas-bx4q): the two differ only when both would find a
-    file."""
+    takes its order from here. The worked example in the SOLIDWORKS help topic
+    "Search Routine for Referenced Documents" tries the tails in this order, shortest
+    first, but tries the bare name only in the document's own folder: the documented
+    search (``resolve_references(search="documented")``) leaves the empty tail out
+    above it. Neither point has been tried in SOLIDWORKS itself yet."""
     return [tuple(folder[len(folder) - n :]) if n else () for n in range(len(folder) + 1)]
 
 
