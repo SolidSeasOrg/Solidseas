@@ -9,9 +9,12 @@ first), then each folder above it under tails of one or more components, then th
 stored path. There is no step for the file's old position relative to the document.
 The climb goes on past the project folder, to the filesystem root
 (``search_above_roots``), because that is where a reference leaks into a
-neighbouring project. The library folder, when one is given, is a second root, so a
-file that SOLIDWORKS' search would not find but the library holds is reported as
-found there.
+neighbouring project. The first file the search reaches decides: when it was made
+as another document, the reference is ``different_document`` and the search does
+not go on past it. A file of that name that the search does not reach is never
+taken as found: the reference is ``missing`` (or ``toolbox``), and the file is
+listed in the finding's ``candidates``. The library folder, when one is given, is a
+second root, so a copy there is listed too.
 
 Each reference gets one :class:`Finding`, with one of :data:`RESULTS`:
 
@@ -26,9 +29,10 @@ Each reference gets one :class:`Finding`, with one of :data:`RESULTS`:
   assembly (an imported one whose stored name has no folder is looked for on disk
   first, and is ``inside_parent`` only when no file of that name that could be it
   is found);
-* ``missing``: not found anywhere;
-* ``different_document``: the only file found by that name is another document
-  (its stored creation time differs);
+* ``missing``: not found where SOLIDWORKS looks (a file of that name elsewhere in
+  the project or the library is in ``candidates``);
+* ``different_document``: the first file the search reaches by that name is
+  another document (its stored creation time differs);
 * ``ambiguous``: several files could be it, and none could be chosen.
 
 :func:`plan_copies` lists the copies that would make the project self-contained.
@@ -70,6 +74,7 @@ PLACES = ("project", "library", "other_project", "elsewhere")
 # The rules that follow SOLIDWORKS' own search (the name index is SolidSeas' own).
 SEARCH_RULES = frozenset(("embedded", *POSITIONAL_RULES))
 _INSIDE = ("embedded", "embedded_in_subassembly", "inside_parent")
+_NAME_RULES = ("name_index", "name_index_suffix")
 _TOOLBOX_FOLDERS = ("SOLIDWORKS DATA", "TOOLBOX")
 _PROJECT_FOLDER = ".solidseas"
 
@@ -85,9 +90,11 @@ class Finding:
     is (:data:`PLACES`), and ``found_in`` the library folder, the other project's
     folder, or for ``elsewhere`` the file's own folder. ``status``, ``rule``,
     ``identity`` and ``warnings`` are the resolver's. ``searched`` is True when one of
-    SOLIDWORKS' own search rules found the file, False when only SolidSeas' name index
-    did (SOLIDWORKS itself would not find it there) or only the bare name in a folder
-    above the document (rule ``bare_name_above``)."""
+    SOLIDWORKS' own search rules found the file, False when only the bare name in a
+    folder above the document did (rule ``bare_name_above``). ``candidates`` are, for
+    a reference not found, the files of that name elsewhere in the project or the
+    library, which SOLIDWORKS' search does not reach (none made as another
+    document)."""
 
     document: Path
     key: str
@@ -104,6 +111,7 @@ class Finding:
     searched: bool
     toolbox: bool
     warnings: tuple[str, ...] = ()
+    candidates: tuple[Path, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -221,7 +229,15 @@ def _place(found: Path, project: Path, library: Path | None) -> tuple[str, Path]
 # --------------------------------------------------------------------------- the check
 def _finding(document: Path, f, r, project: Path, library: Path | None) -> Finding:
     found = Path(r.match.host_path) if r.match is not None else None
-    toolbox = is_toolbox_path(f.stored_path) or (found is not None and is_toolbox_path(str(found)))
+    candidates: tuple[Path, ...] = ()
+    if found is None and r.status not in _INSIDE:
+        candidates = tuple(
+            Path(c.location.host_path)
+            for c in r.candidates
+            if c.found_by in _NAME_RULES and c.identity != "differ"
+        )
+    seen = (found, *candidates) if found is not None else candidates
+    toolbox = is_toolbox_path(f.stored_path) or any(is_toolbox_path(str(p)) for p in seen)
     place = found_in = None
     if found is not None:
         place, found_in = _place(found, project, library)
@@ -255,6 +271,7 @@ def _finding(document: Path, f, r, project: Path, library: Path | None) -> Findi
         searched=r.rule in SEARCH_RULES,
         toolbox=toolbox,
         warnings=tuple(w.code for w in r.warnings),
+        candidates=candidates,
     )
 
 

@@ -3603,6 +3603,11 @@ def _pdm_check(args: argparse.Namespace) -> int:
             top = vault.absolute(name)
             for f in p["findings"]:
                 where = f", {_PLACE_WORDS.get(f['place'], f['place'])}: {f['found']}" if f["found"] else ""
+                if not f["found"] and f["candidates"]:
+                    more = len(f["candidates"]) - 1
+                    where = f", out of SOLIDWORKS' search: {f['candidates'][0]}" + (
+                        f" and {more:,} more" if more else ""
+                    )
                 what = _CHECK_WORDS.get(f["result"], f["result"])
                 doc = os.path.relpath(f["document"], top)
                 _say(f"  {what:<17}{doc}: {f['file_name'] or f['key']}{where}")

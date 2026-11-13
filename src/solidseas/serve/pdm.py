@@ -301,6 +301,7 @@ def check(params: dict[str, Any]) -> dict[str, Any]:
                 "searched": f.searched,
                 "toolbox": f.toolbox,
                 "warnings": list(f.warnings),
+                "candidates": [c for c in (place(p) for p in f.candidates) if c is not None],
             }
         )
     return {

@@ -353,8 +353,21 @@ def test_changes_lists_new_changed_and_gone_files(app, window, tmp_path):
     dialog.reject()
 
 
+@pytest.fixture
+def fake_drive_q(monkeypatch):
+    """Drive Q: does not exist, whatever this machine has: stored Q:\\ paths are never touched."""
+    from solidseas.resolve import gateway as gateway_mod
+
+    real = gateway_mod._drive_type
+
+    def drive_type(root: str) -> int:
+        return gateway_mod.DRIVE_NO_ROOT_DIR if root.upper().startswith("Q:") else real(root)
+
+    monkeypatch.setattr(gateway_mod, "_drive_type", drive_type)
+
+
 @needs_qt
-def test_a_folder_s_menu_and_check_project(app, window, tmp_path):
+def test_a_folder_s_menu_and_check_project(app, window, tmp_path, fake_drive_q):
     from builders import TreeXml, part_with_creation_time, resolving_assembly
 
     ct = 1_700_000_000
@@ -364,9 +377,12 @@ def test_a_folder_s_menu_and_check_project(app, window, tmp_path):
     (a / "parts" / "p.SLDPRT").write_bytes(part_with_creation_time(ct))
     (cad / "Library").mkdir(parents=True)
     (cad / "Library" / "bolt.SLDPRT").write_bytes(part_with_creation_time(ct))
+    (a / "deep").mkdir()
+    (a / "deep" / "far.SLDPRT").write_bytes(part_with_creation_time(ct))  # out of the search
     t = TreeXml()
     t.top("m1")
-    for i, stored in enumerate(["parts\\p.SLDPRT", "bolt.SLDPRT", "none.SLDPRT"], start=2):
+    stored_paths = ["Q:\\A\\parts\\p.SLDPRT", "Q:\\CAD\\Library\\bolt.SLDPRT", "none.SLDPRT", "far.SLDPRT"]
+    for i, stored in enumerate(stored_paths, start=2):
         t.file(str(i), stored, swCreationTime=str(ct))
         t.model(f"m{i}", str(i))
         t.ref("m1", f"c{i}", 1, f"m{i}")
@@ -388,18 +404,22 @@ def test_a_folder_s_menu_and_check_project(app, window, tmp_path):
     dialog = w.pdm.check_project(str(a))
     got = _results(app, w, 1, 0)
     assert got[0]["ok"], got[0]
-    assert dialog.line.text().startswith("Jobs/A: 3 references in 2 documents.")
-    assert dialog.line.text().endswith("2 findings keep the project from being self-contained.")
+    assert dialog.line.text().startswith("Jobs/A: 4 references in 3 documents.")
+    assert dialog.line.text().endswith("3 findings keep the project from being self-contained.")
     tops = _tops(dialog.tree)
     assert tops == [
-        "Not found anywhere (1)",
+        "Not found where SOLIDWORKS looks (2)",
         "Found only outside the project (1)",
         "Found in the project (1)",
     ]
     outside = dialog.tree.topLevelItem(1).child(0)
-    assert outside.text(0) == "asm.SLDASM" and outside.text(1) == "bolt.SLDPRT"
+    assert outside.text(0) == "asm.SLDASM" and outside.text(1) == "Q:\\CAD\\Library\\bolt.SLDPRT"
     assert outside.text(2) == f"{cad / 'Library' / 'bolt.SLDPRT'} (in the library)"
-    assert dialog.tree.topLevelItem(0).child(0).text(2) == "Not found"
+    missing = dialog.tree.topLevelItem(0)
+    assert {missing.child(i).text(1): missing.child(i).text(2) for i in range(2)} == {
+        "none.SLDPRT": "Not found",
+        "far.SLDPRT": f"Out of SOLIDWORKS' search: {a / 'deep' / 'far.SLDPRT'}",
+    }
     dialog.reject()
 
 
@@ -602,7 +622,7 @@ def test_the_candidates_tab_adds_a_shared_part(app, window, tmp_path):
 
 
 @needs_qt
-def test_check_project_makes_the_planned_copies(app, window, tmp_path, monkeypatch):
+def test_check_project_makes_the_planned_copies(app, window, tmp_path, monkeypatch, fake_drive_q):
     from builders import TreeXml, part_with_creation_time, resolving_assembly
 
     ct = 1_700_000_000
@@ -614,7 +634,7 @@ def test_check_project_makes_the_planned_copies(app, window, tmp_path, monkeypat
     (cad / "Library" / "bolt.SLDPRT").write_bytes(bolt)
     t = TreeXml()
     t.top("m1")
-    t.file("2", "bolt.SLDPRT", swCreationTime=str(ct))
+    t.file("2", "Q:\\CAD\\Library\\bolt.SLDPRT", swCreationTime=str(ct))
     t.model("m2", "2")
     t.ref("m1", "c2", 1, "m2")
     (a / "asm.SLDASM").write_bytes(resolving_assembly(t))

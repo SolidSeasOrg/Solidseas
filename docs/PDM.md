@@ -99,6 +99,15 @@ yet (bead SolidSeas-bx4q): the order is the help topic's worked example. A
 reference that only the bare name in a folder above the document finds is reported
 on its own, for the user to confirm in SOLIDWORKS.
 
+The first file the search reaches decides. When it was made as another document (its
+stored creation time differs), the reference is a different document and the search
+does not go on past it, even when a later step would find the right file: that is the
+file SOLIDWORKS would open. A file with no stored creation time to compare, such as an
+import source, counts as found. SolidSeas' name index, which finds a file of that name
+anywhere under the project or the library, is not part of this search: a file only it
+finds leaves the reference missing (or Toolbox, for a Toolbox part), and is listed in
+the finding's `candidates`.
+
 A result is one of these:
 
 - **ok**: found inside the project.
@@ -106,8 +115,8 @@ A result is one of these:
 - **needs confirmation**: found only as the bare name in a folder above the document, a search SOLIDWORKS may not make. Confirm by opening the assembly in SOLIDWORKS. It counts as a problem, and the plan copies the file beside the document.
 - **toolbox**: Toolbox hardware. This is reported, and it is ok when the installation loads Toolbox from its own folder. The ones found nowhere are counted on their own (`toolbox_not_found`), so a summary can say SOLIDWORKS needs them in its Toolbox.
 - **inside the parent**: a virtual component, or one stored inside its assembly (an imported STEP assembly). An imported component whose stored name has no folder is looked for on disk first, by the same search, and is inside the parent only when no file of that name with its stored creation time is found.
-- **missing**: not found anywhere.
-- **different document**: the search finds a file of that name whose identity (stored creation time) is another document.
+- **missing**: not found where SOLIDWORKS looks. A file of that name that the search does not reach, elsewhere in the project or in the library, is listed in `candidates`.
+- **different document**: the first file of that name the search reaches has another identity (stored creation time): it is another document.
 
 A part's own external files (base part, mirrored part, in-context assembly, import
 source) are checked like an assembly's components. `pdm check --plan` lists the

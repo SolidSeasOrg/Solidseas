@@ -120,15 +120,17 @@ references in the order the SOLIDWORKS help describes: in the document's own fol
 first, then in each folder above it under the folders the reference was saved in,
 then at the saved path. It keeps climbing past the project folder, because that is
 how a part in a neighbouring project ends up in an assembly without anyone noticing.
-Each reference that is not found inside the project is listed:
+The first file of that name the search reaches is the one SOLIDWORKS opens, so `check`
+stops there too, even when the right file sits further on. Each reference that is not
+found inside the project is listed:
 
 | Result | What it means |
 |---|---|
 | outside | found only outside the project: in the library, in another project, or elsewhere |
 | to confirm | found only by its name in a folder above the document, where SOLIDWORKS may not look; open the assembly in SOLIDWORKS to confirm |
 | Toolbox | Toolbox hardware not in the project; fine when SOLIDWORKS loads Toolbox from its own folder |
-| missing | not found anywhere |
-| another document | a file of that name was found, but it is a different document |
+| missing | not found where SOLIDWORKS looks; a file of that name elsewhere in the project or the library is named after it, as out of SOLIDWORKS' search |
+| another document | the first file of that name the search reaches is a different document |
 | ambiguous | several files could be it |
 
 Toolbox parts found nowhere on the computer are not listed, but the summary says how

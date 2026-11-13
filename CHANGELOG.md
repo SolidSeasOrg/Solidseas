@@ -17,7 +17,13 @@ while the project takes shape.
   A file found only by its name in a folder above the document is now reported as
   to confirm (needs_confirmation), because SOLIDWORKS may not look there: open the
   assembly in SOLIDWORKS to check, or let `--plan` and `--fix` copy it beside the
-  document. Every copy now goes beside the documents that use the file. The summary
+  document. The first file of that name the search reaches decides, as it does in
+  SOLIDWORKS: when that file is another document, the reference is reported as
+  another document, even if the right file sits further on. A file that only
+  SolidSeas' own search by name finds, elsewhere in the project or the library, no
+  longer counts as found: the reference is missing (a Toolbox part stays Toolbox),
+  and the finding names that file as out of SOLIDWORKS' search (`candidates` in the
+  JSON). Every copy now goes beside the documents that use the file. The summary
   also says how many Toolbox parts were found nowhere. The same applies to the
   viewer's Check Project, the REST service's `/v1/pdm/check` and the MCP
   check_project tool. Other reference resolution is unchanged.

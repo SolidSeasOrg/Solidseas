@@ -1140,6 +1140,7 @@ def _finding_data(f) -> dict[str, Any]:
         "searched": f.searched,
         "toolbox": f.toolbox,
         "warnings": list(f.warnings),
+        "candidates": [str(p) for p in f.candidates],
     }
 
 

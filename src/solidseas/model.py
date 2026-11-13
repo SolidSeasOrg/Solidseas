@@ -4034,6 +4034,7 @@ _PDM_FINDING = _obj(
         "searched": _BOOL,
         "toolbox": _BOOL,
         "warnings": _arr(_STR),
+        "candidates": _arr(_STR),
     }
 )
 _PDM_COPY = _obj(
@@ -4495,6 +4496,7 @@ _PDM_CHECK_SCHEMA = _obj(
                     "searched": _BOOL,
                     "toolbox": _BOOL,
                     "warnings": _arr(_STR),
+                    "candidates": _arr(_PDM_PLACE),
                 }
             )
         ),

@@ -81,7 +81,7 @@ STATE_ORDER = ("new", "changed", "gone")
 
 # The project check's results, in the order the window lists them, in words.
 RESULT_WORDS = {
-    "missing": "Not found anywhere",
+    "missing": "Not found where SOLIDWORKS looks",
     "different_document": "Another document has that name",
     "ambiguous": "Several files could be it",
     "outside": "Found only outside the project",
@@ -91,10 +91,15 @@ RESULT_WORDS = {
     "ok": "Found in the project",
 }
 RESULT_TIPS = {
-    "missing": "No file of that name was found in the project, above it or in the library.",
+    "missing": (
+        "SOLIDWORKS' search finds no file of that name. A file of that name that the search does not "
+        "reach, elsewhere in the project or in the library, is shown where it is: copy it beside the "
+        "document that uses it."
+    ),
     "different_document": (
-        "SOLIDWORKS' search finds a file of that name, but it was made as another document (its stored "
-        "creation time differs), so the assembly would open the wrong part."
+        "The first file of that name SOLIDWORKS' search reaches was made as another document (its stored "
+        "creation time differs), so the assembly would open the wrong part. The search stops there, "
+        "even when the right file is further on."
     ),
     "ambiguous": "Several files of that name could be the one, and none of them could be chosen.",
     "outside": (
@@ -264,6 +269,9 @@ def finding_rows(result) -> list[tuple[str, list[dict[str, Any]]]]:
         if f.found is not None:
             place = PLACE_WORDS.get(f.place or "", "")
             where = str(f.found) + (f" ({place})" if place and f.place != "project" else "")
+        elif f.candidates:
+            more = len(f.candidates) - 1
+            where = f"Out of SOLIDWORKS' search: {f.candidates[0]}" + (f" and {more} more" if more else "")
         else:
             where = "Not found"
         groups.setdefault(f.result, []).append(

@@ -1013,8 +1013,13 @@ def resolve_references(
   depends on it. There is no `stored_unmoved` and no `rebased` step. An imported
   component whose stored name has no folder is looked up by the same rules (but
   neither `bare_name_above` nor the name index) and is `inside_parent` only when
-  no file with an acceptable identity is found. The PDM's self-contained check
-  uses it; every other caller keeps the default, `"solidseas"`.
+  no file with an acceptable identity is found. The first file reached decides: when
+  its identity differs, the search stops there and returns it with
+  `identity_mismatch` (for an imported component, `inside_parent` with that file as a
+  candidate), even when a later step would find a match. An unknown identity counts
+  as found. The name index never decides: a reference no step finds is `missing`,
+  with the files of that name in the roots as its candidates. The PDM's
+  self-contained check uses it; every other caller keeps the default, `"solidseas"`.
 - Besides SOLIDWORKS documents, the rules look up the names of the files a part
   is imported from (STEP, IGES, Parasolid, ACIS, STL, 3MF, VRML, IFC, JT, Rhino,
   DXF and DWG, and the native files of Inventor, Creo, NX, CATIA and Solid Edge).
@@ -6377,7 +6382,7 @@ path it was copied from, or null) and `first_version`. A version is `id`, `numbe
 | `show` | `file`, `source`, `version`, `document` (as `version_diff`'s), `properties`, `configurations` (names), `geometry` (`reason`, and per configuration its geometry summary), `warnings` |
 | `diff` | `version_diff` data (5.19) |
 | `restore` | `file` (the file written), `path`, `from`, `version`, `replaced`, `written` (false when the file already held it), `stored_first` (`version`, `new`, `sha256` of the current file stored first, or null), `checkin` (null when nothing was written) |
-| `check` | `scope` (the project, empty for every project), `copy_toolbox`, `plan`, `fix`, `self_contained` (how many projects are), `projects`: each `project`, `documents`, `counts` (per result: `ok`, `outside`, `needs_confirmation`, `toolbox`, `inside_parent`, `missing`, `different_document`, `ambiguous`; and `toolbox_not_found`, the `toolbox` findings found nowhere), `self_contained`, `findings` (the problems: `document`, `key`, `stored_path`, `file_name`, `relation`, `result`, `found`, `place`, `found_in`, `status`, `rule`, `identity`, `searched`, `toolbox`, `warnings`), `unreadable` (`path`, `error`), `plan` (`copies` and `present`: `source`, `destination`, `referenced_by`, `place`, `item`; `conflicts`: `source`, `destination`, `referenced_by`, `reason`; null unless asked), `fix` (`copied`: `source`, `destination`, `item`, `link`; `failed`: `source`, `destination`, `code`, `message`; `checkin`; null without `--fix`) |
+| `check` | `scope` (the project, empty for every project), `copy_toolbox`, `plan`, `fix`, `self_contained` (how many projects are), `projects`: each `project`, `documents`, `counts` (per result: `ok`, `outside`, `needs_confirmation`, `toolbox`, `inside_parent`, `missing`, `different_document`, `ambiguous`; and `toolbox_not_found`, the `toolbox` findings found nowhere), `self_contained`, `findings` (the problems: `document`, `key`, `stored_path`, `file_name`, `relation`, `result`, `found`, `place`, `found_in`, `status`, `rule`, `identity`, `searched`, `toolbox`, `warnings`, `candidates`), `unreadable` (`path`, `error`), `plan` (`copies` and `present`: `source`, `destination`, `referenced_by`, `place`, `item`; `conflicts`: `source`, `destination`, `referenced_by`, `reason`; null unless asked), `fix` (`copied`: `source`, `destination`, `item`, `link`; `failed`: `source`, `destination`, `code`, `message`; `checkin`; null without `--fix`) |
 | `library_candidates` | `documents` (parts and assemblies looked at), `hashed`, `total`, `candidates` most widely shared first (`name`: the commonest, `names`, `sha256`, `size`, `projects`, `copies`: `path`, `project`), `skipped` |
 | `library_add` | `item`, `copied` (false for a file already in the library section), `version`, `checkin` |
 | `library_list` | `section`, `items`: each item with `exists`, `sha256` (the file now), `version` (its newest version, or null), `stored` (whether the file still holds it), `copies` and `projects` |
@@ -6410,8 +6415,9 @@ SOLIDWORKS), `problem` (it keeps the project from being
 self-contained), `found` and `found_in` (`{"root", "path"}` in one of the service's
 roots, or null), `outside_roots` (found, but outside every root, so not named),
 `place` (`project`, `library`, `other_project` or `elsewhere`), `status`, `rule`,
-`identity`, `searched` (one of SOLIDWORKS' own search rules found it), `toolbox` and
-`warnings` (codes).
+`identity`, `searched` (one of SOLIDWORKS' own search rules found it), `toolbox`,
+`warnings` (codes) and `candidates` (for a reference not found, the files of that name
+in the service's roots that the search does not reach, as `{"root", "path"}`).
 
 ## 6. Reading the JSON in JavaScript and TypeScript
 

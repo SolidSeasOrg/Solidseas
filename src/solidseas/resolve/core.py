@@ -68,6 +68,15 @@ name has no folder is looked up on disk by the same rules (but neither
 ``bare_name_above`` nor the name index); it is ``inside_parent`` only when no file
 with an acceptable identity is found.
 
+In the documented search the first file reached decides: when its identity differs
+(another stored creation time), the search stops there and returns it with the
+warning ``identity_mismatch``, even if a later step would find a file that matches;
+for an imported component that means ``inside_parent``, with the file as a
+candidate. An unknown identity (no stored creation time, or an import source)
+counts as found. The name index is not consulted for a decision: a reference no
+step finds is ``missing``, and the files of that name in the roots are listed as
+its candidates.
+
 Phase 1 resolves the top document's own tree in the top document's context
 (C7): files inside sub-assemblies are resolved from the paths the top document
 stored (warning ``from_parent_tree``), and a file used by more than one parent
@@ -806,6 +815,8 @@ class Resolver:
                     else:
                         acceptable.append(h)
                 if not acceptable:
+                    if self.documented:  # the first file reached is another document: it decides
+                        return None
                     continue
                 matches = [h for h in acceptable if h.state == "match"]
                 pool = matches or acceptable
@@ -931,7 +942,8 @@ class Resolver:
         if ref.fallback is not None:
             h = ref.fallback
             self._hit_warnings(ref, h)
-            self._note(ref, "identity_mismatch", "the only file found has another creation time")
+            first = "the first file the search reached" if self.documented else "the only file found"
+            self._note(ref, "identity_mismatch", f"{first} has another creation time")
             status = "resolved" if self._is_stored(h, sp) else "moved"
             return self._result(ref, status, h.location, h.found_by, "low", "differ", ref.others, h)
         if partial or ref.skipped_reads:
@@ -1038,13 +1050,14 @@ class Resolver:
         undecided: list[_Ref] = []
         for ref in pending:
             decision = self._decide_positional(ref)
+            stopped = self.documented and ref.fallback is not None
             if ref.imported:
                 if decision is None:  # no file with an acceptable identity: the assembly holds it
                     found = self._candidates(ref.others)
                     ref.result = self._embedded(ref.file, ref.stored_ct, ref.warnings, found)
                 else:
                     ref.result = self._finish(ref, decision)
-            elif decision is None and ref.stored.name_ok:
+            elif decision is None and ref.stored.name_ok and not stopped:
                 undecided.append(ref)
             else:
                 ref.result = self._finish(ref, decision)
@@ -1058,7 +1071,8 @@ class Resolver:
                     batch.append(h)
         self._read_identities(batch, cts)
         for ref in undecided:
-            ref.result = self._finish(ref, self._decide_name(ref))
+            # The documented search has no name index: what it holds is only a candidate.
+            ref.result = self._finish(ref, None if self.documented else self._decide_name(ref))
         for ref in pending:
             results[ref.file.key] = ref.result
         built = {i.root.id: i for i in self.indexes}

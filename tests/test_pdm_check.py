@@ -165,16 +165,84 @@ def test_without_the_library_a_file_there_is_elsewhere(vault):
     assert (lib.result, lib.place, lib.found_in) == ("outside", "elsewhere", vault / "Library")
 
 
-def test_a_library_part_beyond_the_search_is_found_by_name(tmp_path):
-    """SOLIDWORKS' search would not reach this library, but it holds the file: the check
-    says where, and that only SolidSeas' name index found it there."""
+def test_a_library_part_beyond_the_search_is_missing_with_the_file_as_a_candidate(tmp_path):
+    """SOLIDWORKS' search would not reach this library, so the reference is missing,
+    and the file the library holds is named as a candidate, not as found."""
     project = tmp_path / "Work" / "Proj"
     write(project / "asm.SLDASM", assembly(["Q:\\Z\\washer.SLDPRT"]))
     library = tmp_path / "Elsewhere" / "Lib"
     write(library / "std" / "washer.SLDPRT", part())
-    (f,) = check_project(project, library=library).findings
-    assert (f.result, f.place, f.rule, f.searched) == ("outside", "library", "name_index", False)
-    assert check_project(project).findings[0].result == "missing"
+    res = check_project(project, library=library)
+    (f,) = res.findings
+    assert (f.result, f.found, f.place, f.rule) == ("missing", None, None, None)
+    assert f.candidates == (library / "std" / "washer.SLDPRT",)
+    assert not res.self_contained and plan_copies(res).copies == ()
+    assert check_project(project).findings[0].candidates == ()
+
+
+def test_a_file_only_the_name_index_finds_is_missing_and_a_toolbox_part_stays_toolbox(tmp_path):
+    """A file of that name deeper in the project is out of SOLIDWORKS' search: the
+    reference is missing with the file as a candidate, and the default rules still
+    find it by name. A Toolbox part whose copy only the name index finds stays toolbox."""
+    a = tmp_path / "Projects" / "A"
+    write(a / "deep" / "far.SLDPRT", part())
+    write(a / "_Toolbox parts" / "hex.SLDPRT", part())
+    write(a / "deep" / "other" / "gone.SLDPRT", part(OTHER))  # another document: no candidate
+    doc = write(
+        a / "asm.SLDASM",
+        assembly(
+            [
+                "Q:\\Old\\far.SLDPRT",
+                "Q:\\SOLIDWORKS Data\\browser\\hex.SLDPRT",
+                "Q:\\Old\\gone.SLDPRT",
+            ]
+        ),
+    )
+    assert resolve_default(doc, a).results["2"].rule == "name_index"  # the default rules are unchanged
+    res = check_project(a)
+    f = by_name(res)
+    far = f["asm.SLDASM", "far.SLDPRT"]
+    assert (far.result, far.status, far.found, far.searched) == ("missing", "missing", None, False)
+    assert far.candidates == (a / "deep" / "far.SLDPRT",) and far in res.problems()
+    hex_ = f["asm.SLDASM", "hex.SLDPRT"]
+    assert (hex_.result, hex_.toolbox, hex_.found) == ("toolbox", True, None)
+    assert hex_.candidates == (a / "_Toolbox parts" / "hex.SLDPRT",) and hex_ not in res.problems()
+    gone = f["asm.SLDASM", "gone.SLDPRT"]
+    assert (gone.result, gone.candidates) == ("missing", ())
+    assert res.counts()["missing"] == 2 and res.counts()["toolbox_not_found"] == 1
+
+
+def test_the_first_file_the_search_reaches_decides(tmp_path):
+    """Beside the document is a file of that name made as another document. SOLIDWORKS'
+    first probe lands there, so the check reports it as a different document and does
+    not go on to the right file further up or in another folder."""
+    a = tmp_path / "Projects" / "A"
+    write(a / "sub" / "w.SLDPRT", part(OTHER))
+    write(a / "Z" / "w.SLDPRT", part())  # under a stored tail, one folder up: the next step
+    write(a / "sub" / "x.SLDPRT", part(OTHER))
+    write(a / "deep" / "x.SLDPRT", part())  # only by name
+    write(a / "sub" / "u.SLDPRT", part())
+    doc = write(
+        a / "sub" / "asm.SLDASM",
+        assembly(["Q:\\Old\\Z\\w.SLDPRT", "Q:\\Old\\x.SLDPRT", "Q:\\Old\\u.SLDPRT"]),
+    )
+    default = resolve_default(doc, a).results
+    assert (default["2"].identity, default["3"].rule) == ("match", "name_index")  # the default rules
+    res = check_project(a)
+    f = by_name(res)
+    w = f["asm.SLDASM", "w.SLDPRT"]
+    assert (w.result, w.found, w.identity, w.rule) == (
+        "different_document",
+        a / "sub" / "w.SLDPRT",
+        "differ",
+        "same_folder",
+    )
+    assert "identity_mismatch" in w.warnings
+    x = f["asm.SLDASM", "x.SLDPRT"]
+    assert (x.result, x.found, x.candidates) == ("different_document", a / "sub" / "x.SLDPRT", ())
+    u = f["asm.SLDASM", "u.SLDPRT"]
+    assert (u.result, u.found) == ("ok", a / "sub" / "u.SLDPRT")
+    assert plan_copies(res).copies == ()
 
 
 def test_a_parts_external_files_and_its_import_source_are_checked(tmp_path):
@@ -341,17 +409,16 @@ def test_a_bare_name_found_only_in_a_folder_above_needs_confirmation(tmp_path):
 
 
 def test_a_copy_beside_the_document_never_goes_over_another_file(tmp_path):
-    """Beside the document is a file of that name made as another document, so the search
-    passes over it and finds the stored one only as the bare name above: the plan cannot
-    put the copy there and says so."""
+    """The file is in a folder above the document, but beside the document is a file of
+    that name made as another document: the plan cannot put the copy there and says so."""
     a = tmp_path / "Projects" / "A"
     write(a / "w.SLDPRT", part())
     write(a / "sub" / "w.SLDPRT", part(OTHER))
-    write(a / "sub" / "asm.SLDASM", assembly(["Q:\\Z\\w.SLDPRT"]))
-    res = check_project(a)
-    (f,) = res.findings
-    assert (f.result, f.found, f.identity) == ("needs_confirmation", a / "w.SLDPRT", "match")
-    plan = plan_copies(res)
+    found = Finding(
+        a / "sub" / "asm.SLDASM", "2", "Q:\\Z\\w.SLDPRT", "w.SLDPRT", None, "needs_confirmation",
+        a / "w.SLDPRT", "project", a, "moved", "bare_name_above", "match", False, False,
+    )  # fmt: skip
+    plan = plan_copies(CheckResult(a, None, False, 1, (found,)))
     assert plan.copies == ()
     assert [(c.source, c.destination) for c in plan.conflicts] == [(a / "w.SLDPRT", a / "sub" / "w.SLDPRT")]
     assert (a / "sub" / "w.SLDPRT").read_bytes() == part(OTHER)
@@ -479,3 +546,17 @@ def test_pdm_check_plain_words(capsys, vault):
     assert "Projects/B: self-contained (1 document)" in capsys.readouterr().out
     assert cli.main(["pdm", "check", str(a), "--fix"]) == 0
     assert "copied    " in capsys.readouterr().out
+
+
+def test_pdm_check_names_a_file_out_of_the_search(capsys, tmp_path):
+    v = tmp_path / "Vault"
+    a = v / "Projects" / "A"
+    write(a / "deep" / "far.SLDPRT", part())
+    write(a / "asm.SLDASM", assembly(["Q:\\Old\\far.SLDPRT"]))
+    pdm.init(v)
+    code, env = run(capsys, "pdm", "check", str(a))
+    (f,) = checked(env)["projects"][0]["findings"]
+    assert (f["result"], f["found"], f["candidates"]) == ("missing", None, [str(a / "deep" / "far.SLDPRT")])
+    assert cli.main(["pdm", "check", str(a)]) == 0
+    out = capsys.readouterr().out
+    assert f"asm.SLDASM: far.SLDPRT, out of SOLIDWORKS' search: {a / 'deep' / 'far.SLDPRT'}" in out
