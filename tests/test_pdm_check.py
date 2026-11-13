@@ -10,11 +10,14 @@ from where the document is now, never through a stored path.
 """
 
 import functools
+import json
 from pathlib import Path
 
 import pytest
 
 from builders import TreeXml, part_with_creation_time, part_with_externals, resolving_assembly
+from jsonschema_subset import validate
+from solidseas import cli, model, pdm
 from solidseas.pdm.check import (
     CheckResult,
     Finding,
@@ -248,3 +251,108 @@ def test_an_unreadable_document_is_listed_not_raised(tmp_path):
 )
 def test_toolbox_paths(path, toolbox):
     assert is_toolbox_path(path) is toolbox
+
+
+# --------------------------------------------------------------------------- pdm check on the command line
+def run(capsys, *argv) -> tuple[int, dict]:
+    code = cli.main([*argv, "--json"])
+    out, err = capsys.readouterr()
+    assert err == "", err
+    return code, json.loads(out)
+
+
+def checked(env: dict) -> dict:
+    assert env["kind"] == "pdm_result" and env["ok"], env
+    assert validate(env, model.envelope_schema("pdm_result"), strict=True) == []
+    assert env["data"]["action"] == "check"
+    return env["data"]["check"]
+
+
+def test_pdm_check_and_plan_as_json(capsys, vault):
+    pdm.init(vault)
+    pdm.open(vault).library.add(vault / "Library" / "bolt.SLDPRT", description="M6 bolt")
+    a = vault / "Projects" / "A"
+    code, env = run(capsys, "pdm", "check", str(a / "sub"), "--plan")
+    data = checked(env)
+    (p,) = data["projects"]
+    assert code == 0 and data["scope"] == "Projects/A" and data["plan"] and not data["fix"]
+    assert p["project"]["path"] == "Projects/A" and p["documents"] == 4 and not p["self_contained"]
+    assert sorted(f["result"] for f in p["findings"]) == [
+        "different_document",
+        "missing",
+        "outside",
+        "outside",
+        "outside",
+    ]
+    copies = {Path(c["source"]).name: c for c in p["plan"]["copies"]}
+    assert set(copies) == {"b.SLDPRT", "bolt.SLDPRT"}
+    assert (copies["bolt.SLDPRT"]["item"], copies["b.SLDPRT"]["item"]) == ("SS-00001", None)
+    assert p["fix"] is None and not (a / "b.SLDPRT").exists()
+    code, env = run(capsys, "pdm", "check", str(a), "--copy-toolbox")
+    p = checked(env)["projects"][0]
+    assert p["plan"] is None and sum(f["result"] == "toolbox" for f in p["findings"]) == 2
+
+
+def test_pdm_check_fix_copies_in_new_files_and_checks_again(capsys, vault):
+    pdm.init(vault)
+    pdm.open(vault).library.add(vault / "Library" / "bolt.SLDPRT")
+    a = vault / "Projects" / "A"
+    code, env = run(capsys, "pdm", "check", str(a), "--fix")
+    data = checked(env)
+    (p,) = data["projects"]
+    assert code == 0 and data["fix"] and data["plan"]
+    copied = {Path(c["destination"]).name: c for c in p["fix"]["copied"]}
+    assert set(copied) == {"b.SLDPRT", "bolt.SLDPRT"} and p["fix"]["failed"] == []
+    assert copied["bolt.SLDPRT"]["item"] == "SS-00001" and copied["bolt.SLDPRT"]["link"]["how"] == "fix"
+    assert copied["b.SLDPRT"]["link"] is None
+    assert (a / "b.SLDPRT").read_bytes() == (vault / "Projects" / "B" / "b.SLDPRT").read_bytes()
+    # checked again: what is left cannot be fixed by a copy
+    assert sorted(f["result"] for f in p["findings"]) == ["different_document", "missing"]
+    assert p["plan"]["copies"] == []
+    assert p["fix"]["checkin"]["note"].startswith("Copied 2 files into Projects/A")
+    lib = pdm.open(vault).library
+    (link,) = lib.links()
+    assert (link.item, link.path, link.how) == ("SS-00001", "Projects/A/bolt.SLDPRT", "fix")
+    assert lib.updates()["counts"]["current"] == 1
+    # a second fix has nothing to copy
+    code, env = run(capsys, "pdm", "check", str(a), "--fix")
+    p = checked(env)["projects"][0]
+    assert p["fix"]["copied"] == [] and len(lib.links()) == 1
+
+
+def test_pdm_check_fix_never_writes_over_another_file(capsys, vault):
+    pdm.init(vault)
+    a = vault / "Projects" / "A"
+    write(a / "bolt.SLDPRT", part(OTHER))  # another document of that name, already there
+    code, env = run(capsys, "pdm", "check", str(a), "--fix")
+    p = checked(env)["projects"][0]
+    assert [Path(c["destination"]).name for c in p["fix"]["copied"]] == ["b.SLDPRT"]
+    assert (a / "bolt.SLDPRT").read_bytes() == part(OTHER)
+
+
+def test_pdm_check_every_project_that_is_not_archived(capsys, vault):
+    pdm.init(vault)
+    (vault / ".solidseas" / "vault" / "vault.json").write_text(
+        json.dumps({"format": 1, "archive": ["SOLIDWORKS Data"]})
+    )
+    code, env = run(capsys, "pdm", "check", str(vault))
+    data = checked(env)
+    assert code == 0 and data["scope"] == ""
+    rows = {p["project"]["path"]: p for p in data["projects"]}
+    assert set(rows) == {"Projects/A", "Projects/B"}  # the archive and the library are not checked
+    assert rows["Projects/B"]["self_contained"] and data["self_contained"] == 1
+    code, env = run(capsys, "pdm", "check", str(vault / "Library"))
+    assert code == 2 and env["error"]["code"] == "invalid_argument"
+
+
+def test_pdm_check_plain_words(capsys, vault):
+    pdm.init(vault)
+    a = vault / "Projects" / "A"
+    assert cli.main(["pdm", "check", str(a), "--plan"]) == 0
+    out = capsys.readouterr().out
+    assert "Projects/A: 5 problems in 4 documents" in out
+    assert "in another project" in out and "would copy" in out
+    assert cli.main(["pdm", "check", str(vault / "Projects" / "B")]) == 0
+    assert "Projects/B: self-contained (1 document)" in capsys.readouterr().out
+    assert cli.main(["pdm", "check", str(a), "--fix"]) == 0
+    assert "copied    " in capsys.readouterr().out

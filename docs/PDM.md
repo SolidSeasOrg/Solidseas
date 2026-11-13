@@ -9,9 +9,11 @@ of it works without SOLIDWORKS running, because SolidSeas reads the files itself
 This document is the design. The user guide (`docs/guide/pdm.md`) covers how to use
 it.
 
-Status: step 1 of section 8 is built (provisional, `solidseas.pdm`, `docs/API.md`
-3.29): the vault, check-in, scan, status, log, show, diff and restore on the command
-line. The self-contained check and the library of common parts are being built.
+Status: steps 1 to 3 of section 8 are built (provisional, `solidseas.pdm`,
+`docs/API.md` 3.29): the vault, check-in, scan, status, log, show, diff and restore,
+`pdm check` with `--plan` and `--fix`, and the library of common parts, on the
+command line. Candidates are found from file sizes and the vault's newest versions,
+not from the folder catalog. The viewer's part (step 4) is next.
 
 ## 1. What it is for
 

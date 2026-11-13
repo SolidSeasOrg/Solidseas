@@ -49,7 +49,20 @@ while the project takes shape.
   outside it (in the library, a neighbouring project or elsewhere), Toolbox,
   inside its assembly, missing or another document of that name. It also lists
   the copies that would make the project self-contained, without making them.
-  The pdm check command comes later.
+
+- **pdm check.** `solidseas pdm check` checks one project, or every project in
+  the library, and lists each reference that leaves it, is missing or names
+  another document. `--plan` lists the copies that would make the project
+  self-contained, and `--fix` makes them as new files, never over a file
+  already there, then checks the project again.
+
+- **A library of common parts.** `solidseas pdm library` keeps parts that many
+  projects use once in the library's Library section, each with an item number
+  and a description. `candidates` lists the parts that sit in two or more
+  projects, `add` makes a part a library item, `use` copies an item into a
+  project, `updates` lists the copies whose library part has changed or that
+  were edited in their project, and `update` brings a copy up to date after
+  keeping the old one as a version.
 
 - **A History tab in the viewer.** It lists the selected file's versions,
   newest first: the commits that changed it in a Git repository, or the

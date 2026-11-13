@@ -6,8 +6,9 @@ keeps every version of every tracked CAD file in one snapshot store
 records name files by their path below the library, so the library can move. Check-ins
 are records of their own (:mod:`.checkins`).
 
-**What it writes.** Only its own ``.solidseas`` folder in the library, and the file a
-restore puts back, each through a temporary name and a rename, never through a link
+**What it writes.** Only its own ``.solidseas`` folder in the library, the file a
+restore puts back, and the copies the common-parts library and ``check --fix`` make
+(:mod:`.library`), each through a temporary name and a rename, never through a link
 (``docs/PDM.md`` 7). A restore stores the current file as a version before it writes.
 Every source file is opened read-only below the library with no link on the way
 followed; a file or folder that is a link is never tracked.
@@ -319,6 +320,28 @@ class Vault:
 
     def __repr__(self) -> str:
         return f"<Vault {self.root!r}>"
+
+    @property
+    def library(self):
+        """The common-parts library (:class:`~solidseas.pdm.library.Library`)."""
+        from .library import Library
+
+        return Library(self)
+
+    def check(
+        self,
+        path: str | os.PathLike | None = None,
+        *,
+        plan: bool = False,
+        fix: bool = False,
+        copy_toolbox: bool = False,
+        who: str | None = None,
+    ) -> dict[str, Any]:
+        """``pdm check``: whether each project holds every file its documents reference
+        (:func:`solidseas.pdm.library.check`, ``docs/PDM.md`` 5)."""
+        from .library import check
+
+        return check(self, path, plan=plan, fix=fix, copy_toolbox=copy_toolbox, who=who)
 
     # ------------------------------------------------------------------ paths
     def relative(self, path: str | os.PathLike) -> str:

@@ -3379,8 +3379,9 @@ def _say_version_diff(data: dict[str, Any]) -> None:
 _PDM_WORDS = {"new": "new", "changed": "changed", "gone": "gone", "unchanged": "unchanged"}
 
 
-def _pdm_done(args: argparse.Namespace, vault: Any, payload: dict[str, Any]) -> int:
-    return _emit(args, "pdm_result", model.build_pdm_result(args.action, vault.root, payload))
+def _pdm_done(args: argparse.Namespace, vault: Any, payload: dict[str, Any], code: int = EXIT_OK) -> int:
+    action = f"library_{args.library_action}" if args.action == "library" else args.action
+    return _emit(args, "pdm_result", model.build_pdm_result(action, vault.root, payload), code)
 
 
 def _say_counts(counts: dict[str, int]) -> str:
@@ -3557,6 +3558,160 @@ def _pdm_restore(args: argparse.Namespace) -> int:
     return _pdm_done(args, vault, data)
 
 
+_CHECK_WORDS = {
+    "outside": "outside",
+    "toolbox": "Toolbox",
+    "missing": "missing",
+    "different_document": "another document",
+    "ambiguous": "ambiguous",
+}
+_PLACE_WORDS = {
+    "library": "in the library",
+    "other_project": "in another project",
+    "elsewhere": "elsewhere",
+    "project": "in the project",
+}
+
+
+def _pdm_check(args: argparse.Namespace) -> int:
+    from . import pdm
+
+    vault = pdm.open(args.project or ".")
+    data = vault.check(args.project, plan=args.plan, fix=args.fix, copy_toolbox=args.copy_toolbox)
+    failed = sum(len(p["fix"]["failed"]) for p in data["projects"] if p["fix"] is not None)
+    if not args.json:
+        for p in data["projects"]:
+            name, docs, fix, plan = p["project"]["path"], p["documents"], p["fix"], p["plan"]
+            if fix is not None:
+                for c in fix["copied"]:
+                    item = f" (library item {c['item']})" if c["item"] else ""
+                    _say(f"copied    {c['source']} to {c['destination']}{item}")
+                for c in fix["failed"]:
+                    _say(f"not copied {c['source']}: {c['message']}")
+            documents = f"{docs:,} document" + ("" if docs == 1 else "s")
+            if p["self_contained"]:
+                _say(f"{name}: self-contained ({documents})")
+            else:
+                n = len(p["findings"]) + len(p["unreadable"])
+                _say(f"{name}: {n:,} problem{'' if n == 1 else 's'} in {documents}")
+            top = vault.absolute(name)
+            for f in p["findings"]:
+                where = f", {_PLACE_WORDS.get(f['place'], f['place'])}: {f['found']}" if f["found"] else ""
+                what = _CHECK_WORDS.get(f["result"], f["result"])
+                doc = os.path.relpath(f["document"], top)
+                _say(f"  {what:<17}{doc}: {f['file_name'] or f['key']}{where}")
+            for u in p["unreadable"]:
+                _say(f"  {'unreadable':<17}{os.path.relpath(u['path'], top)} ({u['error']})")
+            if plan is not None and fix is None:
+                for c in plan["copies"]:
+                    _say(f"  would copy {c['source']} to {c['destination']}")
+            if plan is not None:
+                for c in plan["conflicts"]:
+                    _say(f"  cannot copy {c['source']}: {c['reason']}")
+        if len(data["projects"]) != 1:
+            _say(f"{data['self_contained']:,} of {len(data['projects']):,} projects are self-contained")
+    return _pdm_done(args, vault, data, EXIT_PARTIAL if failed else EXIT_OK)
+
+
+def _library_candidates(args: argparse.Namespace, vault: Any) -> dict[str, Any]:
+    data = vault.library.candidates(limit=args.limit)
+    if not args.json:
+        for r in data["candidates"]:
+            _say(f"{r['name']}: {r['projects']} projects, {len(r['copies'])} copies, {r['size']:,} bytes")
+            for c in r["copies"]:
+                _say(f"  {c['path']}")
+        _say_skipped(data["skipped"])
+        if not data["total"]:
+            _say("no document sits in two or more projects")
+        elif data["total"] > len(data["candidates"]):
+            _say(f"{len(data['candidates']):,} of {data['total']:,} shown")
+    return data
+
+
+def _library_add(args: argparse.Namespace, vault: Any) -> dict[str, Any]:
+    data = vault.library.add(args.file, item=args.item, description=args.description)
+    if not args.json:
+        i = data["item"]
+        how = "copied to" if data["copied"] else "recorded at"
+        desc = f" ({i['description']})" if i["description"] else ""
+        _say(f"library item {i['item']}: {how} {i['path']}{desc}")
+    return data
+
+
+def _library_list(args: argparse.Namespace, vault: Any) -> dict[str, Any]:
+    data = vault.library.list()
+    if not args.json:
+        for i in data["items"]:
+            v = i["version"]
+            if not i["exists"]:
+                state = "missing"
+            else:
+                state = f"v{v['number']}" if v is not None and i["stored"] else "changed, not checked in"
+            desc = f"  {i['description']}" if i["description"] else ""
+            used = f"{i['copies']:,} copies in {i['projects']:,} projects"
+            _say(f"{i['item']:<12}{i['path']}  {state}{desc}  ({used})")
+        if not data["items"]:
+            _say("the library has no items yet (pdm library add FILE makes one)")
+    return data
+
+
+def _library_use(args: argparse.Namespace, vault: Any) -> dict[str, Any]:
+    data = vault.library.use(args.item, args.project, to=args.to)
+    if not args.json:
+        _say(f"copied {data['item']['item']} v{data['version']['number']} to {data['path']}")
+    return data
+
+
+def _library_updates(args: argparse.Namespace, vault: Any) -> dict[str, Any]:
+    proj = vault.project_of(args.path)
+    data = vault.library.updates(None if proj is None else args.path, all_links=args.all)
+    if not args.json:
+        for r in data["links"]:
+            why = []
+            if r["behind"]:
+                newest = f"v{r['newest_number']}" if r["newest_number"] else "changed, not checked in"
+                why.append(f"made from v{r['number']}, the item is now {newest}")
+            if r["copy"] != "unchanged":
+                why.append({"edited": "edited in the project", "gone": "gone"}[r["copy"]])
+            _say(f"{r['item']:<12}{r['path']}: " + ("; ".join(why) or "up to date"))
+        c = data["counts"]
+        if not (c["behind"] or c["edited"] or c["gone"]):
+            _say(f"every copy is up to date ({c['current']:,} copies)")
+    return data
+
+
+def _library_update(args: argparse.Namespace, vault: Any) -> dict[str, Any]:
+    data = vault.library.update(args.project, args.item, force=args.force)
+    if not args.json:
+        n = data["version"]["number"]
+        for c in data["copies"]:
+            if c["copy"] == "gone":
+                _say(f"{c['path']} is gone: left as it is")
+            elif c["written"]:
+                _say(f"updated {c['path']} to {data['item']['item']} v{n}")
+            else:
+                _say(f"{c['path']} already holds v{n}")
+    return data
+
+
+LIBRARY_ACTIONS: dict[str, Callable[[argparse.Namespace, Any], dict[str, Any]]] = {
+    "candidates": _library_candidates,
+    "add": _library_add,
+    "list": _library_list,
+    "use": _library_use,
+    "updates": _library_updates,
+    "update": _library_update,
+}
+
+
+def _pdm_library(args: argparse.Namespace) -> int:
+    from . import pdm
+
+    where = {"add": "file", "use": "project", "update": "project"}.get(args.library_action, "path")
+    vault = pdm.open(getattr(args, where))
+    return _pdm_done(args, vault, LIBRARY_ACTIONS[args.library_action](args, vault))
+
+
 PDM_ACTIONS: dict[str, Callable[[argparse.Namespace], int]] = {
     "init": _pdm_init,
     "status": _pdm_status,
@@ -3566,6 +3721,8 @@ PDM_ACTIONS: dict[str, Callable[[argparse.Namespace], int]] = {
     "show": _pdm_show,
     "diff": _pdm_diff,
     "restore": _pdm_restore,
+    "check": _pdm_check,
+    "library": _pdm_library,
 }
 
 
@@ -4649,8 +4806,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sp = add(
         "pdm",
-        "a library's history: check files in with a note, see what changed and put a version back "
-        "(provisional; writes only the library's .solidseas folder and the file a restore puts back)",
+        "a library's history, its common parts and self-contained projects (provisional; writes only "
+        "the library's .solidseas folder, the file a restore puts back and the copies you ask for)",
         target="none",
     )
     pdm_actions = sp.add_subparsers(dest="action", required=True, metavar="action")
@@ -4731,6 +4888,70 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="NAME",
         help="write the version as a new file of this name in the same folder (never over a file)",
     )
+    ap = pdm_action(
+        "check",
+        "references that leave a project, are missing or are ambiguous; --fix copies in what is outside",
+    )
+    ap.add_argument(
+        "project",
+        nargs="?",
+        default=None,
+        metavar="PROJECT",
+        help="a project folder, or a folder in one (default: every project that is not archived)",
+    )
+    ap.add_argument("--plan", action="store_true", help="list the copies that would make it self-contained")
+    ap.add_argument(
+        "--fix",
+        action="store_true",
+        help="make those copies (new files only, never over a file), then check again",
+    )
+    ap.add_argument(
+        "--copy-toolbox",
+        action="store_true",
+        help="count Toolbox parts as files to copy in, for an installation without Toolbox",
+    )
+    ap = pdm_action("library", "the library of common parts: candidates, add, list, use, updates, update")
+    library_actions = ap.add_subparsers(dest="library_action", required=True, metavar="action")
+
+    def library_action(name: str, help_: str) -> argparse.ArgumentParser:
+        lp = library_actions.add_parser(name, help=help_, description=help_)
+        lp.add_argument(
+            "--json",
+            action="store_true",
+            default=argparse.SUPPRESS,
+            help="print one pdm_result JSON document on standard output and nothing on standard error",
+        )
+        return lp
+
+    lp = library_action("candidates", "documents whose identical content sits in two or more projects")
+    lp.add_argument("path", nargs="?", default=".", metavar="PATH", help="a folder in the library")
+    lp.add_argument("--limit", type=_positive_int, default=None, metavar="N", help="list the first N only")
+    lp = library_action("add", "copy a file into the library section as an item; the source is not changed")
+    lp.add_argument("file", metavar="FILE", help="the file (one already in the library section stays put)")
+    lp.add_argument("--item", default=None, metavar="N", help="its item number (default: the next SS-00001)")
+    lp.add_argument("-d", "--description", default=None, metavar="D", help="what the part is")
+    lp = library_action("list", "the items, with their current version and how many projects use them")
+    lp.add_argument("path", nargs="?", default=".", metavar="PATH", help="a folder in the library")
+    lp = library_action("use", "copy an item's current version into a project; never replaces a file")
+    lp.add_argument("item", metavar="ITEM", help="the item number")
+    lp.add_argument("project", metavar="PROJECT", help="a project folder, or a folder in one")
+    lp.add_argument(
+        "--to",
+        default=None,
+        metavar="SUBFOLDER",
+        help="a folder inside the project (default: its top folder)",
+    )
+    lp = library_action("updates", "copies whose item has a newer version, and copies edited in the project")
+    lp.add_argument(
+        "path", nargs="?", default=".", metavar="PATH", help="the library, or a project for its copies alone"
+    )
+    lp.add_argument("--all", action="store_true", help="list the copies that are up to date too")
+    lp = library_action(
+        "update", "replace a project's copies of an item with its current version, storing each first"
+    )
+    lp.add_argument("project", metavar="PROJECT", help="a project folder, or a folder in one")
+    lp.add_argument("item", metavar="ITEM", help="the item number")
+    lp.add_argument("--force", action="store_true", help="replace a copy edited in the project too")
     add("version", "the SolidSeas version, API version and each JSON kind's schema version", target="none")
     sp = add("schema", "print the JSON Schema of a kind's envelope, or list the kinds", target="none")
     sp.add_argument("kind", nargs="?", help="a JSON kind, such as document_summary or listing")

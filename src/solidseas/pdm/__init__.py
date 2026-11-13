@@ -11,15 +11,20 @@ vault.checkin(["D:/CAD/Jobs/1042"], "sent for quote", revision="A")
 vault.scan()                                 # store every changed file, no note
 vault.log("D:/CAD/Jobs/1042/bracket.sldprt") # versions newest first, with check-in notes
 vault.restore("D:/CAD/Jobs/1042/bracket.sldprt", "v2", as_name="bracket v2.sldprt")
+vault.library.add("D:/CAD/Jobs/1042/bolt.sldprt", description="M6 bolt")  # item SS-00001
+vault.library.use("SS-00001", "D:/CAD/Jobs/1043")  # a copy in the project, and a link record
+vault.library.updates()                      # copies behind their item, or edited since
+vault.check("D:/CAD/Jobs/1043", fix=True)    # copy in what the project references from outside
 ```
 
-The vault writes only its own ``.solidseas`` folder in the library and the file a
-restore puts back, never through a link (``docs/PDM.md`` 7).
+The vault writes only its own ``.solidseas`` folder in the library, the file a restore
+puts back and the library's copies, never through a link (``docs/PDM.md`` 7).
 """
 
 from __future__ import annotations
 
 from .checkins import Checkin, CheckinFile, parse_checkin
+from .library import Item, Library, Link, parse_item, parse_link
 from .settings import Section, Settings
 from .vault import (
     CheckinResult,
@@ -41,6 +46,9 @@ __all__ = [
     "CheckinFile",
     "CheckinResult",
     "FileState",
+    "Item",
+    "Library",
+    "Link",
     "Project",
     "Section",
     "SectionInfo",
@@ -53,4 +61,6 @@ __all__ = [
     "open",
     "open_vault",
     "parse_checkin",
+    "parse_item",
+    "parse_link",
 ]

@@ -2021,7 +2021,23 @@ def build_version_diff(path, older=None, newer=None, **options: Any) -> dict[str
     return to_json_data(versions.compare(path, older, newer, **options))
 
 
-PDM_ACTIONS = ("init", "status", "checkin", "scan", "log", "show", "diff", "restore")
+PDM_ACTIONS = (
+    "init",
+    "status",
+    "checkin",
+    "scan",
+    "log",
+    "show",
+    "diff",
+    "restore",
+    "check",
+    "library_candidates",
+    "library_add",
+    "library_list",
+    "library_use",
+    "library_updates",
+    "library_update",
+)
 
 
 def build_pdm_result(action: str, library: str, payload: Any) -> dict[str, Any]:
@@ -3982,12 +3998,57 @@ _DEFS["checkin_brief"] = _obj(
 _PDM_STATE = {"type": "string", "enum": ["new", "changed", "gone", "unchanged"]}
 _PDM_COUNTS = _obj({k: _INT for k in ("new", "changed", "gone", "unchanged")})
 _PDM_SKIPPED = _arr(_obj({"path": _STR, "reason": _STR}))
+_CHECK_RESULTS = ("ok", "outside", "toolbox", "inside_parent", "missing", "different_document", "ambiguous")
+_PDM_FINDING = _obj(
+    {
+        "document": _STR,
+        "key": _STR,
+        "stored_path": _STR_N,
+        "file_name": _STR_N,
+        "relation": _STR_N,
+        "result": {"type": "string", "enum": list(_CHECK_RESULTS)},
+        "found": _STR_N,
+        "place": _STR_N,
+        "found_in": _STR_N,
+        "status": _STR,
+        "rule": _STR_N,
+        "identity": _STR,
+        "searched": _BOOL,
+        "toolbox": _BOOL,
+        "warnings": _arr(_STR),
+    }
+)
+_PDM_COPY = _obj(
+    {"source": _STR, "destination": _STR, "referenced_by": _arr(_STR), "place": _STR_N, "item": _STR_N}
+)
+_LIBRARY_ITEM = {
+    "item": _STR,
+    "description": _STR,
+    "path": _STR,
+    "added_utc": _STR,
+    "source": _STR_N,
+    "first_version": _STR,
+}
+_LINK_COPY = {"type": "string", "enum": ["unchanged", "edited", "gone"]}
+_DEFS["pdm_project"] = _obj({"path": _STR, "name": _STR, "section": _STR, "archived": _BOOL})
+_DEFS["library_item"] = _obj(dict(_LIBRARY_ITEM), description="A library item (docs/PDM.md 6).")
+_DEFS["library_version"] = _obj({"id": _STR, "number": _INT_N, "sha256": _SHA256, "size": _INT})
+_DEFS["library_link"] = _obj(
+    {
+        "id": _STR,
+        "when_utc": _STR,
+        "item": _STR,
+        "project": _STR,
+        "path": _STR,
+        "version": _STR,
+        "sha256": _SHA256,
+        "how": {"type": "string", "enum": ["use", "update", "fix"]},
+    },
+    description="A record of a library item's copy in a project.",
+)
 _PDM_SCHEMA = _obj(
     {
-        "action": {
-            "type": "string",
-            "enum": ["init", "status", "checkin", "scan", "log", "show", "diff", "restore"],
-        },
+        "action": {"type": "string", "enum": list(PDM_ACTIONS)},
         "library": _STR,
         "init": _obj(
             {
@@ -4121,6 +4182,181 @@ _PDM_SCHEMA = _obj(
                 "replaced": _BOOL,
                 "written": _BOOL,
                 "stored_first": _obj({"version": _STR, "new": _BOOL, "sha256": _SHA256}, nullable=True),
+                "checkin": _ref_n("checkin_brief"),
+            },
+            nullable=True,
+        ),
+        "check": _obj(
+            {
+                "scope": _STR,
+                "copy_toolbox": _BOOL,
+                "plan": _BOOL,
+                "fix": _BOOL,
+                "projects": _arr(
+                    _obj(
+                        {
+                            "project": _ref("pdm_project"),
+                            "documents": _INT,
+                            "counts": _obj({k: _INT for k in _CHECK_RESULTS}),
+                            "self_contained": _BOOL,
+                            "findings": _arr(_PDM_FINDING),
+                            "unreadable": _arr(_obj({"path": _STR, "error": _STR})),
+                            "plan": _obj(
+                                {
+                                    "copies": _arr(_PDM_COPY),
+                                    "present": _arr(_PDM_COPY),
+                                    "conflicts": _arr(
+                                        _obj(
+                                            {
+                                                "source": _STR,
+                                                "destination": _STR,
+                                                "referenced_by": _arr(_STR),
+                                                "reason": _STR,
+                                            }
+                                        )
+                                    ),
+                                },
+                                nullable=True,
+                            ),
+                            "fix": _obj(
+                                {
+                                    "copied": _arr(
+                                        _obj(
+                                            {
+                                                "source": _STR,
+                                                "destination": _STR,
+                                                "item": _STR_N,
+                                                "link": _ref_n("library_link"),
+                                            }
+                                        )
+                                    ),
+                                    "failed": _arr(
+                                        _obj(
+                                            {
+                                                "source": _STR,
+                                                "destination": _STR,
+                                                "code": _STR,
+                                                "message": _STR,
+                                            }
+                                        )
+                                    ),
+                                    "checkin": _ref_n("checkin_brief"),
+                                },
+                                nullable=True,
+                            ),
+                        }
+                    )
+                ),
+                "self_contained": _INT,
+            },
+            nullable=True,
+            description="What pdm check found, per project; plan and fix are null unless asked for.",
+        ),
+        "library_candidates": _obj(
+            {
+                "documents": _INT,
+                "hashed": _INT,
+                "total": _INT,
+                "candidates": _arr(
+                    _obj(
+                        {
+                            "name": _STR,
+                            "names": _arr(_STR),
+                            "sha256": _SHA256,
+                            "size": _INT,
+                            "projects": _INT,
+                            "copies": _arr(_obj({"path": _STR, "project": _STR})),
+                        }
+                    )
+                ),
+                "skipped": _PDM_SKIPPED,
+            },
+            nullable=True,
+        ),
+        "library_add": _obj(
+            {
+                "item": _ref("library_item"),
+                "copied": _BOOL,
+                "version": _ref("library_version"),
+                "checkin": _ref_n("checkin_brief"),
+            },
+            nullable=True,
+        ),
+        "library_list": _obj(
+            {
+                "section": _STR,
+                "items": _arr(
+                    _obj(
+                        {
+                            **_LIBRARY_ITEM,
+                            "exists": _BOOL,
+                            "sha256": _SHA256_N,
+                            "version": _ref_n("library_version"),
+                            "stored": _BOOL,
+                            "copies": _INT,
+                            "projects": _INT,
+                        }
+                    )
+                ),
+            },
+            nullable=True,
+        ),
+        "library_use": _obj(
+            {
+                "item": _ref("library_item"),
+                "project": _ref("pdm_project"),
+                "path": _STR,
+                "file": _obj({"name": _STR, "path": _STR}),
+                "version": _ref("library_version"),
+                "link": _ref("library_link"),
+                "checkin": _ref_n("checkin_brief"),
+            },
+            nullable=True,
+        ),
+        "library_updates": _obj(
+            {
+                "scope": _STR_N,
+                "counts": _obj({k: _INT for k in ("current", "behind", "edited", "gone", "unknown_item")}),
+                "links": _arr(
+                    _obj(
+                        {
+                            "item": _STR,
+                            "description": _STR,
+                            "project": _STR,
+                            "path": _STR,
+                            "copied_utc": _STR,
+                            "version": _STR,
+                            "number": _INT_N,
+                            "newest": _STR_N,
+                            "newest_number": _INT_N,
+                            "item_changed": _BOOL,
+                            "behind": _BOOL,
+                            "copy": _LINK_COPY,
+                            "sha256": _SHA256_N,
+                        }
+                    )
+                ),
+            },
+            nullable=True,
+        ),
+        "library_update": _obj(
+            {
+                "item": _ref("library_item"),
+                "project": _ref("pdm_project"),
+                "version": _ref("library_version"),
+                "copies": _arr(
+                    _obj(
+                        {
+                            "path": _STR,
+                            "copy": _LINK_COPY,
+                            "written": _BOOL,
+                            "stored_first": _obj(
+                                {"version": _STR, "new": _BOOL, "sha256": _SHA256}, nullable=True
+                            ),
+                            "link": _ref_n("library_link"),
+                        }
+                    )
+                ),
                 "checkin": _ref_n("checkin_brief"),
             },
             nullable=True,
@@ -4471,6 +4707,10 @@ KINDS: dict[str, KindSpec] = {
                 "geometry_summary",
                 "warning",
                 "checkin_brief",
+                "pdm_project",
+                "library_item",
+                "library_version",
+                "library_link",
             ),
             build_pdm_result,
             ("pdm",),

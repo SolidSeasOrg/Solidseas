@@ -3,8 +3,10 @@
 SolidSeas can keep the history of a whole folder of CAD projects, the way a small
 PDM does: every version of every CAD file, a note for the versions you check in, and
 any version back when you need it. It works without SOLIDWORKS running, because
-SolidSeas reads the files itself. This part is provisional: its commands and JSON
-may still change. The design is in [PDM.md](../PDM.md).
+SolidSeas reads the files itself. It also checks that each project holds every file
+it uses, and keeps a library of common parts that projects copy from. This part is
+provisional: its commands and JSON may still change. The design is in
+[PDM.md](../PDM.md).
 
 There is no check-out and no locking. A check-in is a note on a version, not a gate.
 
@@ -106,6 +108,97 @@ restore never loses work. Without `--as`, the file is replaced by that version. 
 existing file of that name is never replaced. Either way the restored file is
 checked in with a note that says which version it came from.
 
+## Check that a project holds everything it uses
+
+```bash
+solidseas pdm check D:\CAD\Jobs\1042
+solidseas pdm check                  # every project in the library
+```
+
+`check` reads every SOLIDWORKS document in the project and looks for each file it
+references the way SOLIDWORKS does, starting in the document's folder and climbing
+up. It keeps climbing past the project folder, because that is how a part in a
+neighbouring project ends up in an assembly without anyone noticing. Each reference
+that is not found inside the project is listed:
+
+| Result | What it means |
+|---|---|
+| outside | found only outside the project: in the library, in another project, or elsewhere |
+| Toolbox | Toolbox hardware not in the project; fine when SOLIDWORKS loads Toolbox from its own folder |
+| missing | not found anywhere |
+| another document | a file of that name was found, but it is a different document |
+| ambiguous | several files could be it |
+
+Without a project, `check` goes through every project in the library and says which
+are self-contained. Projects in the archive sections are left out.
+
+```bash
+solidseas pdm check D:\CAD\Jobs\1042 --plan
+solidseas pdm check D:\CAD\Jobs\1042 --fix
+```
+
+`--plan` lists the copies that would make the project self-contained: each file found
+outside goes into the deepest folder that holds every document using it, so
+SOLIDWORKS finds it from each of them. `--fix` makes those copies and checks the
+project again. A copy is always a new file. When a file of that name is already
+there, nothing is copied and `check` says why. A file copied from the library is
+remembered as a copy of that library item, so `pdm library updates` can tell you
+when the library part changes. Add `--copy-toolbox` when this installation does not
+load Toolbox parts from their own folder and they should be copied too.
+
+Missing files and other documents of the same name cannot be fixed by a copy. Open
+the assembly in SOLIDWORKS to point it at the right file.
+
+## The library of common parts
+
+Parts used in many projects, such as hardware or standard brackets, can live once in
+the library's `Library` section, each with an item number and a description. A
+project never points into the library: using a part copies it into the project, and
+the vault remembers which version went where.
+
+```bash
+solidseas pdm library candidates
+```
+
+`candidates` lists parts and assemblies whose identical content sits in two or more
+projects, the most widely shared first. Toolbox parts and parts the library already
+holds are left out. Only files that share a size with another file are read, so it
+is quick on a large library.
+
+```bash
+solidseas pdm library add D:\CAD\Jobs\1042\bolt.SLDPRT -d "M6 x 20 bolt"
+solidseas pdm library add D:\CAD\Library\Hardware\nut.SLDPRT --item NUT-M6
+solidseas pdm library list
+```
+
+`add` copies the file into the `Library` folder and makes it a library item. The
+file you named is not changed. A file of that name already in `Library` is never
+replaced. A file that already sits in the library section is made an item where it
+is. Items are numbered `SS-00001`, `SS-00002` and so on, unless you give a number
+with `--item`. `list` shows every item with its current version and how many
+projects have a copy.
+
+```bash
+solidseas pdm library use SS-00001 D:\CAD\Jobs\1050
+solidseas pdm library use SS-00001 D:\CAD\Jobs\1050 --to parts\hardware
+```
+
+`use` copies the item's current version into the project's top folder, where
+SOLIDWORKS finds it from any folder below, or into the folder `--to` names. When the
+project already has a file of that name, nothing is copied. In SOLIDWORKS, insert
+the part from the project's copy, not from the `Library` folder.
+
+```bash
+solidseas pdm library updates
+solidseas pdm library update D:\CAD\Jobs\1050 SS-00001
+```
+
+`updates` lists the copies whose library item has changed since they were made, and
+the copies that were edited in their project. `update` replaces the project's copy
+with the item's current version. The copy is kept as a version first, so `pdm log`
+and `pdm restore` can bring it back. A copy that was edited in the project is not
+replaced unless you add `--force`.
+
 ## In the viewer
 
 SolidSeas Desktop has a PDM menu while the opened folder lies in a library: Check
@@ -117,10 +210,13 @@ what `pdm init` does. See [The PDM menu](viewer.md#the-pdm-menu).
 
 ## What SolidSeas writes
 
-Only the library's own `.solidseas` folder, and the file a restore puts back. Each
-file is written under a temporary name and then renamed, never through a link. The
-vault is plain JSON and content files, so a backup of the library folder is a backup
-of its history, and it moves with the library.
+Only the library's own `.solidseas` folder, the file a restore puts back, and the
+copies that `library add`, `library use`, `library update` and `check --fix` make.
+Each file is written under a temporary name and then renamed, never through a link.
+A copy never replaces a file, except that `library update` replaces a copy it made
+itself, after keeping it as a version. SolidSeas never changes the paths stored
+inside a SOLIDWORKS document. The vault is plain JSON and content files, so a backup
+of the library folder is a backup of its history, and it moves with the library.
 
 Every command takes `--json` and prints one `pdm_result` document, described in
 [API.md](../API.md).
