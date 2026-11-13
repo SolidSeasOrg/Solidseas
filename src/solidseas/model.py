@@ -4038,7 +4038,14 @@ _PDM_FINDING = _obj(
     }
 )
 _PDM_COPY = _obj(
-    {"source": _STR, "destination": _STR, "referenced_by": _arr(_STR), "place": _STR_N, "item": _STR_N}
+    {
+        "source": _STR,
+        "destination": _STR,
+        "referenced_by": _arr(_STR),
+        "place": _STR_N,
+        "item": _STR_N,
+        "round": _INT,
+    }
 )
 _LIBRARY_ITEM = {
     "item": _STR,
@@ -4226,6 +4233,7 @@ _PDM_SCHEMA = _obj(
                             "unreadable": _arr(_obj({"path": _STR, "error": _STR})),
                             "plan": _obj(
                                 {
+                                    "rounds": _INT,
                                     "copies": _arr(_PDM_COPY),
                                     "present": _arr(_PDM_COPY),
                                     "conflicts": _arr(
@@ -4235,6 +4243,20 @@ _PDM_SCHEMA = _obj(
                                                 "destination": _STR,
                                                 "referenced_by": _arr(_STR),
                                                 "reason": _STR,
+                                                "round": _INT,
+                                            }
+                                        )
+                                    ),
+                                    "unplaced": _arr(
+                                        _obj(
+                                            {
+                                                "document": _STR,
+                                                "source": _STR,
+                                                "name": _STR_N,
+                                                "reason": _STR,
+                                                "round": _INT,
+                                                "found": _STR_N,
+                                                "error": _STR_N,
                                             }
                                         )
                                     ),

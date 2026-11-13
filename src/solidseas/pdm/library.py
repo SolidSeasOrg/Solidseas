@@ -1160,9 +1160,11 @@ def _plan_data(plan: CopyPlan, items: dict[str, Item], vault) -> dict[str, Any]:
             "referenced_by": [str(p) for p in c.referenced_by],
             "place": c.place,
             "item": item_of(c.source),
+            "round": c.round,
         }
 
     return {
+        "rounds": plan.rounds,
         "copies": [row(c) for c in plan.copies],
         "present": [row(c) for c in plan.present],
         "conflicts": [
@@ -1171,8 +1173,21 @@ def _plan_data(plan: CopyPlan, items: dict[str, Item], vault) -> dict[str, Any]:
                 "destination": str(c.destination),
                 "referenced_by": [str(p) for p in c.referenced_by],
                 "reason": c.reason,
+                "round": c.round,
             }
             for c in plan.conflicts
+        ],
+        "unplaced": [
+            {
+                "document": str(u.document),
+                "source": str(u.source),
+                "name": u.name,
+                "reason": u.reason,
+                "round": u.round,
+                "found": None if u.found is None else str(u.found),
+                "error": u.error,
+            }
+            for u in plan.unplaced
         ],
     }
 

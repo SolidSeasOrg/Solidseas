@@ -36,26 +36,32 @@ Each reference gets one :class:`Finding`, with one of :data:`RESULTS`:
 * ``ambiguous``: several files could be it, and none could be chosen.
 
 :func:`plan_copies` lists the copies that would make the project self-contained.
-It plans only: nothing here writes a file.
+It plans to closure: a planned copy that is a document has its own references
+searched for from its destination, over the real files and the copies planned so
+far, and what it needs is planned beside it, round after round. It plans only:
+nothing here writes a file.
 
 Nothing here has been tried in SOLIDWORKS itself: the order is the help topic's.
 
 A sub-assembly's own components are checked when that sub-assembly is: a
 reference the top document stores only for a file inside a sub-assembly is left
-out. A sub-assembly outside the project is not followed, so what it references
-shows once it has been copied in.
+out. The check does not follow a sub-assembly outside the project; the copy plan
+does, from where its copy will be.
 """
 
 import filecmp
 import os
-from collections.abc import Iterator
-from dataclasses import dataclass, field
+from collections.abc import Iterator, Sequence
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from ..errors import SolidSeasError
 from ..formats.solidworks import open_document
 from ..resolve import IndexCache, ResolutionInput, resolve_references
-from ..resolve.core import POSITIONAL_RULES
+from ..resolve.core import DEFAULT_MAX_EXAMINED, POSITIONAL_RULES
+from ..resolve.gateway import Gateway
+from ..resolve.identity import Identity, own_identity
+from ..resolve.index import FolderIndex
 from ..resolve.names import DOCUMENT_EXTENSIONS, fold, parse_stored
 from ..roots import Root, Roots
 from ..walk import Walk
@@ -71,6 +77,9 @@ RESULTS = (
     "ambiguous",
 )
 PLACES = ("project", "library", "other_project", "elsewhere")
+UNPLACED = ("missing", "different_document", "ambiguous", "unreadable", "round_limit")
+# How many rounds a copy plan follows copies' own references before it stops.
+MAX_ROUNDS = 10
 # The rules that follow SOLIDWORKS' own search (the name index is SolidSeas' own).
 SEARCH_RULES = frozenset(("embedded", *POSITIONAL_RULES))
 _INSIDE = ("embedded", "embedded_in_subassembly", "inside_parent")
@@ -149,33 +158,61 @@ class CheckResult:
 @dataclass(frozen=True)
 class PlannedCopy:
     """A file to copy into the project: from ``source`` to ``destination``, for the
-    documents in ``referenced_by``. ``place`` is where the source is (:data:`PLACES`)."""
+    documents in ``referenced_by``. ``place`` is where the source is (:data:`PLACES`).
+    ``round`` is the round of the plan that needed it: 1 for the project's own
+    documents, 2 and on for the references of copies planned in the round before, which
+    are then the ``referenced_by``, at their destinations."""
 
     source: Path
     destination: Path
     referenced_by: tuple[Path, ...]
     place: str | None
+    round: int = 1
 
 
 @dataclass(frozen=True)
 class CopyConflict:
     """A copy that cannot be made: ``destination`` already holds another file of that
-    name, or another planned copy takes it."""
+    name, or another planned copy takes it. ``round`` as for :class:`PlannedCopy`."""
 
     source: Path
     destination: Path
     referenced_by: tuple[Path, ...]
     reason: str
+    round: int = 1
+
+
+@dataclass(frozen=True)
+class Unplaced:
+    """A reference of a planned copy that no copy places. ``document`` is the planned
+    copy, at its destination, and ``source`` the file it is copied from. ``name`` is the
+    referenced file's name. ``reason`` is one of :data:`UNPLACED`: ``missing``,
+    ``different_document`` and ``ambiguous`` are the check's results for that reference
+    from the copy's destination, ``unreadable`` means the source could not be read
+    (``error`` names the exception, and ``name`` is None), and ``round_limit`` means
+    the copy ``found`` would be needed in a round past the limit. ``round`` is the
+    round in which a copy would have placed it."""
+
+    document: Path
+    source: Path
+    name: str | None
+    reason: str
+    round: int
+    found: Path | None = None
+    error: str | None = None
 
 
 @dataclass(frozen=True)
 class CopyPlan:
-    """The copies :func:`plan_copies` would make, the ones it cannot, and the files
-    already in place (same content at the destination: no copy needed)."""
+    """The copies :func:`plan_copies` would make, the ones it cannot, the files already
+    in place (same content at the destination: no copy needed), the references of
+    planned copies that no copy places, and how many rounds the plan took."""
 
     copies: tuple[PlannedCopy, ...]
     conflicts: tuple[CopyConflict, ...] = ()
     present: tuple[PlannedCopy, ...] = field(default=())
+    unplaced: tuple[Unplaced, ...] = ()
+    rounds: int = 1
 
 
 # --------------------------------------------------------------------------- paths
@@ -275,6 +312,54 @@ def _finding(document: Path, f, r, project: Path, library: Path | None) -> Findi
     )
 
 
+def _roots(project: Path, lib: Path | None) -> list[Root]:
+    roots = [Root("project", str(project))]
+    if lib is not None and not _inside(lib, project):
+        roots.append(Root("library", str(lib), role="library"))
+    return roots
+
+
+def _check_document(
+    read: Path,
+    at: Path,
+    project: Path,
+    lib: Path | None,
+    roots: list[Root],
+    cache: IndexCache,
+    gateway: Gateway | None = None,
+) -> list[Finding]:
+    """The findings of the document read from ``read``, its references searched for as
+    if it were at ``at`` (the same path, except for a planned copy). Raises
+    ``OSError`` or a :class:`SolidSeasError` when it cannot be read."""
+    within = project if _inside(read, project) else read.parent
+    with open_document(read, hold_open=True, within=within) as doc:
+        inp = ResolutionInput.from_document(doc)
+        files = doc.reference_set().files
+    if not inp.files:
+        return []
+    if at != read:
+        inp = replace(inp, path=str(at))
+    resolution = resolve_references(
+        inp,
+        Roots(roots),
+        cache=cache,
+        gateway=gateway,
+        allow_outside_roots=True,
+        search_above_roots=True,
+        skip_unavailable_roots=True,
+        search="documented",
+    )
+    out = []
+    for f in inp.files:
+        if f.direct is False:  # checked when its own sub-assembly is
+            continue
+        r = resolution.results.get(f.key)
+        if r is None:
+            continue
+        out.append(_finding(at, files.get(f.key, f), r, project, lib))
+    return out
+
+
 def check_project(project: Path, *, library: Path | None = None, copy_toolbox: bool = False) -> CheckResult:
     """Check that every reference of every SOLIDWORKS document in ``project`` resolves
     inside it (see the module notes). ``library`` is the common-parts library folder:
@@ -288,9 +373,6 @@ def check_project(project: Path, *, library: Path | None = None, copy_toolbox: b
     cannot be read is listed in ``unreadable``."""
     project = Path(os.path.abspath(project))
     lib = Path(os.path.abspath(library)) if library is not None else None
-    roots = [Root("project", str(project))]
-    if lib is not None and not _inside(lib, project):
-        roots.append(Root("library", str(lib), role="library"))
     cache = IndexCache()
     findings: list[Finding] = []
     unreadable: list[tuple[Path, str]] = []
@@ -298,30 +380,9 @@ def check_project(project: Path, *, library: Path | None = None, copy_toolbox: b
     for path in _documents(project):
         count += 1
         try:
-            with open_document(path, hold_open=True, within=project) as doc:
-                inp = ResolutionInput.from_document(doc)
-                files = doc.reference_set().files
+            findings += _check_document(path, path, project, lib, _roots(project, lib), cache)
         except (OSError, SolidSeasError) as exc:
             unreadable.append((path, type(exc).__name__))
-            continue
-        if not inp.files:
-            continue
-        resolution = resolve_references(
-            inp,
-            Roots(roots),
-            cache=cache,
-            allow_outside_roots=True,
-            search_above_roots=True,
-            skip_unavailable_roots=True,
-            search="documented",
-        )
-        for f in inp.files:
-            if f.direct is False:  # checked when its own sub-assembly is
-                continue
-            r = resolution.results.get(f.key)
-            if r is None:
-                continue
-            findings.append(_finding(path, files.get(f.key, f), r, project, lib))
     return CheckResult(project, lib, copy_toolbox, count, tuple(findings), tuple(unreadable))
 
 
@@ -341,7 +402,165 @@ def _same_content(a: Path, b: Path) -> bool:
         return False
 
 
-def plan_copies(result: CheckResult) -> CopyPlan:
+class _CopyGateway(Gateway):
+    """The resolver's gateway, with planned copies that do not exist yet: the identity of
+    one is its source's, read from the source."""
+
+    def __init__(self, planned: dict[str, Path]) -> None:
+        super().__init__()
+        self.planned = planned  # _key(destination) -> source
+        self._sources: dict[str, Identity] = {}
+
+    def _source_identity(self, source: Path) -> Identity:
+        k = _key(source)
+        ident = self._sources.get(k)
+        if ident is None:
+            try:
+                with open_document(source, hold_open=True, within=source.parent) as doc:
+                    ident = own_identity(doc)
+            except Exception as exc:  # one unreadable source never stops the plan
+                ident = Identity(None, error=type(exc).__name__)
+            self._sources[k] = ident
+        return ident
+
+    def read_identities(self, requests: Sequence[tuple[str, str, bool]]) -> list[Identity]:
+        out: list[Identity] = [Identity(None)] * len(requests)
+        real: list[int] = []
+        for i, (path, _within, _placeholder) in enumerate(requests):
+            source = self.planned.get(_key(path))
+            if source is not None:
+                out[i] = self._source_identity(source)
+            else:
+                real.append(i)
+        if real:
+            got = super().read_identities([requests[i] for i in real])
+            for i, ident in zip(real, got, strict=True):
+                out[i] = ident
+        return out
+
+
+@dataclass
+class _Copy:
+    source: Path
+    destination: Path
+    users: list[Path]
+    place: str | None
+    round: int
+
+
+@dataclass(frozen=True)
+class _Need:
+    source: Path
+    destination: Path
+    user: Path
+    place: str | None
+
+
+class _Planner:
+    """The copies planned so far, and the search from where they will be."""
+
+    def __init__(self, result: CheckResult) -> None:
+        self.result = result
+        self.copies: dict[str, _Copy] = {}  # _key(destination) -> the copy planned there
+        self.conflicts: list[CopyConflict] = []
+        self.present: list[PlannedCopy] = []
+        self.unplaced: list[Unplaced] = []
+        self.roots = _roots(result.project, result.library)
+        self._cache = IndexCache()
+        self._index: FolderIndex | None = None
+
+    def add(self, needs: list[_Need], round_: int) -> list[_Copy]:
+        """Plan ``needs``, once per source and destination; returns the copies new in this
+        round. A destination never takes two sources, and an existing file is never
+        written over."""
+        groups: dict[tuple[str, str], tuple[_Need, list[Path]]] = {}
+        for n in needs:
+            _first, users = groups.setdefault((_key(n.source), _key(n.destination)), (n, []))
+            if n.user not in users:
+                users.append(n.user)
+        new: list[_Copy] = []
+        for (src_key, dest_key), (n, users) in groups.items():
+            src, dest, by = n.source, n.destination, tuple(users)
+            planned = self.copies.get(dest_key)
+            if planned is not None:
+                if _key(planned.source) == src_key:
+                    planned.users += [u for u in users if u not in planned.users]
+                else:
+                    reason = "another planned copy has this name here"
+                    self.conflicts.append(CopyConflict(src, dest, by, reason, round_))
+                continue
+            if os.path.lexists(dest):
+                if os.path.isfile(dest) and not os.path.islink(dest) and _same_content(src, dest):
+                    self.present.append(PlannedCopy(src, dest, by, n.place, round_))
+                else:
+                    reason = "a different file of this name is already here"
+                    self.conflicts.append(CopyConflict(src, dest, by, reason, round_))
+                continue
+            copy = _Copy(src, dest, list(users), n.place, round_)
+            self.copies[dest_key] = copy
+            new.append(copy)
+        return new
+
+    def _overlay(self) -> tuple[IndexCache, tuple[str, bool]]:
+        """A cache whose project index holds the planned copies as if they were made."""
+        root = self.roots[0]
+        if self._index is None:
+            self._index = Gateway().build_index(root, max_examined=DEFAULT_MAX_EXAMINED, deadline=None)
+        files = []
+        for c in self.copies.values():
+            try:
+                st = os.stat(c.source)
+                size, mtime = st.st_size, st.st_mtime_ns
+            except OSError:
+                size = mtime = None
+            files.append(("/".join(Path(os.path.relpath(c.destination, root.path)).parts), size, mtime))
+        key = (fold(root.path), root.recursive)
+        cache = IndexCache()
+        cache.indexes = dict(self._cache.indexes)
+        cache.indexes[key] = self._index.with_files(files)
+        cache.identities = self._cache.identities
+        return cache, key
+
+    def needs_of(self, copies: list[_Copy], round_: int) -> list[_Need]:
+        """What ``copies`` need beside them, each read from its source and searched for
+        from its destination, over the files there are and every copy planned so far.
+        A reference that no copy can place is listed in ``unplaced``, with ``round_``."""
+        res = self.result
+        cache, key = self._overlay()
+        gateway = _CopyGateway({k: c.source for k, c in self.copies.items()})
+        out: list[_Need] = []
+        for c in copies:
+            if not c.destination.name.lower().endswith(DOCUMENT_EXTENSIONS):
+                continue
+            try:
+                found = _check_document(
+                    c.source, c.destination, res.project, res.library, self.roots, cache, gateway
+                )
+            except (OSError, SolidSeasError) as exc:
+                self.unplaced.append(
+                    Unplaced(c.destination, c.source, None, "unreadable", round_, error=type(exc).__name__)
+                )
+                continue
+            for f in found:
+                if _needs_copy(f, res.copy_toolbox) and f.found is not None:
+                    other = self.copies.get(_key(f.found))  # found as a planned copy: copy its source
+                    source = f.found if other is None else other.source
+                    place = f.place if other is None else other.place
+                    out.append(_Need(source, c.destination.parent / f.found.name, c.destination, place))
+                elif f.result in ("missing", "different_document", "ambiguous") or (
+                    f.result == "toolbox" and f.found is None and res.copy_toolbox
+                ):
+                    reason = "missing" if f.result == "toolbox" else f.result
+                    self.unplaced.append(
+                        Unplaced(c.destination, c.source, f.file_name or f.key, reason, round_, f.found)
+                    )
+        for k, index in cache.indexes.items():
+            if k != key:
+                self._cache.indexes.setdefault(k, index)
+        return out
+
+
+def plan_copies(result: CheckResult, *, max_rounds: int = MAX_ROUNDS) -> CopyPlan:
     """The copies that would make ``result``'s project self-contained, without making
     them. Each file found outside the project, each one found only by a search
     SOLIDWORKS may not make (``needs_confirmation``), and each Toolbox part when
@@ -349,46 +568,61 @@ def plan_copies(result: CheckResult) -> CopyPlan:
     once per folder: the bare name in the document's own folder is the first place
     SOLIDWORKS looks, and the only folder where it tries the bare name. A destination
     that already holds a file of that name is never written over: with the same
-    content the copy is listed in ``present``, otherwise in ``conflicts``."""
-    groups: dict[tuple[str, str], tuple[Path, Path, list[Path], str | None]] = {}
-    for f in result.findings:
-        if not _needs_copy(f, result.copy_toolbox) or f.found is None:
-            continue
-        dest = f.document.parent / f.found.name
-        _src, _dest, users, _place = groups.setdefault(
-            (_key(f.found), _key(dest)), (f.found, dest, [], f.place)
-        )
-        if f.document not in users:
-            users.append(f.document)
-    copies: list[PlannedCopy] = []
-    conflicts: list[CopyConflict] = []
-    present: list[PlannedCopy] = []
-    taken: dict[str, Path] = {}
-    for src, dest, users, place in groups.values():
-        by = tuple(users)
-        if _key(dest) in taken:
-            conflicts.append(CopyConflict(src, dest, by, "another planned copy has this name here"))
-            continue
-        if os.path.lexists(dest):
-            if os.path.isfile(dest) and not os.path.islink(dest) and _same_content(src, dest):
-                present.append(PlannedCopy(src, dest, by, place))
-            else:
-                conflicts.append(CopyConflict(src, dest, by, "a different file of this name is already here"))
-            continue
-        taken[_key(dest)] = src
-        copies.append(PlannedCopy(src, dest, by, place))
-    return CopyPlan(tuple(copies), tuple(conflicts), tuple(present))
+    content the copy is listed in ``present``, otherwise in ``conflicts``.
+
+    A copy that is a document itself (a sub-assembly, or a part with external files)
+    has references of its own, which it may not find from its new folder. Each one is
+    read from its source and its references searched for as if it already sat at its
+    destination, over the files there are and every copy planned so far; what it needs
+    is planned beside it in the next round. That repeats until a round adds nothing,
+    for at most ``max_rounds`` rounds. Each copy records the round that planned it,
+    and a later round's ``referenced_by`` are the planned copies that need it. What
+    no copy can place is listed in ``unplaced``. Reads documents, writes nothing."""
+    if max_rounds < 1:
+        raise ValueError("max_rounds is at least 1")
+    planner = _Planner(result)
+    needs = [
+        _Need(f.found, f.document.parent / f.found.name, f.document, f.place)
+        for f in result.findings
+        if _needs_copy(f, result.copy_toolbox) and f.found is not None
+    ]
+    new = planner.add(needs, 1)
+    rounds = 1
+    while new:
+        needs = planner.needs_of(new, rounds + 1)
+        if not needs:
+            break
+        if rounds == max_rounds:
+            seen: set[tuple[str, str]] = set()
+            for n in needs:
+                k = (_key(n.user), _key(n.destination))
+                if k not in seen:
+                    seen.add(k)
+                    planner.unplaced.append(
+                        Unplaced(n.user, n.source, n.destination.name, "round_limit", rounds + 1, n.source)
+                    )
+            break
+        rounds += 1
+        new = planner.add(needs, rounds)
+    copies = tuple(
+        PlannedCopy(c.source, c.destination, tuple(c.users), c.place, c.round)
+        for c in planner.copies.values()
+    )
+    return CopyPlan(copies, tuple(planner.conflicts), tuple(planner.present), tuple(planner.unplaced), rounds)
 
 
 __all__ = [
+    "MAX_ROUNDS",
     "PLACES",
     "RESULTS",
     "SEARCH_RULES",
+    "UNPLACED",
     "CheckResult",
     "CopyConflict",
     "CopyPlan",
     "Finding",
     "PlannedCopy",
+    "Unplaced",
     "check_project",
     "is_toolbox_path",
     "plan_copies",
