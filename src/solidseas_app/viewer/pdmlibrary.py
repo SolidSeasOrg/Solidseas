@@ -11,7 +11,8 @@
   after a confirmation), and Add to Library makes the file selected in the list an item
   (``Library.add``).
 * **Candidates**: the parts shared by two or more projects, most widely shared first
-  (``Library.candidates``), each of which Add to Library makes an item.
+  (``Library.candidates``). Add to Library makes the chosen part an item, or after one
+  confirmation each of several chosen parts, with the next numbers.
 
 The Check Project window's **Make Copies...** shows ``plan_copies``' list and, after a
 confirmation, makes those copies (``Library.fix``) and checks the project again.
@@ -25,6 +26,7 @@ from typing import Any
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
+    QAbstractItemView,
     QComboBox,
     QDialog,
     QDialogButtonBox,
@@ -44,6 +46,7 @@ from PySide6.QtWidgets import (
 from .wording import error_message, plural, tip
 
 LIBRARY_TEXT = "&Library of Common Parts..."
+CANDIDATE_TEXT = "Add to Library..."
 LIBRARY_TIP = (
     "The parts kept once in the library's Library folder, with item numbers, which projects copy from"
 )
@@ -127,6 +130,26 @@ def add_work(path: str, item: str | None, description: str):
         vault = pdm.open(path)
         data = vault.library.add(path, item, description)
         return {"ok": True, "kind": "library_add", "path": path, "data": data}
+
+    return work
+
+
+def add_many_work(paths: list[str]):
+    """A Job's work: each file in ``paths`` made a library item with the next number, one
+    after the other, so the numbers follow each other. A file that cannot be added is
+    listed with its error and the others go on."""
+
+    def work(_emit, _cancelled) -> dict[str, Any]:
+        from solidseas import model, pdm
+
+        vault = pdm.open(paths[0])
+        done: list[dict[str, Any]] = []
+        for path in paths:
+            try:
+                done.append({"path": path, "ok": True, "data": vault.library.add(path, None, "")})
+            except Exception as exc:
+                done.append({"path": path, "ok": False, "error": model.error_info(exc)})
+        return {"ok": True, "kind": "library_add_many", "paths": paths, "done": done}
 
     return work
 
@@ -357,8 +380,10 @@ class LibraryDialog(QDialog):
             "shared first."
         )
         self.candidates_tree = _tree(["Part", "Projects", "Copies", "Where"])
+        self.candidates_tree.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.candidate_button = _button(
-            "Add to Library...", "Make this part a library item, from its first copy. No project file changes"
+            CANDIDATE_TEXT,
+            "Make the chosen parts library items, each from its first copy. No project file changes",
         )
         row = QHBoxLayout()
         row.addStretch(1)
@@ -376,9 +401,7 @@ class LibraryDialog(QDialog):
         outer.addWidget(buttons)
         self.search.textChanged.connect(self._filter)
         self.items.currentItemChanged.connect(lambda *_a: self._update())
-        self.candidates_tree.currentItemChanged.connect(
-            lambda *_a: self.candidate_button.setEnabled(self.chosen_candidate() is not None)
-        )
+        self.candidates_tree.itemSelectionChanged.connect(self._update_candidate_button)
         self.resize(900, 600)
 
     # -- items ---------------------------------------------------------------------------
@@ -517,14 +540,29 @@ class LibraryDialog(QDialog):
             )
         for c in range(4):
             self.candidates_tree.resizeColumnToContents(c)
-        self.candidate_button.setEnabled(self.chosen_candidate() is not None)
+        self._update_candidate_button()
+
+    def chosen_candidates(self) -> list[dict[str, Any]]:
+        """The candidates selected, in the order the tab lists them."""
+        if not self.candidates:
+            return []
+        out = []
+        for i in range(self.candidates_tree.topLevelItemCount()):
+            item = self.candidates_tree.topLevelItem(i)
+            n = item.data(0, Qt.ItemDataRole.UserRole)
+            if item.isSelected() and isinstance(n, int) and n < len(self.candidates):
+                out.append(self.candidates[n])
+        return out
 
     def chosen_candidate(self) -> dict[str, Any] | None:
-        current = self.candidates_tree.currentItem()
-        if current is None or not self.candidates:
-            return None
-        n = current.data(0, Qt.ItemDataRole.UserRole)
-        return self.candidates[n] if isinstance(n, int) and n < len(self.candidates) else None
+        """The one candidate selected; None for none or several."""
+        rows = self.chosen_candidates()
+        return rows[0] if len(rows) == 1 else None
+
+    def _update_candidate_button(self) -> None:
+        n = len(self.chosen_candidates())
+        self.candidate_button.setEnabled(n > 0)
+        self.candidate_button.setText(CANDIDATE_TEXT if n < 2 else f"Add {n:,} to Library...")
 
 
 class UseDialog(QDialog):

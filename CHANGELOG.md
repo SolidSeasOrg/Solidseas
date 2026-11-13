@@ -8,6 +8,14 @@ while the project takes shape.
 
 ### Fixed
 
+- **The viewer's PDM menu no longer holds the window on a slow folder.** Finding
+  the library around an opened folder, and the project of the folder chosen in
+  the folder tree, now happen in the background, so a folder on a network share
+  that is slow to answer no longer freezes the window. The PDM menu offers Make
+  This Folder a Library only once the search for a library has answered, and
+  Check Project says it is looking for the project until it knows. A version
+  restored as a new file now shows in the file list straight away.
+
 - **pdm check searches in the order the SOLIDWORKS help gives.** The
   self-contained check now looks in the document's own folder first, then in the
   folders above it under the folders the reference was saved in, then at the saved
@@ -61,6 +69,11 @@ while the project takes shape.
   references, the command line and the viewer's References list.
 
 ### Added
+
+- **Add several shared parts to the library at once.** On the Candidates tab of
+  the Library of Common Parts window, select several parts (Ctrl or Shift and
+  click) and choose Add to Library: after one question, each becomes a library
+  item with the next item number, copied from its first copy.
 
 - **A Library of Common Parts window in the viewer.** PDM > Library of Common
   Parts lists the library's items with their description, file, versions, the

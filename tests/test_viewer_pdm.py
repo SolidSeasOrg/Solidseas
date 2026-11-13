@@ -172,7 +172,13 @@ def window(app):
 
 def _open(app, w, folder: Path) -> None:
     w.open_folder(str(folder))
-    _wait(app, lambda: w.listing_info is not None)
+    _wait(app, lambda: w.listing_info is not None and w.pdm.idle)
+
+
+def _menu(app, w) -> None:
+    """The PDM menu brought up to date, once the lookups it starts have answered."""
+    w.pdm.update_actions()
+    _wait(app, lambda: w.pdm.idle)
 
 
 def _results(app, w, n: int, start: int | None = None) -> list:
@@ -227,8 +233,57 @@ def test_outside_a_library_the_menu_offers_to_make_one(app, window, tmp_path, mo
     assert pdm.find_library(cad) == str(cad) and w.pdm.library == str(cad)
     assert w.statusBar().currentMessage().startswith("CAD is a library now")
     assert _state(cad) == before  # only its .solidseas folder was added
-    w.pdm.update_actions()
+    _menu(app, w)
     assert _visible(w)[:3] == ["Check &In...", "&Changes", "Check &Project (choose a folder in a project)"]
+
+
+@needs_qt
+def test_the_library_and_the_project_are_looked_up_off_the_ui_thread(app, window, tmp_path, monkeypatch):
+    """A folder on a share that is slow to answer never holds the window: the library and
+    the chosen folder's project are looked up in the controller's pool, and the menu
+    offers Make This Folder a Library only once the lookup says there is none."""
+    import threading
+
+    from solidseas_app.viewer import pdmaction
+
+    cad = library(tmp_path, make=False)
+    w = window
+    gate = threading.Event()
+    threads: list = []
+    real_find, real_folders = pdm.find_library, pdmaction.project_folders
+
+    def find_library(folder):
+        threads.append(threading.current_thread())
+        assert gate.wait(30)
+        return real_find(folder)
+
+    def project_folders(path):
+        threads.append(threading.current_thread())
+        return real_folders(path)
+
+    monkeypatch.setattr(pdm, "find_library", find_library)
+    monkeypatch.setattr(pdmaction, "project_folders", project_folders)
+    w.open_folder(str(cad / "Jobs"))
+    _wait(app, lambda: w.listing_info is not None)
+    assert not w.pdm.answered and _visible(w) == []  # the lookup has not answered: nothing yet
+    gate.set()
+    _wait(app, lambda: w.pdm.idle)
+    assert _visible(w) == ["&Make This Folder a Library..."] and w.pdm.library is None
+
+    pdm.init(cad)
+    gate.clear()
+    w.open_folder(str(cad / "Jobs"))
+    _wait(app, lambda: w.listing_info is not None)
+    assert _visible(w) == []
+    gate.set()
+    _wait(app, lambda: w.pdm.idle)
+    assert w.pdm.library == str(cad)
+    assert w.pdm.act_check.text() == "Check &Project (choose a folder in a project)"
+    w.tree.setCurrentItem(w._folders["1042"])  # the project's lookup starts on its own
+    assert not w.pdm.idle and w.pdm.act_check.text() == "Check &Project (looking for the project...)"
+    _wait(app, lambda: w.pdm.idle)
+    assert w.pdm.act_check.isEnabled() and w.pdm.act_check.text() == "Check &Project"
+    assert threads and threading.main_thread() not in threads
 
 
 @needs_qt
@@ -318,6 +373,7 @@ def test_restore_a_version_as_a_new_file_and_over_the_file(app, window, tmp_path
     assert (folder / "box v1.3mf").read_bytes() == first
     assert path.read_bytes() == second  # the file itself is as it was
     assert w.statusBar().currentMessage() == "Put back v1 as box v1.3mf."
+    _wait(app, lambda: w.model.find("box v1.3mf") is not None)  # the list was read again
 
     start = len(w.test_shown)
     w.pdm.restore_now(str(path), "v1")
@@ -390,7 +446,7 @@ def test_a_folder_s_menu_and_check_project(app, window, tmp_path, fake_drive_q):
     pdm.init(cad)
     w = window
     _open(app, w, cad / "Jobs")
-    w.pdm.update_actions()
+    _menu(app, w)
     assert w.pdm.act_check.text().endswith("(choose a folder in a project)")
     menu = w.folder_menu(w._folders["A"])  # the folder tree's right-click menu
     assert [a.text() for a in menu.actions()] == ["Check In A...", "Changes in A", "Check Project"]
@@ -398,7 +454,7 @@ def test_a_folder_s_menu_and_check_project(app, window, tmp_path, fake_drive_q):
     assert [a.text() for a in menu.actions()] == ["Check In Jobs...", "Changes in Jobs"]
     w.tree.setCurrentItem(w._folders["A"])
     assert w.current_folder() == str(a)
-    w.pdm.update_actions()
+    _menu(app, w)
     assert w.pdm.act_check.isEnabled() and w.pdm.act_check.text() == "Check &Project"
 
     dialog = w.pdm.check_project(str(a))
@@ -618,6 +674,49 @@ def test_the_candidates_tab_adds_a_shared_part(app, window, tmp_path):
     assert got["data"]["candidates"] == [] and dialog.candidates_line.text().startswith("No part sits")
     assert _state(cad / "Jobs") == before  # the projects' files are as they were
     assert (cad / "Library" / "bolt.sldprt").read_bytes() == b"the same bolt"
+    dialog.reject()
+
+
+@needs_qt
+def test_the_candidates_tab_adds_several_parts_at_once(app, window, tmp_path, monkeypatch):
+    cad = library(tmp_path, make=False)
+    for job in ("1042", "1043"):
+        (cad / "Jobs" / job).mkdir(parents=True, exist_ok=True)
+        (cad / "Jobs" / job / "bolt.sldprt").write_bytes(b"the same bolt")
+        (cad / "Jobs" / job / "nut.sldprt").write_bytes(b"the same nut")
+    pdm.init(cad)
+    before = _state(cad / "Jobs")
+    w = window
+    _open(app, w, cad / "Jobs")
+    dialog = w.pdm.open_library()
+    _library(app, w, 0)
+    start = len(w.test_shown)
+    dialog.tabs.setCurrentIndex(1)
+    _kind(app, w, "candidates", start)
+    tree = dialog.candidates_tree
+    assert sorted(_tops(tree)) == ["bolt.sldprt", "nut.sldprt"]
+    tree.setCurrentItem(tree.topLevelItem(0))
+    assert dialog.candidate_button.text() == "Add to Library..." and dialog.chosen_candidate() is not None
+    tree.selectAll()
+    assert dialog.candidate_button.isEnabled() and dialog.candidate_button.text() == "Add 2 to Library..."
+    assert dialog.chosen_candidate() is None and len(dialog.chosen_candidates()) == 2
+    asked: list = []
+    monkeypatch.setattr(w.pdm, "ask", lambda title, text: asked.append(text) or False)
+    assert w.pdm.add_candidate() is None
+    assert asked[0].startswith("Add 2 parts to the library?") and "No project file changes" in asked[0]
+    assert pdm.open(cad).library.items() == []  # the answer was no
+    monkeypatch.setattr(w.pdm, "ask", lambda title, text: True)
+    start = len(w.test_shown)
+    w.pdm.add_candidate()
+    got = _kind(app, w, "library_add_many", start)
+    assert got["ok"] and [d["ok"] for d in got["done"]] == [True, True]
+    names = [os.path.basename(p) for p in got["paths"]]
+    assert got["text"] == "Added 2 parts to the library: SS-00001, SS-00002."
+    items = {i.path: i.id for i in pdm.open(cad).library.items()}
+    assert items == {f"Library/{names[0]}": "SS-00001", f"Library/{names[1]}": "SS-00002"}
+    got = _kind(app, w, "candidates", start)  # looked for again: the library holds both now
+    assert got["data"]["candidates"] == []
+    assert _state(cad / "Jobs") == before
     dialog.reject()
 
 

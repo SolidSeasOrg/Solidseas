@@ -1681,6 +1681,7 @@ class MainWindow(QMainWindow):
     def _folder_selected(self) -> None:
         items = self.tree.selectedItems()
         self.proxy.set_folder((items[0].data(0, _FolderRole) or "") if items else "")
+        self.pdm.update_actions()  # looks up the chosen folder's project in a worker thread
 
     def current_folder(self) -> str | None:
         """The folder chosen in the folder tree, as a path (the opened folder when none is)."""

@@ -290,9 +290,10 @@ When the folder you open lies in a library (a folder made one with
 | Changes | Lists the files in the chosen folder that are new, changed since their newest version, or gone. Check In there opens the check-in for the same folder. |
 | Check Project | Checks that the project holding the chosen folder holds every file its assemblies, parts and drawings reference. The findings are grouped (not found where SOLIDWORKS looks, another document of that name, found only outside the project, found only by a search SOLIDWORKS may not make, Toolbox hardware, stored inside its assembly, found in the project), and the summary says how many Toolbox parts were found nowhere, each with the document, the path stored in it and where the file was found. Make Copies lists the copies that would make the project self-contained (see below). |
 | Library of Common Parts... | Opens the library's common parts in a window of their own (see below). |
-| Restore Version... | Puts back the library version chosen on the History tab. The file as it is now is kept as a version in the library first, so nothing is lost. You can also restore it as a new file beside it, which never replaces another file. |
+| Restore Version... | Puts back the library version chosen on the History tab. The file as it is now is kept as a version in the library first, so nothing is lost. You can also restore it as a new file beside it, which never replaces another file and shows in the file list at once. |
 
-Outside a library the menu has one entry, **Make This Folder a Library...**. It
+Outside a library the menu has one entry, **Make This Folder a Library...**,
+shown once SolidSeas has looked for a library around the opened folder. It
 asks first, then adds a `.solidseas` folder to the opened folder, where the
 versions and check-ins are kept. Nothing else in the folder changes.
 
@@ -334,6 +335,8 @@ narrows the list by number, description or file name.
 The **Candidates** tab lists the parts and assemblies whose identical content
 sits in two or more projects, the most widely shared first, with the projects
 they are in. Add to Library makes the chosen one an item, from its first copy.
+Select several (Ctrl or Shift and click) to add them all at once: after one
+question, each becomes an item with the next item number.
 
 ## Opening a file in F3D
 
