@@ -717,7 +717,12 @@ ROUTES: dict[str, Route] = {
         Route(
             "/v1/pdm/check",
             "pdm_check",
-            {"root": _ROOT, "path": Param("path", default=""), "copy_toolbox": Param("bool", default=False)},
+            {
+                "root": _ROOT,
+                "path": Param("path", default=""),
+                "copy_toolbox": Param("bool", default=False),
+                "plan": Param("bool", default=False),
+            },
             job="pdm_check",
             deadline="pdm_check",
             cap="pdm",
@@ -1194,7 +1199,7 @@ class Server:
             if q.get("cursor") is not None:
                 params["after"] = _decode_cursor(q["cursor"], qhash)
         elif route.kind == "pdm_check":
-            params["copy_toolbox"] = q["copy_toolbox"]
+            params.update(copy_toolbox=q["copy_toolbox"], plan=q["plan"])
             params["roots"] = [
                 {"id": x.root.id, "path": x.root.path, "recursive": x.root.recursive} for x in self._states
             ]

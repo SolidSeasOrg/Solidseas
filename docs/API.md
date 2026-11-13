@@ -6385,7 +6385,7 @@ path it was copied from, or null) and `first_version`. A version is `id`, `numbe
 | `show` | `file`, `source`, `version`, `document` (as `version_diff`'s), `properties`, `configurations` (names), `geometry` (`reason`, and per configuration its geometry summary), `warnings` |
 | `diff` | `version_diff` data (5.19) |
 | `restore` | `file` (the file written), `path`, `from`, `version`, `replaced`, `written` (false when the file already held it), `stored_first` (`version`, `new`, `sha256` of the current file stored first, or null), `checkin` (null when nothing was written) |
-| `check` | `scope` (the project, empty for every project), `copy_toolbox`, `plan`, `fix`, `self_contained` (how many projects are), `projects`: each `project`, `documents`, `counts` (per result: `ok`, `outside`, `needs_confirmation`, `toolbox`, `inside_parent`, `missing`, `different_document`, `ambiguous`; and `toolbox_not_found`, the `toolbox` findings found nowhere), `self_contained`, `findings` (the problems: `document`, `key`, `stored_path`, `file_name`, `relation`, `result`, `found`, `place`, `found_in`, `status`, `rule`, `identity`, `searched`, `toolbox`, `warnings`, `candidates`), `unreadable` (`path`, `error`), `plan` (`copies` and `present`: `source`, `destination`, `referenced_by`, `place`, `item`; `conflicts`: `source`, `destination`, `referenced_by`, `reason`; null unless asked), `fix` (`copied`: `source`, `destination`, `item`, `link`; `failed`: `source`, `destination`, `code`, `message`; `checkin`; null without `--fix`) |
+| `check` | `scope` (the project, empty for every project), `copy_toolbox`, `plan`, `fix`, `self_contained` (how many projects are), `projects`: each `project`, `documents`, `counts` (per result: `ok`, `outside`, `needs_confirmation`, `toolbox`, `inside_parent`, `missing`, `different_document`, `ambiguous`; and `toolbox_not_found`, the `toolbox` findings found nowhere), `problems` (how many findings are problems), `self_contained`, `findings` (the problems only, each as in `pdm_check`, with absolute paths), `unreadable` (`path`, `exception`), `plan` (`copies` and `present`: `source`, `destination`, `referenced_by`, `place`, `item`; `conflicts`: `source`, `destination`, `referenced_by`, `reason`; null unless asked), `fix` (`copied`: `source`, `destination`, `item`, `link`; `failed`: `source`, `destination`, `code`, `message`; `checkin`; null without `--fix`) |
 | `library_candidates` | `documents` (parts and assemblies looked at), `hashed`, `total`, `candidates` most widely shared first (`name`: the commonest, `names`, `sha256`, `size`, `projects`, `copies`: `path`, `project`), `skipped` |
 | `library_add` | `item`, `copied` (false for a file already in the library section), `version`, `checkin` |
 | `library_list` | `section`, `items`: each item with `exists`, `sha256` (the file now), `version` (its newest version, or null), `stored` (whether the file still holds it), `copies` and `projects` |
@@ -6406,7 +6406,7 @@ root (empty when it is the root), or null when it lies above the root.
 | `pdm_log` | `library`, `path`, `name`, `working`, `git` (`branch` and `head`, or null), `versions` and `warnings`, as `pdm_result`'s `log`. A warning whose text names a folder on the server has that text replaced |
 | `pdm_version` | `library`, `path`, `name`, `source` (`vault` or `git`, as asked), `version`, `document`, `properties`, `configurations`, `geometry` and `warnings`, as `pdm_result`'s `show` |
 | `pdm_checkins` | `library`, `scope`, `scans`, `checkins` newest first (`id`, `when_utc`, `note`, `who`, `revision`, `state`, `auto`, `files_total`, `files_truncated`, and `files`: `path`, `sha256`, `size`, `version`, `new`, `removed`, at most 100), `next_cursor` |
-| `pdm_check` | `library`, `project` (`path`, `name`, `section`, `archived`), `copy_toolbox`, `documents`, `self_contained`, `problems`, `counts` (per result, and `toolbox_not_found`: the `toolbox` findings found nowhere, which are counted in `toolbox` too), `findings` and `unreadable` (`path`, `exception`) |
+| `pdm_check` | `library`, `copy_toolbox`, then one project as `pdm_result`'s `check` gives each (one function builds both): `project` (`path`, `name`, `section`, `archived`), `documents`, `counts` (per result, and `toolbox_not_found`: the `toolbox` findings found nowhere, which are counted in `toolbox` too), `problems`, `self_contained`, `findings` (every finding, not only the problems), `unreadable` (`path`, `exception`) and `plan` (with `plan`, the copies `pdm check --plan` lists, each path a `{"root", "path"}` or null; null otherwise). Every path is relative to the root |
 
 Each finding of `pdm_check` is one reference of one document (`docs/PDM.md` 5):
 `document`, `key`, `stored_path`, `file_name`, `relation` (a part's `base_part`,
@@ -6420,7 +6420,9 @@ roots, or null), `outside_roots` (found, but outside every root, so not named),
 `place` (`project`, `library`, `other_project` or `elsewhere`), `status`, `rule`,
 `identity`, `searched` (one of SOLIDWORKS' own search rules found it), `toolbox`,
 `warnings` (codes) and `candidates` (for a reference not found, the files of that name
-in the service's roots that the search does not reach, as `{"root", "path"}`).
+in the service's roots that the search does not reach, as `{"root", "path"}`). `pdm check --json`
+gives the same keys, with `document`, `found`, `found_in` and `candidates` as absolute
+paths (`outside_roots` is then always false).
 
 ## 6. Reading the JSON in JavaScript and TypeScript
 
@@ -7159,7 +7161,7 @@ as HTTP/1.1 with every header of 8.11, and the connection is closed.
 | `/v1/pdm/log` | `root`\*, `path`\* (a file, which may be gone) | `pdm_log` (provisional) | 60 s | 8 MiB |
 | `/v1/pdm/version` | `root`\*, `path`\*, `version`\* (`v1`, `latest`, `working` or an id), `source` (`vault` or `git`) | `pdm_version` (provisional) | 60 s | 8 MiB |
 | `/v1/pdm/checkins` | `root`\*, `path` (a folder), `scans`, `limit` (1 to 500, default 50), `cursor` | `pdm_checkins` (provisional) | 60 s | 8 MiB |
-| `/v1/pdm/check` | `root`\*, `path` (a project folder or a folder in one), `copy_toolbox` | `pdm_check` (provisional) | 180 s | 8 MiB |
+| `/v1/pdm/check` | `root`\*, `path` (a project folder or a folder in one), `copy_toolbox`, `plan` | `pdm_check` (provisional) | 180 s | 8 MiB |
 
 - `source` in the envelope is `{"root", "path"}`, the path in its on-disk
   spelling, plus `nested` when it was given. An error envelope's `source` names
@@ -7260,8 +7262,9 @@ as HTTP/1.1 with every header of 8.11, and the connection is closed.
   each reference the way SOLIDWORKS searches, from the document's folder up past the
   project (`docs/PDM.md` 5), so it looks at folders above the root; a file it finds
   is named by root and path only when it lies in one of the service's roots, and
-  otherwise only `outside_roots` says it was found. The ETag is taken from the
-  answer.
+  otherwise only `outside_roots` says it was found. `plan` lists the copies that
+  would make the project self-contained, as `pdm check --plan` does; the route never
+  makes them. The ETag is taken from the answer.
 - **`/v1/mesh`** (provisional) answers the GLB of 3.28: what the document
   shows, from the display data it stores, read in a worker that opens no other
   file. A GLB is served only after the service checked its frame itself

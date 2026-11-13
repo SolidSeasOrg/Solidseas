@@ -463,6 +463,8 @@ _PARAMETERS: dict[tuple[str, str] | str, str] = {
     "scans": "Also list the automatic scans, which have no note.",
     "copy_toolbox": "Treat Toolbox parts as files the project must hold, instead of ones SOLIDWORKS "
     "loads from its installation.",
+    ("/v1/pdm/check", "plan"): "Also list the copies that would make the project self-contained, "
+    "as `pdm check --plan` does. Nothing is copied: the service only lists them.",
     "client": "The name of the client's line in the service's token file.",
     "nonce": "A fresh random value for this check alone, such as 32 random bytes in hex or base64url.",
 }

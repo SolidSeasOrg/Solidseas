@@ -4017,29 +4017,74 @@ _CHECK_RESULTS = (
     "different_document",
     "ambiguous",
 )
-_PDM_FINDING = _obj(
-    {
-        "document": _STR,
-        "key": _STR,
-        "stored_path": _STR_N,
-        "file_name": _STR_N,
-        "relation": _STR_N,
-        "result": {"type": "string", "enum": list(_CHECK_RESULTS)},
-        "found": _STR_N,
-        "place": _STR_N,
-        "found_in": _STR_N,
-        "status": _STR,
-        "rule": _STR_N,
-        "identity": _STR,
-        "searched": _BOOL,
-        "toolbox": _BOOL,
-        "warnings": _arr(_STR),
-        "candidates": _arr(_STR),
+_PDM_PLACE = _obj(
+    {"root": _STR, "path": _STR},
+    nullable=True,
+    description="A file or folder in one of the service's roots; null when it is in none of them.",
+)
+
+
+def _pdm_check_project(path: dict[str, Any]) -> dict[str, Any]:
+    """One project's self-contained check, the shape ``pdm check --json`` and the service's
+    ``pdm_check`` share (``pdm.library.check_report``). ``path`` is the schema of a file
+    the check names: an absolute path for the command, a place in a root for the service."""
+    copy = _obj(
+        {"source": path, "destination": path, "referenced_by": _arr(_STR), "place": _STR_N, "item": _STR_N}
+    )
+    return {
+        "project": _ref("pdm_project"),
+        "documents": _INT,
+        "counts": _obj(
+            {k: _INT for k in (*_CHECK_RESULTS, "toolbox_not_found")},
+            description="Findings per result, and toolbox_not_found: the toolbox ones found nowhere "
+            "(counted in toolbox too).",
+        ),
+        "problems": _INT,
+        "self_contained": _BOOL,
+        "findings": _arr(
+            _obj(
+                {
+                    "document": _STR,
+                    "key": _STR,
+                    "stored_path": _STR_N,
+                    "file_name": _STR_N,
+                    "relation": _STR_N,
+                    "result": {
+                        "type": "string",
+                        "description": "ok, outside, needs_confirmation, toolbox, inside_parent, missing, "
+                        "different_document or ambiguous (an open set). needs_confirmation: found only by "
+                        "a search SOLIDWORKS may not make; confirm by opening the assembly in SOLIDWORKS",
+                    },
+                    "problem": _BOOL,
+                    "found": path,
+                    "place": _STR_N,
+                    "found_in": path,
+                    "outside_roots": _BOOL,
+                    "status": _STR,
+                    "rule": _STR_N,
+                    "identity": _STR,
+                    "searched": _BOOL,
+                    "toolbox": _BOOL,
+                    "warnings": _arr(_STR),
+                    "candidates": _arr(path),
+                }
+            )
+        ),
+        "unreadable": _arr(_obj({"path": _STR, "exception": _STR})),
+        "plan": _obj(
+            {
+                "copies": _arr(copy),
+                "present": _arr(copy),
+                "conflicts": _arr(
+                    _obj({"source": path, "destination": path, "referenced_by": _arr(_STR), "reason": _STR})
+                ),
+            },
+            nullable=True,
+            description="The copies that would make the project self-contained; null unless asked for.",
+        ),
     }
-)
-_PDM_COPY = _obj(
-    {"source": _STR, "destination": _STR, "referenced_by": _arr(_STR), "place": _STR_N, "item": _STR_N}
-)
+
+
 _LIBRARY_ITEM = {
     "item": _STR,
     "description": _STR,
@@ -4214,33 +4259,7 @@ _PDM_SCHEMA = _obj(
                 "projects": _arr(
                     _obj(
                         {
-                            "project": _ref("pdm_project"),
-                            "documents": _INT,
-                            "counts": _obj(
-                                {k: _INT for k in (*_CHECK_RESULTS, "toolbox_not_found")},
-                                description="Findings per result, and toolbox_not_found: the toolbox "
-                                "ones found nowhere (counted in toolbox too).",
-                            ),
-                            "self_contained": _BOOL,
-                            "findings": _arr(_PDM_FINDING),
-                            "unreadable": _arr(_obj({"path": _STR, "error": _STR})),
-                            "plan": _obj(
-                                {
-                                    "copies": _arr(_PDM_COPY),
-                                    "present": _arr(_PDM_COPY),
-                                    "conflicts": _arr(
-                                        _obj(
-                                            {
-                                                "source": _STR,
-                                                "destination": _STR,
-                                                "referenced_by": _arr(_STR),
-                                                "reason": _STR,
-                                            }
-                                        )
-                                    ),
-                                },
-                                nullable=True,
-                            ),
+                            **_pdm_check_project(_STR_N),
                             "fix": _obj(
                                 {
                                     "copied": _arr(
@@ -4452,55 +4471,11 @@ _PDM_CHECKINS_SCHEMA = _obj(
         "next_cursor": _STR_N,
     }
 )
-_PDM_PLACE = _obj(
-    {"root": _STR, "path": _STR},
-    nullable=True,
-    description="A file or folder in one of the service's roots; null when it is in none of them.",
-)
 _PDM_CHECK_SCHEMA = _obj(
     {
         "library": _PDM_LIBRARY,
-        "project": _obj({"path": _STR, "name": _STR, "section": _STR, "archived": _BOOL}),
         "copy_toolbox": _BOOL,
-        "documents": _INT,
-        "self_contained": _BOOL,
-        "problems": _INT,
-        "counts": {
-            "type": "object",
-            "additionalProperties": _INT,
-            "description": "Findings per result, and toolbox_not_found: the toolbox findings found "
-            "nowhere (counted in toolbox too).",
-        },
-        "findings": _arr(
-            _obj(
-                {
-                    "document": _STR,
-                    "key": _STR,
-                    "stored_path": _STR_N,
-                    "file_name": _STR_N,
-                    "relation": _STR_N,
-                    "result": {
-                        "type": "string",
-                        "description": "ok, outside, needs_confirmation, toolbox, inside_parent, missing, "
-                        "different_document or ambiguous (an open set). needs_confirmation: found only by "
-                        "a search SOLIDWORKS may not make; confirm by opening the assembly in SOLIDWORKS",
-                    },
-                    "problem": _BOOL,
-                    "found": _PDM_PLACE,
-                    "found_in": _PDM_PLACE,
-                    "outside_roots": _BOOL,
-                    "place": _STR_N,
-                    "status": _STR,
-                    "rule": _STR_N,
-                    "identity": _STR,
-                    "searched": _BOOL,
-                    "toolbox": _BOOL,
-                    "warnings": _arr(_STR),
-                    "candidates": _arr(_PDM_PLACE),
-                }
-            )
-        ),
-        "unreadable": _arr(_obj({"path": _STR, "exception": _STR})),
+        **_pdm_check_project(_PDM_PLACE),
     }
 )
 
@@ -4887,7 +4862,7 @@ KINDS: dict[str, KindSpec] = {
             "pdm_check",
             "SolidSeas PDM project check",
             _PDM_CHECK_SCHEMA,
-            (),
+            ("pdm_project",),
             build_pdm_answer,
             (),
             "/v1/pdm/check",

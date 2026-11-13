@@ -3612,7 +3612,7 @@ def _pdm_check(args: argparse.Namespace) -> int:
                 doc = os.path.relpath(f["document"], top)
                 _say(f"  {what:<17}{doc}: {f['file_name'] or f['key']}{where}")
             for u in p["unreadable"]:
-                _say(f"  {'unreadable':<17}{os.path.relpath(u['path'], top)} ({u['error']})")
+                _say(f"  {'unreadable':<17}{os.path.relpath(u['path'], top)} ({u['exception']})")
             if p["counts"].get("needs_confirmation"):
                 _say(
                     "  to confirm: found only by a search SOLIDWORKS may not make; confirm by opening "

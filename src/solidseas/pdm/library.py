@@ -32,6 +32,7 @@ import json
 import os
 import re
 import secrets
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -1123,28 +1124,77 @@ class Library:
 
 
 # --------------------------------------------------------------------------- pdm check
-def _finding_data(f) -> dict[str, Any]:
+def _as_text(path: Path) -> str:
+    return str(path)
+
+
+def check_report(
+    project: dict[str, Any],
+    res: CheckResult,
+    *,
+    every: bool = False,
+    path: Callable[[Path], Any] = _as_text,
+    document: Callable[[Path], str] = _as_text,
+    plan: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """One project's self-contained check as JSON, the shape ``pdm check --json`` (each of
+    ``pdm_result``'s ``projects``) and the service's ``pdm_check`` share. ``project`` is
+    the project's ``path``, ``name``, ``section`` and ``archived``. ``findings`` lists the
+    problems only, or with ``every`` every finding. ``path`` names a file the check
+    found (or a folder it is in), None when it cannot be named (the service names only
+    files in its roots), and ``document`` names a document of the project. ``plan`` is
+    :func:`check_plan_data`'s, or None when no plan was asked for."""
+    problems = res.problems()
+    flagged = {id(f) for f in problems}
+    findings = []
+    for f in res.findings if every else problems:
+        found = None if f.found is None else path(f.found)
+        findings.append(
+            {
+                "document": document(f.document),
+                "key": f.key,
+                "stored_path": f.stored_path,
+                "file_name": f.file_name,
+                "relation": f.relation,
+                "result": f.result,
+                "problem": id(f) in flagged,
+                "found": found,
+                "place": f.place,
+                "found_in": None if f.found_in is None else path(f.found_in),
+                "outside_roots": f.found is not None and found is None,
+                "status": f.status,
+                "rule": f.rule,
+                "identity": f.identity,
+                "searched": f.searched,
+                "toolbox": f.toolbox,
+                "warnings": list(f.warnings),
+                "candidates": [c for c in (path(p) for p in f.candidates) if c is not None],
+            }
+        )
     return {
-        "document": str(f.document),
-        "key": f.key,
-        "stored_path": f.stored_path,
-        "file_name": f.file_name,
-        "relation": f.relation,
-        "result": f.result,
-        "found": None if f.found is None else str(f.found),
-        "place": f.place,
-        "found_in": None if f.found_in is None else str(f.found_in),
-        "status": f.status,
-        "rule": f.rule,
-        "identity": f.identity,
-        "searched": f.searched,
-        "toolbox": f.toolbox,
-        "warnings": list(f.warnings),
-        "candidates": [str(p) for p in f.candidates],
+        "project": project,
+        "documents": res.documents,
+        "counts": res.counts(),
+        "problems": len(problems),
+        "self_contained": res.self_contained,
+        "findings": findings,
+        "unreadable": [{"path": document(p), "exception": e} for p, e in res.unreadable],
+        "plan": plan,
     }
 
 
-def _plan_data(plan: CopyPlan, items: dict[str, Item], vault) -> dict[str, Any]:
+def check_plan_data(
+    plan: CopyPlan,
+    items: dict[str, Item],
+    vault,
+    *,
+    path: Callable[[Path], Any] = _as_text,
+    document: Callable[[Path], str] = _as_text,
+) -> dict[str, Any]:
+    """A :func:`~solidseas.pdm.check.plan_copies` plan as JSON, with the library item each
+    source is (``items`` by folded path), its paths named as :func:`check_report` names
+    them."""
+
     def item_of(source: Path) -> str | None:
         try:
             rel = vault.relative(source)
@@ -1155,9 +1205,9 @@ def _plan_data(plan: CopyPlan, items: dict[str, Item], vault) -> dict[str, Any]:
 
     def row(c) -> dict[str, Any]:
         return {
-            "source": str(c.source),
-            "destination": str(c.destination),
-            "referenced_by": [str(p) for p in c.referenced_by],
+            "source": path(c.source),
+            "destination": path(c.destination),
+            "referenced_by": [document(p) for p in c.referenced_by],
             "place": c.place,
             "item": item_of(c.source),
         }
@@ -1167,9 +1217,9 @@ def _plan_data(plan: CopyPlan, items: dict[str, Item], vault) -> dict[str, Any]:
         "present": [row(c) for c in plan.present],
         "conflicts": [
             {
-                "source": str(c.source),
-                "destination": str(c.destination),
-                "referenced_by": [str(p) for p in c.referenced_by],
+                "source": path(c.source),
+                "destination": path(c.destination),
+                "referenced_by": [document(p) for p in c.referenced_by],
                 "reason": c.reason,
             }
             for c in plan.conflicts
@@ -1177,17 +1227,15 @@ def _plan_data(plan: CopyPlan, items: dict[str, Item], vault) -> dict[str, Any]:
     }
 
 
-def _result_data(proj, res: CheckResult) -> dict[str, Any]:
-    return {
-        "project": proj.data(),
-        "documents": res.documents,
-        "counts": res.counts(),
-        "self_contained": res.self_contained,
-        "findings": [_finding_data(f) for f in res.problems()],
-        "unreadable": [{"path": str(p), "error": e} for p, e in res.unreadable],
-        "plan": None,
-        "fix": None,
-    }
+def library_folder(vault) -> Path | None:
+    """The library section's folder, the check's second root, or None when it does not exist."""
+    folder = Path(vault.library.section_path)
+    return folder if folder.is_dir() else None
+
+
+def library_items(vault) -> dict[str, Item]:
+    """The library's items by folded path, for :func:`check_plan_data`."""
+    return {_key(i.path): i for i in vault.library.items()}
 
 
 def check(
@@ -1210,26 +1258,19 @@ def check(
     else:
         projects = [lib._project(path)]
         scope = projects[0].path
-    library_folder = Path(lib.section_path)
-    items = {_key(i.path): i for i in lib.items()} if (plan or fix) else {}
+    library = library_folder(vault)
+    items = library_items(vault) if (plan or fix) else {}
     rows = []
     for proj in projects:
         folder = Path(vault.absolute(proj.path))
-        res = check_project(
-            folder, library=library_folder if library_folder.is_dir() else None, copy_toolbox=copy_toolbox
-        )
-        row = _result_data(proj, res)
+        res = check_project(folder, library=library, copy_toolbox=copy_toolbox)
+        done = None
         if fix:
-            p = plan_copies(res)
-            done = lib.fix(proj, p, who=who)
-            res = check_project(
-                folder, library=library_folder if library_folder.is_dir() else None, copy_toolbox=copy_toolbox
-            )
-            row = _result_data(proj, res)
-            row["fix"] = done
-            row["plan"] = _plan_data(plan_copies(res), items, vault)
-        elif plan:
-            row["plan"] = _plan_data(plan_copies(res), items, vault)
+            done = lib.fix(proj, plan_copies(res), who=who)
+            res = check_project(folder, library=library, copy_toolbox=copy_toolbox)
+        planned = check_plan_data(plan_copies(res), items, vault) if (plan or fix) else None
+        row = check_report(proj.data(), res, plan=planned)
+        row["fix"] = done
         rows.append(row)
     return {
         "scope": scope,
@@ -1247,6 +1288,10 @@ __all__ = [
     "Library",
     "Link",
     "check",
+    "check_plan_data",
+    "check_report",
+    "library_folder",
+    "library_items",
     "parse_item",
     "parse_link",
     "valid_item_id",

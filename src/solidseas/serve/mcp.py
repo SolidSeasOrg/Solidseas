@@ -345,14 +345,18 @@ TOOLS: tuple[Tool, ...] = (
         "needs_confirmation (found only by a search SOLIDWORKS may not make; confirm by opening the "
         "assembly in SOLIDWORKS), toolbox, inside_parent, missing, different_document or ambiguous; "
         "problem marks the ones that keep the project from being self-contained, and "
-        "counts.toolbox_not_found says how many Toolbox parts were found nowhere. It can take a "
-        "minute or more on a large project.",
+        "counts.toolbox_not_found says how many Toolbox parts were found nowhere. The findings and "
+        "counts have the shape of solidseas pdm check --json, with paths relative to the root. "
+        "With plan, it also lists the copies that would make the project self-contained, without "
+        "making any. It can take a minute or more on a large project.",
         {
             "root": _ROOT,
             "path": "A project folder, or a folder inside one, relative to the root; the root itself "
             "when left out.",
             "copy_toolbox": "Treat Toolbox parts as files the project must hold, instead of ones "
             "SOLIDWORKS loads from its installation.",
+            "plan": "Also list the copies that would make the project self-contained (source, "
+            "destination beside each document using the file, and any conflict). Nothing is copied.",
         },
         pdm=True,
     ),

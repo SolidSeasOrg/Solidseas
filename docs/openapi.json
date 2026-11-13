@@ -6736,6 +6736,16 @@
             }
           },
           {
+            "name": "plan",
+            "in": "query",
+            "required": false,
+            "description": "Also list the copies that would make the project self-contained, as `pdm check --plan` does. Nothing is copied: the service only lists them. `true` or `false`; `1` and `0` are accepted too.",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
             "$ref": "#/components/parameters/IfNoneMatch"
           }
         ],

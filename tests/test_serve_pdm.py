@@ -224,6 +224,38 @@ def test_check_reports_what_leaves_the_project(srv, lib):
     no_host_paths(srv, srv.responses[-2].body, lib)
 
 
+def test_check_has_the_shape_of_pdm_check_json_and_plans_without_copying(srv, lib):
+    """The route and ``pdm check --json`` build each project's answer with one function:
+    the same keys, counts and findings, the route's paths relative to the root. With
+    ``plan`` the route lists the copies, as ``--plan`` does, and makes none."""
+    data = ok(srv.get("pdm/check", root="cad", path="Jobs/2001"))["data"]
+    assert data["plan"] is None
+    cli = pdm.open_vault(lib).check(lib / "Jobs" / "2001", plan=True)["projects"][0]
+    assert set(data) == set(cli) - {"fix"} | {"library", "copy_toolbox"}
+    assert data["counts"] == cli["counts"] and data["problems"] == cli["problems"]
+    assert data["unreadable"] == cli["unreadable"] == []
+    problems = [f for f in data["findings"] if f["problem"]]
+    assert [set(f) for f in problems] == [set(f) for f in cli["findings"]]
+    assert [(f["file_name"], f["result"], f["rule"]) for f in problems] == [
+        (f["file_name"], f["result"], f["rule"]) for f in cli["findings"]
+    ]
+    planned = srv.get("pdm/check", root="cad", path="Jobs/2001", plan="true")
+    plan = ok(planned)["data"]["plan"]
+    assert plan["copies"] == [
+        {
+            "source": {"root": "cad", "path": "Jobs/2002/b.SLDPRT"},
+            "destination": {"root": "cad", "path": "Jobs/2001/b.SLDPRT"},
+            "referenced_by": ["Jobs/2001/asm.SLDASM"],
+            "place": "other_project",
+            "item": None,
+        }
+    ]
+    assert [c["source"] for c in cli["plan"]["copies"]] == [str(lib / "Jobs" / "2002" / "b.SLDPRT")]
+    assert plan["conflicts"] == plan["present"] == []
+    assert not (lib / "Jobs" / "2001" / "b.SLDPRT").exists()
+    no_host_paths(srv, planned.body, lib)
+
+
 def test_refusals(srv, lib):
     assert (
         error(srv.get("pdm/status", root="plain"), 404, "not_a_library")["detail"]["rule"] == "not_a_library"

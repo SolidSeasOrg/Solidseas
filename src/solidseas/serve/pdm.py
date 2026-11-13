@@ -16,8 +16,10 @@ above it or a folder inside it, and answers with every path relative to the root
 * a file the self-contained check finds is given as a root id and a path when it lies
   in one of the service's roots, and as null (``outside_roots``) when it does not.
 
-Nothing here writes: the vault is only read, and :func:`solidseas.pdm.check.check_project`
-opens every document read-only.
+Nothing here writes: the vault is only read, :func:`solidseas.pdm.check.check_project`
+opens every document read-only, and the check's ``plan`` only lists copies
+(:func:`solidseas.pdm.check.plan_copies`), never makes them. The check's answer is built by
+:func:`solidseas.pdm.library.check_report`, as ``pdm check --json`` is.
 """
 
 from __future__ import annotations
@@ -242,8 +244,12 @@ def checkins(params: dict[str, Any]) -> dict[str, Any]:
 
 
 def check(params: dict[str, Any]) -> dict[str, Any]:
-    """The self-contained check of the project that holds the folder (``docs/PDM.md`` 5)."""
-    from ..pdm.check import check_project
+    """The self-contained check of the project that holds the folder (``docs/PDM.md`` 5),
+    in the shape ``pdm check --json`` gives each project, with every finding listed and
+    every path relative to the root; with ``plan``, the copies that would make the
+    project self-contained, listed and not made."""
+    from ..pdm.check import check_project, plan_copies
+    from ..pdm.library import check_plan_data, check_report, library_folder, library_items
 
     vault, scope, host = _open(params)
     project = vault.project_of(host)
@@ -258,19 +264,13 @@ def check(params: dict[str, Any]) -> dict[str, Any]:
             "the project holds the root, so it is not checked from it",
             detail={"rule": "project_outside_root"},
         )
-    library = None
-    for sec in vault.sections():
-        if sec.kind == "library":
-            folder = vault.absolute(sec.folder)
-            if os.path.isdir(folder):
-                library = Path(folder)
     copy_toolbox = bool(params.get("copy_toolbox"))
-    result = check_project(Path(vault.absolute(project.path)), library=library, copy_toolbox=copy_toolbox)
+    result = check_project(
+        Path(vault.absolute(project.path)), library=library_folder(vault), copy_toolbox=copy_toolbox
+    )
     roots = [r for r in params.get("roots") or () if isinstance(r, dict)]
 
     def place(path) -> dict[str, str] | None:
-        if path is None:
-            return None
         for r in roots:
             parts = _below(os.fspath(path), r["path"])
             if parts is None or (not r.get("recursive", True) and len(parts) > 1):
@@ -278,50 +278,23 @@ def check(params: dict[str, Any]) -> dict[str, Any]:
             return {"root": r["id"], "path": "/".join(parts)}
         return None
 
-    problems = {id(f) for f in result.problems()}
-    findings = []
-    for f in result.findings:
-        found = place(f.found)
-        findings.append(
-            {
-                "document": scope.path_in_root(f.document) or "",
-                "key": f.key,
-                "stored_path": f.stored_path,
-                "file_name": f.file_name,
-                "relation": f.relation,
-                "result": f.result,
-                "problem": id(f) in problems,
-                "found": found,
-                "found_in": place(f.found_in),
-                "outside_roots": f.found is not None and found is None,
-                "place": f.place,
-                "status": f.status,
-                "rule": f.rule,
-                "identity": f.identity,
-                "searched": f.searched,
-                "toolbox": f.toolbox,
-                "warnings": list(f.warnings),
-                "candidates": [c for c in (place(p) for p in f.candidates) if c is not None],
-            }
+    def document(path) -> str:
+        return scope.path_in_root(path) or ""
+
+    planned = None
+    if params.get("plan"):
+        planned = check_plan_data(
+            plan_copies(result), library_items(vault), vault, path=place, document=document
         )
-    return {
-        "library": scope.library,
-        "project": {
-            "path": project_rel,
-            "name": project.name,
-            "section": project.section,
-            "archived": project.archived,
-        },
-        "copy_toolbox": copy_toolbox,
-        "documents": result.documents,
-        "self_contained": result.self_contained,
-        "problems": len(problems),
-        "counts": result.counts(),
-        "findings": findings,
-        "unreadable": [
-            {"path": scope.path_in_root(p) or "", "exception": name} for p, name in result.unreadable
-        ],
-    }
+    report = check_report(
+        {**project.data(), "path": project_rel},
+        result,
+        every=True,
+        path=place,
+        document=document,
+        plan=planned,
+    )
+    return {"library": scope.library, "copy_toolbox": copy_toolbox, **report}
 
 
 def run(action: str, params: dict[str, Any]) -> dict[str, Any]:

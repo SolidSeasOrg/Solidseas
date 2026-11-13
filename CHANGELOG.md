@@ -28,6 +28,15 @@ while the project takes shape.
   viewer's Check Project, the REST service's `/v1/pdm/check` and the MCP
   check_project tool. Other reference resolution is unchanged.
 
+- **The service's project check answers like pdm check --json.** `/v1/pdm/check`
+  and the MCP check_project tool now give each finding the same fields as
+  `pdm check --json`, and the command's JSON gains `problems` (how many findings
+  are problems), `problem` and `outside_roots` on each finding. A document that
+  could not be read now names its error under `exception` in both, where the
+  command said `error`. The route and the tool take a new `plan` parameter that
+  lists the copies `pdm check --plan` would make, with paths relative to the root;
+  they only list them and never copy anything.
+
 - **pdm check no longer calls a file above the assembly another document.** When
   the only file of that name the search reached was its bare name in a folder above
   the document, and that file was made as another document, the reference was
