@@ -8,8 +8,9 @@
   copies the item into a project (``Library.use``, never over a file), Show Copies lists
   the projects using it and the state of each copy, Update Copies brings the copies
   that are behind up to date (``Library.update``; a copy edited in its project only
-  after a confirmation), and Add to Library makes the file selected in the list an item
-  (``Library.add``).
+  after a confirmation), Edit changes the item's number or description
+  (``Library.edit``; the old number still finds it), and Add to Library makes the file
+  selected in the list an item (``Library.add``).
 * **Candidates**: the parts shared by two or more projects, most widely shared first
   (``Library.candidates``). Add to Library makes the chosen part an item, or after one
   confirmation each of several chosen parts, with the next numbers.
@@ -63,6 +64,10 @@ UPDATE_TIP = (
     "Bring the copies that are behind up to date with the library's version. Each copy is kept as a "
     "version first"
 )
+EDIT_TIP = (
+    "Change the item's number or description. Copies made under its old number still find it, "
+    "and no other item can take that number"
+)
 MAKE_COPIES_TIP = (
     "Copy the files found outside the project into it, so it holds everything its documents use. "
     "Each copy is a new file"
@@ -109,6 +114,19 @@ def library_work(root: str):
             "links": links,
             "projects": projects,
         }
+
+    return work
+
+
+def edit_work(root: str, item: str, number: str | None, description: str | None):
+    """A Job's work: ``Library.edit`` of the item."""
+
+    def work(_emit, _cancelled) -> dict[str, Any]:
+        from solidseas import pdm
+
+        vault = pdm.open(root)
+        data = vault.library.edit(item, number=number, description=description)
+        return {"ok": True, "kind": "library_edit", "item": item, "data": data}
 
     return work
 
@@ -341,6 +359,7 @@ class LibraryDialog(QDialog):
         self.setWindowTitle(f"Library of Common Parts: {os.path.basename(library) or library}")
         self.library = library
         self.data: dict[str, Any] | None = None
+        self.choose_next: str | None = None  # the item to choose once the next reading is shown
         self.candidates: list[dict[str, Any]] | None = None
         self.tabs = QTabWidget()
 
@@ -354,10 +373,11 @@ class LibraryDialog(QDialog):
         self.use_button = _button("Use in Project...", USE_TIP)
         self.show_button = _button("Show Copies", SHOW_TIP)
         self.update_button = _button("Update Copies...", UPDATE_TIP)
+        self.edit_button = _button("Edit...", EDIT_TIP)
         self.add_button = _button("Add to Library...", ADD_TIP)
         self.add_button.setEnabled(True)  # the file selected in the list; it says when there is none
         row = QHBoxLayout()
-        for b in (self.use_button, self.show_button, self.update_button):
+        for b in (self.use_button, self.show_button, self.update_button, self.edit_button):
             row.addWidget(b)
         row.addStretch(1)
         row.addWidget(self.add_button)
@@ -407,6 +427,8 @@ class LibraryDialog(QDialog):
     # -- items ---------------------------------------------------------------------------
     def show_result(self, result: dict[str, Any]) -> None:
         chosen = self.chosen_item()
+        wanted = self.choose_next if self.choose_next is not None else (chosen or {}).get("item")
+        self.choose_next = None
         self.items.clear()
         if not result.get("ok"):
             self.data = None
@@ -428,11 +450,15 @@ class LibraryDialog(QDialog):
                 ]
             )
             item.setData(0, Qt.ItemDataRole.UserRole, r["item"])
+            aliases = r.get("aliases") or []
+            item.setData(0, Qt.ItemDataRole.UserRole + 1, " ".join(aliases))
+            if aliases:
+                item.setToolTip(0, tip(f"Earlier numbers, which still find it: {', '.join(aliases)}"))
             item.setToolTip(2, tip(os.path.join(self.library, *r["path"].split("/"))))
             if r["description"]:
                 item.setToolTip(1, tip(r["description"]))
             self.items.addTopLevelItem(item)
-            if chosen is not None and r["item"] == chosen["item"]:
+            if r["item"] == wanted:
                 self.items.setCurrentItem(item)
         if rows:
             behind = sum(1 for r in rows if self.behind(r["item"]))
@@ -477,7 +503,8 @@ class LibraryDialog(QDialog):
         words = text.casefold().split()
         for i in range(self.items.topLevelItemCount()):
             item = self.items.topLevelItem(i)
-            hay = " ".join(item.text(c) for c in range(3)).casefold()
+            aliases = item.data(0, Qt.ItemDataRole.UserRole + 1) or ""
+            hay = " ".join([*(item.text(c) for c in range(3)), aliases]).casefold()
             item.setHidden(not all(w in hay for w in words))
         self._update()
 
@@ -488,6 +515,7 @@ class LibraryDialog(QDialog):
         )
         self.show_button.setEnabled(row is not None)
         self.update_button.setEnabled(row is not None and self.behind(row["item"]) > 0)
+        self.edit_button.setEnabled(row is not None)
 
     def show_copies(self, ident: str) -> None:
         links = self.links_of(ident)
@@ -643,6 +671,53 @@ class AddDialog(QDialog):
         return self.item.text().strip() or None, " ".join(self.description.text().split())
 
 
+class EditDialog(QDialog):
+    """Edit: a library item's number and description."""
+
+    def __init__(self, parent: QWidget, row: dict[str, Any]) -> None:
+        super().__init__(parent)
+        self.setWindowTitle(f"Edit {row['item']}")
+        self.row = row
+        name = row["path"].rsplit("/", 1)[-1]
+        self.line = _label(
+            f"Change the number or the description of {row['item']} ({name}). If you change the number, "
+            f"{row['item']} still finds the item, so the copies made under it stay linked, and no other "
+            "item can take it."
+        )
+        self.item = QLineEdit(row["item"])
+        self.item.setMaxLength(40)
+        self.description = QLineEdit(row["description"])
+        self.description.setPlaceholderText("Such as M6 x 20 bolt")
+        form = QFormLayout()
+        form.addRow("Item number", self.item)
+        form.addRow("Description", self.description)
+        self.buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Cancel)
+        self.ok = self.buttons.addButton("Save", QDialogButtonBox.ButtonRole.AcceptRole)
+        self.buttons.accepted.connect(self.accept)
+        self.buttons.rejected.connect(self.reject)
+        self.item.textChanged.connect(lambda _t: self._update())
+        self.description.textChanged.connect(lambda _t: self._update())
+        layout = QVBoxLayout(self)
+        layout.addWidget(self.line)
+        layout.addLayout(form)
+        layout.addWidget(self.buttons)
+        self._update()
+        self.resize(520, 180)
+
+    def values(self) -> tuple[str | None, str | None]:
+        """The new number and the new description, each None when it is unchanged."""
+        number = self.item.text().strip()
+        description = " ".join(self.description.text().split())
+        return (
+            None if number == self.row["item"] else number,
+            None if description == self.row["description"] else description,
+        )
+
+    def _update(self) -> None:
+        number, description = self.values()
+        self.ok.setEnabled(bool(self.item.text().strip()) and (number is not None or description is not None))
+
+
 class PlanDialog(QDialog):
     """Check Project > Make Copies: the copies that would make the project
     self-contained, the ones that cannot be made and why, and the files already there."""
@@ -703,6 +778,7 @@ class PlanDialog(QDialog):
 
 __all__ = [
     "AddDialog",
+    "EditDialog",
     "LibraryDialog",
     "PlanDialog",
     "UseDialog",

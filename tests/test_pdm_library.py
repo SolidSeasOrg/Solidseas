@@ -325,3 +325,95 @@ def test_library_plain_words(capsys, lib):
     assert "SS-00001" in capsys.readouterr().out
     assert cli.main(["pdm", "library", "updates", str(lib)]) == 0
     assert "every copy is up to date" in capsys.readouterr().out
+
+
+# --------------------------------------------------------------------------- edits
+def test_edit_changes_the_description_and_the_number_and_keeps_the_old_one(lib, used):
+    vault, _r = used
+    items = lib / ".solidseas" / "vault" / "library" / "items"
+    record = (items / "SS-00001.json").read_bytes()
+    r = vault.library.edit("SS-00001", description="M6 x 20 bolt")
+    assert r["changed"] and r["from"] == {"item": "SS-00001", "description": "M6 bolt"}
+    assert r["item"]["item"] == "SS-00001" and r["item"]["description"] == "M6 x 20 bolt"
+    assert r["item"]["aliases"] == [] and r["item"]["edited_utc"] is not None
+    r = vault.library.edit("ss-00001", number="BOLT-M6")
+    assert r["item"]["item"] == "BOLT-M6" and r["item"]["aliases"] == ["SS-00001"]
+    assert r["item"]["description"] == "M6 x 20 bolt"
+    assert (items / "SS-00001.json").read_bytes() == record  # the item record is never rewritten
+    (item,) = vault.library.items()
+    assert (item.id, item.first, item.numbers) == ("BOLT-M6", "SS-00001", ("BOLT-M6", "SS-00001"))
+    # the link made under the old number still finds its item, by either number
+    assert vault.library.item("SS-00001").id == vault.library.item("bolt-m6").id == "BOLT-M6"
+    (row,) = vault.library.list()["items"]
+    assert row["item"] == "BOLT-M6" and row["copies"] == 1
+    assert vault.library.updates(all_links=True)["links"][0]["item"] == "BOLT-M6"
+    write(lib / "Library" / "bolt.sldprt", "bolt two")
+    bump(lib / "Library" / "bolt.sldprt")
+    up = vault.library.update(lib / "Jobs" / "1046", "SS-00001")
+    assert up["copies"][0]["written"] and up["item"]["item"] == "BOLT-M6"
+    # the old number is never given to another item, and a number taken is refused
+    vault.library.add(lib / "Jobs" / "1043" / "washer.sldprt", description="washer")
+    assert [i.id for i in vault.library.items()] == ["BOLT-M6", "SS-00002"]
+    with pytest.raises(OutputRefusedError) as e:
+        vault.library.add(lib / "Jobs" / "1045" / "bracket.sldprt", "ss-00001")
+    assert e.value.detail["rule"] == "item_exists"
+    for taken in ("SS-00001", "bolt-m6"):
+        with pytest.raises(OutputRefusedError) as e:
+            vault.library.edit("SS-00002", number=taken)
+        assert e.value.detail["rule"] == "item_exists"
+    # an item may take back a number it had
+    r = vault.library.edit("BOLT-M6", number="SS-00001")
+    assert r["item"]["item"] == "SS-00001" and r["item"]["aliases"] == ["BOLT-M6"]
+    assert not vault.library.edit("SS-00001", description="M6 x 20 bolt")["changed"]
+    for bad in ({}, {"number": "bad name/"}, {"description": "two\nlines"}):
+        with pytest.raises(InvalidArgumentError):
+            vault.library.edit("SS-00001", **bad)
+    with pytest.raises(InvalidArgumentError) as e:
+        vault.library.edit("SS-99999", description="x")
+    assert e.value.detail["rule"] == "unknown_item"
+
+
+def test_malformed_and_conflicting_edits_are_skipped(lib, used):
+    from solidseas.pdm.library import parse_edit
+
+    vault, _r = used
+    vault.library.add(lib / "Jobs" / "1043" / "washer.sldprt", description="washer")
+    vault.library.edit("SS-00001", number="BOLT")
+    edits = lib / ".solidseas" / "vault" / "library" / "edits"
+    (good,) = edits.iterdir()
+    obj = json.loads(good.read_bytes())
+    later = "29990101T000000000000Z"
+
+    def put(ident: str, **change) -> None:
+        when = "2999-01-01T00:00:00.000000Z"
+        record = {**obj, "id": ident, "when_utc": when, **change}
+        (edits / f"{later}-{ident}.json").write_text(json.dumps(record))
+
+    put("aaaaaaaaaaaa", item="SS-00002", number="BOLT")  # a number another item has
+    put("bbbbbbbbbbbb", item="SS-00002", number="SS-00001")  # or had
+    put("cccccccccccc", item="SS-77777", number="FREE")  # no such item
+    put("dddddddddddd", item="SS-00002", description="x" * 2000)  # too long
+    put("eeeeeeeeeeee", item="SS-00002", number="..")  # not a number
+    (edits / f"{later}-ffffffffffff.json").write_bytes(b"{broken")
+    assert {i.id: i.description for i in vault.library.items()} == {"BOLT": "M6 bolt", "SS-00002": "washer"}
+    assert len(vault.library.edits()) == 4  # three that hold up but are skipped, and the first
+    assert parse_edit(good.read_bytes(), "20000101T000000000000Z-" + obj["id"] + ".json") is None
+
+
+def test_edit_on_the_command_line(capsys, lib):
+    assert cli.main(["pdm", "library", "add", str(lib / "Jobs" / "1042" / "bolt.sldprt"), "-d", "M6"]) == 0
+    capsys.readouterr()
+    argv = ["pdm", "library", "edit", "SS-00001", str(lib), "--number", "B-1", "-d", "M6 bolt"]
+    code, env = run(capsys, *argv)
+    data = check(env, "pdm_result")
+    assert code == 0 and data["action"] == "library_edit"
+    edit = data["library_edit"]
+    assert edit["item"]["item"] == "B-1" and edit["from"]["item"] == "SS-00001" and edit["changed"]
+    code, env = run(capsys, "pdm", "library", "list", str(lib))
+    assert check(env, "pdm_result")["library_list"]["items"][0]["aliases"] == ["SS-00001"]
+    assert cli.main(["pdm", "library", "edit", "SS-00001", str(lib), "-d", "M6 x 20 bolt"]) == 0
+    assert "B-1: M6 x 20 bolt" in capsys.readouterr().out
+    assert cli.main(["pdm", "library", "edit", "B-1", str(lib), "--number", "B-2"]) == 0
+    assert "library item B-1 is B-2 now (B-1 still finds it)" in capsys.readouterr().out
+    code, env = run(capsys, "pdm", "library", "edit", "B-2", str(lib))
+    assert code != 0 and check(env, "error")["code"] == "invalid_argument"

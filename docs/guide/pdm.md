@@ -228,6 +228,17 @@ with the item's current version. The copy is kept as a version first, so `pdm lo
 and `pdm restore` can bring it back. A copy that was edited in the project is not
 replaced unless you add `--force`.
 
+```bash
+solidseas pdm library edit SS-00001 -d "M6 x 20 bolt, zinc"
+solidseas pdm library edit SS-00001 --number BOLT-M6-20
+```
+
+`edit` changes an item's description, its number, or both. The number it had stays
+with it as an alias: `SS-00001` still finds the item, the copies made under it stay
+linked to it, and no other item can take it. `list` shows each item's earlier
+numbers. The change is kept as a new record beside the item's own, which is never
+rewritten, like the rest of the vault.
+
 ## In the viewer
 
 SolidSeas Desktop has a PDM menu while the opened folder lies in a library: Check
@@ -240,8 +251,8 @@ Folder a Library, which does what `pdm init` does.
 Check Project's Make Copies does what `check --plan` and `check --fix` do: it
 lists the copies, asks, makes them and shows the project checked again. The
 Library of Common Parts window does what `pdm library` does: it lists the items
-with a search box, and Use in Project, Show Copies, Update Copies and Add to
-Library work on the chosen item. Its Candidates tab lists the parts that several
+with a search box, and Use in Project, Show Copies, Update Copies, Edit and Add
+to Library work on the chosen item. Its Candidates tab lists the parts that several
 projects share. A file in the list that is not an item yet has Add to the
 Library on its right-click menu. See [The PDM menu](viewer.md#the-pdm-menu).
 

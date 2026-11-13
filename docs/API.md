@@ -5156,6 +5156,7 @@ lib.list()                                        # the library_list part
 lib.use(item, project, to=None)                   # the library_use part
 lib.updates(project=None, all_links=False)        # the library_updates part
 lib.update(project, item, force=False)            # the library_update part
+lib.edit(item, number=None, description=None)     # the library_edit part
 ```
 
 - **Settings.** `vault.json` is checked field by field when the library is opened: a
@@ -6377,11 +6378,13 @@ its newest snapshot and nothing was stored), `snapshot` (that snapshot's `versio
 What `solidseas pdm ACTION` did (3.29): `action`, `library` (the library's folder),
 and one part per action, `init`, `status`, `checkin` (also a scan's), `log`, `show`,
 `diff`, `restore`, `check` and, for `pdm library ACTION`, `library_candidates`,
-`library_add`, `library_list`, `library_use`, `library_updates` and
-`library_update` (the action is named the same way), of which only the action's is
+`library_add`, `library_list`, `library_use`, `library_updates`,
+`library_update` and `library_edit` (the action is named the same way), of which only the action's is
 not null. Paths in `check` are absolute; every other path is below the library,
 `/`-separated. An item is `item`, `description`, `path`, `added_utc`, `source` (the
-path it was copied from, or null) and `first_version`. A version is `id`, `number`
+path it was copied from, or null), `first_version`, `aliases` (the numbers it had
+before, oldest first, which still find it) and `edited_utc` (when its number or
+description was last changed, or null). A version is `id`, `number`
 (as `pdm log` numbers it), `sha256` and `size`. A link is `id`, `when_utc`, `item`,
 `project`, `path`, `version` (the item's version copied), `sha256` and `how` (`use`,
 `update` or `fix`). A project is `path`, `name`, `section` and `archived`.
@@ -6402,6 +6405,7 @@ path it was copied from, or null) and `first_version`. A version is `id`, `numbe
 | `library_use` | `item`, `project`, `path`, `file` (`name`, `path`), `version`, `link`, `checkin` |
 | `library_updates` | `scope` (the project, or null), `counts` (`current`, `behind`, `edited`, `gone`, `unknown_item`), `links` that need a look (all with `--all`): `item`, `description`, `project`, `path`, `copied_utc`, `version` and `number` (copied), `newest` and `newest_number` (null when the item's file changed since its newest version), `item_changed`, `behind`, `copy` (`unchanged`, `edited` or `gone`), `sha256` |
 | `library_update` | `item`, `project`, `version`, `copies` (`path`, `copy`, `written`, `stored_first`, `link`), `checkin` |
+| `library_edit` | `item` (as it is now), `from` (`item`, `description`: what it had before), `changed` (false when it already had that number and description) |
 
 ### 5.21 The service's PDM kinds (v1, provisional)
 
@@ -6531,7 +6535,7 @@ it.
 | `history FILE` | `--source auto\|git\|snapshots` (default `auto`), `--project DIR` or `--store DIR`, `--max-commits N` (default 20,000), `--hashes` | `file_history` (provisional, section 5.19) |
 | `snapshot FILE` | `--project DIR` or `--store DIR`, `--note TEXT`; writes only into the snapshot store (3.26) | `snapshot_taken` (provisional) |
 | `diff FILE [OLDER] [NEWER]` | versions named `working`, `latest`, `vN` or by id; `--source auto\|git\|snapshots`, `--project DIR` or `--store DIR`, `--no-measures`, `--timeout SECONDS` (default 60) | `version_diff` (provisional) |
-| `pdm ACTION` | `init FOLDER`; `status [PATH]` with `--all`; `checkin PATH... -m NOTE` with `--revision R`, `--state S`, `--who NAME`; `scan [PATH]`; `log FILE`; `show FILE VERSION` and `diff FILE [A] [B]` with `--source vault\|git` (and `--no-measures`, `--timeout SECONDS` for `diff`); `restore FILE VERSION [--as NAME]`; `check [PROJECT]` with `--plan`, `--fix`, `--copy-toolbox` (exit 4 when a copy of `--fix` failed); `library candidates [PATH] [--limit N]`, `library add FILE [--item N] [-d D]`, `library list [PATH]`, `library use ITEM PROJECT [--to SUBFOLDER]`, `library updates [PATH] [--all]`, `library update PROJECT ITEM [--force]`. Writes only the library's `.solidseas` folder, the file a restore puts back and the copies the library and `check --fix` make (3.29) | `pdm_result` (provisional, section 5.20) |
+| `pdm ACTION` | `init FOLDER`; `status [PATH]` with `--all`; `checkin PATH... -m NOTE` with `--revision R`, `--state S`, `--who NAME`; `scan [PATH]`; `log FILE`; `show FILE VERSION` and `diff FILE [A] [B]` with `--source vault\|git` (and `--no-measures`, `--timeout SECONDS` for `diff`); `restore FILE VERSION [--as NAME]`; `check [PROJECT]` with `--plan`, `--fix`, `--copy-toolbox` (exit 4 when a copy of `--fix` failed); `library candidates [PATH] [--limit N]`, `library add FILE [--item N] [-d D]`, `library list [PATH]`, `library use ITEM PROJECT [--to SUBFOLDER]`, `library updates [PATH] [--all]`, `library update PROJECT ITEM [--force]`, `library edit ITEM [PATH] [--number N] [-d D]`. Writes only the library's `.solidseas` folder, the file a restore puts back and the copies the library and `check --fix` make (3.29) | `pdm_result` (provisional, section 5.20) |
 | `version` | | `version` |
 | `schema [KIND]` | `--data` | none: prints the JSON Schema of the kind's envelope (of its `data` alone with `--data`), or with no KIND the list of kinds |
 | `openapi` | `-o FILE`, `--force` | none: prints the service's OpenAPI description (8.19, provisional); with `-o`, writes it to FILE and prints `file_written` |

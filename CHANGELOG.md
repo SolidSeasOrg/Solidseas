@@ -6,6 +6,14 @@ while the project takes shape.
 
 ## [Unreleased]
 
+### Added
+
+- **A library item's number and description can be changed.** `pdm library edit
+  ITEM` takes `--number` and `-d`, and the Library of Common Parts window has an
+  Edit button. The old number stays with the item, so it still finds the item and
+  the copies made under it stay linked, and no other item can take it. `pdm
+  library list --json` gives each item's `aliases` and `edited_utc`.
+
 ### Changed
 
 - **pdm check --plan accounts for the project's own documents finding the new
@@ -62,7 +70,11 @@ while the project takes shape.
   that is slow to answer no longer freezes the window. The PDM menu offers Make
   This Folder a Library only once the search for a library has answered, and
   Check Project says it is looking for the project until it knows. A version
-  restored as a new file now shows in the file list straight away.
+  restored as a new file now shows in the file list straight away. The
+  right-click menus of the file list and the folder tree no longer read the
+  library either: they open at once, and an entry that still waits for an
+  answer is greyed out until it comes. Closing a window no longer waits for
+  these lookups, which only read.
 
 - **pdm check plans every copy a project needs in one go.** A copied sub-assembly
   may not find its own parts from its new folder, so after one `--fix` the next

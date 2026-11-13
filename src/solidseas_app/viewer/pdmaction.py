@@ -23,12 +23,19 @@ Outside a library the menu holds only **Make This Folder a Library...**, which s
 what it creates and asks before calling ``pdm.init`` on the opened folder. The file
 list's right-click menu has the same entries where they apply (:meth:`PdmController.add_to_menu`).
 
-Which library holds the opened folder, and which project holds the folder chosen in
-the folder tree, are looked up in a worker thread, so a folder on a share that is slow
-to answer never holds the window. Until the library lookup answers the menu offers
-nothing, and Check Project waits for its project's.
+Which library holds the opened folder, which of its files are library items, and which
+project holds a folder, are looked up in a worker thread, so a folder on a share that is
+slow to answer never holds the window. Until the library lookup answers the menu offers
+nothing, and Check Project waits for its project's. The right-click menus are built from
+those answers alone, never by opening the vault: an entry whose answer has not come yet
+is shown greyed out, saying it is being looked up.
 
-Every read and write runs in a worker thread. The PDM writes only in the library: its
+The lookups only read, so they run in threads of their own that a closing window
+cancels and never waits for (:meth:`PdmController.stop`): a lookup held up by a slow
+share or a busy machine is dropped, and its answer ignored, while the work that writes
+runs in :attr:`PdmController.pool`, which the window waits for.
+
+Every other read and write runs in a worker thread too. The PDM writes only in the library: its
 own ``.solidseas`` folder, the file a restore puts back and the library copies the
 person asks for (``docs/PDM.md`` 7). The
 dialogs open without blocking the window; the confirmations go through
@@ -36,6 +43,7 @@ dialogs open without blocking the window; the confirmations go through
 """
 
 import os
+import threading
 from typing import Any
 
 from PySide6.QtCore import QObject, Qt, QThreadPool, Signal
@@ -70,6 +78,7 @@ CHANGES_TEXT = "&Changes"
 CHECK_TEXT = "Check &Project"
 RESTORE_TEXT = "&Restore Version..."
 MAKE_TEXT = "&Make This Folder a Library..."
+LOOKING_TEXT = " (looking for the project...)"
 CHECKIN_TIP = "Keep a version of each changed file with a note, in the library's history"
 CHANGES_TIP = "List the files that are new, changed or gone since their newest version in the library"
 CHECK_TIP = "Check that the project holds every file its assemblies, parts and drawings reference"
@@ -180,15 +189,24 @@ def project_folders(path: str) -> tuple[str, str | None, str] | None:
 
 def lookup_work(folder: str | None, current: str | None):
     """A Job's work: the library that holds ``folder`` (None when it is in none, or when
-    ``folder`` is None and only ``current`` is asked about), and the project folder that
-    holds ``current`` (None when it is in no project)."""
+    ``folder`` is None and only ``current`` is asked about) with the library opened
+    (``vault``, which answers which files it tracks from their names alone) and its items'
+    files (``items``, normalised full paths; None when they could not be read), and the
+    project folder that holds ``current`` (None when it is in no project)."""
 
-    def work(_emit, _cancelled) -> dict[str, Any]:
+    def work(_emit, cancelled) -> dict[str, Any]:
         from solidseas import pdm
 
         library = pdm.find_library(folder) if folder is not None else None
+        vault = items = None
+        if library is not None and not cancelled():
+            try:
+                vault = pdm.open(library)
+                items = item_files(vault)
+            except Exception:
+                pass
         project = None
-        if current is not None:
+        if current is not None and not cancelled():
             try:
                 found = project_folders(current)
             except Exception:
@@ -200,10 +218,17 @@ def lookup_work(folder: str | None, current: str | None):
             "folder": folder,
             "current": current,
             "library": library,
+            "vault": vault,
+            "items": items,
             "project": project,
         }
 
     return work
+
+
+def item_files(vault) -> set[str]:
+    """The library items' files, as normalised full paths."""
+    return {os.path.normcase(os.path.abspath(vault.absolute(i.path))) for i in vault.library.items()}
 
 
 def check_work(path: str):
@@ -553,6 +578,7 @@ class CheckDialog(QDialog):
             self.line.setText("The folder is not in a project of the library.")
             return
         self.result = result
+        self.setWindowTitle(f"Check Project: {os.path.basename(result['project'])}")
         line = check_line(result["name"], check) + toolbox_line(check)
         if result.get("fix") is not None:
             line = pdmlibrary.fix_line(result["fix"]) + " " + line
@@ -635,8 +661,14 @@ class PdmController(QObject):
         super().__init__(window)
         self.w = window
         self.pool = QThreadPool(self)
-        self.pool.setMaxThreadCount(3)  # a check-in's status, a project check and a lookup at once
+        self.pool.setMaxThreadCount(3)  # a check-in's status, a project check and the Library window
+        # The lookups, which only read: threads a closing window never waits for (module notes).
+        self._lookup_jobs: set[Job] = set()
+        self._lookup_slots = threading.BoundedSemaphore(2)  # two at once, as a pool of two would
+        self.stopped = False
         self.library: str | None = None
+        self.vault = None  # the library opened by the lookup: it answers which files are tracked
+        self.item_files: set[str] | None = None  # the items' files (normcase); None while not known
         self.answered = True  # the library lookup for the opened folder has answered
         self.projects: dict[str, str | None] = {}  # a folder (normcase) and its project, once looked up
         self.looking: set[str] = set()  # the folders whose project is being looked up
@@ -645,6 +677,7 @@ class PdmController(QObject):
         self.library_dialog: pdmlibrary.LibraryDialog | None = None
         self._generation = 0
         self._library_generation = 0
+        self._reading_items = False
 
         def action(text: str, status: str, slot) -> QAction:
             a = QAction(text, window)
@@ -677,29 +710,34 @@ class PdmController(QObject):
         since the folder may be on a share that is slow to answer; until it answers the
         menu offers nothing."""
         self.library = None
+        self.vault = None
+        self.item_files = None
         self.projects.clear()
         self.looking.clear()
         self._lookup_generation += 1
         self.answered = not folder
         self.update_actions()
-        if not folder:
+        if not folder or self.stopped:
             return
         g = self._lookup_generation
 
         def done(result: dict[str, Any]) -> None:
-            if g != self._lookup_generation:  # another folder was opened meanwhile
+            if g != self._lookup_generation:  # another folder was opened meanwhile, or the window closed
                 return
-            self.library = result.get("library") if result.get("ok") else None
+            ok = result.get("ok")
+            self.library = result.get("library") if ok else None
+            self.vault = result.get("vault") if ok else None
+            self.item_files = result.get("items") if ok else None
             self.answered = True
             self.update_actions()
             self.looked_up.emit(result)
 
-        self._start(lookup_work(folder, None), done)
+        self._look(lookup_work(folder, None), done)
 
     @property
     def idle(self) -> bool:
         """Whether every lookup the menu asked for has answered."""
-        return self.answered and not self.looking
+        return self.answered and not self.looking and not self._reading_items
 
     @staticmethod
     def _project_key(folder: str) -> str:
@@ -709,7 +747,7 @@ class PdmController(QObject):
         """Find the project that holds ``folder`` in a worker thread, for the menu, which
         follows when the answer comes."""
         key = self._project_key(folder)
-        if key in self.projects or key in self.looking or self.library is None:
+        if key in self.projects or key in self.looking or self.library is None or self.stopped:
             return
         self.looking.add(key)
         g = self._lookup_generation
@@ -722,7 +760,11 @@ class PdmController(QObject):
             self.update_actions()
             self.looked_up.emit(result)
 
-        self._start(lookup_work(None, folder), done)
+        self._look(lookup_work(None, folder), done)
+
+    def project_known(self, folder: str) -> bool:
+        """Whether the lookup has said which project holds ``folder``."""
+        return self._project_key(folder) in self.projects
 
     def selected_file(self) -> str | None:
         """The file selected in the list, when one is."""
@@ -738,28 +780,24 @@ class PdmController(QObject):
         return host_path(w.folder, entry["path"])
 
     def tracked(self, path: str) -> bool:
-        if self.library is None or not _inside(path, self.library):
+        """Whether the library keeps versions of the file at ``path``, as the library the
+        lookup opened answers from the name alone (nothing on disk is read)."""
+        if self.library is None or self.vault is None or not _inside(path, self.library):
             return False
-        from solidseas import pdm
-
         try:
-            return pdm.open(self.library).tracked(path)
+            return self.vault.tracked(path)
         except Exception:
             return False
 
     def project_of(self, folder: str) -> str | None:
-        """The project folder that holds ``folder``: the menu's lookup when it has answered,
-        otherwise read now (for an entry the person chose)."""
+        """The project folder that holds ``folder``, as the lookup answered; None until it
+        has (the lookup is started then, and the menu follows when it answers)."""
         if self.library is None or not _inside(folder, self.library):
             return None
         key = self._project_key(folder)
-        if key in self.projects:
-            return self.projects[key]
-        try:
-            found = project_folders(folder)
-        except Exception:
+        if key not in self.projects:
+            self.look_up_project(folder)
             return None
-        self.projects[key] = None if found is None else found[0]
         return self.projects[key]
 
     def restorable(self) -> tuple[str, Any] | None:
@@ -789,7 +827,7 @@ class PdmController(QObject):
         if key not in self.projects:
             self.look_up_project(folder)
             self.act_check.setEnabled(False)
-            self.act_check.setText(CHECK_TEXT + " (looking for the project...)")
+            self.act_check.setText(CHECK_TEXT + LOOKING_TEXT)
         else:
             self.act_check.setEnabled(self.projects[key] is not None)
             self.act_check.setText(
@@ -807,7 +845,11 @@ class PdmController(QObject):
         Changes for a folder or a tracked file, Check Project for a folder in a project,
         Restore Version for the file the History tab shows with a library version chosen,
         Add to Library for a file that is not a library item yet. False when none applies
-        (outside a library)."""
+        (outside a library).
+
+        Built from the lookups' answers alone, never by opening the vault here: Check
+        Project for a folder whose project has not been looked up yet is shown greyed
+        out while its lookup runs, and Add to Library while the items are not known."""
         if self.library is None or not _inside(path, self.library):
             return False
         if not folder and not self.tracked(path):
@@ -820,7 +862,12 @@ class PdmController(QObject):
         a = menu.addAction("Changes" + (f" in {name}" if folder else ""))
         a.setToolTip(tip(CHANGES_TIP))
         a.triggered.connect(lambda _on=False: self.show_changes(path))
-        if folder and self.project_of(path) is not None:
+        if folder and not self.project_known(path):
+            self.look_up_project(path)
+            a = menu.addAction(CHECK_TEXT.replace("&", "") + LOOKING_TEXT)
+            a.setToolTip(tip(CHECK_TIP))
+            a.setEnabled(False)
+        elif folder and self.project_of(path) is not None:
             a = menu.addAction(CHECK_TEXT.replace("&", ""))
             a.setToolTip(tip(CHECK_TIP))
             a.triggered.connect(lambda _on=False: self.check_project(path))
@@ -829,24 +876,58 @@ class PdmController(QObject):
             a = menu.addAction(f"Restore {found[1].label}...")
             a.setToolTip(tip(RESTORE_TIP))
             a.triggered.connect(lambda _on=False: self.restore_version())
-        if not folder and not self.is_item(path):
+        if not folder and self.item_files is None:
+            a = menu.addAction(f"Add {name} to the Library... (reading the library's items...)")
+            a.setToolTip(tip(pdmlibrary.ADD_TIP))
+            a.setEnabled(False)
+            self.read_items()
+        elif not folder and not self.is_item(path):
             a = menu.addAction(f"Add {name} to the Library...")
             a.setToolTip(tip(pdmlibrary.ADD_TIP))
             a.triggered.connect(lambda _on=False: self.add_to_library(path))
         return True
 
     def is_item(self, path: str) -> bool:
-        """Whether the file at ``path`` is one of the library's items."""
-        if self.library is None:
+        """Whether the file at ``path`` is one of the library's items, as the lookup or
+        the newest reading of the library answered (False while it is not known)."""
+        if self.item_files is None:
             return False
-        from solidseas import pdm
+        return os.path.normcase(os.path.abspath(path)) in self.item_files
 
-        try:
-            vault = pdm.open(self.library)
-            key = os.path.normcase(os.path.abspath(path))
-            return any(os.path.normcase(vault.absolute(i.path)) == key for i in vault.library.items())
-        except Exception:
-            return False
+    def read_items(self) -> None:
+        """Read which files are library items again, in a worker thread (after a lookup
+        that could not read them)."""
+        if self.library is None or self.stopped or self._reading_items:
+            return
+        self._reading_items = True
+        g = self._lookup_generation
+        root = self.library
+
+        def work(_emit, _cancelled) -> dict[str, Any]:
+            from solidseas import pdm
+
+            return {"ok": True, "kind": "lookup", "items": item_files(pdm.open(root))}
+
+        def done(result: dict[str, Any]) -> None:
+            self._reading_items = False
+            if g == self._lookup_generation and result.get("ok"):
+                self.item_files = result["items"]
+            self.looked_up.emit(result)
+
+        self._look(work, done)
+
+    def _item_added(self, rel: str) -> None:
+        if self.library is not None and self.item_files is not None:
+            full = os.path.join(self.library, *rel.split("/"))
+            self.item_files.add(os.path.normcase(os.path.abspath(full)))
+
+    def _note_items(self, library: str, rows: list[dict[str, Any]]) -> None:
+        """A reading of the library's items (each with ``path`` below ``library``) is the
+        newest answer to which files are items."""
+        if self.library is not None and _inside(library, self.library) and _inside(self.library, library):
+            self.item_files = {
+                os.path.normcase(os.path.abspath(os.path.join(library, *r["path"].split("/")))) for r in rows
+            }
 
     # -- asking ------------------------------------------------------------------------
     def ask(self, title: str, text: str) -> bool:
@@ -872,6 +953,33 @@ class PdmController(QObject):
     def _start(self, work, on_finished) -> Job:
         return self.w._start(self.pool, Job(work), on_finished=on_finished)
 
+    def _look(self, work, on_finished) -> Job:
+        """A lookup, in a daemon thread of its own: it only reads, so a closing window
+        cancels it and does not wait for it, and its answer is then ignored. The answer
+        reaches ``on_finished`` on the UI thread, as a pool job's does."""
+        job = Job(work)
+        self._lookup_jobs.add(job)
+
+        def finished(result: Any) -> None:
+            self._lookup_jobs.discard(job)
+            if not self.stopped:
+                on_finished(result)
+
+        job.signals.finished.connect(finished)
+        slots = self._lookup_slots
+
+        def run() -> None:
+            with slots:
+                if job.cancelled:
+                    return
+                try:
+                    job.run()
+                except RuntimeError:  # the window, and the job's signals, are gone
+                    pass
+
+        threading.Thread(target=run, name="SolidSeas PDM lookup", daemon=True).start()
+        return job
+
     # -- Make This Folder a Library -----------------------------------------------------
     def make_library(self) -> None:
         folder = self.w.folder
@@ -891,6 +999,8 @@ class PdmController(QObject):
             self.shown.emit({"ok": False, "kind": "init", "text": text})
             return False
         self.library = vault.root
+        self.vault = vault
+        self.item_files = set()  # a new library has no items
         self.answered = True
         self._lookup_generation += 1  # a lookup still running answers for the folder as it was
         self.projects.clear()
@@ -989,7 +1099,8 @@ class PdmController(QObject):
         if self.library is None:
             return None
         path = path or self.w.current_folder() or self.library
-        project = self.project_of(path)
+        # Not looked up yet: the check finds the project itself, in its worker thread.
+        project = self.project_of(path) if self.project_known(path) else path
         if project is None:
             return None
         dialog = CheckDialog(self.w, os.path.basename(project))
@@ -1070,6 +1181,7 @@ class PdmController(QObject):
             lambda: dialog.show_copies(dialog.chosen_item()["item"]) if dialog.chosen_item() else None
         )
         dialog.update_button.clicked.connect(lambda: self.update_copies())
+        dialog.edit_button.clicked.connect(lambda: self.edit_item())
         dialog.add_button.clicked.connect(lambda: self.add_selected())
         dialog.candidate_button.clicked.connect(lambda: self.add_candidate())
         dialog.items.itemDoubleClicked.connect(lambda *_a: dialog.show_button.click())
@@ -1089,6 +1201,8 @@ class PdmController(QObject):
         def done(result: dict[str, Any]) -> None:
             result.setdefault("kind", "library")
             result["latest"] = g == self._library_generation
+            if result.get("ok") and result["latest"]:
+                self._note_items(result["library"], result["items"])
             if dialog in self.dialogs and result["latest"]:  # an older reading never covers a newer one
                 dialog.show_result(result)
             self.shown.emit(result)
@@ -1220,6 +1334,52 @@ class PdmController(QObject):
 
         self._start(pdmlibrary.update_work(self.library, item, projects), done)
 
+    def edit_item(self) -> QDialog | None:
+        """Edit for the item chosen in the Library window: its number and description."""
+        dialog = self.library_dialog
+        row = None if dialog is None else dialog.chosen_item()
+        if row is None:
+            return None
+        edit = pdmlibrary.EditDialog(self.w, row)
+        edit.accepted.connect(lambda: self.edit_now(row["item"], *edit.values()))
+        self._open(edit)
+        return edit
+
+    def edit_now(self, item: str, number: str | None, description: str | None) -> None:
+        """Give library item ``item`` a new number or description, in a worker thread."""
+        if self.library is None or (number is None and description is None):
+            return
+        self._message(f"Changing {item}...", 0)
+
+        def done(result: dict[str, Any]) -> None:
+            if result.get("ok"):
+                data = result["data"]
+                now = data["item"]["item"]
+                if now != data["from"]["item"]:
+                    text = f"{data['from']['item']} is {now} now. {data['from']['item']} still finds it."
+                elif data["changed"]:
+                    text = f"Changed the description of {now}."
+                else:
+                    text = f"{now} already had that number and description."
+                dialog = self.library_dialog
+                if dialog is not None and dialog in self.dialogs:
+                    dialog.choose_next = now
+            else:
+                rule = ((result.get("error") or {}).get("detail") or {}).get("rule")
+                why = (
+                    "Another library item has or had that number. Choose another."
+                    if rule == "item_exists"
+                    else pdmlibrary.problem_text(result.get("error"))
+                )
+                text = f"{item} was not changed. {why}"
+            result["text"] = text
+            result.setdefault("kind", "library_edit")
+            self._say(text)
+            self.refresh_library()
+            self.shown.emit(result)
+
+        self._start(pdmlibrary.edit_work(self.library, item, number, description), done)
+
     def add_selected(self) -> QDialog | None:
         path = self.selected_file()
         if path is None or not self.tracked(path):
@@ -1261,6 +1421,8 @@ class PdmController(QObject):
         def done(result: dict[str, Any]) -> None:
             if result.get("ok"):
                 added = [d for d in result["done"] if d["ok"]]
+                for d in added:
+                    self._item_added(d["data"]["item"]["path"])
                 text = f"Added {plural(len(added), 'part')} to the library"
                 text += (": " + ", ".join(d["data"]["item"]["item"] for d in added) + ".") if added else "."
                 for d in result["done"]:
@@ -1283,12 +1445,10 @@ class PdmController(QObject):
 
     def add_to_library(self, path: str) -> QDialog | None:
         """The Add to Library dialog for the file at ``path``."""
-        if self.library is None or not _inside(path, self.library):
+        vault = self.vault  # the lookup's: its settings name the section, nothing is read here
+        if self.library is None or vault is None or not _inside(path, self.library):
             return None
-        from solidseas import pdm
-
         try:
-            vault = pdm.open(self.library)
             section = vault.library.section
             in_section = vault.library.in_section(vault.relative(path))
         except Exception:
@@ -1306,6 +1466,7 @@ class PdmController(QObject):
         def done(result: dict[str, Any]) -> None:
             if result.get("ok"):
                 ident = result["data"]["item"]["item"]
+                self._item_added(result["data"]["item"]["path"])
                 text = f"Added {name} to the library as {ident}."
                 if result["data"]["copied"]:
                     text += f" The copy is {result['data']['item']['path']}; {name} itself is unchanged."
@@ -1355,7 +1516,12 @@ class PdmController(QObject):
         self._start(restore_work(path, version, as_name), done)
 
     def stop(self) -> None:
-        """The window is closing: queued work is dropped; the window waits for :attr:`pool`."""
+        """The window is closing: queued work is dropped and the lookups cancelled. The
+        window waits for :attr:`pool`; a lookup still running is left to end on its own."""
+        self.stopped = True
+        self._lookup_generation += 1  # a lookup that still answers changes nothing
+        for job in list(self._lookup_jobs):
+            job.cancel()
         self.pool.clear()
         for d in list(self.dialogs):
             d.close()

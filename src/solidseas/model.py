@@ -2039,6 +2039,7 @@ PDM_ACTIONS = (
     "library_use",
     "library_updates",
     "library_update",
+    "library_edit",
 )
 
 
@@ -4121,6 +4122,8 @@ _LIBRARY_ITEM = {
     "added_utc": _STR,
     "source": _STR_N,
     "first_version": _STR,
+    "aliases": _arr(_STR),
+    "edited_utc": _STR_N,
 }
 _LINK_COPY = {"type": "string", "enum": ["unchanged", "edited", "gone"]}
 _DEFS["pdm_project"] = _obj({"path": _STR, "name": _STR, "section": _STR, "archived": _BOOL})
@@ -4430,6 +4433,14 @@ _PDM_SCHEMA = _obj(
                     )
                 ),
                 "checkin": _ref_n("checkin_brief"),
+            },
+            nullable=True,
+        ),
+        "library_edit": _obj(
+            {
+                "item": _ref("library_item"),
+                "from": _obj({"item": _STR, "description": _STR}),
+                "changed": _BOOL,
             },
             nullable=True,
         ),
