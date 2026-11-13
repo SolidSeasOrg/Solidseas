@@ -67,6 +67,7 @@ def test_init_writes_only_its_own_folder(lib):
         "tracked": [],
         "ignore": [],
         "who": "",
+        "skip_hidden": False,
     }
     again = pdm.init(lib)
     assert not again.created and files_of(lib) == after
@@ -118,7 +119,9 @@ def test_sections_and_projects(lib):
         '{"format": 2}',
         '{"format": 1, "sections": [{"folder": "../up", "depth": 1}]}',
         '{"format": 1, "sections": [{"folder": "Jobs", "depth": 9}]}',
-        '{"format": 1, "library": ".hidden"}',
+        '{"format": 1, "library": ".git"}',
+        '{"format": 1, "sections": [{"folder": ".SolidSeas", "depth": 1}]}',
+        '{"format": 1, "skip_hidden": "yes"}',
         '{"format": 1, "tracked": ["ext"]}',
         '{"format": 1, "ignore": [3]}',
         '{"format": 1, "who": 5}',
@@ -146,9 +149,11 @@ def test_tracked(lib):
         "x/drawing.pdf",
         "x/flat.dxf",
         "x/a.ext",
+        "x/.dotted/a.sldprt",  # a folder whose name starts with a dot is the user's
+        "x/.a.sldprt",
     ]
-    no = ["Jobs/1043/notes.txt", ".git/a.sldprt", "x/.hidden/a.sldprt", "x/~$a.sldprt", "x/a.bak.step"]
-    no += ["Jobs/old/a.sldprt", ".solidseas/vault/store/objects/ab/a.sldprt"]
+    no = ["Jobs/1043/notes.txt", ".git/a.sldprt", "x/~$a.sldprt", "x/a.bak.step", "x/._a.sldprt"]
+    no += ["Jobs/old/a.sldprt", ".solidseas/vault/store/objects/ab/a.sldprt", "x/.SVN/a.sldprt"]
     assert all(vault.tracked(lib / p) for p in yes)
     assert not any(vault.tracked(lib / p) for p in no)
     assert not vault.tracked(lib.parent / "elsewhere.sldprt")
@@ -678,3 +683,139 @@ def test_plain_words(capsys, lib):
 def test_an_unknown_action_is_a_usage_error(capsys):
     code, env = run(capsys, "pdm", "nope")
     assert code == 2 and check(env, "error")["code"] == "invalid_argument"
+
+
+# --------------------------------------------------------------------------- dot names
+def test_dot_named_projects_and_files_are_tracked_and_tool_folders_are_not(lib):
+    write(lib / "Jobs" / ".1044" / "part.sldprt", "in a dot-named project")
+    write(lib / "Jobs" / "1042" / ".spare.sldprt", "a dot-named file")
+    write(lib / "Jobs" / "1042" / ".git" / "x.sldprt", "a tool's folder")
+    write(lib / "Jobs" / "1042" / "._bracket.sldprt", "a resource fork")
+    vault = pdm.init(lib)
+    assert [p.path for p in vault.projects()] == ["Jobs/.1044", "Jobs/1042", "Jobs/1043"]
+    assert vault.project_of(lib / "Jobs" / ".1044" / "part.sldprt").path == "Jobs/.1044"
+    st = vault.status()
+    assert {f.path for f in st.files} >= {"Jobs/.1044/part.sldprt", "Jobs/1042/.spare.sldprt"}
+    assert st.counts["new"] == 5
+    assert [f.path for f in vault.status(lib / "Jobs" / ".1044").files] == ["Jobs/.1044/part.sldprt"]
+    with pytest.raises(PathRefusedError) as err:
+        vault.status(lib / "Jobs" / "1042" / ".git")
+    assert err.value.detail["rule"] == "hidden"
+    data = vault.checkin([lib], "with the dot names").data()
+    assert data["stored"] == 5
+    settings = json.loads((lib / ".solidseas" / "vault" / "vault.json").read_text())
+    (lib / ".solidseas" / "vault" / "vault.json").write_text(json.dumps(dict(settings, skip_hidden=True)))
+    vault = pdm.open(lib)
+    assert [p.path for p in vault.projects()] == ["Jobs/1042", "Jobs/1043"]
+    assert vault.status().counts["new"] == 0 and not vault.tracked(lib / "Jobs" / "1042" / ".spare.sldprt")
+
+
+# --------------------------------------------------------------------------- the newest-version cache
+def count_record_reads(monkeypatch) -> list[str]:
+    reads: list[str] = []
+    real = pdm.VaultStore._newest_in
+    monkeypatch.setattr(
+        pdm.VaultStore, "_newest_in", lambda self, folder, key: reads.append(key) or real(self, folder, key)
+    )
+    return reads
+
+
+def newest_file(lib):
+    return lib / ".solidseas" / "vault" / "newest.json"
+
+
+def test_status_reads_the_cache_not_every_record(lib, monkeypatch):
+    vault = pdm.init(lib)
+    assert vault.status().counts["new"] == 3
+    vault.checkin([lib], "first")
+    assert newest_file(lib).is_file()
+    reads = count_record_reads(monkeypatch)
+    assert vault.status().counts == {"new": 0, "changed": 0, "gone": 0, "unchanged": 3}
+    assert reads == []
+    write(lib / "Jobs" / "1042" / "bracket.sldprt", "bracket two")
+    bump(lib / "Jobs" / "1042" / "bracket.sldprt")
+    write(lib / "Jobs" / "1043" / "frame.sldasm", "frame")
+    assert {f.path: f.state for f in vault.status().files} == {
+        "Jobs/1042/bracket.sldprt": "changed",
+        "Jobs/1043/frame.sldasm": "new",
+    }
+    vault.checkin([lib], "second")  # its own versions go into the cache as they are written
+    reads.clear()
+    assert vault.status().counts == {"new": 0, "changed": 0, "gone": 0, "unchanged": 4}
+    assert reads == []
+    vault.restore(lib / "Jobs" / "1042" / "bracket.sldprt", "v1")
+    assert vault.status().counts["unchanged"] == 4 and reads == []
+    log = vault.log(lib / "Jobs" / "1042" / "bracket.sldprt")
+    (bracket,) = [f for f in vault.status(unchanged=True).files if f.path == "Jobs/1042/bracket.sldprt"]
+    assert bracket.snapshot.id == log["versions"][0]["id"]
+
+
+@pytest.mark.parametrize("damage", ["missing", "garbage", "other path", "another format"])
+def test_a_cache_that_does_not_hold_up_is_rebuilt_from_the_records(lib, monkeypatch, damage):
+    vault = pdm.init(lib)
+    vault.checkin([lib], "first")
+    cache = newest_file(lib)
+    obj = json.loads(cache.read_text())
+    if damage == "missing":
+        cache.unlink()
+    elif damage == "garbage":
+        cache.write_bytes(b"{not json")
+    elif damage == "other path":
+        key = next(iter(obj["files"]))
+        obj["files"][key][1]["path"] = "Jobs/elsewhere.sldprt"
+        cache.write_text(json.dumps(obj))
+    else:
+        obj["v"] = 99
+        cache.write_text(json.dumps(obj))
+    reads = count_record_reads(monkeypatch)
+    assert vault.status().counts == {"new": 0, "changed": 0, "gone": 0, "unchanged": 3}
+    assert len(reads) == 3
+    reads.clear()
+    assert vault.status().counts["unchanged"] == 3 and reads == []
+
+
+def test_versions_another_program_stored_are_found(lib, monkeypatch):
+    """A second program checks in while this one's cache is not told: the marks it wrote
+    bring this one's status up to date, and only the folders they name are read."""
+    vault = pdm.init(lib)
+    vault.checkin([lib], "first")
+    other = pdm.open(lib)
+    write(lib / "Jobs" / "1042" / "bracket.sldprt", "bracket two")
+    bump(lib / "Jobs" / "1042" / "bracket.sldprt")
+    with monkeypatch.context() as m:
+        m.setattr(pdm.VaultStore, "_records_added", lambda self, snaps, marks: None)  # its cache write lost
+        other.checkin([lib / "Jobs" / "1042"], "from the other program")
+    reads = count_record_reads(monkeypatch)
+    assert vault.status().counts == {"new": 0, "changed": 0, "gone": 0, "unchanged": 3}
+    assert len(reads) == 1
+    reads.clear()
+    assert vault.status().counts["unchanged"] == 3 and reads == []
+    # an older SolidSeas writes no marks: a file it stores for the first time is still found
+    write(lib / "Jobs" / "1043" / "frame.sldasm", "frame")
+    with monkeypatch.context() as m:
+        m.setattr(pdm.VaultStore, "_records_added", lambda self, snaps, marks: None)
+        m.setattr(pdm.VaultStore, "_mark_begin", lambda self, keys: None)
+        other.checkin([lib / "Jobs" / "1043"], "no marks")
+    assert vault.status().counts == {"new": 0, "changed": 0, "gone": 0, "unchanged": 4}
+
+
+def test_a_mark_left_pending_is_read_until_it_is_a_day_old(lib, monkeypatch):
+    vault = pdm.init(lib)
+    vault.checkin([lib], "first")
+    write(lib / "Jobs" / "1042" / "bracket.sldprt", "bracket two")
+    bump(lib / "Jobs" / "1042" / "bracket.sldprt")
+    with monkeypatch.context() as m:  # a crash after the records, before the mark is finished
+        m.setattr(pdm.VaultStore, "_mark_end", lambda self, mark: None)
+        m.setattr(pdm.VaultStore, "_records_added", lambda self, snaps, marks: None)
+        vault.checkin([lib / "Jobs" / "1042" / "bracket.sldprt"], "second")
+    marks = lib / ".solidseas" / "vault" / "store" / "marks"
+    (pending,) = [p for p in marks.iterdir() if p.suffix == ".pending"]
+    reads = count_record_reads(monkeypatch)
+    for _ in range(2):
+        assert vault.status().counts["unchanged"] == 3
+        assert len(reads) == 1  # read each time: the program writing it may still be running
+        reads.clear()
+    pending.rename(marks / ("20000101T000000000000Z-" + pending.name.split("-", 1)[1]))
+    assert vault.status().counts["unchanged"] == 3 and len(reads) == 1
+    reads.clear()
+    assert vault.status().counts["unchanged"] == 3 and reads == []

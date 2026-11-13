@@ -331,3 +331,89 @@ def test_many_files_at_once_keep_their_order_and_their_errors(source, tmp_path, 
     assert [s.id for s in store.snapshots(str(source))] == [first[0].id]
     assert store.read(first[0], limit=1 << 20) == content(1) and first[0].note == "all at once"
     assert not any(p.name.startswith(".tmp-") for p in (tmp_path / "store" / "objects").iterdir())
+
+
+def count_temps(monkeypatch) -> list[str]:
+    """Spy on the temporary copies the store writes: the list fills with their paths."""
+    made: list[str] = []
+    real = snapstore._new_temp
+
+    def spy(objects):
+        tmp, out = real(objects)
+        made.append(tmp)
+        return tmp, out
+
+    monkeypatch.setattr(snapstore, "_new_temp", spy)
+    return made
+
+
+def test_content_the_store_holds_is_read_once_and_not_written_again(source, tmp_path, monkeypatch):
+    store = snapstore.open_store(store=tmp_path / "store")
+    copy = source.parent / "copy.bin"
+    copy.write_bytes(content(1))
+    made = count_temps(monkeypatch)
+    ((snap, new),) = store.add_many([str(source)])
+    assert new and len(made) == 1
+    reads = []
+    real_intact = snapstore.SnapshotStore._intact
+    monkeypatch.setattr(
+        snapstore.SnapshotStore,
+        "_intact",
+        lambda self, sha, size: reads.append(sha) or real_intact(self, sha, size),
+    )
+    third = source.parent / "third.bin"
+    third.write_bytes(content(1))
+    results = store.add_many([str(copy), str(third)], workers=1)
+    assert all(r[1] and r[0].sha256 == snap.sha256 for r in results)
+    assert len(made) == 1  # no copy written for content the store holds
+    assert reads == [snap.sha256]  # the stored object is checked once per call
+    assert store.read(results[0][0], limit=1 << 20) == content(1)
+
+
+def test_a_damaged_object_is_written_again_when_its_content_comes_back(source, tmp_path, monkeypatch):
+    store = snapstore.open_store(store=tmp_path / "store")
+    ((snap, _new),) = store.add_many([str(source)])
+    obj = Path(store.object_path(snap.sha256))
+    obj.write_bytes(b"x" * snap.size)
+    copy = source.parent / "copy.bin"
+    copy.write_bytes(content(1))
+    made = count_temps(monkeypatch)
+    ((again, new),) = store.add_many([str(copy)])
+    assert new and len(made) == 1 and obj.read_bytes() == content(1)
+
+
+def test_a_file_larger_than_the_buffer_is_copied_as_it_is_read(source, tmp_path, monkeypatch):
+    monkeypatch.setattr(snapstore, "BUFFER_BYTES", 1000)
+    monkeypatch.setattr(snapstore, "COPY_CHUNK", 700)
+    store = snapstore.open_store(store=tmp_path / "store")
+    made = count_temps(monkeypatch)
+    ((snap, new),) = store.add_many([str(source)])
+    assert new and len(made) == 1 and store.read(snap, limit=1 << 20) == content(1)
+    copy = source.parent / "copy.bin"
+    copy.write_bytes(content(1))
+    ((again, new),) = store.add_many([str(copy)])
+    assert new and again.sha256 == snap.sha256 and len(made) == 2  # copied, then dropped
+    assert not any(p.name.startswith(".tmp-") for p in (tmp_path / "store" / "objects").iterdir())
+
+
+def test_temporary_copies_a_crash_left_are_cleared(source, tmp_path):
+    store = snapstore.open_store(store=tmp_path / "store")
+    store.add(str(source))
+    objects = tmp_path / "store" / "objects"
+    old, young = objects / ".tmp-0123456789abcdef", objects / ".tmp-fedcba9876543210"
+    other = objects / ".tmp-notours"
+    for p in (old, young, other):
+        p.write_bytes(b"left over")
+    day_ago = old.stat().st_mtime - snapstore.STALE_TEMP_SECONDS - 60
+    os.utime(old, (day_ago, day_ago))
+    os.utime(other, (day_ago, day_ago))
+    plate = source.parent / "plate.bin"
+    plate.write_bytes(content(2))
+    store.add(str(plate))
+    assert not old.exists()
+    assert young.exists() and other.exists()  # one a running copy could own, and a name not ours
+    assert (
+        snapstore._clear_stale_temps(str(objects), now=young.stat().st_mtime + snapstore.STALE_TEMP_SECONDS)
+        == 1
+    )
+    assert not young.exists() and other.exists()

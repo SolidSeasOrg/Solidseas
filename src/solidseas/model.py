@@ -4155,6 +4155,7 @@ _PDM_SCHEMA = _obj(
                         "tracked": _arr(_STR),
                         "ignore": _arr(_STR),
                         "who": _STR,
+                        "skip_hidden": _BOOL,
                     }
                 ),
                 "sections": _arr(_obj({"folder": _STR, "depth": _INT, "kind": _STR})),

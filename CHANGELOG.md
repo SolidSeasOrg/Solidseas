@@ -17,7 +17,36 @@ while the project takes shape.
   recorded before its stored copy is safely on disk, and a scan that is stopped
   part way can simply be run again.
 
+- **pdm status is fast on a library with a long history.** Status used to read
+  every file's history to find its newest version, which took a minute and a half
+  on a library of about 19,000 files. The library now keeps the newest version of
+  each file in one file, `.solidseas\vault\newest.json`, which check-ins, scans and
+  restores keep up to date, so status reads only that and the histories that
+  changed since. On a test library of 20,000 files a status with nothing changed
+  went from about 2.5 s to under 1 s with everything already in memory, and from
+  6.5 s to under 1 s without. The first status after updating SolidSeas reads the
+  whole history once to make the file. The history itself stays the record:
+  deleting `newest.json` only makes the next status slower.
+
+- **Content the library already holds is not copied again.** A check-in or scan
+  now reads each file once and, when the library already holds that content, writes
+  only the new version's small record instead of a full copy that was then thrown
+  away. On the real library's first scan that copy was 4 GiB of the 20 GiB written.
+  Files over 16 MiB are still copied as they are read.
+
 ### Fixed
+
+- **Project folders and files whose names start with a dot are tracked.** The
+  library used to pass over every name starting with a dot, so a project folder
+  named that way was not a project and its files had no history, and neither did a
+  file named that way. Now only the folders programs keep for themselves are passed
+  over (`.solidseas`, `.git`, `.svn`, `.Trash` and the like), along with the `._`
+  files a Mac leaves on a shared drive. To leave out every dot name, and on Windows
+  anything marked hidden, set `"skip_hidden": true` in `vault.json`.
+
+- **Temporary copies left by a crash are cleared.** A power cut or crash during a
+  check-in or scan could leave temporary copies in the library's store that nothing
+  removed. The next check-in or scan now removes any that are a day old.
 
 - **The viewer's PDM menu no longer holds the window on a slow folder.** Finding
   the library around an opened folder, and the project of the folder chosen in

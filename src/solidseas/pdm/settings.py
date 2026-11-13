@@ -24,6 +24,43 @@ MAX_PATTERN = 260
 MAX_WHO = 100
 _FORBIDDEN = set('/\\<>"|?*')
 
+# Folders that tools keep for themselves, never tracked and never a section or project:
+# SolidSeas' own, version control, editors, sync programs and the operating systems'
+# bookkeeping. Compared ignoring case. Any other name, dot or not, is the user's.
+TOOL_FOLDERS = frozenset(
+    name.casefold()
+    for name in (
+        ".solidseas",
+        ".git",
+        ".hg",
+        ".svn",
+        ".bzr",
+        ".jj",
+        ".beads",
+        ".vs",
+        ".vscode",
+        ".idea",
+        ".venv",
+        ".cache",
+        ".Trash",
+        ".Trashes",
+        ".fseventsd",
+        ".Spotlight-V100",
+        ".TemporaryItems",
+        ".DocumentRevisions-V100",
+        ".AppleDouble",
+        ".stfolder",
+        ".stversions",
+        ".dropbox.cache",
+    )
+)
+
+
+def tool_name(name: str) -> bool:
+    """Whether a file or folder of this name belongs to a tool, not the user: a folder in
+    :data:`TOOL_FOLDERS`, or a macOS resource-fork file (``._name``)."""
+    return name.casefold() in TOOL_FOLDERS or name.startswith("._")
+
 
 @dataclass(frozen=True)
 class Section:
@@ -44,7 +81,11 @@ class Settings:
     depth 1. ``library`` is the section of common parts, ``archive`` the sections whose
     projects are history, ``tracked`` extra extensions to track (``.ext``), ``ignore``
     glob patterns never tracked (matched against the path below the library and the
-    file name, ignoring case) and ``who`` the name check-ins carry unless one is given."""
+    file name, ignoring case), ``who`` the name check-ins carry unless one is given and
+    ``skip_hidden`` whether hidden files and folders are left out too: names that start
+    with a dot, and on Windows those with the hidden attribute. Off by default, so a
+    project folder or file whose name starts with a dot is tracked like any other; the
+    tool folders (:data:`TOOL_FOLDERS`) are always left out."""
 
     sections: tuple[Section, ...] = ()
     library: str = DEFAULT_LIBRARY
@@ -52,6 +93,7 @@ class Settings:
     tracked: tuple[str, ...] = ()
     ignore: tuple[str, ...] = ()
     who: str = ""
+    skip_hidden: bool = False
 
     def to_json(self) -> dict[str, Any]:
         return {
@@ -62,6 +104,7 @@ class Settings:
             "tracked": list(self.tracked),
             "ignore": list(self.ignore),
             "who": self.who,
+            "skip_hidden": self.skip_hidden,
         }
 
     def dumps(self) -> bytes:
@@ -110,7 +153,10 @@ class Settings:
         who = obj.get("who", "")
         if not isinstance(who, str) or len(who) > MAX_WHO or any(ord(c) < 32 for c in who):
             raise _bad(f"who is a name of at most {MAX_WHO} characters", "who")
-        return cls(tuple(sections), library, archive, tuple(tracked), tuple(ignore), who)
+        skip_hidden = obj.get("skip_hidden", False)
+        if not isinstance(skip_hidden, bool):
+            raise _bad("skip_hidden is true or false", "skip_hidden")
+        return cls(tuple(sections), library, archive, tuple(tracked), tuple(ignore), who, skip_hidden)
 
     @classmethod
     def loads(cls, data: bytes) -> Settings:
@@ -136,15 +182,15 @@ def _list(value: Any, field: str) -> list[Any]:
 
 
 def _folder_name(value: Any, field: str) -> str:
-    """One folder name directly in the library: no separator, not hidden."""
+    """One folder name directly in the library: no separator, not a tool's folder."""
     if (
         not isinstance(value, str)
         or component_problem(value) is not None
-        or value.startswith(".")
+        or tool_name(value)
         or any(c in _FORBIDDEN for c in value)
     ):
         raise _bad(f"{value!r} is not the name of a folder in the library", field)
     return value
 
 
-__all__ = ["DEFAULT_LIBRARY", "FORMAT", "Section", "Settings"]
+__all__ = ["DEFAULT_LIBRARY", "FORMAT", "TOOL_FOLDERS", "Section", "Settings", "tool_name"]

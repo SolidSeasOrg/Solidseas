@@ -14,7 +14,14 @@ Every source file is opened read-only below the library with no link on the way
 followed; a file or folder that is a link is never tracked.
 
 **Fast status.** A file whose size and modification time are those of its newest
-version is unchanged without being read; only the others are hashed.
+version is unchanged without being read; only the others are hashed. The newest
+version of every file comes from an index, ``newest.json``, kept up to date through
+the store's marks (:meth:`VaultStore.newest_all`, ``docs/VERSIONS.md`` 4.5), so a
+status reads the records only of files whose versions changed since.
+
+**What is tracked.** CAD files below the library, in no tool's folder
+(:data:`~solidseas.pdm.settings.TOOL_FOLDERS`). A name that starts with a dot is the
+user's like any other, unless the settings' ``skip_hidden`` says otherwise.
 """
 
 from __future__ import annotations
@@ -58,7 +65,7 @@ from .checkins import (
     valid_label,
     valid_relative,
 )
-from .settings import Settings
+from .settings import Settings, tool_name
 
 VAULT_PARTS = (".solidseas", "vault")
 SETTINGS_NAME = "vault.json"
@@ -71,6 +78,15 @@ _O_NOFOLLOW = getattr(os, "O_NOFOLLOW", 0)
 _O_CLOEXEC = getattr(os, "O_CLOEXEC", 0)
 _NEW_FILE = os.O_WRONLY | os.O_CREAT | os.O_EXCL | _O_BINARY | _O_NOFOLLOW | _O_CLOEXEC
 _KEY = re.compile(r"[0-9a-f]{32}\Z")
+_HIDDEN_ATTRIBUTE = 0x2  # FILE_ATTRIBUTE_HIDDEN
+NEWEST_NAME = "newest.json"
+NEWEST_VERSION = 1
+_MAX_NEWEST_BYTES = 512 << 20
+_MARKS = "marks"
+_MARK_NAME = re.compile(r"(\d{8}T\d{12}Z)-([0-9a-f]{12})\.(pending|json)\Z")
+_MARK_ID = re.compile(r"\d{8}T\d{12}Z-[0-9a-f]{12}\Z")
+_MARK_STALE_SECONDS = 24 * 3600
+_MAX_MARK_BYTES = 1 << 20
 
 
 def _iso(when: datetime.datetime | None) -> str | None:
@@ -157,27 +173,239 @@ class VaultStore(snapstore.SnapshotStore):
             return snap
         return None
 
-    def newest_all(self) -> dict[str, snapstore.Snapshot]:
-        """The newest snapshot of every file the store has, keyed by its folded path."""
-        self._check_root()
-        out: dict[str, snapstore.Snapshot] = {}
+    def _key_folders(self) -> dict[str, str] | None:
+        """``{key: folder}`` of every record folder, or None when there is no ``files``."""
         st = snapstore.lstat_within(self.root, ("files",))
         if st is None or not stat.S_ISDIR(st.st_mode):
-            return out
+            return None
         files = os.path.join(self.root, "files")
         with os.scandir(files) as it:
-            folders = [
-                (e.path, e.name)
+            return {
+                e.name: e.path
                 for e in it
                 if _KEY.match(e.name)
                 and e.is_dir(follow_symlinks=False)
                 and not (sys.platform == "win32" and _is_link(e.path))
-            ]
-        for folder, key in folders:
-            snap = self._newest_in(folder, key)
-            if snap is not None:
-                out[_folded(snap.path)] = snap
+            }
+
+    def newest_all(self) -> dict[str, snapstore.Snapshot]:
+        """The newest snapshot of every file the store has, keyed by its folded path.
+
+        It comes from the newest-version cache (``newest.json``, :class:`_NewestCache`)
+        when that holds up, after reading again only the record folders that changed
+        since it was written; otherwise every record folder is read and the cache is
+        written anew. The records stay the truth: the cache can always be deleted."""
+        self._check_root()
+        marks = self._list_marks()  # listed before any record is read
+        folders = self._key_folders()
+        if folders is None:
+            folders = {}  # no version stored yet
+        cache = _NewestCache.load(self)
+        if cache is None:
+            entries = {key: self._newest_in(folder, key) for key, folder in folders.items()}
+            cache = _NewestCache(entries, {m for m, done, old in marks if done or old})
+            cache.save(self)
+            return cache.index()
+        stale: set[str] = set(folders) - set(cache.entries)  # written without a mark
+        gone = set(cache.entries) - set(folders)
+        absorbed = set()
+        for name, done, old in marks:
+            if name in cache.marks:
+                continue
+            keys = self._read_mark(name, done)
+            if keys is None:  # a mark that does not hold up: read every folder
+                stale = set(folders)
+                absorbed.add(name)
+                continue
+            stale.update(k for k in keys if k in folders)
+            if done or old:
+                absorbed.add(name)
+        for key in gone:
+            del cache.entries[key]
+        for key in stale:
+            cache.entries[key] = self._newest_in(folders[key], key)
+        if gone or stale or absorbed:
+            cache.marks |= absorbed
+            cache.save(self)
+        return cache.index()
+
+    # ------------------------------------------------------------------ marks
+    # A mark is a small file the vault writes, and flushes, before a batch of records:
+    # ``marks/<time>-<id>.pending`` lists the record folders (keys) about to change, and
+    # becomes ``.json`` once those records are on disk. The cache notes the marks it has
+    # taken in; a reader reads again the folders of any mark it has not, and takes in a
+    # finished mark (or one left pending by a crash a day ago). Marks are never
+    # rewritten, so two programs writing at once never hide each other's records.
+    def _marks_folder(self, *, create: bool) -> str:
+        return self._folders(_MARKS, create=create)
+
+    def _list_marks(self) -> list[tuple[str, bool, bool]]:
+        """``(name, finished, old)`` of every mark, ``old`` for a pending one left a day
+        ago or more."""
+        st = snapstore.lstat_within(self.root, (_MARKS,))
+        if st is None or not stat.S_ISDIR(st.st_mode):
+            return []
+        now = datetime.datetime.now(datetime.UTC)
+        out = []
+        for name in os.listdir(os.path.join(self.root, _MARKS)):
+            m = _MARK_NAME.match(name)
+            if m is None:
+                continue
+            done = m.group(3) == "json"
+            old = False
+            if not done:
+                try:
+                    when = datetime.datetime.strptime(m.group(1), "%Y%m%dT%H%M%S%fZ").replace(
+                        tzinfo=datetime.UTC
+                    )
+                except ValueError:
+                    continue
+                old = (now - when).total_seconds() >= _MARK_STALE_SECONDS
+            out.append((f"{m.group(1)}-{m.group(2)}", done, old))
         return out
+
+    def _read_mark(self, name: str, done: bool) -> list[str] | None:
+        """The keys a mark lists, or None when it cannot be read or does not hold up."""
+        folder = os.path.join(self.root, _MARKS)
+        path = os.path.join(folder, f"{name}.{'json' if done else 'pending'}")
+        try:
+            with open_readonly(path, within=folder) as fh:
+                data = fh.read(_MAX_MARK_BYTES + 1)
+        except FileNotFoundError:
+            if done:
+                return None
+            return self._read_mark(name, True)  # finished meanwhile
+        except (OSError, SolidSeasError):
+            return None
+        try:
+            obj = json.loads(data.decode("ascii"))
+        except (UnicodeDecodeError, ValueError, RecursionError):
+            return None
+        keys = obj.get("keys") if isinstance(obj, dict) and obj.get("v") == 1 else None
+        if len(data) > _MAX_MARK_BYTES or not isinstance(keys, list):
+            return None
+        if not all(isinstance(k, str) and _KEY.match(k) for k in keys):
+            return None
+        return keys
+
+    def _mark_begin(self, keys: list[str]) -> str | None:
+        folder = self._marks_folder(create=True)
+        now = datetime.datetime.now(datetime.UTC)
+        name = f"{now.strftime('%Y%m%dT%H%M%S%f')}Z-{secrets.token_hex(6)}"
+        path = os.path.join(folder, f"{name}.pending")
+        data = json.dumps({"v": 1, "keys": sorted(set(keys))}, separators=(",", ":")).encode("ascii")
+        fd = os.open(path, _NEW_FILE, 0o600)
+        with os.fdopen(fd, "wb") as out:
+            out.write(data)
+        snapstore.sync_file(path)
+        snapstore.sync_folder(folder)
+        return name
+
+    def _mark_end(self, mark: str) -> None:
+        folder = os.path.join(self.root, _MARKS)
+        try:
+            os.rename(os.path.join(folder, f"{mark}.pending"), os.path.join(folder, f"{mark}.json"))
+        except OSError:
+            pass  # it stays pending, and is taken in once it is a day old
+
+    def _records_added(self, snaps: list[snapstore.Snapshot], marks: list[str]) -> None:
+        """Bring the cache up to date with the records just written, so the next status
+        need not read them. Only an existing cache that holds up is updated."""
+        try:
+            cache = _NewestCache.load(self)
+            if cache is None:
+                self.newest_all()  # made from the records, these among them
+                return
+            for snap in snaps:
+                if not valid_relative(snap.path):
+                    continue
+                key = self.key_of(snap.path)
+                have = cache.entries.get(key)
+                if have is None or have.record < snap.record:
+                    cache.entries[key] = snap
+            done = {name for name, finished, _old in self._list_marks() if finished}
+            cache.marks |= {m for m in marks if m in done}
+            cache.save(self)
+        except (OSError, SolidSeasError):
+            pass  # a cache not updated is read again from the records
+
+
+class _NewestCache:
+    """``.solidseas/vault/newest.json``: the newest record of each record folder (None for
+    a folder with none that holds up), and the marks already taken in. It is derived from
+    the records and rebuilt from them whenever it is missing or does not hold up, so it
+    is written with a temporary name and a rename but never flushed, and a crash that
+    cuts it short costs one full read of the records."""
+
+    def __init__(self, entries: dict[str, snapstore.Snapshot | None], marks: set[str]) -> None:
+        self.entries = entries
+        self.marks = marks
+
+    @staticmethod
+    def path(store: VaultStore) -> str:
+        return os.path.join(os.path.dirname(store.root), NEWEST_NAME)
+
+    @classmethod
+    def load(cls, store: VaultStore) -> _NewestCache | None:
+        path = cls.path(store)
+        try:
+            with open_readonly(path, within=os.path.dirname(path)) as fh:
+                data = fh.read(_MAX_NEWEST_BYTES + 1)
+        except (OSError, SolidSeasError):
+            return None
+        if len(data) > _MAX_NEWEST_BYTES:
+            return None
+        try:
+            obj = json.loads(data.decode("ascii"))
+        except (UnicodeDecodeError, ValueError, RecursionError):
+            return None
+        if not isinstance(obj, dict) or obj.get("v") != NEWEST_VERSION:
+            return None
+        marks, files = obj.get("marks"), obj.get("files")
+        if not isinstance(marks, list) or not isinstance(files, dict):
+            return None
+        if not all(isinstance(m, str) and _MARK_ID.match(m) for m in marks):
+            return None
+        entries: dict[str, snapstore.Snapshot | None] = {}
+        for key, item in files.items():
+            if not _KEY.match(key):
+                return None
+            if item is None:
+                entries[key] = None
+                continue
+            if not isinstance(item, list) or len(item) != 2 or not isinstance(item[0], str):
+                return None
+            snap = snapstore.record_from_json(item[1], item[0])
+            if snap is None or not valid_relative(snap.path) or store.key_of(snap.path) != key:
+                return None
+            entries[key] = snap
+        return cls(entries, set(marks))
+
+    def save(self, store: VaultStore) -> None:
+        """Write the cache; a cache that cannot be written is left as it was."""
+        obj = {
+            "v": NEWEST_VERSION,
+            "marks": sorted(self.marks),
+            "files": {
+                k: None if s is None else [s.record, s.to_json()] for k, s in sorted(self.entries.items())
+            },
+        }
+        data = json.dumps(obj, ensure_ascii=True, separators=(",", ":")).encode("ascii")
+        path = self.path(store)
+        tmp = os.path.join(os.path.dirname(path), f".tmp-newest-{secrets.token_hex(8)}")
+        try:
+            fd = os.open(tmp, _NEW_FILE, 0o600)
+            with os.fdopen(fd, "wb") as out:
+                out.write(data)
+            os.replace(tmp, path)
+        except OSError:
+            pass
+        finally:
+            if os.path.lexists(tmp):
+                os.remove(tmp)
+
+    def index(self) -> dict[str, snapstore.Snapshot]:
+        return {_folded(s.path): s for s in self.entries.values() if s is not None}
 
 
 # --------------------------------------------------------------------------- results
@@ -362,7 +590,9 @@ class Vault:
 
     def tracked(self, path: str | os.PathLike) -> bool:
         """Whether the file at ``path`` is one the vault keeps versions of: inside the
-        library, in no hidden folder (such as ``.solidseas`` or ``.git``), with an extension
+        library, in no tool's folder (such as ``.solidseas`` or ``.git``,
+        :data:`~solidseas.pdm.settings.TOOL_FOLDERS`; nor in any folder whose name starts
+        with a dot when the settings' ``skip_hidden`` is on), with an extension
         of a CAD format SolidSeas lists, a drawing export (PDF, DXF) or ``tracked``, not a
         SOLIDWORKS lock file (``~$``) and matching no ``ignore`` pattern. The name alone
         decides; nothing on disk is looked at."""
@@ -376,7 +606,7 @@ class Vault:
         if not rel:
             return False
         parts = rel.split("/")
-        if any(p.startswith(".") for p in parts):
+        if any(self._skip_name(p) for p in parts):
             return False
         name = parts[-1]
         if name.startswith("~$") or registry.extension_of(name) not in self._extensions:
@@ -387,12 +617,30 @@ class Vault:
                 return False
         return True
 
+    def _skip_name(self, name: str) -> bool:
+        """Whether a name is left out whatever is on disk: a tool's, or with
+        ``skip_hidden`` any name that starts with a dot."""
+        return tool_name(name) or (self.settings.skip_hidden and name.startswith("."))
+
+    def _skip_entry(self, e: os.DirEntry) -> bool:
+        """:meth:`_skip_name`, and with ``skip_hidden`` an entry Windows marks hidden."""
+        if self._skip_name(e.name):
+            return True
+        if self.settings.skip_hidden and sys.platform == "win32":
+            try:
+                return bool(
+                    getattr(e.stat(follow_symlinks=False), "st_file_attributes", 0) & _HIDDEN_ATTRIBUTE
+                )
+            except OSError:
+                return False
+        return False
+
     # ------------------------------------------------------------------ sections and projects
     def _top_folders(self) -> list[str]:
         out = []
         with os.scandir(self.root) as it:
             for e in it:
-                if e.name.startswith(".") or not e.is_dir(follow_symlinks=False) or _is_link(e.path):
+                if self._skip_entry(e) or not e.is_dir(follow_symlinks=False) or _is_link(e.path):
                     continue
                 out.append(e.name)
         return sorted(out, key=str.casefold)
@@ -427,8 +675,9 @@ class Vault:
 
     def projects(self) -> list[Project]:
         """Every project folder: the folders ``depth`` levels below each section, the
-        library section's excluded (it holds common parts, not projects). Hidden folders
-        and links are passed over."""
+        library section's excluded (it holds common parts, not projects). A folder whose
+        name starts with a dot is a project like any other; tools' folders (and hidden
+        ones when the settings say so) and links are passed over."""
         out: list[Project] = []
         for sec in self.sections():
             if sec.kind == "library":
@@ -446,7 +695,7 @@ class Vault:
                     except OSError:
                         continue
                     for e in entries:
-                        if e.name.startswith(".") or not e.is_dir(follow_symlinks=False) or _is_link(e.path):
+                        if self._skip_entry(e) or not e.is_dir(follow_symlinks=False) or _is_link(e.path):
                             continue
                         nxt.append((e.path, f"{rel}/{e.name}"))
                 level = nxt
@@ -469,15 +718,16 @@ class Vault:
             least += 1  # a file sits in its project, never is one
         if sec is None or sec.kind == "library" or len(parts) < least:
             return None
-        if any(p.startswith(".") for p in parts[: 1 + sec.depth]):
+        if any(self._skip_name(p) for p in parts[: 1 + sec.depth]):
             return None
         return Project("/".join(parts[: 1 + sec.depth]), sec.folder, sec.kind == "archive")
 
     # ------------------------------------------------------------------ walking
     def _walk(self, rel: str, skipped: list[dict[str, Any]]) -> Iterator[tuple[str, str, os.stat_result]]:
         """``(rel, full, lstat)`` of every tracked regular file below the folder ``rel``.
-        Hidden folders are passed over; a link is never followed and is listed in
-        ``skipped`` when it would have been tracked."""
+        Tools' folders (and hidden ones when the settings say so) are passed over; a
+        link is never followed and is listed in ``skipped`` when it would have been
+        tracked."""
         stack = [(self.absolute(rel), rel)]
         while stack:
             folder, frel = stack.pop()
@@ -490,7 +740,7 @@ class Vault:
                 entries = list(it)
             for e in entries:
                 name = e.name
-                if name.startswith("."):
+                if self._skip_entry(e):
                     continue
                 erel = f"{frel}/{name}" if frel else name
                 try:
@@ -548,9 +798,10 @@ class Vault:
             return "", False
         full = os.path.abspath(os.fspath(path))
         rel = self.relative(full)
-        if rel and any(p.startswith(".") for p in rel.split("/")):
+        if rel and any(self._skip_name(p) for p in rel.split("/")):
             raise PathRefusedError(
-                f"{full}: a hidden folder of the library is never tracked", detail={"rule": "hidden"}
+                f"{full}: a tool's folder (such as .solidseas or .git) or a hidden folder is never tracked",
+                detail={"rule": "hidden"},
             )
         _refuse_link(full, "the path")
         if os.path.isdir(full):
