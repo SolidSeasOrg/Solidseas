@@ -70,6 +70,10 @@ python -m ruff check .
 
 Both must pass. A commit with a red suite does not ship.
 
+The suite runs one test at a time for over an hour. `python -m pytest -q -n auto
+--dist loadfile` runs it on every core in about 12 minutes; keep `--dist loadfile`,
+because some modules share one running service across their tests.
+
 ## Scrub rules
 
 This repository must never contain:
