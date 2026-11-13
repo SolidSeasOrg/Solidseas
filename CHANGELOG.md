@@ -6,13 +6,110 @@ while the project takes shape.
 
 ## [Unreleased]
 
+## [0.2.600] - 2026-11-13
+
 ### Added
+
+- **A PDM for a folder of CAD projects.** Make a folder a library with `solidseas pdm
+  init` or the viewer's PDM menu, and SolidSeas keeps every version of its CAD files,
+  checks that each project holds every file it uses, and keeps a library of common
+  parts that are copied into projects rather than referenced. It works without
+  SOLIDWORKS running. The entries below describe each part; `docs/guide/pdm.md` is
+  the guide.
 
 - **A library item's number and description can be changed.** `pdm library edit
   ITEM` takes `--number` and `-d`, and the Library of Common Parts window has an
   Edit button. The old number stays with the item, so it still finds the item and
   the copies made under it stay linked, and no other item can take it. `pdm
   library list --json` gives each item's `aliases` and `edited_utc`.
+
+- **Add several shared parts to the library at once.** On the Candidates tab of
+  the Library of Common Parts window, select several parts (Ctrl or Shift and
+  click) and choose Add to Library: after one question, each becomes a library
+  item with the next item number, copied from its first copy.
+
+- **A Library of Common Parts window in the viewer.** PDM > Library of Common
+  Parts lists the library's items with their description, file, versions, the
+  projects using them and whether any copy is behind, with a search box. Use in
+  Project copies an item into a project you pick and says where the copy went,
+  never over a file. Show Copies lists each project's copy as unchanged, edited,
+  gone or behind. Update Copies brings the copies that are behind up to date,
+  and asks before replacing one that was edited in its project. Add to Library
+  makes the file selected in the list an item, and a Candidates tab lists the
+  parts that two or more projects share, most widely shared first. A file in
+  the list that is not an item yet has Add to the Library on its right-click
+  menu.
+
+- **Check Project makes the copies.** The Check Project window's Make Copies
+  lists each file that would be copied into the project, where it would go and
+  why, and the copies that cannot be made. After you confirm, it makes them as
+  new files, never over a file already there, and shows the project checked
+  again.
+
+- **A PDM menu in the viewer.** When the folder you open is in a library, the
+  PDM menu checks files in with a note, an optional revision and state, after
+  listing what changed; Changes lists the files that are new, changed or gone;
+  Check Project lists every reference of the project's documents that is
+  missing, outside the project or another document of that name, with the path
+  stored in it and where it was found; and Restore Version puts back the version
+  chosen on the History tab, keeping the file as it is now as a version first,
+  or writes it as a new file. Outside a library the menu offers to make the
+  opened folder one. The same entries are on the right-click menus of the file
+  list and the folder tree.
+
+- **The History tab shows a library's versions.** For a file in a library the
+  tab lists the library's versions with their check-in notes, revisions and
+  states, and the Git commits that changed it alongside. Snapshots kept in a
+  project's own folder (`snapshot --project`) are listed too. A line under the
+  buttons says when a history could not be read in full, and View > History
+  (Ctrl+Shift+H) shows the tab.
+
+- **A library's history over the REST service and MCP (provisional).** Start
+  solidseas serve or solidseas mcp with --pdm, and other programs and chat apps
+  can read the history of the PDM library that holds your folders: which files
+  changed since their last version, a file's versions with their check-in notes,
+  one version's properties and geometry, the recent check-ins a page at a time,
+  and whether a project holds every file it uses. The routes are
+  /v1/pdm/status, /v1/pdm/log, /v1/pdm/version, /v1/pdm/checkins and
+  /v1/pdm/check, and the MCP tools pdm_status, file_history, file_version,
+  recent_checkins and check_project. They only read. Every path in an answer is
+  relative to the served folder, files outside it are left out, and a folder in
+  no library answers not_a_library. They are off by default, like the catalog,
+  because check-in notes and earlier versions say more than the files do.
+
+- **pdm check.** `solidseas pdm check` checks one project, or every project in
+  the library, and lists each reference that leaves it, is missing or names
+  another document. `--plan` lists the copies that would make the project
+  self-contained, and `--fix` makes them as new files, never over a file
+  already there, then checks the project again.
+
+- **A library of common parts.** `solidseas pdm library` keeps parts that many
+  projects use once in the library's Library section, each with an item number
+  and a description. `candidates` lists the parts that sit in two or more
+  projects, `add` makes a part a library item, `use` copies an item into a
+  project, `updates` lists the copies whose library part has changed or that
+  were edited in their project, and `update` brings a copy up to date after
+  keeping the old one as a version.
+
+- **A History tab in the viewer.** It lists the selected file's versions,
+  newest first: the commits that changed it in a Git repository, or the
+  snapshots you take of it anywhere else. Click a version to see its preview
+  and what changed from the version before it, such as a property, the material
+  or the volume and size. Take Snapshot keeps a copy of the file as it is now
+  in your SolidSeas data folder, never beside the file, and Compare with
+  Working Copy shows what changed since the chosen version.
+
+- **A history for a whole folder of CAD projects.** `solidseas pdm init FOLDER`
+  makes a folder a library, and from then on `pdm status` lists the CAD files that
+  are new, changed or gone, `pdm checkin PATH -m NOTE` stores a version of each
+  changed file with your note (and a revision or state if you give one), and
+  `pdm scan` stores every changed file with no note, so it can run on a schedule.
+  `pdm log` lists a file's versions with their notes and its Git commits, `pdm show`
+  and `pdm diff` say what a version holds and what changed, and `pdm restore` puts a
+  version back, storing the current file first, or writes it as a new file with
+  `--as`. A part that sits in several projects is stored once. Everything is kept in
+  the library's own `.solidseas` folder, so it moves and backs up with the library.
+  This is provisional; the user guide's new page explains it.
 
 ### Changed
 
@@ -152,103 +249,6 @@ while the project takes shape.
   SOLIDWORKS opens a STEP assembly, it keeps the components it makes inside the
   assembly. These now show as inside the assembly (status inside_parent) in the
   references, the command line and the viewer's References list.
-
-### Added
-
-- **Add several shared parts to the library at once.** On the Candidates tab of
-  the Library of Common Parts window, select several parts (Ctrl or Shift and
-  click) and choose Add to Library: after one question, each becomes a library
-  item with the next item number, copied from its first copy.
-
-- **A Library of Common Parts window in the viewer.** PDM > Library of Common
-  Parts lists the library's items with their description, file, versions, the
-  projects using them and whether any copy is behind, with a search box. Use in
-  Project copies an item into a project you pick and says where the copy went,
-  never over a file. Show Copies lists each project's copy as unchanged, edited,
-  gone or behind. Update Copies brings the copies that are behind up to date,
-  and asks before replacing one that was edited in its project. Add to Library
-  makes the file selected in the list an item, and a Candidates tab lists the
-  parts that two or more projects share, most widely shared first. A file in
-  the list that is not an item yet has Add to the Library on its right-click
-  menu.
-
-- **Check Project makes the copies.** The Check Project window's Make Copies
-  lists each file that would be copied into the project, where it would go and
-  why, and the copies that cannot be made. After you confirm, it makes them as
-  new files, never over a file already there, and shows the project checked
-  again.
-
-- **A PDM menu in the viewer.** When the folder you open is in a library, the
-  PDM menu checks files in with a note, an optional revision and state, after
-  listing what changed; Changes lists the files that are new, changed or gone;
-  Check Project lists every reference of the project's documents that is
-  missing, outside the project or another document of that name, with the path
-  stored in it and where it was found; and Restore Version puts back the version
-  chosen on the History tab, keeping the file as it is now as a version first,
-  or writes it as a new file. Outside a library the menu offers to make the
-  opened folder one. The same entries are on the right-click menus of the file
-  list and the folder tree.
-
-- **The History tab shows a library's versions.** For a file in a library the
-  tab lists the library's versions with their check-in notes, revisions and
-  states, and the Git commits that changed it alongside. Snapshots kept in a
-  project's own folder (`snapshot --project`) are listed too. A line under the
-  buttons says when a history could not be read in full, and View > History
-  (Ctrl+Shift+H) shows the tab.
-
-- **A library's history over the REST service and MCP (provisional).** Start
-  solidseas serve or solidseas mcp with --pdm, and other programs and chat apps
-  can read the history of the PDM library that holds your folders: which files
-  changed since their last version, a file's versions with their check-in notes,
-  one version's properties and geometry, the recent check-ins a page at a time,
-  and whether a project holds every file it uses. The routes are
-  /v1/pdm/status, /v1/pdm/log, /v1/pdm/version, /v1/pdm/checkins and
-  /v1/pdm/check, and the MCP tools pdm_status, file_history, file_version,
-  recent_checkins and check_project. They only read. Every path in an answer is
-  relative to the served folder, files outside it are left out, and a folder in
-  no library answers not_a_library. They are off by default, like the catalog,
-  because check-in notes and earlier versions say more than the files do.
-
-- **The self-contained project check, in Python.** solidseas.pdm.check
-  finds every reference of a project's documents the way SOLIDWORKS searches,
-  past the project folder, and says for each whether it is in the project,
-  outside it (in the library, a neighbouring project or elsewhere), Toolbox,
-  inside its assembly, missing or another document of that name. It also lists
-  the copies that would make the project self-contained, without making them.
-
-- **pdm check.** `solidseas pdm check` checks one project, or every project in
-  the library, and lists each reference that leaves it, is missing or names
-  another document. `--plan` lists the copies that would make the project
-  self-contained, and `--fix` makes them as new files, never over a file
-  already there, then checks the project again.
-
-- **A library of common parts.** `solidseas pdm library` keeps parts that many
-  projects use once in the library's Library section, each with an item number
-  and a description. `candidates` lists the parts that sit in two or more
-  projects, `add` makes a part a library item, `use` copies an item into a
-  project, `updates` lists the copies whose library part has changed or that
-  were edited in their project, and `update` brings a copy up to date after
-  keeping the old one as a version.
-
-- **A History tab in the viewer.** It lists the selected file's versions,
-  newest first: the commits that changed it in a Git repository, or the
-  snapshots you take of it anywhere else. Click a version to see its preview
-  and what changed from the version before it, such as a property, the material
-  or the volume and size. Take Snapshot keeps a copy of the file as it is now
-  in your SolidSeas data folder, never beside the file, and Compare with
-  Working Copy shows what changed since the chosen version.
-
-- **A history for a whole folder of CAD projects.** `solidseas pdm init FOLDER`
-  makes a folder a library, and from then on `pdm status` lists the CAD files that
-  are new, changed or gone, `pdm checkin PATH -m NOTE` stores a version of each
-  changed file with your note (and a revision or state if you give one), and
-  `pdm scan` stores every changed file with no note, so it can run on a schedule.
-  `pdm log` lists a file's versions with their notes and its Git commits, `pdm show`
-  and `pdm diff` say what a version holds and what changed, and `pdm restore` puts a
-  version back, storing the current file first, or writes it as a new file with
-  `--as`. A part that sits in several projects is stored once. Everything is kept in
-  the library's own `.solidseas` folder, so it moves and backs up with the library.
-  This is provisional; the user guide's new page explains it.
 
 ## [0.2.570] - 2026-11-07
 
