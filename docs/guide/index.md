@@ -39,7 +39,8 @@ https://solidseas.app.
 - [The command line and the REST service](command-line.md), including
   [a file's versions](command-line.md#a-files-versions) from Git or from snapshots.
 - [A library's history](pdm.md): checking in a folder of CAD projects with notes,
-  seeing what changed and putting a version back (provisional).
+  seeing what changed, putting a version back, checking that each project holds every
+  file it uses, and a library of common parts (provisional).
 - [The Python library](python-library.md).
 
 ## Working on SolidSeas

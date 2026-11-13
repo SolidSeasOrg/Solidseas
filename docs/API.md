@@ -5127,6 +5127,15 @@ vault.log(file)                                   # the log part of pdm_result
 vault.show(file, version, source="vault")         # the show part
 vault.diff(file, older=None, newer=None, source="vault", measure=True, max_seconds=60.0)  # version_diff data
 vault.restore(file, version, as_name=None)        # the restore part
+vault.check(path=None, plan=False, fix=False, copy_toolbox=False)  # the check part
+lib = vault.library                               # Library: the common parts
+lib.items(), lib.item("SS-00001"), lib.links()    # Item and Link records that hold up
+lib.candidates(limit=None)                        # the library_candidates part
+lib.add(file, item=None, description=None)        # the library_add part
+lib.list()                                        # the library_list part
+lib.use(item, project, to=None)                   # the library_use part
+lib.updates(project=None, all_links=False)        # the library_updates part
+lib.update(project, item, force=False)            # the library_update part
 ```
 
 - **Settings.** `vault.json` is checked field by field when the library is opened: a
@@ -5148,6 +5157,38 @@ vault.restore(file, version, as_name=None)        # the restore part
   new file in the same folder, and an existing name, link or not, is `output_refused`.
   A file that changes meanwhile is `busy`, rule `file_changing`. The restored file is
   checked in with a note naming the version.
+- **Check.** `check` runs `pdm.check.check_project` on one project (the one the path is
+  or lies in) or on every project that is not archived (no path, or the library's own
+  folder), with the library section as the library folder. A path in the library
+  section or above a project's level is `invalid_argument`, rule `not_a_project`.
+  `findings` lists only the problems. `fix` makes `plan_copies`' copies as new files
+  (an existing name is listed in `failed` with `output_refused`, never written over),
+  records a link for a copy whose source is a library item's file, checks the project
+  again and reports that second result. A copy of a file in the library is made from
+  the version the vault stores of it, checked against its hash.
+- **Library records.** Items are `.solidseas/vault/library/items/<item>.json` and
+  links `.solidseas/vault/library/links/<time>-<id>.json`, written once through a
+  temporary name and a rename that fails on an existing name. A later link for the same
+  project file supersedes an earlier one. Each is checked field by field when read: an
+  item whose file is not in the library section, or a link whose file is not inside its
+  project, is skipped. Item numbers are 1 to 40 letters, digits, dots, hyphens and
+  underscores; `add` numbers an item `SS-00001` style when none is given, and a number
+  already taken (ignoring case) is `output_refused`, rule `item_exists`. An unknown
+  number is `invalid_argument`, rule `unknown_item`.
+- **Library copies.** `add` copies a file from outside the library section into the
+  section's top folder (an existing name is `output_refused`, rule `exists`), or
+  records a file already in the section where it is (rule `already_an_item` when an
+  item has it). `use` copies the item's current version into the project, or `to`
+  inside it, and refuses an existing name (rule `exists`). `update` writes only files a
+  link names, stores each as a version first, and refuses one edited since it was
+  copied (rule `edited`) unless `force`; a copy that is gone stays gone. A project with
+  no copy of the item is `invalid_argument`, rule `not_linked`. Each of these checks in
+  what it stored, with a note naming the item.
+- **Candidates.** Parts and assemblies are grouped by size first; only files sharing a
+  size with a file in another project are hashed, and a file whose size and time equal
+  its newest version's takes that version's hash unread. Toolbox paths
+  (`pdm.check.is_toolbox_path`) and content a file in the library section has are
+  left out.
 
 ## 4. JSON encoding
 
@@ -6289,7 +6330,15 @@ its newest snapshot and nothing was stored), `snapshot` (that snapshot's `versio
 
 What `solidseas pdm ACTION` did (3.29): `action`, `library` (the library's folder),
 and one part per action, `init`, `status`, `checkin` (also a scan's), `log`, `show`,
-`diff` and `restore`, of which only the action's is not null.
+`diff`, `restore`, `check` and, for `pdm library ACTION`, `library_candidates`,
+`library_add`, `library_list`, `library_use`, `library_updates` and
+`library_update` (the action is named the same way), of which only the action's is
+not null. Paths in `check` are absolute; every other path is below the library,
+`/`-separated. An item is `item`, `description`, `path`, `added_utc`, `source` (the
+path it was copied from, or null) and `first_version`. A version is `id`, `number`
+(as `pdm log` numbers it), `sha256` and `size`. A link is `id`, `when_utc`, `item`,
+`project`, `path`, `version` (the item's version copied), `sha256` and `how` (`use`,
+`update` or `fix`). A project is `path`, `name`, `section` and `archived`.
 
 | Part | Fields |
 |---|---|
@@ -6300,6 +6349,13 @@ and one part per action, `init`, `status`, `checkin` (also a scan's), `log`, `sh
 | `show` | `file`, `source`, `version`, `document` (as `version_diff`'s), `properties`, `configurations` (names), `geometry` (`reason`, and per configuration its geometry summary), `warnings` |
 | `diff` | `version_diff` data (5.19) |
 | `restore` | `file` (the file written), `path`, `from`, `version`, `replaced`, `written` (false when the file already held it), `stored_first` (`version`, `new`, `sha256` of the current file stored first, or null), `checkin` (null when nothing was written) |
+| `check` | `scope` (the project, empty for every project), `copy_toolbox`, `plan`, `fix`, `self_contained` (how many projects are), `projects`: each `project`, `documents`, `counts` (per result: `ok`, `outside`, `toolbox`, `inside_parent`, `missing`, `different_document`, `ambiguous`), `self_contained`, `findings` (the problems: `document`, `key`, `stored_path`, `file_name`, `relation`, `result`, `found`, `place`, `found_in`, `status`, `rule`, `identity`, `searched`, `toolbox`, `warnings`), `unreadable` (`path`, `error`), `plan` (`copies` and `present`: `source`, `destination`, `referenced_by`, `place`, `item`; `conflicts`: `source`, `destination`, `referenced_by`, `reason`; null unless asked), `fix` (`copied`: `source`, `destination`, `item`, `link`; `failed`: `source`, `destination`, `code`, `message`; `checkin`; null without `--fix`) |
+| `library_candidates` | `documents` (parts and assemblies looked at), `hashed`, `total`, `candidates` most widely shared first (`name`: the commonest, `names`, `sha256`, `size`, `projects`, `copies`: `path`, `project`), `skipped` |
+| `library_add` | `item`, `copied` (false for a file already in the library section), `version`, `checkin` |
+| `library_list` | `section`, `items`: each item with `exists`, `sha256` (the file now), `version` (its newest version, or null), `stored` (whether the file still holds it), `copies` and `projects` |
+| `library_use` | `item`, `project`, `path`, `file` (`name`, `path`), `version`, `link`, `checkin` |
+| `library_updates` | `scope` (the project, or null), `counts` (`current`, `behind`, `edited`, `gone`, `unknown_item`), `links` that need a look (all with `--all`): `item`, `description`, `project`, `path`, `copied_utc`, `version` and `number` (copied), `newest` and `newest_number` (null when the item's file changed since its newest version), `item_changed`, `behind`, `copy` (`unchanged`, `edited` or `gone`), `sha256` |
+| `library_update` | `item`, `project`, `version`, `copies` (`path`, `copy`, `written`, `stored_first`, `link`), `checkin` |
 
 ## 6. Reading the JSON in JavaScript and TypeScript
 
@@ -6398,7 +6454,7 @@ it.
 | `history FILE` | `--source auto\|git\|snapshots` (default `auto`), `--project DIR` or `--store DIR`, `--max-commits N` (default 20,000), `--hashes` | `file_history` (provisional, section 5.19) |
 | `snapshot FILE` | `--project DIR` or `--store DIR`, `--note TEXT`; writes only into the snapshot store (3.26) | `snapshot_taken` (provisional) |
 | `diff FILE [OLDER] [NEWER]` | versions named `working`, `latest`, `vN` or by id; `--source auto\|git\|snapshots`, `--project DIR` or `--store DIR`, `--no-measures`, `--timeout SECONDS` (default 60) | `version_diff` (provisional) |
-| `pdm ACTION` | `init FOLDER`; `status [PATH]` with `--all`; `checkin PATH... -m NOTE` with `--revision R`, `--state S`, `--who NAME`; `scan [PATH]`; `log FILE`; `show FILE VERSION` and `diff FILE [A] [B]` with `--source vault\|git` (and `--no-measures`, `--timeout SECONDS` for `diff`); `restore FILE VERSION [--as NAME]`. Writes only the library's `.solidseas` folder and the file a restore puts back (3.29) | `pdm_result` (provisional, section 5.20) |
+| `pdm ACTION` | `init FOLDER`; `status [PATH]` with `--all`; `checkin PATH... -m NOTE` with `--revision R`, `--state S`, `--who NAME`; `scan [PATH]`; `log FILE`; `show FILE VERSION` and `diff FILE [A] [B]` with `--source vault\|git` (and `--no-measures`, `--timeout SECONDS` for `diff`); `restore FILE VERSION [--as NAME]`; `check [PROJECT]` with `--plan`, `--fix`, `--copy-toolbox` (exit 4 when a copy of `--fix` failed); `library candidates [PATH] [--limit N]`, `library add FILE [--item N] [-d D]`, `library list [PATH]`, `library use ITEM PROJECT [--to SUBFOLDER]`, `library updates [PATH] [--all]`, `library update PROJECT ITEM [--force]`. Writes only the library's `.solidseas` folder, the file a restore puts back and the copies the library and `check --fix` make (3.29) | `pdm_result` (provisional, section 5.20) |
 | `version` | | `version` |
 | `schema [KIND]` | `--data` | none: prints the JSON Schema of the kind's envelope (of its `data` alone with `--data`), or with no KIND the list of kinds |
 | `openapi` | `-o FILE`, `--force` | none: prints the service's OpenAPI description (8.19, provisional); with `-o`, writes it to FILE and prints `file_written` |
