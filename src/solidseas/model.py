@@ -4029,7 +4029,14 @@ def _pdm_check_project(path: dict[str, Any]) -> dict[str, Any]:
     ``pdm_check`` share (``pdm.library.check_report``). ``path`` is the schema of a file
     the check names: an absolute path for the command, a place in a root for the service."""
     copy = _obj(
-        {"source": path, "destination": path, "referenced_by": _arr(_STR), "place": _STR_N, "item": _STR_N}
+        {
+            "source": path,
+            "destination": path,
+            "referenced_by": _arr(_STR),
+            "place": _STR_N,
+            "item": _STR_N,
+            "round": _INT,
+        }
     )
     return {
         "project": _ref("pdm_project"),
@@ -4075,8 +4082,30 @@ def _pdm_check_project(path: dict[str, Any]) -> dict[str, Any]:
             {
                 "copies": _arr(copy),
                 "present": _arr(copy),
+                "rounds": _INT,
                 "conflicts": _arr(
-                    _obj({"source": path, "destination": path, "referenced_by": _arr(_STR), "reason": _STR})
+                    _obj(
+                        {
+                            "source": path,
+                            "destination": path,
+                            "referenced_by": _arr(_STR),
+                            "reason": _STR,
+                            "round": _INT,
+                        }
+                    )
+                ),
+                "unplaced": _arr(
+                    _obj(
+                        {
+                            "document": _STR,
+                            "source": path,
+                            "name": _STR_N,
+                            "reason": _STR,
+                            "round": _INT,
+                            "found": {"anyOf": [path, {"type": "null"}]},
+                            "error": _STR_N,
+                        }
+                    ),
                 ),
             },
             nullable=True,

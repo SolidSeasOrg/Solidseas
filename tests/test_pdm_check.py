@@ -591,3 +591,139 @@ def test_pdm_check_names_a_file_out_of_the_search(capsys, tmp_path):
     assert cli.main(["pdm", "check", str(a)]) == 0
     out = capsys.readouterr().out
     assert f"asm.SLDASM: far.SLDPRT, out of SOLIDWORKS' search: {a / 'deep' / 'far.SLDPRT'}" in out
+
+
+# --------------------------------------------------------------------------- planning to closure
+def top(refs) -> bytes:
+    """An assembly using each stored path in ``refs`` with no stored creation time, so a
+    sub-assembly (whose own creation time is the fixture's) is taken as found."""
+    t = TreeXml()
+    t.top("m1")
+    for i, stored in enumerate(refs, start=2):
+        kind = "ASSEMBLY" if stored.upper().endswith(".SLDASM") else "PART"
+        t.file(str(i), stored, kind)
+        t.model(f"m{i}", str(i))
+        t.ref("m1", f"c{i}", 1, f"m{i}")
+    return resolving_assembly(t)
+
+
+def make(plan) -> None:
+    for c in plan.copies:
+        c.destination.write_bytes(c.source.read_bytes())
+
+
+def test_a_copied_subassembly_gets_the_parts_it_finds_only_above_its_new_folder(tmp_path):
+    """The case met on a real library: the sub-assembly's parts sit beside it, but the
+    copy goes beside the assembly using it, a folder down, from where its parts are found
+    only by the bare name one folder above. The plan copies them beside the copy too."""
+    a = tmp_path / "Projects" / "A"
+    write(a / "p.SLDPRT", part())
+    write(a / "sub.SLDASM", assembly(["Q:\\Z\\p.SLDPRT"]))
+    write(a / "top" / "asm.SLDASM", top(["Q:\\Z\\sub.SLDASM"]))
+    res = check_project(a)
+    assert res.counts()["needs_confirmation"] == 1 and res.counts()["ok"] == 1
+    plan = plan_copies(res)
+    assert [(c.source, c.destination, c.round, c.referenced_by) for c in plan.copies] == [
+        (a / "sub.SLDASM", a / "top" / "sub.SLDASM", 1, (a / "top" / "asm.SLDASM",)),
+        (a / "p.SLDPRT", a / "top" / "p.SLDPRT", 2, (a / "top" / "sub.SLDASM",)),
+    ]
+    assert plan.rounds == 2 and plan.unplaced == () and plan.conflicts == ()
+    assert not (a / "top" / "sub.SLDASM").exists()  # a plan writes nothing
+    # one round only: the sub-assembly's part is left, and the plan says why
+    short = plan_copies(res, max_rounds=1)
+    assert [c.destination for c in short.copies] == [a / "top" / "sub.SLDASM"]
+    (u,) = short.unplaced
+    assert (u.document, u.name, u.reason, u.round, u.found) == (
+        a / "top" / "sub.SLDASM",
+        "p.SLDPRT",
+        "round_limit",
+        2,
+        a / "p.SLDPRT",
+    )
+    make(plan)
+    after = check_project(a)
+    assert after.counts()["needs_confirmation"] == 0 and after.counts()["outside"] == 0
+    assert after.self_contained and plan_copies(after).copies == ()
+
+
+def test_a_plan_follows_a_chain_of_subassemblies(tmp_path):
+    projects = tmp_path / "Projects"
+    a, b = projects / "A", projects / "B"
+    write(b / "p.SLDPRT", part())
+    write(b / "s2.SLDASM", assembly(["Q:\\Old\\B\\p.SLDPRT"]))
+    write(b / "s1.SLDASM", top(["Q:\\Old\\B\\s2.SLDASM"]))
+    write(a / "asm.SLDASM", top(["Q:\\Old\\B\\s1.SLDASM"]))
+    res = check_project(a)
+    assert res.counts()["outside"] == 1
+    plan = plan_copies(res)
+    assert [(c.source, c.destination, c.round, c.referenced_by, c.place) for c in plan.copies] == [
+        (b / "s1.SLDASM", a / "s1.SLDASM", 1, (a / "asm.SLDASM",), "other_project"),
+        (b / "s2.SLDASM", a / "s2.SLDASM", 2, (a / "s1.SLDASM",), "other_project"),
+        (b / "p.SLDPRT", a / "p.SLDPRT", 3, (a / "s2.SLDASM",), "other_project"),
+    ]
+    assert plan.rounds == 3 and plan.unplaced == ()
+    short = plan_copies(res, max_rounds=2)
+    assert short.rounds == 2 and [c.round for c in short.copies] == [1, 2]
+    assert [(u.document, u.reason, u.round) for u in short.unplaced] == [(a / "s2.SLDASM", "round_limit", 3)]
+    make(plan)
+    after = check_project(a)
+    assert after.self_contained and after.documents == 4
+
+
+def test_a_conflict_in_a_later_round_is_reported_with_its_round(tmp_path):
+    """Two sub-assemblies copied into one folder each need a part of the same name, from
+    different files: the first takes the name, the second is a conflict of round 2. A
+    reference a copy cannot find at all is listed as unplaced."""
+    projects = tmp_path / "Projects"
+    a, b, c = projects / "A", projects / "B", projects / "C"
+    write(b / "p.SLDPRT", part())
+    write(c / "p.SLDPRT", part_with_creation_time(CT, keywords=False))  # other content
+    write(b / "s1.SLDASM", assembly(["Q:\\Old\\B\\p.SLDPRT"]))
+    write(c / "s2.SLDASM", assembly(["Q:\\Old\\C\\p.SLDPRT", "Q:\\Old\\C\\gone.SLDPRT"]))
+    write(a / "asm.SLDASM", top(["Q:\\Old\\B\\s1.SLDASM", "Q:\\Old\\C\\s2.SLDASM"]))
+    plan = plan_copies(check_project(a))
+    assert [(c.source, c.destination, c.round) for c in plan.copies] == [
+        (b / "s1.SLDASM", a / "s1.SLDASM", 1),
+        (c / "s2.SLDASM", a / "s2.SLDASM", 1),
+        (b / "p.SLDPRT", a / "p.SLDPRT", 2),
+    ]
+    (clash,) = plan.conflicts
+    assert (clash.source, clash.destination, clash.referenced_by, clash.round) == (
+        c / "p.SLDPRT",
+        a / "p.SLDPRT",
+        (a / "s2.SLDASM",),
+        2,
+    )
+    assert clash.reason == "another planned copy has this name here"
+    (gone,) = plan.unplaced
+    assert (gone.document, gone.source, gone.name, gone.reason, gone.round) == (
+        a / "s2.SLDASM",
+        c / "s2.SLDASM",
+        "gone.SLDPRT",
+        "missing",
+        2,
+    )
+
+
+def test_pdm_check_fix_makes_the_closed_plan(capsys, tmp_path):
+    """The part of a copied sub-assembly sits a folder above its source: from the copy's
+    new folder it is outside, so the plan copies it too, and one --fix leaves nothing
+    outside and nothing to confirm."""
+    v = tmp_path / "Vault"
+    a, b = v / "Projects" / "A", v / "Projects" / "B"
+    write(b / "p.SLDPRT", part())
+    write(b / "sub" / "sub.SLDASM", assembly(["Q:\\Old\\B\\p.SLDPRT"]))
+    write(a / "asm.SLDASM", top(["Q:\\Old\\B\\sub\\sub.SLDASM"]))
+    pdm.init(v)
+    code, env = run(capsys, "pdm", "check", str(a), "--plan")
+    p = checked(env)["projects"][0]
+    assert p["plan"]["rounds"] == 2 and p["plan"]["unplaced"] == []
+    rows = {Path(c["destination"]).name: c for c in p["plan"]["copies"]}
+    assert {k: r["round"] for k, r in rows.items()} == {"sub.SLDASM": 1, "p.SLDPRT": 2}
+    assert rows["p.SLDPRT"]["referenced_by"] == [str(a / "sub.SLDASM")]
+    code, env = run(capsys, "pdm", "check", str(a), "--fix")
+    p = checked(env)["projects"][0]
+    assert sorted(Path(c["destination"]).name for c in p["fix"]["copied"]) == ["p.SLDPRT", "sub.SLDASM"]
+    assert p["fix"]["failed"] == [] and p["self_contained"]
+    assert p["counts"]["needs_confirmation"] == 0 and p["counts"]["outside"] == 0
+    assert p["plan"]["copies"] == [] and p["plan"]["unplaced"] == []

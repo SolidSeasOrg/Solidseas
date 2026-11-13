@@ -1210,9 +1210,11 @@ def check_plan_data(
             "referenced_by": [document(p) for p in c.referenced_by],
             "place": c.place,
             "item": item_of(c.source),
+            "round": c.round,
         }
 
     return {
+        "rounds": plan.rounds,
         "copies": [row(c) for c in plan.copies],
         "present": [row(c) for c in plan.present],
         "conflicts": [
@@ -1221,8 +1223,21 @@ def check_plan_data(
                 "destination": path(c.destination),
                 "referenced_by": [document(p) for p in c.referenced_by],
                 "reason": c.reason,
+                "round": c.round,
             }
             for c in plan.conflicts
+        ],
+        "unplaced": [
+            {
+                "document": document(u.document),
+                "source": path(u.source),
+                "name": u.name,
+                "reason": u.reason,
+                "round": u.round,
+                "found": None if u.found is None else path(u.found),
+                "error": u.error,
+            }
+            for u in plan.unplaced
         ],
     }
 

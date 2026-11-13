@@ -248,10 +248,11 @@ def test_check_has_the_shape_of_pdm_check_json_and_plans_without_copying(srv, li
             "referenced_by": ["Jobs/2001/asm.SLDASM"],
             "place": "other_project",
             "item": None,
+            "round": 1,
         }
     ]
     assert [c["source"] for c in cli["plan"]["copies"]] == [str(lib / "Jobs" / "2002" / "b.SLDPRT")]
-    assert plan["conflicts"] == plan["present"] == []
+    assert plan["conflicts"] == plan["present"] == plan["unplaced"] == [] and plan["rounds"] == 1
     assert not (lib / "Jobs" / "2001" / "b.SLDPRT").exists()
     no_host_paths(srv, planned.body, lib)
 

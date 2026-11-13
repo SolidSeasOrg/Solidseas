@@ -16,6 +16,14 @@ while the project takes shape.
   Check Project says it is looking for the project until it knows. A version
   restored as a new file now shows in the file list straight away.
 
+- **pdm check plans every copy a project needs in one go.** A copied sub-assembly
+  may not find its own parts from its new folder, so after one `--fix` the next
+  check used to list more copies. The plan now looks at each copy from where it will
+  be, adds what it needs beside it, and repeats until nothing more is needed (at most
+  10 rounds), so one `--fix` makes the whole set. Each planned copy says which round
+  added it and which document needs it, and anything the plan cannot place is listed
+  with the reason (`round`, `rounds` and `unplaced` in the JSON).
+
 - **pdm check searches in the order the SOLIDWORKS help gives.** The
   self-contained check now looks in the document's own folder first, then in the
   folders above it under the folders the reference was saved in, then at the saved

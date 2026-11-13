@@ -98,6 +98,38 @@ class FolderIndex:
         other.root = root
         return other
 
+    def with_files(self, files: Sequence[tuple[str, int | None, int | None]]) -> "FolderIndex":
+        """A copy of this index with ``files`` (``rel``, ``size``, ``mtime_ns``) added as if
+        the walk had found them, in folders it already holds. A copy plan uses it to ask
+        what the search would find once its planned copies exist. This index is left as
+        it is."""
+        other = FolderIndex.__new__(FolderIndex)
+        other.__dict__.update(self.__dict__)
+        other._folders = dict(self._folders)
+        other._by_name = dict(self._by_name)
+        other._by_nfc = dict(self._by_nfc)
+        copied: set[str] = set()
+        for rel, size, mtime_ns in files:
+            name = rel.rsplit("/", 1)[-1]
+            if not is_reference_name(name):
+                continue
+            folder = rel.rsplit("/", 1)[0] if "/" in rel else ""
+            if folder not in copied:
+                old = other._folders.get(folder)
+                if old is not None:
+                    other._folders[folder] = _Folder(
+                        old.dirs,
+                        old.nfc_dirs,
+                        {k: list(v) for k, v in old.files.items()},
+                        {k: list(v) for k, v in old.nfc_files.items()},
+                    )
+                copied.add(folder)
+            key, nkey = fold(name), nfc_fold(name)
+            other._by_name[key] = list(other._by_name.get(key, ()))
+            other._by_nfc[nkey] = list(other._by_nfc.get(nkey, ()))
+            other.add_file(rel, name, size, mtime_ns, False)
+        return other
+
     # ------------------------------------------------------------------ lookups
     def covers(self, host: HostPath) -> tuple[str, ...] | None:
         """The components of the folder ``host`` below this root, or None when the

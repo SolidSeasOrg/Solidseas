@@ -127,6 +127,28 @@ SOLIDWORKS tries the bare name. Each copy is a new file in the project, never on
 over an existing file, and is recorded as a library link when its source is a
 library item.
 
+The plan runs to closure (`plan_copies`, bead SolidSeas-lu3y.18). A copy that is a
+document, such as a sub-assembly, has references of its own, and from its new folder
+the search may not find them where it found them from the source's folder: on a real
+library 6 of 20 copies were sub-assemblies whose parts were then found only by the
+bare name one folder above. So each planned copy is read from its source and its
+references are searched for as if it already sat at its destination, by the same
+documented search, over the real files plus every copy planned so far (a planned
+copy counts as a file at its destination with its source's identity). What it needs
+is planned beside it in the next round. Rounds repeat until one adds nothing, at most
+10 (`MAX_ROUNDS`). Each copy records its `round` (1 for the project's own documents)
+and its `referenced_by`, which from round 2 on are planned copies at their
+destinations; conflicts carry their round too. A reference of a planned copy that no
+copy can place is listed in `unplaced` with a reason: `missing`,
+`different_document` or `ambiguous` (the check's result from the copy's
+destination), `unreadable` (the source could not be read) or `round_limit` (a copy
+would be needed past the last round). `pdm check --fix` makes the whole set and
+checks the project again.
+
+A project document that was missing a reference may find one of the new copies in a
+folder above it once the copies are made; the plan does not search the project's own
+documents again for that.
+
 ## 6. The common-parts library
 
 - `pdm library candidates` lists documents whose identical content sits in two or more projects, most widely shared first. Toolbox parts and parts already in the library are excluded.

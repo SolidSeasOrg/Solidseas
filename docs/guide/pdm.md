@@ -147,8 +147,14 @@ solidseas pdm check D:\CAD\Jobs\1042 --fix
 `--plan` lists the copies that would make the project self-contained: each file found
 outside, or only by a search to confirm, goes beside each document that uses it,
 because the document's own folder is the only one where SOLIDWORKS looks for the
-file by its name alone. `--fix` makes those copies and checks the
-project again. A copy is always a new file. When a file of that name is already
+file by its name alone. A copied sub-assembly has parts of its own, and from its new
+folder it may not find them where it did before, so the plan also looks at each copy
+from where it will be and adds what it needs beside it, and again for those, until
+nothing more is needed (at most 10 rounds). Each copy in the plan says which round
+added it and which document needs it, and anything the plan cannot place (not
+found, another document of that name in the way, or past the last round) is listed.
+`--fix` makes the whole set of copies at once and checks the project again. A copy
+is always a new file. When a file of that name is already
 there, nothing is copied and `check` says why. A file copied from the library is
 remembered as a copy of that library item, so `pdm library updates` can tell you
 when the library part changes. Add `--copy-toolbox` when this installation does not
