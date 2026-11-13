@@ -8,6 +8,14 @@ while the project takes shape.
 
 ### Changed
 
+- **pdm check --plan accounts for the project's own documents finding the new
+  copies.** A document in a subfolder that was missing a part may find the copy
+  planned for another assembly in a folder above it, which SOLIDWORKS may not do.
+  The plan now searches the project's documents again over the planned copies and
+  copies the part beside that document too, so one `pdm check --fix` leaves nothing
+  to confirm. A document that would then reach a planned copy made as another
+  document is listed as not placed, so you see it before copying.
+
 - **A library's first pdm scan is much faster.** A check-in or scan of many new
   files now writes them to disk in batches instead of waiting for the disk after
   every file, and copies several files at once. A first scan of 30,000 files took

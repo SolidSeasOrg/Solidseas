@@ -39,8 +39,11 @@ Each reference gets one :class:`Finding`, with one of :data:`RESULTS`:
 :func:`plan_copies` lists the copies that would make the project self-contained.
 It plans to closure: a planned copy that is a document has its own references
 searched for from its destination, over the real files and the copies planned so
-far, and what it needs is planned beside it, round after round. It plans only:
-nothing here writes a file.
+far, and what it needs is planned beside it, round after round. After each round the
+project's own documents that refer to a file of the name of a new copy are searched
+again over the planned copies, because a reference that was missing, or found
+further away, may then reach one of them first. It plans only: nothing here writes a
+file.
 
 Nothing here has been tried in SOLIDWORKS itself: the order is the help topic's.
 
@@ -162,7 +165,8 @@ class PlannedCopy:
     documents in ``referenced_by``. ``place`` is where the source is (:data:`PLACES`).
     ``round`` is the round of the plan that needed it: 1 for the project's own
     documents, 2 and on for the references of copies planned in the round before, which
-    are then the ``referenced_by``, at their destinations."""
+    are then the ``referenced_by``, at their destinations, and for the project's own
+    documents that reach one of those copies when searched again."""
 
     source: Path
     destination: Path
@@ -192,7 +196,11 @@ class Unplaced:
     from the copy's destination, ``unreadable`` means the source could not be read
     (``error`` names the exception, and ``name`` is None), and ``round_limit`` means
     the copy ``found`` would be needed in a round past the limit. ``round`` is the
-    round in which a copy would have placed it."""
+    round in which a copy would have placed it.
+
+    A project document whose reference changes for the worse once copies are planned
+    (it then reaches a planned copy made as another document, say) is listed the same
+    way, with ``document`` and ``source`` both the document itself."""
 
     document: Path
     source: Path
@@ -469,6 +477,16 @@ class _Planner:
         self.roots = _roots(result.project, result.library)
         self._cache = IndexCache()
         self._index: FolderIndex | None = None
+        # The project's own documents, with the names they refer to on disk, and the
+        # last result of each of their references: searched again only when a copy of
+        # one of those names is planned, and acted on only when the result changes.
+        self._refers: dict[str, tuple[Path, set[str]]] = {}
+        self._last: dict[tuple[str, str], tuple[str, str | None]] = {}
+        for f in result.findings:
+            k = _key(f.document)
+            self._last[(k, f.key)] = (f.result, _key(f.found) if f.found is not None else None)
+            if f.result != "inside_parent" and f.file_name:
+                self._refers.setdefault(k, (f.document, set()))[1].add(fold(f.file_name))
 
     def add(self, needs: list[_Need], round_: int) -> list[_Copy]:
         """Plan ``needs``, once per source and destination; returns the copies new in this
@@ -543,22 +561,51 @@ class _Planner:
                 )
                 continue
             for f in found:
-                if _needs_copy(f, res.copy_toolbox) and f.found is not None:
-                    other = self.copies.get(_key(f.found))  # found as a planned copy: copy its source
-                    source = f.found if other is None else other.source
-                    place = f.place if other is None else other.place
-                    out.append(_Need(source, c.destination.parent / f.found.name, c.destination, place))
-                elif f.result in ("missing", "different_document", "ambiguous") or (
-                    f.result == "toolbox" and f.found is None and res.copy_toolbox
-                ):
-                    reason = "missing" if f.result == "toolbox" else f.result
-                    self.unplaced.append(
-                        Unplaced(c.destination, c.source, f.file_name or f.key, reason, round_, f.found)
-                    )
+                self._follow(f, c.destination, c.source, round_, out)
+        self._search_project_again(copies, round_, cache, gateway, out)
         for k, index in cache.indexes.items():
             if k != key:
                 self._cache.indexes.setdefault(k, index)
         return out
+
+    def _follow(self, f: Finding, user: Path, source: Path, round_: int, out: list[_Need]) -> None:
+        """Plan what ``f``, a reference of ``user`` read from ``source``, needs beside
+        ``user``, or list it in ``unplaced`` when no copy can place it."""
+        copy_toolbox = self.result.copy_toolbox
+        if _needs_copy(f, copy_toolbox) and f.found is not None:
+            other = self.copies.get(_key(f.found))  # found as a planned copy: copy its source
+            src = f.found if other is None else other.source
+            place = f.place if other is None else other.place
+            out.append(_Need(src, user.parent / f.found.name, user, place))
+        elif f.result in ("missing", "different_document", "ambiguous") or (
+            f.result == "toolbox" and f.found is None and copy_toolbox
+        ):
+            reason = "missing" if f.result == "toolbox" else f.result
+            self.unplaced.append(Unplaced(user, source, f.file_name or f.key, reason, round_, f.found))
+
+    def _search_project_again(
+        self, copies: list[_Copy], round_: int, cache: IndexCache, gateway: Gateway, out: list[_Need]
+    ) -> None:
+        """Search the references of the project's own documents again over the planned
+        copies, for each document that refers to a file of the name of one of ``copies``.
+        A reference whose result changes is followed as a planned copy's is: a copy it now
+        finds only by the bare name above is planned beside it, and another document it
+        now reaches first is listed in ``unplaced``."""
+        names = {fold(c.destination.name) for c in copies}
+        res = self.result
+        for k, (doc, refers) in self._refers.items():
+            if not refers & names:
+                continue
+            try:
+                found = _check_document(doc, doc, res.project, res.library, self.roots, cache, gateway)
+            except (OSError, SolidSeasError):  # the check read it once; it lists it if not
+                continue
+            for f in found:
+                now = (f.result, _key(f.found) if f.found is not None else None)
+                if self._last.get((k, f.key)) == now:
+                    continue
+                self._last[(k, f.key)] = now
+                self._follow(f, doc, doc, round_, out)
 
 
 def plan_copies(result: CheckResult, *, max_rounds: int = MAX_ROUNDS) -> CopyPlan:
@@ -578,7 +625,14 @@ def plan_copies(result: CheckResult, *, max_rounds: int = MAX_ROUNDS) -> CopyPla
     is planned beside it in the next round. That repeats until a round adds nothing,
     for at most ``max_rounds`` rounds. Each copy records the round that planned it,
     and a later round's ``referenced_by`` are the planned copies that need it. What
-    no copy can place is listed in ``unplaced``. Reads documents, writes nothing."""
+    no copy can place is listed in ``unplaced``.
+
+    After each round, the project's own documents that refer to a file of the name of
+    a copy planned in it are searched again over the copies planned so far. A
+    reference that was missing may then find a copy as the bare name in a folder
+    above, and gets a copy of its own beside the document in the next round; one that
+    now reaches a copy made as another document is listed in ``unplaced``. Reads
+    documents, writes nothing."""
     if max_rounds < 1:
         raise ValueError("max_rounds is at least 1")
     planner = _Planner(result)

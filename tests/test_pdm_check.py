@@ -727,3 +727,70 @@ def test_pdm_check_fix_makes_the_closed_plan(capsys, tmp_path):
     assert p["fix"]["failed"] == [] and p["self_contained"]
     assert p["counts"]["needs_confirmation"] == 0 and p["counts"]["outside"] == 0
     assert p["plan"]["copies"] == [] and p["plan"]["unplaced"] == []
+
+
+# --------------------------------------------------------------------------- the project searched again
+def test_a_project_document_missing_a_file_finds_a_planned_copy_above_and_gets_its_own(tmp_path):
+    """The assembly in a subfolder misses a part that the top assembly finds in the
+    neighbouring project. Once that part is planned beside the top assembly, the one
+    below would find it only as the bare name in a folder above, so the plan copies it
+    beside that one too, in the next round, and one pass of copies leaves nothing to do."""
+    projects = tmp_path / "Projects"
+    a, b = projects / "A", projects / "B"
+    write(b / "x.SLDPRT", part())
+    write(a / "asm.SLDASM", assembly(["Q:\\Old\\B\\x.SLDPRT"]))
+    write(a / "sub" / "asm2.SLDASM", assembly(["Q:\\Z\\x.SLDPRT"]))
+    res = check_project(a)
+    f = by_name(res)
+    assert f["asm.SLDASM", "x.SLDPRT"].result == "outside"
+    assert f["asm2.SLDASM", "x.SLDPRT"].result == "missing"
+    plan = plan_copies(res)
+    assert [(c.source, c.destination, c.round, c.referenced_by, c.place) for c in plan.copies] == [
+        (b / "x.SLDPRT", a / "x.SLDPRT", 1, (a / "asm.SLDASM",), "other_project"),
+        (b / "x.SLDPRT", a / "sub" / "x.SLDPRT", 2, (a / "sub" / "asm2.SLDASM",), "other_project"),
+    ]
+    assert plan.rounds == 2 and plan.unplaced == () and plan.conflicts == ()
+    # one round only: the second copy is past the limit, and the plan says so
+    (u,) = plan_copies(res, max_rounds=1).unplaced
+    assert (u.document, u.source, u.name, u.reason, u.round, u.found) == (
+        a / "sub" / "asm2.SLDASM",
+        b / "x.SLDPRT",
+        "x.SLDPRT",
+        "round_limit",
+        2,
+        b / "x.SLDPRT",
+    )
+    make(plan)
+    after = check_project(a)
+    assert after.self_contained and plan_copies(after).copies == ()
+
+
+def test_a_project_document_that_would_reach_another_document_as_a_planned_copy_is_reported(tmp_path):
+    """The assembly below stores the part under a folder the top assembly's copy will
+    sit in, but made as another document. Once the copy is planned, SOLIDWORKS'
+    documented search reaches it first, so the plan lists the reference as unplaced
+    instead of leaving it as plain missing."""
+    projects = tmp_path / "Projects"
+    a, b = projects / "A", projects / "B"
+    write(b / "x.SLDPRT", part(OTHER))
+    write(a / "asm.SLDASM", top(["Q:\\Old\\B\\x.SLDPRT"]))  # no creation time: taken as found
+    write(a / "sub" / "asm2.SLDASM", assembly(["Q:\\Old\\A\\x.SLDPRT"]))
+    write(a / "other" / "asm3.SLDASM", assembly(["Q:\\Old\\A\\y.SLDPRT"]))  # no name in common
+    res = check_project(a)
+    f = by_name(res)
+    assert (f["asm.SLDASM", "x.SLDPRT"].result, f["asm2.SLDASM", "x.SLDPRT"].result) == ("outside", "missing")
+    plan = plan_copies(res)
+    assert [(c.source, c.destination, c.round) for c in plan.copies] == [(b / "x.SLDPRT", a / "x.SLDPRT", 1)]
+    (u,) = plan.unplaced
+    assert (u.document, u.source, u.name, u.reason, u.round, u.found) == (
+        a / "sub" / "asm2.SLDASM",
+        a / "sub" / "asm2.SLDASM",
+        "x.SLDPRT",
+        "different_document",
+        2,
+        a / "x.SLDPRT",
+    )
+    assert plan.rounds == 1
+    make(plan)
+    w = by_name(check_project(a))["asm2.SLDASM", "x.SLDPRT"]
+    assert (w.result, w.found) == ("different_document", a / "x.SLDPRT")  # as the plan said

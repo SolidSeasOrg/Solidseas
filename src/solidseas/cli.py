@@ -3606,8 +3606,8 @@ _PLACE_WORDS = {
     "project": "in the project",
 }
 _UNPLACED_WORDS = {
-    "missing": "not found from the copy's folder",
-    "different_document": "the file found from the copy's folder is another document",
+    "missing": "not found from its folder",
+    "different_document": "the file found from its folder is another document",
     "ambiguous": "several files could be it",
     "unreadable": "the source could not be read",
     "round_limit": "the plan stopped after its last round",
@@ -3667,7 +3667,8 @@ def _pdm_check(args: argparse.Namespace) -> int:
                     _say(f"  cannot copy {c['source']}: {c['reason']}")
                 for u in plan["unplaced"]:
                     what = _UNPLACED_WORDS.get(u["reason"], u["reason"])
-                    _say(f"  not placed {u['name'] or u['source']} for the copy {u['document']}: {what}")
+                    whose = u["document"] if u["document"] == u["source"] else f"the copy {u['document']}"
+                    _say(f"  not placed {u['name'] or u['source']} for {whose}: {what}")
         if len(data["projects"]) != 1:
             _say(f"{data['self_contained']:,} of {len(data['projects']):,} projects are self-contained")
     return _pdm_done(args, vault, data, EXIT_PARTIAL if failed else EXIT_OK)

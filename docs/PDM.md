@@ -145,9 +145,16 @@ destination), `unreadable` (the source could not be read) or `round_limit` (a co
 would be needed past the last round). `pdm check --fix` makes the whole set and
 checks the project again.
 
-A project document that was missing a reference may find one of the new copies in a
-folder above it once the copies are made; the plan does not search the project's own
-documents again for that.
+The project's own documents are searched again too (bead SolidSeas-lu3y.22). A
+document whose reference was missing, or found further away, may reach one of the new
+copies first once they are made. So after each round, every project document that
+refers to a file of the name of a copy planned in that round is searched again, by
+the same search over the real files plus the planned copies, and only the references
+whose result changes are acted on. One that now finds a copy only as the bare name in
+a folder above gets a copy of its own beside the document in the next round, under
+the same round limit. One that now reaches a copy made as another document is listed
+in `unplaced` as `different_document`, with the project document as both its
+`document` and its `source`.
 
 ## 6. The common-parts library
 
