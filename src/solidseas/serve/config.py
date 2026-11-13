@@ -54,6 +54,7 @@ KEYS: dict[str, str] = {
     "allow_origins": "texts",
     "catalog": "bool",
     "catalog_rescan": "seconds",
+    "pdm": "bool",
     "formats": "formats",
     "viewer": "bool",
 }

@@ -108,6 +108,11 @@ JOB_NAMES = (
     "model_properties",
     "model_preview",
     "display_glb",
+    "pdm_status",
+    "pdm_log",
+    "pdm_version",
+    "pdm_checkins",
+    "pdm_check",
 )
 DEFAULT_JOBS: dict[str, str] = {name: f"solidseas.jobs:{name}" for name in JOB_NAMES}
 # Kinds whose job returns that kind's data, for WorkerPool.run.

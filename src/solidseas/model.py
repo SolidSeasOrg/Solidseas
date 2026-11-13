@@ -317,6 +317,8 @@ ERROR_CODES: dict[str, ErrorCode] = _codes(
     # Versions (docs/VERSIONS.md), provisional: the library and the command line, no REST route yet.
     ErrorCode("version_not_found", 404, 1, False, "The file has no version by that name."),
     ErrorCode("version_unavailable", 409, 1, False, "That version's content is not on this machine."),
+    # The PDM's service routes (docs/PDM.md), provisional: the command line says invalid_argument.
+    ErrorCode("not_a_library", 404, None, False, "The folder is not inside a PDM library."),
 )
 
 # The only keys `detail` may carry: structured facts that are safe on every surface.
@@ -2051,6 +2053,13 @@ def build_pdm_result(action: str, library: str, payload: Any) -> dict[str, Any]:
         if name != "scan":
             data[name] = None
     data["checkin" if action == "scan" else action] = payload
+    return to_json_data(data)
+
+
+def build_pdm_answer(data: Any) -> dict[str, Any]:
+    """The data of one of the service's PDM routes (provisional, ``docs/API.md`` 5.21):
+    ``pdm_status``, ``pdm_log``, ``pdm_checkins``, ``pdm_check`` or ``pdm_version``, as
+    the worker built it from the vault, every path relative to the root."""
     return to_json_data(data)
 
 
@@ -4365,6 +4374,116 @@ _PDM_SCHEMA = _obj(
 )
 
 
+# The service's PDM routes (provisional, docs/API.md 5.21): every path relative to the root.
+_PDM_LIBRARY = {
+    "type": ["string", "null"],
+    "description": "The library folder relative to the root (empty: the root itself); null when it "
+    "lies above the root.",
+}
+_PDM_STATUS_SCHEMA = _obj(
+    {
+        "library": _PDM_LIBRARY,
+        "scope": _STR,
+        "counts": _PDM_COUNTS,
+        "hashed": _INT,
+        "files": _PDM_SCHEMA["properties"]["status"]["properties"]["files"],
+        "skipped": _PDM_SKIPPED,
+    }
+)
+_PDM_LOG_SCHEMA = _obj(
+    {
+        "library": _PDM_LIBRARY,
+        "path": _STR,
+        "name": _STR,
+        "working": _PDM_SCHEMA["properties"]["log"]["properties"]["working"],
+        "git": _obj({"branch": _STR_N, "head": _STR_N}, nullable=True),
+        "versions": _PDM_SCHEMA["properties"]["log"]["properties"]["versions"],
+        "warnings": _arr(_ref("warning")),
+    }
+)
+_PDM_VERSION_SCHEMA = _obj(
+    {
+        "library": _PDM_LIBRARY,
+        "path": _STR,
+        "name": _STR,
+        **{k: v for k, v in _PDM_SCHEMA["properties"]["show"]["properties"].items() if k != "file"},
+    }
+)
+_PDM_CHECKINS_SCHEMA = _obj(
+    {
+        "library": _PDM_LIBRARY,
+        "scope": _STR,
+        "scans": _BOOL,
+        "checkins": _arr(
+            _obj(
+                {
+                    **_DEFS["checkin_brief"]["properties"],
+                    "files_total": _INT,
+                    "files_truncated": _BOOL,
+                    "files": _arr(
+                        _obj(
+                            {
+                                "path": _STR,
+                                "sha256": _SHA256_N,
+                                "size": _INT_N,
+                                "version": _STR_N,
+                                "new": _BOOL,
+                                "removed": _BOOL,
+                            }
+                        )
+                    ),
+                }
+            )
+        ),
+        "next_cursor": _STR_N,
+    }
+)
+_PDM_PLACE = _obj(
+    {"root": _STR, "path": _STR},
+    nullable=True,
+    description="A file or folder in one of the service's roots; null when it is in none of them.",
+)
+_PDM_CHECK_SCHEMA = _obj(
+    {
+        "library": _PDM_LIBRARY,
+        "project": _obj({"path": _STR, "name": _STR, "section": _STR, "archived": _BOOL}),
+        "copy_toolbox": _BOOL,
+        "documents": _INT,
+        "self_contained": _BOOL,
+        "problems": _INT,
+        "counts": {"type": "object", "additionalProperties": _INT},
+        "findings": _arr(
+            _obj(
+                {
+                    "document": _STR,
+                    "key": _STR,
+                    "stored_path": _STR_N,
+                    "file_name": _STR_N,
+                    "relation": _STR_N,
+                    "result": {
+                        "type": "string",
+                        "description": "ok, outside, toolbox, inside_parent, missing, different_document "
+                        "or ambiguous (an open set)",
+                    },
+                    "problem": _BOOL,
+                    "found": _PDM_PLACE,
+                    "found_in": _PDM_PLACE,
+                    "outside_roots": _BOOL,
+                    "place": _STR_N,
+                    "status": _STR,
+                    "rule": _STR_N,
+                    "identity": _STR,
+                    "searched": _BOOL,
+                    "toolbox": _BOOL,
+                    "warnings": _arr(_STR),
+                }
+            )
+        ),
+        "unreadable": _arr(_obj({"path": _STR, "exception": _STR})),
+    }
+)
+
+
 @dataclass(frozen=True)
 class KindSpec:
     """One JSON kind: the shape of ``data`` in an envelope with this ``kind``."""
@@ -4716,6 +4835,51 @@ KINDS: dict[str, KindSpec] = {
             ("pdm",),
             None,
         ),
+        _kind(
+            "pdm_status",
+            "SolidSeas PDM status",
+            _PDM_STATUS_SCHEMA,
+            (),
+            build_pdm_answer,
+            (),
+            "/v1/pdm/status",
+        ),
+        _kind(
+            "pdm_log",
+            "SolidSeas PDM file history",
+            _PDM_LOG_SCHEMA,
+            ("checkin_brief", "warning"),
+            build_pdm_answer,
+            (),
+            "/v1/pdm/log",
+        ),
+        _kind(
+            "pdm_checkins",
+            "SolidSeas PDM check-ins",
+            _PDM_CHECKINS_SCHEMA,
+            (),
+            build_pdm_answer,
+            (),
+            "/v1/pdm/checkins",
+        ),
+        _kind(
+            "pdm_check",
+            "SolidSeas PDM project check",
+            _PDM_CHECK_SCHEMA,
+            (),
+            build_pdm_answer,
+            (),
+            "/v1/pdm/check",
+        ),
+        _kind(
+            "pdm_version",
+            "SolidSeas PDM version",
+            _PDM_VERSION_SCHEMA,
+            ("version", "document_brief", "property", "geometry_summary", "warning"),
+            build_pdm_answer,
+            (),
+            "/v1/pdm/version",
+        ),
         _kind("error", "SolidSeas error", _ERROR_SCHEMA, (), error_info, (), None),
     )
 }
@@ -4806,6 +4970,7 @@ __all__ = [
     "build_snapshot_taken",
     "build_streams",
     "build_version",
+    "build_pdm_answer",
     "build_pdm_result",
     "build_version_diff",
     "clean_text",

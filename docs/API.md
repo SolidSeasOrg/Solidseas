@@ -5190,6 +5190,10 @@ lib.update(project, item, force=False)            # the library_update part
   (`pdm.check.is_toolbox_path`) and content a file in the library section has are
   left out.
 
+- **Over the service.** `serve --pdm` and `mcp --pdm` answer status, a file's log, one
+  version, the recent check-ins and a project's check, read-only, with every path
+  relative to the root (8.6, kinds in 5.21).
+
 ## 4. JSON encoding
 
 ### 4.1 Envelope
@@ -5276,6 +5280,11 @@ renaming or retyping one, or changing its meaning, does. The API version is 1.
 | `snapshot_taken` | 1 | built, provisional | `snapshot` | |
 | `version_diff` | 1 | built, provisional | `diff` | |
 | `pdm_result` | 1 | built, provisional | `pdm` (every action) | |
+| `pdm_status` | 1 | built, provisional | | `/v1/pdm/status` |
+| `pdm_log` | 1 | built, provisional | | `/v1/pdm/log` |
+| `pdm_version` | 1 | built, provisional | | `/v1/pdm/version` |
+| `pdm_checkins` | 1 | built, provisional | | `/v1/pdm/checkins` |
+| `pdm_check` | 1 | built, provisional | | `/v1/pdm/check` |
 
 `/v1/preview` is the one route that answers with an image instead of a kind.
 `model_summary` stands in for `document_summary` on `info` and `/v1/document`
@@ -5467,12 +5476,18 @@ The codes are in section 3.5.
 | `drawing_released` | | 3 | no |
 | `version_not_found` | 404 | 1 | no |
 | `version_unavailable` | 409 | 1 | no |
+| `not_a_library` | 404 | | no |
 
 The two version codes (3.26, provisional) come from the library and the command
 line; the service has no versions route yet. `version_not_found`: a version name
 (`working`, `latest`, `vN`, an id) that names none of the file's versions, or a
 comparison of a file with fewer than two. `version_unavailable`: the version's
-content is not on this machine (`detail.rule` says why); nothing is fetched.
+content is not on this machine (`detail.rule` says why); nothing is fetched. The
+service's PDM routes (5.21, provisional) answer them too.
+
+`not_a_library` comes only from the service's PDM routes (8.6): the path is in no
+PDM library, at the root, above it or inside it. The command line says
+`invalid_argument` with rule `not_a_library` for the same case.
 
 `quarantined` is in the table because the catalog uses it as a file's state (a
 file that stopped a worker twice is set aside until it changes, 3.18): no route
@@ -6357,6 +6372,32 @@ path it was copied from, or null) and `first_version`. A version is `id`, `numbe
 | `library_updates` | `scope` (the project, or null), `counts` (`current`, `behind`, `edited`, `gone`, `unknown_item`), `links` that need a look (all with `--all`): `item`, `description`, `project`, `path`, `copied_utc`, `version` and `number` (copied), `newest` and `newest_number` (null when the item's file changed since its newest version), `item_changed`, `behind`, `copy` (`unchanged`, `edited` or `gone`), `sha256` |
 | `library_update` | `item`, `project`, `version`, `copies` (`path`, `copy`, `written`, `stored_first`, `link`), `checkin` |
 
+### 5.21 The service's PDM kinds (v1, provisional)
+
+What the PDM routes answer (`serve --pdm`, 8.6). They hold what the matching parts of
+`pdm_result` hold, with every path relative to the root instead of the library and no
+path of the server's own. Each has `library`: the library's folder relative to the
+root (empty when it is the root), or null when it lies above the root.
+
+| Kind | Fields |
+|---|---|
+| `pdm_status` | `library`, `scope` (the folder or file asked for), `counts`, `hashed`, `files` and `skipped`, as `pdm_result`'s `status`. Files of the vault outside the root are left out |
+| `pdm_log` | `library`, `path`, `name`, `working`, `git` (`branch` and `head`, or null), `versions` and `warnings`, as `pdm_result`'s `log`. A warning whose text names a folder on the server has that text replaced |
+| `pdm_version` | `library`, `path`, `name`, `source` (`vault` or `git`, as asked), `version`, `document`, `properties`, `configurations`, `geometry` and `warnings`, as `pdm_result`'s `show` |
+| `pdm_checkins` | `library`, `scope`, `scans`, `checkins` newest first (`id`, `when_utc`, `note`, `who`, `revision`, `state`, `auto`, `files_total`, `files_truncated`, and `files`: `path`, `sha256`, `size`, `version`, `new`, `removed`, at most 100), `next_cursor` |
+| `pdm_check` | `library`, `project` (`path`, `name`, `section`, `archived`), `copy_toolbox`, `documents`, `self_contained`, `problems`, `counts` (per result), `findings` and `unreadable` (`path`, `exception`) |
+
+Each finding of `pdm_check` is one reference of one document (`docs/PDM.md` 5):
+`document`, `key`, `stored_path`, `file_name`, `relation` (a part's `base_part`,
+`mirrored_part`, `in_context`, `import_source` or `external`, else null), `result`
+(`ok`, `outside`, `toolbox`, `inside_parent`, `missing`, `different_document`,
+`ambiguous`; an open set), `problem` (it keeps the project from being
+self-contained), `found` and `found_in` (`{"root", "path"}` in one of the service's
+roots, or null), `outside_roots` (found, but outside every root, so not named),
+`place` (`project`, `library`, `other_project` or `elsewhere`), `status`, `rule`,
+`identity`, `searched` (one of SOLIDWORKS' own search rules found it), `toolbox` and
+`warnings` (codes).
+
 ## 6. Reading the JSON in JavaScript and TypeScript
 
 `JSON.parse` turns every number into a double, which keeps an integer exactly
@@ -6439,8 +6480,8 @@ it.
 | `sldprt DESIGN` | `-o FILE` (or a folder that exists; default: the design's name with `.SLDPRT` in the current folder), `--allow-partial`, `--property NAME=VALUE` (repeatable), `--allow-source-dir`; never replaces a file, so no `--force` | `sldprt_written` (provisional) |
 | `list FOLDER` | `--formats solidworks\|all\|IDS` (default `solidworks`), `--recursive`, `--include properties,configurations`, `--preview none`, `meta` (default) or `inline`, `--max-depth N`, `--limit N`, `--max-examined N`, `--timeout SECONDS`, `--file-timeout SECONDS` (default 30), `--memory-mb N` (default 2048), `--in-process` | `listing` |
 | `batch FOLDER -o DIR` | `--no-recurse`, `--no-preview`, `--no-parasolid`, `--text`, `--configuration NAME`, `--allow-partial`, `--other-configurations` and `--include-hidden` (assemblies), `--max-mb N`, `--jobs N` (1 to 64, default 1), `--file-timeout SECONDS` (default 300), `--memory-mb N` (default 2048), `--in-process`, `--max-examined N`, `--force`, `--allow-source-dir` | `batch_summary` |
-| `serve` | `--root ID=DIR` (repeatable), `--library ID=DIR`, `--port N` (default 8765; 0 picks a free port), `--bind ADDRESS` (default 127.0.0.1), `--token-file PATH`, `--identity-key-file PATH`, `--workers N`, `--allow-remote`, `--allowed-host NAME`, `--identity-address ADDRESS:PORT` (repeatable), `--allow-origin ORIGIN` (repeatable), `--config FILE`, `--viewer`, `--catalog`, `--catalog-rescan SECONDS` (default 300), `--formats solidworks\|all\|IDS` (default `solidworks`) | `serve_started`, one compact line when it is ready; then it serves until stopped (section 8) |
-| `mcp` | `--root ID=DIR` (repeatable), `--library ID=DIR`, `--workers N` (default 2), `--catalog` | none: standard output carries the Model Context Protocol until the app closes standard input (8.20, `docs/MCP.md`) |
+| `serve` | `--root ID=DIR` (repeatable), `--library ID=DIR`, `--port N` (default 8765; 0 picks a free port), `--bind ADDRESS` (default 127.0.0.1), `--token-file PATH`, `--identity-key-file PATH`, `--workers N`, `--allow-remote`, `--allowed-host NAME`, `--identity-address ADDRESS:PORT` (repeatable), `--allow-origin ORIGIN` (repeatable), `--config FILE`, `--viewer`, `--catalog`, `--catalog-rescan SECONDS` (default 300), `--pdm`, `--formats solidworks\|all\|IDS` (default `solidworks`) | `serve_started`, one compact line when it is ready; then it serves until stopped (section 8) |
+| `mcp` | `--root ID=DIR` (repeatable), `--library ID=DIR`, `--workers N` (default 2), `--catalog`, `--pdm` | none: standard output carries the Model Context Protocol until the app closes standard input (8.20, `docs/MCP.md`) |
 | `index FOLDER...` | `--root ID=DIR`, `--library DIR` or `ID=DIR` (each repeatable), `--catalog NAME`, `--db FILE` or `--in-project`, `--formats IDS`, `--hash all\|duplicates\|none`, `--no-previews`, `--verify`, `--part-number-property NAME`, `--workers N` (default 2), `--file-timeout SECONDS` (default 30), `--timeout SECONDS` | `catalog_scan` (provisional) |
 | `where-used FILE` | `--configuration NAME`, `--direct`, `--max-depth N` (default 32), `--catalog NAME`, `--db FILE` or `--in-project` | `where_used` (provisional) |
 | `search TEXT...` | `--sort relevance\|name\|modified`, `--limit N` (1 to 500, default 100), `--cursor C`, `--catalog NAME`, `--db FILE` or `--in-project` | `catalog_search` (provisional) |
@@ -6797,7 +6838,7 @@ solidseas serve [--config FILE] --root ID=DIR [--root ID=DIR ...] [--library ID=
                 [--port 8765] [--bind 127.0.0.1] [--token-file PATH] [--identity-key-file PATH]
                 [--workers N] [--allow-remote --allowed-host NAME ...]
                 [--identity-address ADDRESS:PORT ...] [--allow-origin ORIGIN ...]
-                [--catalog [--catalog-rescan SECONDS]] [--viewer] [--json]
+                [--catalog [--catalog-rescan SECONDS]] [--pdm] [--viewer] [--json]
 ```
 
 - `--config` reads these settings from a TOML file, and an option given on
@@ -7090,6 +7131,11 @@ as HTTP/1.1 with every header of 8.11, and the connection is closed.
 | `/v1/duplicates` | `names`, `limit` (1 to 500, default 100), `cursor` | `duplicates` (provisional) | 5 s | 1 MiB |
 | `/v1/missing` | `limit` (1 to 500, default 100), `cursor` | `missing_references` (provisional) | 5 s | 1 MiB |
 | `/v1/changes` | `since` (`7d`, `12h`, `2w` or a date), `limit` (1 to 500, default 100), `cursor` | `catalog_changes` (provisional) | 5 s | 1 MiB |
+| `/v1/pdm/status` | `root`\*, `path` (a folder or one file; the root when left out), `unchanged` | `pdm_status` (provisional) | 60 s | 8 MiB |
+| `/v1/pdm/log` | `root`\*, `path`\* (a file, which may be gone) | `pdm_log` (provisional) | 60 s | 8 MiB |
+| `/v1/pdm/version` | `root`\*, `path`\*, `version`\* (`v1`, `latest`, `working` or an id), `source` (`vault` or `git`) | `pdm_version` (provisional) | 60 s | 8 MiB |
+| `/v1/pdm/checkins` | `root`\*, `path` (a folder), `scans`, `limit` (1 to 500, default 50), `cursor` | `pdm_checkins` (provisional) | 60 s | 8 MiB |
+| `/v1/pdm/check` | `root`\*, `path` (a project folder or a folder in one), `copy_toolbox` | `pdm_check` (provisional) | 180 s | 8 MiB |
 
 - `source` in the envelope is `{"root", "path"}`, the path in its on-disk
   spelling, plus `nested` when it was given. An error envelope's `source` names
@@ -7166,6 +7212,32 @@ as HTTP/1.1 with every header of 8.11, and the connection is closed.
   answer. A page of `/v1/duplicates`, `/v1/missing` or `/v1/changes` over the
   size cap holds fewer rows than `limit`, and its `next_cursor` goes on from
   the last row it holds. The ETag is taken from the answer.
+- **The PDM routes** (`/v1/pdm/...`, provisional) answer only when the service runs
+  with `--pdm` (`pdm = true` in the configuration file; 403 `feature_disabled`
+  otherwise). They are off by default, like the catalog, because they send what the
+  files alone do not: the notes, revisions and names of check-ins, and the facts of
+  earlier versions of a file, including files deleted since. Each reads the vault of
+  the PDM library (3.29) that holds the requested path, which may be the root, a
+  folder above it (the root is a project of a larger library) or a folder inside it,
+  in a worker with the route's deadline; nothing is written. A path in no library
+  answers 404 `not_a_library`, and a root served without its subfolders 400
+  `invalid_argument` (rule `flat_root`). Every path in an answer is relative to the
+  root: the vault's files outside the root are left out, and so is a check-in that
+  names no file below the folder asked for. A file name is checked as text and its
+  folder found as for any route (8.5), so a file that is gone still has its log and
+  versions; the vault decides which files it tracks (400 `invalid_argument`, rule
+  `not_tracked`, for another), and a link is refused. `/v1/pdm/checkins` leaves the
+  automatic scans out unless `scans` is given, lists at most 100 files of each
+  check-in (`files_total` counts them), and a page over the size cap holds fewer
+  check-ins, its `next_cursor` going on from there. `/v1/pdm/check` checks the
+  project that holds the folder (400 `invalid_argument`, rule `not_a_project`, for a
+  folder in none; 403 `path_refused`, rule `project_outside_root`, when the root lies
+  inside the project). It reads every document of the project read-only and resolves
+  each reference the way SOLIDWORKS searches, from the document's folder up past the
+  project (`docs/PDM.md` 5), so it looks at folders above the root; a file it finds
+  is named by root and path only when it lies in one of the service's roots, and
+  otherwise only `outside_roots` says it was found. The ETag is taken from the
+  answer.
 - **`/v1/mesh`** (provisional) answers the GLB of 3.28: what the document
   shows, from the display data it stores, read in a worker that opens no other
   file. A GLB is served only after the service checked its frame itself
@@ -7875,6 +7947,7 @@ std = "/srv/cad/library"
 | `catalog_rescan` | seconds, above 0 | `--catalog-rescan` |
 | `formats` | text, or a list of format ids | `--formats` |
 | `viewer` | `true` or `false` | `--viewer` |
+| `pdm` | `true` or `false` | `--pdm` |
 
 - A path that is not absolute is taken from the file's own folder.
 - An option given on the command line replaces that setting of the file, and
@@ -7997,8 +8070,9 @@ input and output, with no port and no token. Each tool is one route of 8.6, its 
 that route's parameters with the same bounds, and its answer the route's envelope, made by
 the same code (`Server` built with `listen=False`): the same roots and root-relative paths,
 the same refusals of 8.5, the same worker processes, deadlines and size caps. The machine
-policy's `LocalProviderOnly` makes every tool refuse. `docs/MCP.md`, "Reading your CAD files
-from any MCP app", has the tools, how to set an app up and what reaches the app's model.
+policy's `LocalProviderOnly` makes every tool refuse. With `--pdm` it adds the PDM routes'
+tools, as `serve --pdm` adds the routes. `docs/MCP.md`, "Reading your CAD files from any MCP
+app", has the tools, how to set an app up and what reaches the app's model.
 
 ## 9. Stability policy and deprecations
 
@@ -8064,6 +8138,9 @@ provisional item can change at any commit. It is:
   `no_free_worker`, `not_a_catalog`, `too_new`, `damaged` and
   `unexpected_schema`; and the warning
   codes `cycle`, `low_confidence`, `quantity_unknown` and `unread_documents`.
+- The PDM over the service: the routes `/v1/pdm/status`, `/v1/pdm/log`,
+  `/v1/pdm/version`, `/v1/pdm/checkins` and `/v1/pdm/check` with `serve --pdm` and
+  `mcp --pdm`, their kinds (5.21), their MCP tools and the error code `not_a_library`.
 - Model files (3.20) and rendered previews (3.21), while they are new: the
   modules `solidseas.formats` (but `solidseas.formats.solidworks`),
   `solidseas.formats.registry`, `base`, `limits`, `_source` and `stl`, and

@@ -37,7 +37,7 @@ from serve_support import (
     status_of,
     wait_for,
 )
-from solidseas import Root, Roots, cli, open_document
+from solidseas import Root, Roots, cli, open_document, pdm
 from solidseas import walk as walk_mod
 from solidseas.errors import (
     BindRefusedError,
@@ -1869,6 +1869,11 @@ ROUTE_MIX = [
     ("duplicates", {"names": "1"}),
     ("missing", {}),
     ("changes", {"since": "1d"}),
+    ("pdm/status", {"root": "lib"}),
+    ("pdm/log", {"root": "lib", "path": "Jobs/1/o02_boxA.SLDPRT"}),
+    ("pdm/version", {"root": "lib", "path": "Jobs/1/o02_boxA.SLDPRT", "version": "v1"}),
+    ("pdm/checkins", {"root": "lib"}),
+    ("pdm/check", {"root": "lib", "path": "Jobs/1"}),
 ]
 
 
@@ -1885,6 +1890,13 @@ def test_the_server_process_never_opens_a_document(tree, monkeypatch):
         opened.append((threading.current_thread().name, os.fspath(path)))
         return real(path, **kwargs)
 
+    library = tree / "pdm-library"  # a PDM library with a version of each document (--pdm)
+    if not library.exists():
+        project = library / "Jobs" / "1"
+        project.mkdir(parents=True)
+        for name in NATIVE:
+            shutil.copy2(fixture_path(name), project / name)
+        pdm.init(library).checkin([project], "first")
     monkeypatch.setattr(container, "open_readonly", record)
     monkeypatch.setattr(listing_mod, "open_readonly", record)
     control = threading.Thread(target=lambda: open_document(O02).close(), name="control-thread")
@@ -1892,7 +1904,8 @@ def test_the_server_process_never_opens_a_document(tree, monkeypatch):
     control.join(30)
     assert opened == [("control-thread", str(O02))]  # control: an open in this process is seen
     opened.clear()
-    running = Running({"jobs": tree / "jobs"}, workers=1, catalog=True)  # its scans read in workers too
+    # the catalog's scans read in workers too, and so do the PDM routes
+    running = Running({"jobs": tree / "jobs", "lib": library}, workers=1, catalog=True, pdm=True)
     try:
         assert wait_for(lambda: running.server._catalog_path is not None, 120)
         reads_nothing = {"health", "identity", "version", "roots", "openapi.json"}

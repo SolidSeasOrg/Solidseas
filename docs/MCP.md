@@ -13,12 +13,12 @@ SolidSeas works with Claude Desktop, Claude Code and any other app that adds ser
 `solidseas mcp` gives a chat the reads of the REST service (`docs/API.md` section 8) over
 the folders you name: a folder's documents, a document's summary, custom properties,
 configurations, components, references, bill of materials, path report and stored preview,
-and with `--catalog` search, where-used, duplicates, missing references and recent changes.
-Every answer is the JSON the REST service, the command line and Python give for the same
+with `--catalog` search, where-used, duplicates, missing references and recent changes, and
+with `--pdm` the history a PDM library keeps of the files. Every answer is the JSON the REST service, the command line and Python give for the same
 request.
 
 ```
-solidseas mcp --root ID=DIR [--root ID=DIR ...] [--library ID=DIR ...] [--workers N] [--catalog]
+solidseas mcp --root ID=DIR [--root ID=DIR ...] [--library ID=DIR ...] [--workers N] [--catalog] [--pdm]
 ```
 
 - Each `--root` is a folder read with its subfolders, and each `--library` a library folder
@@ -27,6 +27,10 @@ solidseas mcp --root ID=DIR [--root ID=DIR ...] [--library ID=DIR ...] [--worker
 - `--workers` sets how many worker processes read documents (default 2).
 - `--catalog` keeps a catalog of the folders in your cache folder, as `serve --catalog`
   does, and adds the catalog's tools. Until its first scan has finished they answer `busy`.
+- `--pdm` adds the PDM tools (provisional), which read the history of the PDM library that
+  holds the folders (`docs/guide/pdm.md`): what changed since the last check-in, a file's
+  versions with their check-in notes, one version's facts, the recent check-ins and a
+  project's self-contained check. A folder in no library answers `not_a_library`.
 
 The app starts SolidSeas itself and talks to it over standard input and output. SolidSeas
 listens on no port and needs no token. It stops, and ends its worker processes, when the
@@ -123,6 +127,11 @@ path relative to that root, with `/` between folder names, as `list_folder` give
 | `duplicates` | `/v1/duplicates` | With `--catalog`: files with identical contents, and with `names` the same name. |
 | `missing_references` | `/v1/missing` | With `--catalog`: references not found below the roots, or found more than once. |
 | `recent_changes` | `/v1/changes` | With `--catalog`: what was added, changed, moved or removed. |
+| `pdm_status` | `/v1/pdm/status` | With `--pdm`: files new, changed or gone since their newest version. |
+| `file_history` | `/v1/pdm/log` | With `--pdm`: a file's versions, newest first, with their check-in notes. |
+| `file_version` | `/v1/pdm/version` | With `--pdm`: one version's document, properties, configurations and geometry. |
+| `recent_checkins` | `/v1/pdm/checkins` | With `--pdm`: the check-ins below a folder, newest first, a page at a time. |
+| `check_project` | `/v1/pdm/check` | With `--pdm`: references that leave the project, are missing or are ambiguous. |
 
 A tool answers with the SolidSeas envelope (`docs/API.md` section 4), as text and as
 structured content, and adds a sentence when the answer was cut short: a page with more to
@@ -138,7 +147,8 @@ usually runs on someone else's servers. That includes your files' names and fold
 each root, and everything the files hold that the tools read: custom property values (part
 numbers, descriptions, customer names, prices if a property holds them), author fields, and
 with `path_report` and `references` the paths and user names stored in the files, which can
-name other computers and accounts. Give `solidseas mcp` only the folders you are content to
+name other computers and accounts. With `--pdm` it also includes check-in notes, the names
+check-ins carry, and the facts of earlier versions of a file, deleted files included. Give `solidseas mcp` only the folders you are content to
 share with that app, and leave out a root you would not.
 
 What it never does: write, rename or lock anything in your folders, read anything outside

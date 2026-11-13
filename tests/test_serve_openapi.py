@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 from serve_support import Running, wait_for
-from solidseas import __version__, cli, model
+from solidseas import __version__, cli, model, pdm
 from solidseas.errors import InvalidArgumentError, PathRefusedError
 from solidseas.serve import ROUTES
 from solidseas.serve.openapi import OPENAPI_ROUTE, build_openapi, route_error_codes, route_kinds
@@ -32,11 +32,13 @@ def doc() -> dict:
 
 @pytest.fixture(scope="module")
 def srv(tmp_path_factory):
-    base = tmp_path_factory.mktemp("openapi") / "jobs"
-    base.mkdir()
+    library = tmp_path_factory.mktemp("openapi")
+    base = library / "Projects" / "jobs"  # a project of a PDM library above the root
+    base.mkdir(parents=True)
     for name in NATIVE:
         shutil.copy2(fixture_path(name), base / name)
-    running = Running({"jobs": base}, workers=1, catalog=True)
+    pdm.init(library).checkin([base], "first")
+    running = Running({"jobs": base}, workers=1, catalog=True, pdm=True)
     yield running
     running.close()
 
@@ -93,7 +95,7 @@ def test_every_route_is_described_once_with_a_unique_operation_id(doc):
     assert len(ids) == len(set(ids)) == len(ROUTES) >= 21
     assert {"getDocument", "listFolder", "getPreview", "getOpenApi"} <= set(ids)
     tags = {t["name"] for t in doc["tags"]}
-    assert tags == {"service", "files", "catalog"}
+    assert tags == {"service", "files", "catalog", "pdm"}
     for path, item in doc["paths"].items():
         assert list(item) == ["get"], path
         op = item["get"]
@@ -163,7 +165,14 @@ def test_every_query_parameter_is_described_as_the_server_enforces_it(doc):
 
 def _base_query(route) -> dict[str, str]:
     """Valid values for a route's required parameters."""
-    values = {"root": "jobs", "path": "a.SLDPRT", "client": "tests", "nonce": "n" * 32, "q": "box"}
+    values = {
+        "root": "jobs",
+        "path": "a.SLDPRT",
+        "client": "tests",
+        "nonce": "n" * 32,
+        "q": "box",
+        "version": "v1",
+    }
     return {n: values[n] for n, s in route.params.items() if s.required}
 
 
@@ -311,6 +320,11 @@ CALLS = {
     "/v1/duplicates": {},
     "/v1/missing": {},
     "/v1/changes": {"since": "1d"},
+    "/v1/pdm/status": {"root": "jobs"},
+    "/v1/pdm/log": {"root": "jobs", "path": "o02_boxA.SLDPRT"},
+    "/v1/pdm/version": {"root": "jobs", "path": "o02_boxA.SLDPRT", "version": "v1"},
+    "/v1/pdm/checkins": {"root": "jobs"},
+    "/v1/pdm/check": {"root": "jobs"},
 }
 
 

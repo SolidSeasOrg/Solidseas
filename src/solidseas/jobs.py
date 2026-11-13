@@ -42,6 +42,12 @@ output folder, under the command line's write guards. It is not in the default
 job table (:data:`solidseas.workers.JOB_NAMES`): only the command line's pool
 adds it, so the service's workers can never run it.
 
+Five jobs serve the service's PDM routes (``--pdm``, provisional): :func:`pdm_status`,
+:func:`pdm_log`, :func:`pdm_version`, :func:`pdm_checkins` and :func:`pdm_check` read
+the vault of the library that holds a path below the root ``within`` (and the
+project's documents, for the check) and answer with paths relative to that root
+(:mod:`solidseas.serve.pdm`). They write nothing.
+
 Four jobs read model files, any 3D format SolidSeas reads other than SOLIDWORKS
 (:func:`solidseas.formats.open_model`, provisional): :func:`model_summary`
 (``model_summary`` data), :func:`model_entry` (a folder-listing entry),
@@ -567,6 +573,39 @@ def content_hash(params: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+# --------------------------------------------------------------------------- the PDM (provisional)
+def _pdm(action: str, params: dict[str, Any]) -> dict[str, Any]:
+    """One of the service's PDM routes (:mod:`solidseas.serve.pdm`): the vault holding
+    ``path`` read for a request on the root ``within``, every path in the answer relative
+    to that root. Reads only; nothing is written."""
+    within = _param(params, "within", (str,), required=True)
+    _check_within(within)
+    _param(params, "path", (str,), required=True)
+    from .serve import pdm
+
+    return pdm.run(action, params)
+
+
+def pdm_status(params: dict[str, Any]) -> dict[str, Any]:
+    return _pdm("status", params)
+
+
+def pdm_log(params: dict[str, Any]) -> dict[str, Any]:
+    return _pdm("log", params)
+
+
+def pdm_version(params: dict[str, Any]) -> dict[str, Any]:
+    return _pdm("version", params)
+
+
+def pdm_checkins(params: dict[str, Any]) -> dict[str, Any]:
+    return _pdm("checkins", params)
+
+
+def pdm_check(params: dict[str, Any]) -> dict[str, Any]:
+    return _pdm("check", params)
+
+
 __all__ = [
     "batch_document",
     "catalog_document",
@@ -584,6 +623,11 @@ __all__ = [
     "model_properties",
     "model_summary",
     "path_report",
+    "pdm_check",
+    "pdm_checkins",
+    "pdm_log",
+    "pdm_status",
+    "pdm_version",
     "preview",
     "properties",
     "references",
