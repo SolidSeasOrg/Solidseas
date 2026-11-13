@@ -166,12 +166,20 @@ lose each other's snapshots, and no lock is needed.
 ### 4.3 Taking one
 
 The file is opened read-only within its own folder (a file that is a link, a cloud
-placeholder or not a regular file is refused) and copied to a temporary name in
-`objects`, hashing as it goes. A file that changed while it was copied is not kept
-(`busy`, rule `file_changing`). When its content is that of its newest snapshot, no
-record is written (`new` false), and that snapshot's stored copy is put back if it is
-damaged or gone. Otherwise the copy is renamed to its object name, an object already
-there is kept only when its content hashes to its name, and the record is created. Every folder from the
+placeholder or not a regular file is refused) and
+hashed as it is read, once. A file of up to 16 MiB is held in memory while it is
+read; when the store already holds an object of its hash and that object hashes to its
+name, nothing is copied and only the record is written. Otherwise it is written to a
+temporary name in `objects`. A larger file is copied to its temporary name as it is
+read, and the copy is dropped when the object turns out to be there already. A file
+that changed while it was read is not kept (`busy`, rule `file_changing`). When its
+content is that of its newest snapshot, no record is written (`new` false), and that
+snapshot's stored copy is put back if it is damaged or gone. Otherwise the copy is
+renamed to its object name, an object already there is kept only when its content
+hashes to its name, and the record is created. Each object is hashed to check it at
+most once per batch of files. On the real library's first scan, 5,563 of 18,889 files
+had content already stored, and each was copied in full and then dropped: 20.29 GiB
+written to keep 16.05 GiB. Every folder from the
 store down is checked with `lstat` before it is used and made owner-only on Linux and
 macOS; records and objects are created with `O_EXCL`, so never over an existing name and
 never through a link planted under one.
@@ -198,6 +206,12 @@ files (3.8 GB) took 22.6 minutes with a flush per file and 4.0 minutes with batc
 about 41 to 49 ms a file against 5 to 7. A snapshot of one file (`versions snapshot`, a
 restore) flushes the same way, as a batch of one.
 
+A crash or power cut in step 1 or 2 leaves temporary copies (`objects/.tmp-<16 hex>`),
+never under an object name. Each later call that takes snapshots first removes those
+whose last write is a day old or more. A running call writes, flushes and renames its
+copies within minutes, so a copy it could still own is never that old; one that cannot
+be removed (open in another program on Windows) is left for the next time.
+
 ### 4.4 Reading them back
 
 Records are data from a folder others may write to: each is checked field by field and
@@ -205,6 +219,41 @@ passed over when it does not hold up or names another file. Every object is hash
 again before it is used; one that does not match is `damaged_file` (rule
 `snapshot_object`), and one that is gone is `version_unavailable` (rule
 `snapshot_missing`). Taking the snapshot again puts a missing copy back.
+
+### 4.5 The PDM vault's index of newest versions
+
+`pdm status` needs only the newest record of each file, but finding it means listing
+and reading every file's record folder. On the real library (18,889 files) that took
+78 to 96 s with a cold disk cache and 9 s warm, against 3 s for the same status on an
+empty store: the time went on first reads of the record files. So the vault keeps an
+index, and the records stay the truth:
+
+- `.solidseas/vault/newest.json` holds, for each record folder, the newest record that
+  holds up (its name and fields, checked again field by field when read, as a record
+  is) or none, and the marks it has taken in. It is written through a temporary name
+  and a rename, and never flushed: a file cut short does not parse and is made again.
+- Before a batch's records are created, the vault writes and flushes a mark,
+  `store/marks/<time>-<id>.pending`, listing the record folders the batch changes. Once
+  the records are on disk it is renamed to `.json`. Marks are never rewritten, so two
+  programs, or two people sharing the library, never hide each other's versions, and no
+  lock is needed.
+- After a check-in, scan or restore, the vault writes its new records into the index
+  and takes in its finished marks.
+- A status lists the marks, then the record folders, then reads the index. It reads
+  the records again only of the folders named by marks the index has not taken in, of
+  folders the index does not know (written by a program that writes no marks, such as
+  an older SolidSeas), and of every folder when a mark does not hold up. It takes in a
+  finished mark, and a pending one only once it is a day old (left by a crash); a mark
+  still pending is read again each time, since its program may still be writing. When
+  the index is missing or does not hold up, every folder is read and it is made again.
+- A new version of a file that already had one, written by a program that writes no
+  marks, is not seen until the index is made again: delete `newest.json`.
+
+On a synthetic library of 20,000 files on the development VM, a status with nothing
+changed opened 60,789 files and took 2.4 to 2.8 s with the page cache warm and 6.5 s
+after the store's pages were dropped from it (inodes still cached); with the index it
+opened 792 files and took 0.7 to 1.0 s either way. The index of 20,000 files is
+6.9 MB.
 
 ## 5. What a version tells
 

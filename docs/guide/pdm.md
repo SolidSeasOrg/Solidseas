@@ -32,13 +32,17 @@ parts. To change that, edit `D:\CAD\.solidseas\vault\vault.json`:
 | `tracked` | extra extensions to keep versions of, such as `[".ext"]` |
 | `ignore` | name patterns never tracked, such as `["*backup*"]` |
 | `who` | the name check-ins carry when you do not give one |
+| `skip_hidden` | `true` leaves out every file and folder whose name starts with a dot, and on Windows those marked hidden (default `false`) |
 
 ## What is tracked
 
 CAD files in every format SolidSeas lists (SOLIDWORKS, STEP, IGES, Parasolid, STL,
 3MF and the rest) and drawings' PDF and DXF exports. Pictures, archives and other
-files are not. Hidden folders such as `.git` are passed over, and so are SOLIDWORKS'
-`~$` lock files. A file or folder that is a link (a symbolic link or a junction) is
+files are not. Folders that programs keep for themselves, such as `.solidseas`, `.git`,
+`.svn` and `.Trash`, are passed over, and so are SOLIDWORKS' `~$` lock files and the
+`._` files a Mac leaves on a shared drive. A project folder or a file whose name starts
+with a dot, such as `.old bracket.SLDPRT`, is tracked like any other unless you set
+`skip_hidden`. A file or folder that is a link (a symbolic link or a junction) is
 never followed, and `status` lists it as skipped.
 
 ## See what changed
@@ -50,7 +54,12 @@ solidseas pdm status D:\CAD\Jobs\1042
 
 `status` lists files that are **new** (no version yet), **changed** since their
 newest version, or **gone**. A file whose size and modified time match its newest
-version is not read at all, so a status of a large library is quick.
+version is not read at all, so a status of a large library is quick. The newest
+version of every file is kept in one file, `.solidseas\vault\newest.json`, which
+check-ins and scans keep up to date, so `status` does not have to look through the
+history of every file. The first `status` after an update, or after that file is
+deleted, reads the whole history once to make it again; that can take a minute or two
+on a library of tens of thousands of files.
 
 ## Check in
 
@@ -64,7 +73,8 @@ the version they already have, so a revision label covers the whole project. A f
 that is gone is recorded as removed, and `status` stops listing it. `--state` adds a
 label such as `released`, and `--who` a name.
 
-A part that sits in two projects with the same content is stored once.
+A part that sits in two projects with the same content is stored once, and a file
+whose content the library already holds is read but not copied again.
 
 ## Scan on a schedule
 

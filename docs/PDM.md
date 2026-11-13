@@ -41,6 +41,7 @@ self-contained check, read-only (`docs/API.md` 8.6).
 | Adopt a PDM product or build one | Build into SolidSeas | The open PLM products either reach SOLIDWORKS only through a client that needs it running (Odoo PLM, whose CAD connector is not open source), are not free for production (Aras), or are no longer maintained (DocDokuPLM, OpenPLM). Daily use here must work while the SOLIDWORKS seat is elsewhere. |
 | Version engine | SolidSeas' snapshot store (`docs/VERSIONS.md` 4), one store for the whole library | It is content-addressed, so a part shared by 10 projects is stored once. Records are never rewritten, so it needs no lock and no server, and a backup is a plain copy of new files. It needs nothing installed on the PC. Git with LFS was the runner-up. It would need a newer Git, about twice the disk space, one repository per project, and changes to the project folders that are already Git repositories (whose history SolidSeas reads as it is, `docs/VERSIONS.md` 3). |
 | What is tracked | CAD documents: SOLIDWORKS, STEP, IGES, Parasolid, STL, 3MF and the other formats SolidSeas lists, plus drawings' PDF and DXF exports | Pictures, archives and videos are most of the bytes and seldom change. The backup covers them. `vault.json` can add kinds. |
+| Names that start with a dot | Tracked, except the folders tools keep for themselves (`pdm.settings.TOOL_FOLDERS`: `.solidseas`, `.git`, `.svn`, `.Trash` and the like) and `._` resource-fork files; `skip_hidden` in `vault.json` leaves out every dot name, and on Windows anything marked hidden | The real library had a project folder and 20 files whose names start with a dot (39 CAD files) that a rule against every dot name left out. A dot there is the user's naming, not a tool's. |
 | Locking and check-out | None | There is one user. A check-in is a note on a version, not a gate. |
 | Where data lives | `<library>\.solidseas\vault\` | It moves and backs up with the library, and paths in it are relative to the library. |
 
@@ -54,11 +55,13 @@ self-contained check, read-only (`docs/API.md` 8.6).
   - `archive`: sections whose projects are history, not work (they are tracked but never checked for self-containment).
   - `tracked`: extra extensions to track.
   - `ignore`: glob patterns that are never tracked.
-- `.solidseas/vault/store/`: the snapshot store, `objects/` and `files/`, as `docs/VERSIONS.md` 4.2 describes, keyed by the path relative to the library.
+- `.solidseas/vault/store/`: the snapshot store, `objects/` and `files/`, as `docs/VERSIONS.md` 4.2 describes, keyed by the path relative to the library, and `marks/`, a note of the record folders each batch of versions changed (`docs/VERSIONS.md` 4.5).
+- `.solidseas/vault/newest.json`: the newest version of every file, a cache that `status` reads instead of every file's records (`docs/VERSIONS.md` 4.5). It is made from the records and may be deleted at any time.
 - `.solidseas/vault/checkins/<yyyy>/<time>-<id>.json`: one record per check-in. It holds the id, when, the note, an optional name for who (from the settings, empty by default), and for each file its relative path, SHA-256, size and snapshot id. It may also carry a revision label and a state. Records are never rewritten. A later record can supersede a label or state.
 - `.solidseas/vault/library/items/<item id>.json` and `.../links/<time>-<id>.json`: library items and the record of each copy made into a project (section 6). These are append-only like the rest.
 
-Everything is plain JSON and content files. Nothing in the vault needs SQLite. The
+Everything is plain JSON and content files. Nothing in the vault needs SQLite, so a
+library may sit on a network share. The
 folder catalog (`solidseas index`) is the fast index over it, and a vault can be read
 with the catalog cleared.
 

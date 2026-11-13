@@ -5163,12 +5163,22 @@ lib.update(project, item, force=False)            # the library_update part
   `detail.parameter` naming the field. A path in no library is `invalid_argument`,
   rule `not_a_library`; `init` inside another library is rule `inside_library`.
 - **Tracked files.** CAD formats SolidSeas lists (`formats.registry.extensions`), PDF
-  and DXF, and the settings' `tracked` extensions, below no hidden folder, not a `~$`
-  lock file and matching no `ignore` pattern. A link is never followed: `status` lists
-  it in `skipped` with reason `link`, and naming one is `link_refused`.
+  and DXF, and the settings' `tracked` extensions, below no tool's folder
+  (`pdm.settings.TOOL_FOLDERS`: `.solidseas`, `.git`, `.svn` and the like, ignoring
+  case), not a `._` resource-fork file or a `~$` lock file, and matching no `ignore`
+  pattern. Any other name that starts with a dot is tracked like the rest, and a folder
+  of that name is a project or section like any other; the settings' `skip_hidden`
+  (false by default) leaves out every dot name, and on Windows anything with the
+  hidden attribute. A link is never followed: `status` lists it in `skipped` with
+  reason `link`, and naming one is `link_refused`.
 - **Status.** A file whose size and modification time equal its newest version's is
   unchanged and not read; any other is hashed (`hashed` counts them). A file gone since
   its newest version stays `gone` until a check-in that covers it records it removed.
+  The newest version of each file comes from `.solidseas/vault/newest.json`, a cache
+  the vault keeps up to date as it stores versions and checks against the store's marks
+  (`docs/VERSIONS.md` 4.5), so a status reads the records only of the files whose
+  versions changed since. It is rebuilt from the records when it is missing or does not
+  hold up, and may be deleted at any time.
 - **Records.** Check-ins are `.solidseas/vault/checkins/<yyyy>/<time>-<id>.json`,
   created with `O_EXCL` and never rewritten. Each is checked field by field when read,
   and one that does not hold up (or sits in another year's folder) is skipped.
@@ -7245,7 +7255,9 @@ as HTTP/1.1 with every header of 8.11, and the connection is closed.
   earlier versions of a file, including files deleted since. Each reads the vault of
   the PDM library (3.29) that holds the requested path, which may be the root, a
   folder above it (the root is a project of a larger library) or a folder inside it,
-  in a worker with the route's deadline; nothing is written. A path in no library
+  in a worker with the route's deadline. Nothing is written except the vault's
+  own index of newest versions (`newest.json`, 3.29), which a status may bring up to
+  date; a vault where it cannot be written is only read. A path in no library
   answers 404 `not_a_library`, and a root served without its subfolders 400
   `invalid_argument` (rule `flat_root`). Every path in an answer is relative to the
   root: the vault's files outside the root are left out, and so is a check-in that

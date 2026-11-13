@@ -14,8 +14,9 @@ folder the caller names. Never beside a source document otherwise.
 **Never through a link.** Every folder from the store down is checked with ``lstat``
 before it is used, and made owner-only on Linux and macOS. Records and objects are
 created with ``O_EXCL``, so never over an existing name and never through a link
-planted under that name; an object is copied to a temporary name, its hash checked,
-then renamed into place. The source is read with
+planted under that name; a file is hashed as it is read, and
+only content the store does not already hold is written, to a temporary name that is
+renamed into place. The source is read with
 :func:`~solidseas.formats.solidworks._io.open_readonly` within its own folder: a file
 that is a link, a cloud placeholder or not a regular file is refused, and a file that
 changes while it is copied is not kept (``busy``, rule ``file_changing``).
@@ -24,7 +25,8 @@ changes while it is copied is not kept (``busy``, rule ``file_changing``).
 flushes them to disk a batch at a time, in an order that keeps a crash harmless: the
 copies before they get their object names, the objects and their folders before any
 record that names them, the records before the caller writes anything that names them
-(``docs/VERSIONS.md`` 4.3).
+(``docs/VERSIONS.md`` 4.3). Temporary copies a crash left behind are removed by a later
+:meth:`~SnapshotStore.add_many` once they are a day old.
 
 **No shared file is rewritten**, so two processes, or two people sharing a project's
 store, never lose each other's snapshots, and no lock is needed: unlike the catalog's
@@ -45,6 +47,7 @@ import re
 import secrets
 import stat
 import sys
+import time
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
@@ -75,6 +78,9 @@ COPY_CHUNK = 1 << 20
 BATCH_FILES = 1000  # files copied before a batch is flushed to disk at once
 COPY_WORKERS = 4  # files copied at once: the work waits on the disk, not the processor
 SYNC_WORKERS = 32  # flushes at once: the disk commits flushes that wait together in one go
+BUFFER_BYTES = 16 << 20  # a file up to this size is held in memory while hashed, and written only if new
+STALE_TEMP_SECONDS = 24 * 3600  # a temporary copy this old was left by a crash
+_TEMP_NAME = re.compile(r"\.tmp-[0-9a-f]{16}\Z")
 _RECORD_NAME = re.compile(r"(\d{8}T\d{12}Z)-([0-9a-f]{12})\.json\Z")
 _SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 _FOLD_PATHS = sys.platform in ("win32", "darwin")
@@ -158,14 +164,20 @@ def parse_record(data: bytes, name: str) -> Snapshot | None:
     """The snapshot a record file holds, or None when any field does not hold up. A
     record is data from a folder others may write to (a project's store): nothing in it
     is trusted until checked."""
-    m = _RECORD_NAME.match(name)
-    if m is None or len(data) > MAX_RECORD_BYTES:
+    if _RECORD_NAME.match(name) is None or len(data) > MAX_RECORD_BYTES:
         return None
     try:
         obj = json.loads(data.decode("utf-8"))
     except (UnicodeDecodeError, ValueError, RecursionError):
         return None
-    if not isinstance(obj, dict) or obj.get("v") != RECORD_VERSION:
+    return record_from_json(obj, name)
+
+
+def record_from_json(obj: Any, name: str) -> Snapshot | None:
+    """The snapshot a record's parsed JSON holds (:func:`parse_record`), or None when any
+    field does not hold up."""
+    m = _RECORD_NAME.match(name)
+    if m is None or not isinstance(obj, dict) or obj.get("v") != RECORD_VERSION:
         return None
     sid, sha, size, path = obj.get("id"), obj.get("sha256"), obj.get("size"), obj.get("path")
     mtime, note, made_by = obj.get("mtime_ns"), obj.get("note"), obj.get("solidseas")
@@ -365,7 +377,10 @@ class SnapshotStore:
         every copy of a batch is flushed before it gets its object name, and every object
         and its folder before the first record that names it is written; the records are
         created in the order of ``paths`` and flushed with their folders before this
-        returns. ``progress(done, bytes)`` is called as copies finish."""
+        returns. Each file is read once: content the store already holds, intact, is not
+        written again (a file larger than :data:`BUFFER_BYTES` is still copied, and the
+        copy dropped). Temporary copies a crash left are removed first
+        (:data:`STALE_TEMP_SECONDS`). ``progress(done, bytes)`` is called as files are read."""
         if note is not None and (not isinstance(note, str) or len(note) > MAX_NOTE or "\0" in note):
             raise InvalidArgumentError(
                 f"a note is text of at most {MAX_NOTE} characters", detail={"parameter": "note"}
@@ -378,10 +393,13 @@ class SnapshotStore:
             return results
         self._make_root()
         objects = self._folders("objects", create=True)
+        _clear_stale_temps(objects)
         done = [0, 0]
         many = len(fulls) > 1
         pool = ThreadPoolExecutor(workers) if workers > 1 and many else None
         flusher = ThreadPoolExecutor(SYNC_WORKERS) if many else None
+        verified: set[str] = set()  # objects hashed and found intact during this call
+        marks: list[str] = []
         try:
             for start in range(0, len(fulls), BATCH_FILES):
                 self._add_batch(
@@ -395,12 +413,30 @@ class SnapshotStore:
                     flusher,
                     progress,
                     done,
+                    verified,
+                    marks,
                 )
         finally:
             for executor in (pool, flusher):
                 if executor is not None:
                     executor.shutdown(wait=True, cancel_futures=True)
+        written = [r[0] for r in results if isinstance(r, tuple) and r[1]]
+        if written or marks:
+            self._records_added(written, marks)
         return results
+
+    # Hooks for a store that keeps an index of its newest records (the PDM vault's). The
+    # plain store keeps none.
+    def _mark_begin(self, keys: list[str]) -> str | None:
+        """Called before a batch's records are created, with their keys: may write, and
+        flush, a note of the keys about to change. Returns its name, or None."""
+        return None
+
+    def _mark_end(self, mark: str) -> None:
+        """Called once the batch's records named in ``mark`` are flushed to disk."""
+
+    def _records_added(self, snaps: list[Snapshot], marks: list[str]) -> None:
+        """Called once :meth:`add_many` has written ``snaps``, under the marks ``marks``."""
 
     def _add_batch(
         self,
@@ -414,10 +450,13 @@ class SnapshotStore:
         flusher: ThreadPoolExecutor | None,
         progress: Callable[[int, int], None] | None,
         done: list[int],
+        verified: set[str],
+        marks: list[str],
     ) -> None:
         copies: dict[int, _Copy] = {}
         try:
-            # 1. copy each file to a temporary name, hashing as it goes; nothing synced yet
+            # 1. read and hash each file; copy it to a temporary name unless the store
+            # already holds its content intact; nothing synced yet
             def finished(i: int, outcome: _Copy | BaseException) -> None:
                 if isinstance(outcome, _Copy):
                     copies[i] = outcome
@@ -430,10 +469,11 @@ class SnapshotStore:
 
             if pool is None:
                 for i in indices:
-                    finished(i, self._copy_or_error(fulls[i], objects, max_file_bytes))
+                    finished(i, self._copy_or_error(fulls[i], objects, max_file_bytes, verified))
             else:
                 futures = {
-                    pool.submit(self._copy_or_error, fulls[i], objects, max_file_bytes): i for i in indices
+                    pool.submit(self._copy_or_error, fulls[i], objects, max_file_bytes, verified): i
+                    for i in indices
                 }
                 try:
                     for fut in as_completed(futures):
@@ -470,9 +510,9 @@ class SnapshotStore:
                         existing = self.snapshots(c.full)
                         if existing and existing[-1].sha256 == c.sha:
                             results[i] = (existing[-1], False)
-                    if c.sha not in place and not (
-                        self.has_object(c.sha, c.size) and self._intact(c.sha, c.size)
-                    ):
+                    if c.sha not in place and not self._known_intact(c.sha, c.size, verified):
+                        if c.tmp is None:  # left out only for an intact object, so not expected
+                            raise SnapshotDamagedError("the stored copy changed while the file was read")
                         place[c.sha] = c  # also puts back a newest snapshot's copy that is damaged or gone
                 except (OSError, SolidSeasError) as exc:
                     results[i] = exc
@@ -508,10 +548,17 @@ class SnapshotStore:
 
             # 4. the records, created in order, then flushed with their folders
             written: list[int] = []
-            for i in records:
+            to_write = [i for i in records if copies[i].sha not in failed_objects]
+            mark = None
+            if to_write:
+                try:
+                    mark = self._mark_begin([self.key(copies[i].full) for i in to_write])
+                except (OSError, SolidSeasError) as exc:
+                    for i in to_write:
+                        results[i] = exc
+                    to_write = []
+            for i in to_write:
                 c = copies[i]
-                if c.sha in failed_objects:
-                    continue
                 snap = Snapshot(
                     secrets.token_hex(6),
                     datetime.datetime.now(datetime.UTC),
@@ -544,44 +591,61 @@ class SnapshotStore:
                 except OSError as exc:
                     for i in written:
                         results[i] = exc
+                    written = []
+            if mark is not None:
+                marks.append(mark)
+                if written:
+                    self._mark_end(mark)
             for i, j in alias.items():
                 results[i] = (results[j][0], False) if isinstance(results[j], tuple) else results[j]
         finally:
             for c in copies.values():
-                if os.path.lexists(c.tmp):
+                if c.tmp is not None and os.path.lexists(c.tmp):
                     os.remove(c.tmp)
 
-    def _copy_or_error(self, full: str, objects: str, max_file_bytes: int | None) -> _Copy | BaseException:
+    def _copy_or_error(
+        self, full: str, objects: str, max_file_bytes: int | None, verified: set[str]
+    ) -> _Copy | BaseException:
         try:
-            return self._copy(full, objects, max_file_bytes)
+            return self._copy(full, objects, max_file_bytes, verified)
         except (OSError, SolidSeasError) as exc:
             return exc
 
-    def _copy(self, full: str, objects: str, max_file_bytes: int | None) -> _Copy:
-        """Copy the file to a new temporary name in ``objects``, hashing as it goes. The
-        copy is not flushed to disk here: :meth:`_add_batch` flushes a batch at once."""
+    def _copy(self, full: str, objects: str, max_file_bytes: int | None, verified: set[str]) -> _Copy:
+        """Read the file once, hashing as it goes. A file of up to :data:`BUFFER_BYTES` is
+        held in memory and written to a new temporary name in ``objects`` only when the
+        store does not already hold its content intact; a larger one is copied there as it
+        is read. The copy is not flushed to disk here: :meth:`_add_batch` flushes a batch
+        at once."""
         recorded = self.recorded_path(full)
-        tmp = os.path.join(objects, f".tmp-{secrets.token_hex(8)}")
         h = hashlib.sha256()
         count = 0
-        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | _O_BINARY | _O_NOFOLLOW | _O_CLOEXEC, 0o600)
+        held: list[bytes] = []
+        tmp: str | None = None
+        out = None
         try:
-            with os.fdopen(fd, "wb") as out:
-                with open_readonly(full, within=os.path.dirname(full)) as src:
-                    before = os.fstat(src.fileno())
-                    if max_file_bytes is not None and before.st_size > max_file_bytes:
-                        raise FileTooLargeError(
-                            "the file is larger than the configured maximum",
-                            detail={"limit": max_file_bytes, "value": before.st_size},
-                        )
-                    while True:
-                        chunk = src.read(COPY_CHUNK)
-                        if not chunk:
-                            break
-                        h.update(chunk)
+            with open_readonly(full, within=os.path.dirname(full)) as src:
+                before = os.fstat(src.fileno())
+                if max_file_bytes is not None and before.st_size > max_file_bytes:
+                    raise FileTooLargeError(
+                        "the file is larger than the configured maximum",
+                        detail={"limit": max_file_bytes, "value": before.st_size},
+                    )
+                while True:
+                    chunk = src.read(COPY_CHUNK)
+                    if not chunk:
+                        break
+                    h.update(chunk)
+                    count += len(chunk)
+                    if out is not None:
                         out.write(chunk)
-                        count += len(chunk)
-                    after = os.fstat(src.fileno())
+                        continue
+                    held.append(chunk)
+                    if count > BUFFER_BYTES:  # too large to hold: copy it as it is read
+                        tmp, out = _new_temp(objects)
+                        out.writelines(held)
+                        held = []
+                after = os.fstat(src.fileno())
             if (before.st_size, before.st_mtime_ns) != (
                 after.st_size,
                 after.st_mtime_ns,
@@ -590,11 +654,29 @@ class SnapshotStore:
                     "the file changed while it was copied: take the snapshot again once it is saved",
                     detail={"rule": "file_changing"},
                 )
+            sha = h.hexdigest()
+            if out is None and not self._known_intact(sha, count, verified):
+                tmp, out = _new_temp(objects)
+                out.writelines(held)
+            if out is not None:
+                out.close()
         except BaseException:
-            if os.path.lexists(tmp):
+            if out is not None:
+                out.close()
+            if tmp is not None and os.path.lexists(tmp):
                 os.remove(tmp)
             raise
-        return _Copy(full, recorded, tmp, h.hexdigest(), count, after.st_mtime_ns)
+        return _Copy(full, recorded, tmp, sha, count, after.st_mtime_ns)
+
+    def _known_intact(self, sha: str, size: int, verified: set[str]) -> bool:
+        """Whether the store holds the object ``sha`` intact, hashing it once per
+        :meth:`add_many` call."""
+        if sha in verified:
+            return True
+        if self.has_object(sha, size) and self._intact(sha, size):
+            verified.add(sha)
+            return True
+        return False
 
     def _intact(self, sha: str, size: int) -> bool:
         """Whether the object named ``sha`` holds content of that hash and size."""
@@ -667,14 +749,46 @@ class SnapshotStore:
 
 @dataclass(frozen=True)
 class _Copy:
-    """A file copied to a temporary name in ``objects``, not yet flushed to disk."""
+    """A file read and hashed: copied to the temporary name ``tmp`` in ``objects``, not yet
+    flushed to disk, or ``tmp`` None when the store already holds its content intact."""
 
     full: str
     recorded: str
-    tmp: str
+    tmp: str | None
     sha: str
     size: int
     mtime_ns: int
+
+
+def _new_temp(objects: str):
+    """A new temporary file in ``objects``, created with ``O_EXCL``: ``(path, file)``."""
+    tmp = os.path.join(objects, f".tmp-{secrets.token_hex(8)}")
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | _O_BINARY | _O_NOFOLLOW | _O_CLOEXEC, 0o600)
+    return tmp, os.fdopen(fd, "wb")
+
+
+def _clear_stale_temps(objects: str, *, now: float | None = None) -> int:
+    """Remove the temporary copies in ``objects`` that a crash left: regular files named
+    as :func:`_new_temp` names them whose last write is :data:`STALE_TEMP_SECONDS` old or
+    more. A running :meth:`SnapshotStore.add_many` flushes and renames its copies within
+    minutes of writing them, so one it could still own is never that old. Returns how
+    many were removed; one that cannot be removed is left."""
+    now = time.time() if now is None else now
+    removed = 0
+    try:
+        names = [n for n in os.listdir(objects) if _TEMP_NAME.match(n)]
+    except OSError:
+        return 0
+    for name in names:
+        path = os.path.join(objects, name)
+        try:
+            st = os.lstat(path)
+            if stat.S_ISREG(st.st_mode) and now - st.st_mtime >= STALE_TEMP_SECONDS:
+                os.remove(path)
+                removed += 1
+        except OSError:
+            continue
+    return removed
 
 
 def sync_file(path: str) -> None:
@@ -757,6 +871,7 @@ __all__ = [
     "data_dir",
     "open_store",
     "parse_record",
+    "record_from_json",
     "sync_file",
     "sync_folder",
 ]
