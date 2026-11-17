@@ -61,6 +61,7 @@ where = ["src"]
 # The service's reference viewer (docs/API.md 8.18): its page, script and style, and three.js.
 [tool.setuptools.package-data]
 "solidseas.serve" = ["viewer/*.*", "viewer/three/**/*"]
+"solidseas.swapi" = ["README.md", "SwBridge/*.cs"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -6,6 +6,10 @@ while the project takes shape.
 
 ## [Unreleased]
 
+### Fixed
+
+- Installing SolidSeas with pip now includes the CAD Bridge's C# sources and its README, so the bridge can be built from an installed copy.
+
 ## [0.2.600] - 2026-11-13
 
 ### Added
