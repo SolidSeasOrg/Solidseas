@@ -20,9 +20,13 @@ Clicking a project, or Enter on it, opens its folder in the window, so the file 
 shows its files. The library stays the same, so the list stays. Outside a library the
 view says so.
 
-The projects are read in a thread of the PDM menu's lookups (:class:`.PdmController`),
-which looks at every file with a stat only. Refresh reads them again; so does opening
-a folder in another library.
+The projects are read by a ``solidseas pdm projects --json`` process of their own
+(this program with ``--cli`` when frozen), which looks at every file with a stat only,
+waited for in a thread of its own. A child process does not share the window's Python
+lock with the listing and the index, nor wait behind the PDM menu's lookups, so the
+list fills about as fast as the command line answers. If the process cannot be
+started or its answer cannot be read, the same work runs in that thread instead.
+Refresh reads them again; so does opening a folder in another library.
 """
 
 import os
@@ -58,13 +62,53 @@ NAME, SECTION, WHEN, PENDING = range(4)
 PATH_ROLE = Qt.ItemDataRole.UserRole
 
 
-def activity_work(library: str):
+CHILD_TIMEOUT = 600.0  # seconds; a library on a slow share can take minutes
+
+
+def _in_child(library: str) -> list[dict[str, Any]] | None:
+    """The projects as ``solidseas pdm projects --json`` lists them, from a child
+    process; None when it could not be started or answered with something else."""
+    import json
+    import subprocess
+    import sys
+
+    from .connectorsvc import program
+
+    kwargs: dict[str, Any] = {}
+    if sys.platform == "win32":
+        kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
+    try:
+        done = subprocess.run(
+            [*program(), "pdm", "projects", library, "--json"],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            timeout=CHILD_TIMEOUT,
+            check=False,
+            **kwargs,
+        )
+        env = json.loads(done.stdout.decode("utf-8"))
+        rows = env["data"]["projects"]["projects"] if env.get("ok") else None
+    except Exception:
+        return None
+    if not isinstance(rows, list):
+        return None
+    for r in rows:
+        r.pop("score", None)  # a search's; the view searches for itself
+    return rows
+
+
+def activity_work(library: str, *, child: bool = True):
     """A Job's work: every project of the library with when it was last worked on, as
-    data (``ProjectActivity.data``)."""
+    data (``ProjectActivity.data``), from a child process when ``child`` and it
+    answers, else in this thread."""
 
     def work(_emit, cancelled) -> dict[str, Any]:
         from solidseas import model, pdm
 
+        rows = _in_child(library) if child else None
+        if rows is not None:
+            return {"ok": True, "kind": "projects", "library": library, "projects": rows}
         try:
             vault = pdm.open(library)
             rows = [a.data() for a in vault.project_activity(cancelled)]
@@ -95,6 +139,7 @@ class ProjectsPane(QWidget):
         self.rows: list[dict[str, Any]] = []
         self.loaded = False
         self._generation = 0
+        self._jobs: set[Any] = set()  # kept until they answer, as the Job objects must be
 
         self.search = QLineEdit()
         self.search.setPlaceholderText(SEARCH_HINT)
@@ -183,7 +228,32 @@ class ProjectsPane(QWidget):
             self._fill()
             self._show_state()
 
-        self.controller._look(activity_work(library), done)
+        self._start(activity_work(library), done)
+
+    def _start(self, work, on_finished) -> None:
+        """Run ``work`` in a daemon thread of its own: it only reads, so a closing window
+        does not wait for it, and an answer that comes after is ignored."""
+        import threading
+
+        from .workers import Job
+
+        job = Job(work)
+        self._jobs.add(job)
+
+        def finished(result: Any) -> None:
+            self._jobs.discard(job)
+            if not getattr(self.controller, "stopped", False):
+                on_finished(result)
+
+        job.signals.finished.connect(finished)
+
+        def run() -> None:
+            try:
+                job.run()
+            except RuntimeError:  # the window, and the job's signals, are gone
+                pass
+
+        threading.Thread(target=run, name="SolidSeas projects", daemon=True).start()
 
     # -- the list --------------------------------------------------------------------------
     def shown_paths(self) -> list[str]:

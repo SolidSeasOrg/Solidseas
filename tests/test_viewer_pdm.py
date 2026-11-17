@@ -965,3 +965,17 @@ def test_the_left_pane_s_view_is_remembered(tmp_path):
     assert store.load_session().pane == "folders"
     store.save_session(Session(pane="projects"))
     assert SettingsStore(tmp_path / "settings.ini").load_session().pane == "projects"
+
+
+def test_the_projects_are_read_by_a_child_process_or_in_the_thread(tmp_path):
+    from solidseas_app.viewer import pdmprojects
+
+    cad = library(tmp_path)
+    child = pdmprojects._in_child(str(cad))
+    assert [r["path"] for r in child] == ["Jobs/1042"] and child[0]["files"] == 2
+    for use_child in (True, False):
+        got = pdmprojects.activity_work(str(cad), child=use_child)(None, lambda: False)
+        assert got["ok"] and got["projects"] == child
+    assert pdmprojects._in_child(str(tmp_path / "nowhere")) is None  # not a library: the thread says why
+    got = pdmprojects.activity_work(str(tmp_path / "nowhere"))(None, lambda: False)
+    assert not got["ok"] and got["error"]["code"]

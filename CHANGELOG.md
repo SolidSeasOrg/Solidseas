@@ -6,6 +6,10 @@ while the project takes shape.
 
 ## [Unreleased]
 
+### Fixed
+
+- The Projects view fills in a few seconds right after a library opens, instead of waiting behind the window's other work. It reads the projects in a process of its own.
+
 ## [0.2.603] - 2026-11-17
 
 ### Added
