@@ -968,6 +968,21 @@ def test_the_projects_view_lists_searches_and_opens_projects(app, window, tmp_pa
 
 
 @needs_qt
+def test_the_projects_view_widens_to_its_longest_name(app, window, tmp_path):
+    w = window
+    w.resize(1400, w.height())
+    cad = library(tmp_path)
+    (cad / "Jobs" / "A customer with a very long name - its contact - a job with a long title too").mkdir()
+    _open(app, w, cad)
+    w.set_pane("projects")
+    _wait(app, lambda: w.projects.loaded and len(w.projects.rows) == 2)
+    app.processEvents()
+    total = sum(w.split.sizes())
+    assert w.projects.wanted_width() > 300
+    assert w.split.sizes()[0] >= min(w.projects.wanted_width(), total * 2 // 5) - 2
+
+
+@needs_qt
 def test_the_projects_view_outside_a_library_says_so(app, window, tmp_path):
     w = window
     cad = library(tmp_path, make=False)

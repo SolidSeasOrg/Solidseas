@@ -797,7 +797,7 @@ class MainWindow(QMainWindow):
         self.left_stack.insertWidget(0, self.projects)
         self.left_stack.setCurrentWidget(self.tree)
         self.projects.projectChosen.connect(self.open_folder)
-        self.projects.loaded_rows.connect(lambda: self.projects.set_current(self.folder))
+        self.projects.loaded_rows.connect(self._projects_loaded)
 
         def looked_up(result: Any) -> None:
             if not isinstance(result, dict) or result.get("kind") != "lookup":
@@ -819,18 +819,32 @@ class MainWindow(QMainWindow):
         action = self.act_projects_pane if pane == "projects" else self.act_folders_pane
         action.setChecked(True)
 
+    def _projects_loaded(self) -> None:
+        """The Projects view has read its projects: mark the opened one, and make room
+        for the names now that their widths are known."""
+        self.projects.set_current(self.folder)
+        if self.pane == "projects":
+            self._widen_projects()
+
     def _widen_projects(self) -> None:
-        """Give the Projects view room for its names: the left pane grows to about 40
-        characters (two fifths of the window at most), taken from the middle pane."""
+        """Give the Projects view room for its names: the left pane grows to fit the
+        longest name listed (at least about 40 characters, two fifths of the window at
+        most), taken from the details panel first, then the list. It never shrinks here:
+        a width the user dragged wider stays."""
         sizes = self.split.sizes()
         if len(sizes) != 3 or not sum(sizes):
             return
-        want = min(max(self.fontMetrics().averageCharWidth() * 40, 300), sum(sizes) * 2 // 5)
+        floor = max(self.fontMetrics().averageCharWidth() * 40, 300)
+        want = min(max(floor, self.projects.wanted_width()), sum(sizes) * 2 // 5)
         if sizes[0] >= want:
             return
-        grow = min(want - sizes[0], max(sizes[1] - 200, 0))
-        if grow > 0:
-            self.split.setSizes([sizes[0] + grow, sizes[1] - grow, sizes[2]])
+        need = want - sizes[0]
+        from_details = min(need, max(sizes[2] - 300, 0))  # the widest pane gives first
+        from_middle = min(need - from_details, max(sizes[1] - 200, 0))
+        if from_details + from_middle > 0:
+            self.split.setSizes(
+                [sizes[0] + from_details + from_middle, sizes[1] - from_middle, sizes[2] - from_details]
+            )
 
     def _size_icons(self) -> None:
         w, h = self.settings.thumbnail_pixels

@@ -371,6 +371,22 @@ class ProjectsPane(QWidget):
         """The projects listed, top to bottom, as paths below the library."""
         return [self.list.item(i).data(PATH_ROLE) for i in range(self.list.count())]
 
+    def wanted_width(self) -> int:
+        """The width the pane needs to show every listed name in full (0 before the
+        projects are read): the widest name in the list's bold font, with the row's
+        padding, the list's frame and room for its scroll bar."""
+        from PySide6.QtGui import QFontMetrics
+
+        rows = self._listed()
+        if not rows:
+            return 0
+        font = QFont(self.list.font())
+        font.setBold(True)
+        fm = QFontMetrics(font)
+        widest = max(fm.horizontalAdvance(r["name"]) for r in rows)
+        scroll = self.list.verticalScrollBar().sizeHint().width()
+        return widest + 2 * _ProjectDelegate.PAD + 2 + 2 * self.list.frameWidth() + scroll + 8
+
     def _listed(self) -> list[dict[str, Any]]:
         """The rows the list may show: archived projects only when asked for or searched."""
         if self.show_archived.isChecked() or self.search.text().strip():
