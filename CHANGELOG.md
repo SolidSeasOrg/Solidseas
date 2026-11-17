@@ -6,6 +6,10 @@ while the project takes shape.
 
 ## [Unreleased]
 
+### Changed
+
+- The Projects view's count says, on its tooltip, how the projects were read and how long it took. When the separate process gives no answer it is tried once more before the window reads the projects itself, and the tooltip says why.
+
 ## [0.2.605] - 2026-11-17
 
 ### Fixed

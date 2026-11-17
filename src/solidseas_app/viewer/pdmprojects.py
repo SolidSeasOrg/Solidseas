@@ -65,9 +65,10 @@ PATH_ROLE = Qt.ItemDataRole.UserRole
 CHILD_TIMEOUT = 600.0  # seconds; a library on a slow share can take minutes
 
 
-def _in_child(library: str) -> list[dict[str, Any]] | None:
+def _in_child(library: str) -> tuple[list[dict[str, Any]] | None, str]:
     """The projects as ``solidseas pdm projects --json`` lists them, from a child
-    process; None when it could not be started or answered with something else."""
+    process, and an empty reason; or None and why the child gave none (it could not be
+    started, timed out, or answered with something that is not that list)."""
     import json
     import subprocess
     import sys
@@ -81,42 +82,77 @@ def _in_child(library: str) -> list[dict[str, Any]] | None:
         done = subprocess.run(
             [*program(), "pdm", "projects", library, "--json"],
             stdin=subprocess.DEVNULL,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
+            capture_output=True,
             timeout=CHILD_TIMEOUT,
             check=False,
             **kwargs,
         )
+    except subprocess.TimeoutExpired:
+        return None, f"timed out after {CHILD_TIMEOUT:.0f} s"
+    except Exception as exc:
+        return None, f"could not start: {type(exc).__name__}: {exc}"
+    try:
         env = json.loads(done.stdout.decode("utf-8"))
         rows = env["data"]["projects"]["projects"] if env.get("ok") else None
-    except Exception:
-        return None
+    except Exception as exc:
+        err = done.stderr.decode("utf-8", "replace").strip().splitlines()
+        tail = f"; {err[-1][:200]}" if err else ""
+        return (
+            None,
+            f"exit code {done.returncode}, {len(done.stdout):,} bytes not read ({type(exc).__name__}){tail}",
+        )
     if not isinstance(rows, list):
-        return None
+        return None, f"exit code {done.returncode}, no projects in the answer"
     for r in rows:
         r.pop("score", None)  # a search's; the view searches for itself
-    return rows
+    return rows, ""
+
+
+CHILD_TRIES = 2  # a second child is still far quicker than the work in the window's process
 
 
 def activity_work(library: str, *, child: bool = True):
     """A Job's work: every project of the library with when it was last worked on, as
-    data (``ProjectActivity.data``), from a child process when ``child`` and it
-    answers, else in this thread."""
+    data (``ProjectActivity.data``), from a child process when ``child`` and one of
+    ``CHILD_TRIES`` answers, else in this thread. ``read`` says which did it, how long
+    it took and, when the thread did, why each child gave nothing."""
 
     def work(_emit, cancelled) -> dict[str, Any]:
+        import time
+
         from solidseas import model, pdm
 
-        rows = _in_child(library) if child else None
-        if rows is not None:
-            return {"ok": True, "kind": "projects", "library": library, "projects": rows}
+        began = time.monotonic()
+        reasons: list[str] = []
+        for _ in range(CHILD_TRIES if child else 0):
+            if cancelled():
+                break
+            rows, reason = _in_child(library)
+            if rows is not None:
+                read = {"how": "child", "seconds": time.monotonic() - began, "reasons": reasons}
+                return {"ok": True, "kind": "projects", "library": library, "projects": rows, "read": read}
+            reasons.append(reason)
         try:
             vault = pdm.open(library)
             rows = [a.data() for a in vault.project_activity(cancelled)]
         except Exception as exc:
             return {"ok": False, "kind": "projects", "library": library, "error": model.error_info(exc)}
-        return {"ok": True, "kind": "projects", "library": library, "projects": rows}
+        read = {"how": "thread", "seconds": time.monotonic() - began, "reasons": reasons}
+        return {"ok": True, "kind": "projects", "library": library, "projects": rows, "read": read}
 
     return work
+
+
+def read_text(read: dict[str, Any] | None) -> str:
+    """How the projects were read, for the count's tooltip."""
+    if not read:
+        return ""
+    how = "a separate process" if read.get("how") == "child" else "the window itself"
+    text = f"Read by {how} in {read.get('seconds', 0):.1f} s."
+    reasons = read.get("reasons") or []
+    if reasons:
+        text += " The separate process gave no answer: " + "; then ".join(reasons) + "."
+    return text
 
 
 def _key(row: dict[str, Any]):
@@ -139,6 +175,7 @@ class ProjectsPane(QWidget):
         self.rows: list[dict[str, Any]] = []
         self.loaded = False
         self._generation = 0
+        self.last_read: dict[str, Any] | None = None  # how the projects were read last (read_text)
         self._jobs: set[Any] = set()  # kept until they answer, as the Job objects must be
 
         self.search = QLineEdit()
@@ -225,6 +262,7 @@ class ProjectsPane(QWidget):
                 self.note.show()
                 return
             self.rows = result["projects"]
+            self.last_read = result.get("read")
             self._fill()
             self._show_state()
 
@@ -307,6 +345,7 @@ class ProjectsPane(QWidget):
             text = plural(total, "project") if shown == total else f"{shown:,} of {plural(total, 'project')}"
             self.note.setText(text)
             self.note.show()
+        self.note.setToolTip(tip(read_text(self.last_read)) if self.loaded and self.last_read else "")
         self.search.setEnabled(self.library is not None)
         self.refresh_button.setEnabled(self.library is not None)
 

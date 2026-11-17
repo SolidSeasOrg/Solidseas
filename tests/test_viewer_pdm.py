@@ -971,11 +971,32 @@ def test_the_projects_are_read_by_a_child_process_or_in_the_thread(tmp_path):
     from solidseas_app.viewer import pdmprojects
 
     cad = library(tmp_path)
-    child = pdmprojects._in_child(str(cad))
-    assert [r["path"] for r in child] == ["Jobs/1042"] and child[0]["files"] == 2
-    for use_child in (True, False):
+    child, reason = pdmprojects._in_child(str(cad))
+    assert [r["path"] for r in child] == ["Jobs/1042"] and child[0]["files"] == 2 and reason == ""
+    for use_child, how in ((True, "child"), (False, "thread")):
         got = pdmprojects.activity_work(str(cad), child=use_child)(None, lambda: False)
         assert got["ok"] and got["projects"] == child
-    assert pdmprojects._in_child(str(tmp_path / "nowhere")) is None  # not a library: the thread says why
+        assert got["read"]["how"] == how and got["read"]["reasons"] == []
+    assert pdmprojects.read_text(got["read"]).startswith("Read by the window itself in ")
+    rows, reason = pdmprojects._in_child(str(tmp_path / "nowhere"))
+    assert rows is None and reason.startswith("exit code ")
     got = pdmprojects.activity_work(str(tmp_path / "nowhere"))(None, lambda: False)
-    assert not got["ok"] and got["error"]["code"]
+    assert not got["ok"] and got["error"]["code"]  # not a library: the thread says why
+
+
+def test_a_child_that_gives_no_answer_is_tried_again_then_the_thread_reads(tmp_path, monkeypatch):
+    from solidseas_app.viewer import pdmprojects
+
+    cad = library(tmp_path)
+    calls = []
+
+    def broken(library):
+        calls.append(library)
+        return None, "exit code 1, 0 bytes not read (JSONDecodeError)"
+
+    monkeypatch.setattr(pdmprojects, "_in_child", broken)
+    got = pdmprojects.activity_work(str(cad))(None, lambda: False)
+    assert got["ok"] and [r["path"] for r in got["projects"]] == ["Jobs/1042"]
+    assert len(calls) == pdmprojects.CHILD_TRIES and got["read"]["how"] == "thread"
+    text = pdmprojects.read_text(got["read"])
+    assert "The separate process gave no answer: exit code 1" in text and "; then exit code 1" in text
