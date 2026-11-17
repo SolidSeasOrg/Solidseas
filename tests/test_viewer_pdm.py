@@ -913,3 +913,55 @@ def test_check_project_makes_the_planned_copies(app, window, tmp_path, monkeypat
     assert [(r["item"], r["path"]) for r in links] == [("BOLT-1", "Jobs/A/bolt.SLDPRT")]
     assert not dialog.make_button.isEnabled()
     dialog.reject()
+
+
+# --------------------------------------------------------------------------- the Projects view
+@needs_qt
+def test_the_projects_view_lists_searches_and_opens_projects(app, window, tmp_path):
+    w = window
+    cad = library(tmp_path)
+    (cad / "Customers" / "Acme Co").mkdir(parents=True)
+    (cad / "Customers" / "Acme Co" / "base.3mf").write_bytes(part(8))
+    old = cad / "Jobs" / "1042"
+    for f in old.iterdir():
+        os.utime(f, (1_700_000_000, 1_700_000_000))
+    before = _state(cad)
+    assert w.pane == "folders" and w.left_stack.currentWidget() is w.tree
+    _open(app, w, cad)
+    w.act_projects_pane.trigger()
+    assert w.pane == "projects" and w.pane_buttons["projects"].isChecked()
+    p = w.projects
+    _wait(app, lambda: p.loaded)
+    assert p.shown_paths() == ["Customers/Acme Co", "Jobs/1042"]  # the newest first
+    assert p.note.text() == "2 projects"
+    p.search.setText("acm")
+    assert p.shown_paths() == ["Customers/Acme Co"] and p.note.text() == "1 of 2 projects"
+    p.search.setText("qqq")
+    assert p.shown_paths() == [] and p.note.text().startswith("No project matches")
+    p.search.setText("1042")
+    p.search.returnPressed.emit()
+    _wait(app, lambda: w.folder == str(old) and w.listing_info is not None and w.pdm.idle)
+    assert p.library == str(cad) and p.shown_paths() == ["Jobs/1042"]  # the same library: the list stays
+    w.pane_buttons["folders"].click()
+    assert w.pane == "folders" and w.left_stack.currentWidget() is w.tree and w.act_folders_pane.isChecked()
+    assert _state(cad) == before  # the view only reads
+
+
+@needs_qt
+def test_the_projects_view_outside_a_library_says_so(app, window, tmp_path):
+    w = window
+    cad = library(tmp_path, make=False)
+    _open(app, w, cad)
+    w.set_pane("projects")
+    assert w.projects.library is None and w.projects.shown_paths() == []
+    assert w.projects.note.text().startswith("Open a folder in a PDM library")
+    assert not w.projects.search.isEnabled()
+
+
+def test_the_left_pane_s_view_is_remembered(tmp_path):
+    from solidseas_app.viewer.settings import Session, SettingsStore
+
+    store = SettingsStore(tmp_path / "settings.ini")
+    assert store.load_session().pane == "folders"
+    store.save_session(Session(pane="projects"))
+    assert SettingsStore(tmp_path / "settings.ini").load_session().pane == "projects"

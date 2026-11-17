@@ -2033,6 +2033,7 @@ PDM_ACTIONS = (
     "diff",
     "restore",
     "check",
+    "projects",
     "library_candidates",
     "library_add",
     "library_list",
@@ -4343,6 +4344,31 @@ _PDM_SCHEMA = _obj(
             },
             nullable=True,
             description="What pdm check found, per project; plan and fix are null unless asked for.",
+        ),
+        "projects": _obj(
+            {
+                "search": _STR_N,
+                "total": _INT,
+                "projects": _arr(
+                    _obj(
+                        {
+                            "path": _STR,
+                            "name": _STR,
+                            "section": _STR,
+                            "archived": _BOOL,
+                            "files": _INT,
+                            "modified_utc": _STR_N,
+                            "checked_in_utc": _STR_N,
+                            "last_activity_utc": _STR_N,
+                            "pending": _INT,
+                            "score": _NUM_N,
+                        }
+                    )
+                ),
+            },
+            nullable=True,
+            description="The library's projects, most recently worked on first, or those a search found, "
+            "best first.",
         ),
         "library_candidates": _obj(
             {

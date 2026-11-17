@@ -139,6 +139,7 @@ class Session:
     splitter: bytes | None = None
     quick_filter: tuple[str, ...] = ()  # the list's quick filter types on (.filetypes keys)
     recent: tuple[str, ...] = ()  # the folders opened last, newest first (File > Recent Folders)
+    pane: str = "folders"  # the left pane's view: "projects" or "folders"
 
 
 def _bool(raw: Any) -> bool | None:
@@ -443,6 +444,7 @@ class SettingsStore:
                 splitter=_state(stored.get("splitter")),
                 quick_filter=parse_keys(stored.get("quick_filter")),
                 recent=_recent(stored.get("recent")),
+                pane="projects" if stored.get("pane") == "projects" else "folders",
             )
         except Exception:
             return Session()
@@ -463,6 +465,8 @@ class SettingsStore:
                     values[key] = base64.b64encode(state).decode("ascii")
             if session.quick_filter:
                 values["quick_filter"] = format_keys(session.quick_filter)
+            if session.pane == "projects":
+                values["pane"] = "projects"
             if session.recent:
                 values["recent"] = json.dumps(
                     list(session.recent[:MAX_RECENT]), ensure_ascii=False

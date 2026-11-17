@@ -892,3 +892,36 @@ def test_a_mark_left_pending_is_read_until_it_is_a_day_old(lib, monkeypatch):
     assert vault.status().counts["unchanged"] == 3 and len(reads) == 1
     reads.clear()
     assert vault.status().counts["unchanged"] == 3 and reads == []
+
+
+# --------------------------------------------------------------------------- when projects were worked on
+def test_project_activity_tells_when_each_project_was_worked_on(lib, capsys):
+    vault = pdm.init(lib)
+    write(lib / "Customers" / "Acme Co" / "base.sldprt", "base")
+    old = lib / "Jobs" / "1043" / "bracket.sldprt"
+    os.utime(old, (1_700_000_000, 1_700_000_000))
+    vault.checkin([lib], "everything")
+    bump(lib / "Jobs" / "1042" / "plate.step", 30)
+    acts = {a.project.path: a for a in vault.project_activity()}
+    assert set(acts) == {"Jobs/1042", "Jobs/1043", "Customers/Acme Co"}
+    a = acts["Jobs/1042"]
+    assert (a.files, a.pending) == (2, 1)  # notes.txt is not CAD; plate.step was touched
+    assert a.checked_in is not None and a.last_activity == a.modified
+    assert acts["Jobs/1043"].last_activity.timestamp() == 1_700_000_000  # a check-in is not work
+    assert acts["Jobs/1043"].pending == 0
+    assert acts["Jobs/1043"].data()["last_activity_utc"] == "2023-11-14T22:13:20Z"
+    assert vault.project_activity(lambda: True) == []
+
+    found = pdm.search_projects(vault.project_activity(), "")
+    assert found[-1].project.path == "Jobs/1043"
+
+    code, env = run(capsys, "pdm", "projects", str(lib), "--search", "acme")
+    data = check(env, "pdm_result")
+    assert code == 0 and data["action"] == "projects" and data["status"] is None
+    got = data["projects"]
+    assert got["search"] == "acme" and got["total"] == 3
+    assert [(p["path"], p["files"], p["pending"]) for p in got["projects"]] == [("Customers/Acme Co", 1, 0)]
+    assert got["projects"][0]["score"] > 0
+    code, env = run(capsys, "pdm", "projects", str(lib), "--limit", "1")
+    got = check(env, "pdm_result")["projects"]
+    assert [p["path"] for p in got["projects"]] == ["Jobs/1042"] and got["projects"][0]["score"] is None

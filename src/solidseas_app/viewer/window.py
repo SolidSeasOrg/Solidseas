@@ -162,6 +162,7 @@ from .menus import relay_status_tips
 from .meshproc import MeshReader
 from .modelpool import ModelPool
 from .pdmaction import PdmController
+from .pdmprojects import ProjectsPane
 from .preferences import BOXES_NOTE, POINTER_TIP, VIEW_3D_STATUS, VIEW_CUBE_TIP
 from .preview import MODEL
 from .printaction import HERE_TEXT, HERE_TIP, PrintController, PrintTarget
@@ -583,6 +584,7 @@ class MainWindow(QMainWindow):
         self.where_used = WhereUsedController(self)  # indexing, the Where Used tab and the filter
         self.file_history = HistoryController(self)  # the History tab: a file's versions
         self.pdm = PdmController(self)  # the PDM menu: check-ins, changes, project check, restore
+        self._build_projects()
         self.connector = ConnectorService(self, self.store)  # Settings > Connector's local API
         self.apply_settings(self.settings, save=False, initial=True)
         if self.store.reset_keys:
@@ -748,14 +750,71 @@ class MainWindow(QMainWindow):
         self.details.preview.warmUp.connect(self._warm_mesh_reader)
         self.details.preview.view_store = self.look_store
 
+        # The left pane: the Projects view (.pdmprojects, made with the PDM menu) or the
+        # folder tree, chosen with the two buttons above it or the View menu.
+        self.pane_buttons = {}
+        buttons = QHBoxLayout()
+        buttons.setContentsMargins(0, 0, 0, 0)
+        buttons.setSpacing(2)
+        for name, text, tip_text in (
+            ("projects", "Projects", "The library's projects, most recently worked on first, with a search"),
+            ("folders", "Folders", "The opened folder's subfolders"),
+        ):
+            b = QToolButton()
+            b.setText(text)
+            b.setToolTip(tip_text)
+            b.setCheckable(True)
+            b.setAutoExclusive(True)
+            b.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
+            b.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+            b.clicked.connect(lambda _on=False, n=name: self.set_pane(n))
+            buttons.addWidget(b)
+            self.pane_buttons[name] = b
+        self.pane_buttons["folders"].setChecked(True)
+        self.left_stack = QStackedWidget()
+        self.left_stack.addWidget(self.tree)
+        left = QWidget()
+        ll = QVBoxLayout(left)
+        ll.setContentsMargins(0, 0, 0, 0)
+        ll.addLayout(buttons)
+        ll.addWidget(self.left_stack, 1)
+        self.projects = None  # the Projects view, once the PDM menu is made (_build_projects)
+        self.pane = "folders"
+
         self.split = QSplitter(Qt.Orientation.Horizontal)
-        self.split.addWidget(self.tree)
+        self.split.addWidget(left)
         self.split.addWidget(middle)
         self.split.addWidget(self.details)
         self.split.setStretchFactor(0, 0)
         self.split.setStretchFactor(1, 2)
         self.split.setStretchFactor(2, 3)
         self.setCentralWidget(self.split)
+
+    def _build_projects(self) -> None:
+        """The Projects view (.pdmprojects), which follows the library the PDM menu's
+        lookup finds for the opened folder."""
+        self.projects = ProjectsPane(self.pdm)
+        self.left_stack.insertWidget(0, self.projects)
+        self.left_stack.setCurrentWidget(self.tree)
+        self.projects.projectChosen.connect(self.open_folder)
+
+        def looked_up(result: Any) -> None:
+            if not isinstance(result, dict) or result.get("kind") != "lookup":
+                return
+            if result.get("folder") is not None:  # the opened folder's library, not a project's lookup
+                self.projects.set_library(result.get("library") if result.get("ok") else None)
+
+        self.pdm.looked_up.connect(looked_up)
+
+    def set_pane(self, pane: str) -> None:
+        """Show the Projects view or the folder tree in the left pane."""
+        if pane not in ("projects", "folders") or self.projects is None:
+            return
+        self.pane = pane
+        self.left_stack.setCurrentWidget(self.projects if pane == "projects" else self.tree)
+        self.pane_buttons[pane].setChecked(True)
+        action = self.act_projects_pane if pane == "projects" else self.act_folders_pane
+        action.setChecked(True)
 
     def _size_icons(self) -> None:
         w, h = self.settings.thumbnail_pixels
@@ -978,6 +1037,18 @@ class MainWindow(QMainWindow):
         self.act_details_view.setChecked(True)
         self.act_details_view.triggered.connect(lambda: self.set_view("details"))
         self.act_icons_view.triggered.connect(lambda: self.set_view("icons"))
+        self.act_projects_pane = QAction("&Projects", self, checkable=True)
+        self.act_projects_pane.setToolTip(
+            "Show the library's projects, most recently worked on first, with a search"
+        )
+        self.act_folders_pane = QAction("&Folders", self, checkable=True)
+        self.act_folders_pane.setToolTip("Show the opened folder's subfolders")
+        group = QActionGroup(self)
+        for a in (self.act_projects_pane, self.act_folders_pane):
+            group.addAction(a)
+        self.act_folders_pane.setChecked(True)
+        self.act_projects_pane.triggered.connect(lambda: self.set_pane("projects"))
+        self.act_folders_pane.triggered.connect(lambda: self.set_pane("folders"))
         self.act_lock_files = QAction("Show SOLIDWORKS &Lock Files", self, checkable=True)
         self.act_lock_files.setStatusTip("List the ~$ files SOLIDWORKS keeps while a document is open")
         self.act_lock_files.toggled.connect(lambda on: self.change_settings(show_lock_files=on))
@@ -1106,6 +1177,9 @@ class MainWindow(QMainWindow):
         m.addMenu("&Edit").addAction(self.act_copy)
         vm = m.addMenu("&View")
         vm.addAction(self.act_back)
+        vm.addSeparator()
+        vm.addAction(self.act_projects_pane)
+        vm.addAction(self.act_folders_pane)
         vm.addSeparator()
         vm.addAction(self.act_details_view)
         vm.addAction(self.act_icons_view)
@@ -2836,6 +2910,7 @@ class MainWindow(QMainWindow):
             return None
         session = self.store.load_session()
         self.quick.set_selected(session.quick_filter)  # kept until the folder is listed
+        self.set_pane(session.pane)
         if session.geometry:
             self.restoreGeometry(QByteArray(session.geometry))
         if (
@@ -2868,6 +2943,7 @@ class MainWindow(QMainWindow):
                     splitter=bytes(self.split.saveState().data()),
                     quick_filter=tuple(sorted(self.quick.selected())),
                     recent=self.store.load_session().recent,
+                    pane=self.pane,
                 )
             )
 

@@ -3432,6 +3432,29 @@ def _pdm_status(args: argparse.Namespace) -> int:
     return _pdm_done(args, vault, st.data())
 
 
+def _pdm_projects(args: argparse.Namespace) -> int:
+    from . import pdm
+    from .pdm.search import search
+
+    vault = pdm.open(args.path)
+    activity = vault.project_activity()
+    found = search(activity, args.search or "", limit=args.limit)
+    rows = []
+    for f in found:
+        row = f.entry.data()
+        row["score"] = round(f.score, 2) if args.search else None
+        rows.append(row)
+    if not args.json:
+        for row in rows:
+            when = (row["last_activity_utc"] or "never")[:10]
+            pending = f", {row['pending']:,} not checked in" if row["pending"] else ""
+            files = f"{row['files']:,} {'file' if row['files'] == 1 else 'files'}"
+            _say(f"{when:<11}{row['path']} ({files}{pending})")
+        _say(f"{len(rows):,} of {len(activity):,} projects")
+    payload = {"search": args.search or None, "total": len(activity), "projects": rows}
+    return _pdm_done(args, vault, payload)
+
+
 def _say_checkin(data: dict[str, Any], *, scan: bool) -> None:
     for f in data["files"]:
         if f["stored"]:
@@ -3806,6 +3829,7 @@ PDM_ACTIONS: dict[str, Callable[[argparse.Namespace], int]] = {
     "diff": _pdm_diff,
     "restore": _pdm_restore,
     "check": _pdm_check,
+    "projects": _pdm_projects,
     "library": _pdm_library,
 }
 
@@ -4940,6 +4964,24 @@ def build_parser() -> argparse.ArgumentParser:
         help="the library, a project, a folder or a file (default: the current folder)",
     )
     ap.add_argument("--all", action="store_true", help="list the unchanged files too")
+    ap = pdm_action(
+        "projects", "the library's projects, most recently worked on first, or those a search finds"
+    )
+    ap.add_argument(
+        "path",
+        nargs="?",
+        default=".",
+        metavar="PATH",
+        help="the library or any folder in it (default: the current folder)",
+    )
+    ap.add_argument(
+        "-s",
+        "--search",
+        default=None,
+        metavar="TEXT",
+        help="words of a project's name, its customer or its section, in any order; letters may be left out",
+    )
+    ap.add_argument("--limit", type=int, default=None, metavar="N", help="list at most N projects")
     ap = pdm_action("checkin", "store a version of each changed file under PATH, with a note")
     ap.add_argument("paths", nargs="+", metavar="PATH", help="files or folders in one library")
     ap.add_argument("-m", "--note", required=True, metavar="NOTE", help="what changed and why")

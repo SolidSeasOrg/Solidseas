@@ -79,6 +79,7 @@ with the catalog cleared.
 | `pdm show FILE VERSION` and `pdm diff FILE A B` | One version's facts, or what changed between two (`docs/VERSIONS.md` 5 and 6). |
 | `pdm restore FILE VERSION [--as NAME]` | Put a version back. The current file is stored as a version first. Without `--as` it replaces the file. With `--as` it writes a new file. |
 | `pdm check [PROJECT]` | References that leave the project, are missing, or are ambiguous (section 5). |
+| `pdm projects [PATH] [-s TEXT] [--limit N]` | The projects, most recently worked on first (the newest change to one of their files; a check-in does not count), with their file count and how many files changed since their newest version. `-s` keeps those whose name, section or path match every word, in any order, letters may be left out, best first (`pdm.search`). The viewer's Projects view shows the same. |
 | `pdm library ...` | `candidates`, `add`, `list`, `use`, `updates`, `update`, `edit` (section 6). |
 
 Every command takes `--json`, the same envelope as the rest of the command line.

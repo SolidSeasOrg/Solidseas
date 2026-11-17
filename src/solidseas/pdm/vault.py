@@ -439,6 +439,43 @@ class Project:
 
 
 @dataclass
+class ProjectActivity:
+    """When a project was last worked on, as the disk and the vault say: how many tracked
+    files it holds, the newest modification time among them, when its newest version was
+    stored, and how many files are new or changed since their newest version going by
+    their size and modification time (nothing is read, so a file only touched counts)."""
+
+    project: Project
+    files: int = 0
+    modified_ns: int | None = None
+    checked_in: datetime.datetime | None = None
+    pending: int = 0
+
+    @property
+    def modified(self) -> datetime.datetime | None:
+        if self.modified_ns is None:
+            return None
+        return datetime.datetime.fromtimestamp(self.modified_ns / 1e9, datetime.UTC)
+
+    @property
+    def last_activity(self) -> datetime.datetime | None:
+        """When the project was last worked on: the newest change to one of its files.
+        A check-in is not work on the files (a check-in of the whole library would make
+        every project look recent), so it does not count."""
+        return self.modified
+
+    def data(self) -> dict[str, Any]:
+        return {
+            **self.project.data(),
+            "files": self.files,
+            "modified_utc": _iso(self.modified),
+            "checked_in_utc": _iso(self.checked_in),
+            "last_activity_utc": _iso(self.last_activity),
+            "pending": self.pending,
+        }
+
+
+@dataclass
 class FileState:
     """One tracked file in a status: ``state`` is new, changed, gone or unchanged.
     ``sha256`` is given when the file was read (it is not read when its size and time
@@ -726,6 +763,42 @@ class Vault:
         if any(self._skip_name(p) for p in parts[: 1 + sec.depth]):
             return None
         return Project("/".join(parts[: 1 + sec.depth]), sec.folder, sec.kind == "archive")
+
+    def project_activity(self, cancelled: Callable[[], bool] | None = None) -> list[ProjectActivity]:
+        """Every project with when it was last worked on (:class:`ProjectActivity`), in
+        the order :meth:`projects` lists them. Each tracked file is looked at with a stat
+        only, never read, so a whole library takes about as long as listing it.
+        ``cancelled`` is asked between projects; when it says so, the projects not yet
+        walked are left out."""
+        index = self.store.newest_all()
+        out: list[ProjectActivity] = []
+        by_path: dict[str, ProjectActivity] = {}
+        for project in self.projects():
+            act = ProjectActivity(project)
+            out.append(act)
+            by_path[_folded(project.path)] = act
+        depths = sorted({p.path.count("/") + 1 for p in (a.project for a in out)})
+        for key, snap in index.items():
+            parts = key.split("/")
+            for d in depths:
+                act = by_path.get("/".join(parts[:d])) if len(parts) > d else None
+                if act is not None:
+                    if act.checked_in is None or snap.taken > act.checked_in:
+                        act.checked_in = snap.taken
+                    break
+        done: list[ProjectActivity] = []
+        for act in out:
+            if cancelled is not None and cancelled():
+                return done
+            for frel, _full, st in self._walk(act.project.path, []):
+                act.files += 1
+                if act.modified_ns is None or st.st_mtime_ns > act.modified_ns:
+                    act.modified_ns = st.st_mtime_ns
+                snap = index.get(_folded(frel))
+                if snap is None or (snap.size, snap.mtime_ns) != (st.st_size, st.st_mtime_ns):
+                    act.pending += 1
+            done.append(act)
+        return done
 
     # ------------------------------------------------------------------ walking
     def _walk(self, rel: str, skipped: list[dict[str, Any]]) -> Iterator[tuple[str, str, os.stat_result]]:

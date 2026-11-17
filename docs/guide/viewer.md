@@ -66,7 +66,14 @@ https://github.com/SolidSeasOrg/Solidseas/issues.
 
 ## The window
 
-The folder tree on the left chooses which folder, and its subfolders, to show.
+The left pane has two views, chosen with the **Projects** and **Folders**
+buttons above it or with View > Projects and View > Folders. The window
+remembers which one you used last.
+
+- **Folders**: the folder tree chooses which folder, and its subfolders, to show.
+- **Projects**: in a PDM library, the library's projects, most recently worked on
+  first (see [Projects](#projects) below).
+
 The middle pane lists the folder's documents, as details or as icons (View >
 Details or Icons), with a filter box above that narrows them by name, and, once
 the folder is indexed, by part number, description or property value (see
@@ -291,6 +298,21 @@ When the folder you open lies in a library (a folder made one with
 | Check Project | Checks that the project holding the chosen folder holds every file its assemblies, parts and drawings reference. The findings are grouped (not found where SOLIDWORKS looks, another document of that name, found only outside the project, found only by a search SOLIDWORKS may not make, Toolbox hardware, stored inside its assembly, found in the project), and the summary says how many Toolbox parts were found nowhere, each with the document, the path stored in it and where the file was found. Make Copies lists the copies that would make the project self-contained (see below). |
 | Library of Common Parts... | Opens the library's common parts in a window of their own (see below). |
 | Restore Version... | Puts back the library version chosen on the History tab. The file as it is now is kept as a version in the library first, so nothing is lost. You can also restore it as a new file beside it, which never replaces another file and shows in the file list at once. |
+
+### Projects
+
+The Projects view lists every project of the library the opened folder is in,
+with its section (such as Projects, Customers or Archive), when it was last
+worked on and how many of its files have changes not checked in. "Last worked
+on" is the newest change to one of the project's CAD files. A check-in does not
+count, so checking in the whole library does not make every project look recent.
+Archived projects are greyed.
+
+Type in the search box to narrow the list as you type. Words can come in any
+order and match the project's name, its customer or its section, and letters can
+be left out: "acme brkt" finds the Acme bracket job. Enter opens the best match,
+and Down moves into the list. Click a project to open its folder, and its files
+fill the list. Refresh looks at the projects' files again. The view only reads.
 
 Outside a library the menu has one entry, **Make This Folder a Library...**,
 shown once SolidSeas has looked for a library around the opened folder. It

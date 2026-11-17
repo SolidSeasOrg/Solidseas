@@ -15,6 +15,7 @@ vault.library.add("D:/CAD/Jobs/1042/bolt.sldprt", description="M6 bolt")  # item
 vault.library.use("SS-00001", "D:/CAD/Jobs/1043")  # a copy in the project, and a link record
 vault.library.updates()                      # copies behind their item, or edited since
 vault.check("D:/CAD/Jobs/1043", fix=True)    # copy in what the project references from outside
+pdm.search_projects(vault.project_activity(), "smith brkt")  # projects by name or customer, recent first
 ```
 
 The vault writes only its own ``.solidseas`` folder in the library, the file a restore
@@ -25,11 +26,13 @@ from __future__ import annotations
 
 from .checkins import Checkin, CheckinFile, parse_checkin
 from .library import Item, ItemEdit, Library, Link, parse_edit, parse_item, parse_link
+from .search import search_projects
 from .settings import Section, Settings
 from .vault import (
     CheckinResult,
     FileState,
     Project,
+    ProjectActivity,
     SectionInfo,
     Status,
     Vault,
@@ -51,6 +54,7 @@ __all__ = [
     "Library",
     "Link",
     "Project",
+    "ProjectActivity",
     "Section",
     "SectionInfo",
     "Settings",
@@ -65,4 +69,5 @@ __all__ = [
     "parse_edit",
     "parse_item",
     "parse_link",
+    "search_projects",
 ]

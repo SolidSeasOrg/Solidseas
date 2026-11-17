@@ -246,7 +246,23 @@ linked to it, and no other item can take it. `list` shows each item's earlier
 numbers. The change is kept as a new record beside the item's own, which is never
 rewritten, like the rest of the vault.
 
+## Find a project
+
+```bash
+solidseas pdm projects               # every project, most recently worked on first
+solidseas pdm projects -s "acme brkt"
+```
+
+`projects` lists the library's projects with their files, when each was last worked
+on (the newest change to one of its files; a check-in does not count) and how many
+files have changes not checked in. `-s` keeps the projects whose name, customer or
+section match the words, in any order, with letters left out if you like, best match
+first. Files are looked at, never read, so it takes about as long as `status`.
+
 ## In the viewer
+
+The Projects view, beside the folder tree, lists the same projects with a search
+box, and a click opens the project. See [Projects](viewer.md#projects).
 
 SolidSeas Desktop has a PDM menu while the opened folder lies in a library: Check
 In (with the note, revision and state, after listing what changed), Changes,

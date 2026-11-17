@@ -6,6 +6,11 @@ while the project takes shape.
 
 ## [Unreleased]
 
+### Added
+
+- A Projects view beside the folder tree. In a PDM library it lists every project, most recently worked on first, with when it was last changed and how many files have changes not checked in. A search box finds a project or a customer as you type, with words in any order and letters left out, and a click opens the project. Switch views with the Projects and Folders buttons above the pane or the View menu.
+- `solidseas pdm projects` lists the same projects on the command line, with `-s` to search them.
+
 ### Fixed
 
 - Installing SolidSeas with pip now includes the CAD Bridge's C# sources and its README, so the bridge can be built from an installed copy.
