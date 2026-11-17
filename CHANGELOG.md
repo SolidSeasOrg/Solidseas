@@ -6,6 +6,8 @@ while the project takes shape.
 
 ## [Unreleased]
 
+## [0.2.611] - 2026-11-17
+
 ### Changed
 
 - The Projects view widens to fit the longest project name, up to two fifths of the window, so long customer job names show in full.
