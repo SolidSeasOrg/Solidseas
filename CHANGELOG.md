@@ -6,6 +6,10 @@ while the project takes shape.
 
 ## [Unreleased]
 
+### Changed
+
+- The Projects view is easier to read. Each project shows its full name, with its section, when it was last worked on and any changes not checked in on a smaller line under it, instead of four cramped columns. The pane widens to fit when you switch to it, the open project is highlighted, and archived projects stay out of the list unless you tick Show archived or search for them.
+
 ## [0.2.607] - 2026-11-17
 
 ### Changed

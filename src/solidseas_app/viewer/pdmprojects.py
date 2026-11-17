@@ -32,16 +32,19 @@ Refresh reads them again; so does opening a folder in another library.
 import os
 from typing import Any
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QRect, QSize, Qt, Signal
+from PySide6.QtGui import QFont, QPalette
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QCheckBox,
     QHBoxLayout,
-    QHeaderView,
     QLabel,
     QLineEdit,
-    QPushButton,
-    QTreeWidget,
-    QTreeWidgetItem,
+    QListWidget,
+    QListWidgetItem,
+    QStyle,
+    QStyledItemDelegate,
+    QToolButton,
     QVBoxLayout,
     QWidget,
 )
@@ -57,9 +60,11 @@ SEARCH_TIP = (
 REFRESH_TIP = "Look at the projects' files again"
 OUTSIDE_TEXT = "Open a folder in a PDM library to list its projects here."
 LOOKING_TEXT = "Looking at the projects..."
-COLUMNS = ("Project", "Section", "Last worked on", "Not checked in")
-NAME, SECTION, WHEN, PENDING = range(4)
+ARCHIVED_TEXT = "Show archived"
+ARCHIVED_TIP = "List the projects in archive sections too. A search always looks in them"
 PATH_ROLE = Qt.ItemDataRole.UserRole
+DETAIL_ROLE = Qt.ItemDataRole.UserRole + 1  # the second line: section, when, changes
+ARCHIVED_ROLE = Qt.ItemDataRole.UserRole + 2
 
 
 CHILD_TIMEOUT = 600.0  # seconds; a library on a slow share can take minutes
@@ -155,6 +160,71 @@ def read_text(read: dict[str, Any] | None) -> str:
     return text
 
 
+def detail_text(row: dict[str, Any]) -> str:
+    """A project's second line: its section, when it was last worked on and, when
+    there are any, how many files have changes not checked in."""
+    when = row.get("last_activity_utc")
+    parts = [row["section"], ago(when) if when else "no CAD files"]
+    pending = row.get("pending") or 0
+    if pending:
+        parts.append(f"{pending:,} not checked in")
+    return " \u00b7 ".join(parts)
+
+
+class _ProjectDelegate(QStyledItemDelegate):
+    """Draws a project as two lines: its name, then its section, when it was last
+    worked on and its changes not checked in, smaller and greyed. An archived project
+    is greyed all over."""
+
+    PAD = 4
+
+    def _fonts(self, option) -> tuple[QFont, QFont]:
+        name = QFont(option.font)
+        name.setBold(True)
+        detail = QFont(option.font)
+        detail.setPointSizeF(max(option.font.pointSizeF() * 0.9, 7.0))
+        return name, detail
+
+    def sizeHint(self, option, index) -> QSize:
+        name, detail = self._fonts(option)
+        from PySide6.QtGui import QFontMetrics
+
+        h = QFontMetrics(name).height() + QFontMetrics(detail).height() + 3 * self.PAD
+        return QSize(super().sizeHint(option, index).width(), h)
+
+    def paint(self, painter, option, index) -> None:
+        from PySide6.QtGui import QFontMetrics
+        from PySide6.QtWidgets import QApplication, QStyleOptionViewItem
+
+        opt = QStyleOptionViewItem(option)
+        self.initStyleOption(opt, index)
+        opt.text = ""
+        style = opt.widget.style() if opt.widget else QApplication.style()
+        style.drawControl(QStyle.ControlElement.CE_ItemViewItem, opt, painter, opt.widget)
+        selected = bool(opt.state & QStyle.StateFlag.State_Selected)
+        archived = bool(index.data(ARCHIVED_ROLE))
+        pal = opt.palette
+        main = pal.color(QPalette.ColorRole.HighlightedText if selected else QPalette.ColorRole.Text)
+        dim = main if selected else pal.color(QPalette.ColorRole.PlaceholderText)
+        name_font, detail_font = self._fonts(opt)
+        r = opt.rect.adjusted(self.PAD + 2, self.PAD, -self.PAD, -self.PAD)
+        nh = QFontMetrics(name_font).height()
+        painter.save()
+        painter.setFont(name_font)
+        painter.setPen(dim if archived else main)
+        name = QFontMetrics(name_font).elidedText(index.data(), Qt.TextElideMode.ElideRight, r.width())
+        painter.drawText(QRect(r.left(), r.top(), r.width(), nh), Qt.AlignmentFlag.AlignLeft, name)
+        painter.setFont(detail_font)
+        painter.setPen(dim)
+        detail = QFontMetrics(detail_font).elidedText(
+            index.data(DETAIL_ROLE) or "", Qt.TextElideMode.ElideRight, r.width()
+        )
+        dh = QFontMetrics(detail_font).height()
+        second = QRect(r.left(), r.top() + nh + self.PAD, r.width(), dh)
+        painter.drawText(second, Qt.AlignmentFlag.AlignLeft, detail)
+        painter.restore()
+
+
 def _key(row: dict[str, Any]):
     from datetime import datetime
 
@@ -167,6 +237,7 @@ class ProjectsPane(QWidget):
     """The Projects view. ``projectChosen`` carries the chosen project's folder."""
 
     projectChosen = Signal(str)
+    loaded_rows = Signal()  # the projects were read: the window marks the opened one
 
     def __init__(self, controller: Any, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -185,27 +256,27 @@ class ProjectsPane(QWidget):
         self.search.textChanged.connect(self._fill)
         self.search.returnPressed.connect(self._open_first)
         self.search.installEventFilter(self)
-        self.refresh_button = QPushButton("Refresh")
+        self.refresh_button = QToolButton()
+        self.refresh_button.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_BrowserReload))
+        self.refresh_button.setAccessibleName("Refresh")
         self.refresh_button.setToolTip(tip(REFRESH_TIP))
         self.refresh_button.clicked.connect(self.refresh)
         bar = QHBoxLayout()
         bar.setContentsMargins(0, 0, 0, 0)
         bar.addWidget(self.search, 1)
         bar.addWidget(self.refresh_button)
+        self.show_archived = QCheckBox(ARCHIVED_TEXT)
+        self.show_archived.setToolTip(tip(ARCHIVED_TIP))
+        self.show_archived.toggled.connect(self._fill)
+        self.current: str | None = None  # the opened project, as a path below the library
 
-        self.list = QTreeWidget()
-        self.list.setHeaderLabels(list(COLUMNS))
-        self.list.setRootIsDecorated(False)
-        self.list.setUniformRowHeights(True)
-        self.list.setAlternatingRowColors(True)
+        self.list = QListWidget()
+        self.list.setItemDelegate(_ProjectDelegate(self.list))
+        self.list.setUniformItemSizes(True)
+        self.list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.list.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.list.itemClicked.connect(self._chosen)
         self.list.itemActivated.connect(self._chosen)
-        header = self.list.header()
-        header.setStretchLastSection(False)
-        header.setSectionResizeMode(NAME, QHeaderView.ResizeMode.Stretch)
-        for c in (SECTION, WHEN, PENDING):
-            header.setSectionResizeMode(c, QHeaderView.ResizeMode.ResizeToContents)
 
         self.note = QLabel(OUTSIDE_TEXT)
         self.note.setTextFormat(Qt.TextFormat.PlainText)
@@ -214,6 +285,7 @@ class ProjectsPane(QWidget):
         lay = QVBoxLayout(self)
         lay.setContentsMargins(0, 0, 0, 0)
         lay.addLayout(bar)
+        lay.addWidget(self.show_archived)
         lay.addWidget(self.list, 1)
         lay.addWidget(self.note)
         self._show_state()
@@ -265,6 +337,7 @@ class ProjectsPane(QWidget):
             self.last_read = result.get("read")
             self._fill()
             self._show_state()
+            self.loaded_rows.emit()
 
         self._start(activity_work(library), done)
 
@@ -296,7 +369,38 @@ class ProjectsPane(QWidget):
     # -- the list --------------------------------------------------------------------------
     def shown_paths(self) -> list[str]:
         """The projects listed, top to bottom, as paths below the library."""
-        return [self.list.topLevelItem(i).data(NAME, PATH_ROLE) for i in range(self.list.topLevelItemCount())]
+        return [self.list.item(i).data(PATH_ROLE) for i in range(self.list.count())]
+
+    def _listed(self) -> list[dict[str, Any]]:
+        """The rows the list may show: archived projects only when asked for or searched."""
+        if self.show_archived.isChecked() or self.search.text().strip():
+            return self.rows
+        return [r for r in self.rows if not r.get("archived")]
+
+    def set_current(self, folder: str | None) -> None:
+        """Mark the project that holds the opened ``folder`` (none outside a project)."""
+        self.current = None
+        if folder and self.library:
+            try:
+                rel = os.path.relpath(folder, self.library).replace(os.sep, "/")
+            except ValueError:  # another drive
+                rel = ""
+            if rel and not rel.startswith(".."):
+                parts = rel.casefold().split("/")
+                for r in self.rows:
+                    p = r["path"].casefold().split("/")
+                    if parts[: len(p)] == p:
+                        self.current = r["path"]
+                        break
+        self._select_current()
+
+    def _select_current(self) -> None:
+        for i in range(self.list.count()):
+            item = self.list.item(i)
+            if self.current is not None and item.data(PATH_ROLE) == self.current:
+                self.list.setCurrentItem(item)
+                return
+        self.list.clearSelection()
 
     def _fill(self, *_args: Any) -> None:
         from solidseas.pdm.search import search
@@ -304,29 +408,20 @@ class ProjectsPane(QWidget):
         self.list.clear()
         if not self.rows:
             return
-        found = search(self.rows, self.search.text(), key=_key)
-        for f in found:
+        for f in search(self._listed(), self.search.text(), key=_key):
             row = f.entry
             when = row.get("last_activity_utc")
-            pending = row.get("pending") or 0
-            item = QTreeWidgetItem(
-                [
-                    row["name"],
-                    row["section"],
-                    ago(when) if when else "never",
-                    f"{pending:,}" if pending else "",
-                ]
-            )
-            item.setData(NAME, PATH_ROLE, row["path"])
-            item.setToolTip(NAME, tip(row["path"]))
+            item = QListWidgetItem(row["name"])
+            item.setData(PATH_ROLE, row["path"])
+            item.setData(DETAIL_ROLE, detail_text(row))
+            item.setData(ARCHIVED_ROLE, bool(row.get("archived")))
+            lines = [row["path"]]
             if when:
-                item.setToolTip(WHEN, tip(time_text(when)))
-            item.setToolTip(PENDING, tip(plural(pending, "file") + " changed since the last check-in"))
-            item.setTextAlignment(PENDING, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-            if row.get("archived"):
-                for c in range(len(COLUMNS)):
-                    item.setForeground(c, self.palette().placeholderText())
-            self.list.addTopLevelItem(item)
+                lines.append("Last worked on " + time_text(when))
+            lines.append(plural(row.get("files") or 0, "CAD file"))
+            item.setToolTip(tip("\n".join(lines)))
+            self.list.addItem(item)
+        self._select_current()
         if self.loaded:
             self._show_state()
 
@@ -337,11 +432,11 @@ class ProjectsPane(QWidget):
         elif not self.loaded:
             self.note.setText(LOOKING_TEXT)
             self.note.show()
-        elif self.search.text().strip() and self.list.topLevelItemCount() == 0:
+        elif self.search.text().strip() and self.list.count() == 0:
             self.note.setText("No project matches. Try fewer letters.")
             self.note.show()
         else:
-            shown, total = self.list.topLevelItemCount(), len(self.rows)
+            shown, total = self.list.count(), len(self._listed())
             text = plural(total, "project") if shown == total else f"{shown:,} of {plural(total, 'project')}"
             self.note.setText(text)
             self.note.show()
@@ -349,14 +444,14 @@ class ProjectsPane(QWidget):
         self.search.setEnabled(self.library is not None)
         self.refresh_button.setEnabled(self.library is not None)
 
-    def _chosen(self, item: QTreeWidgetItem, _column: int = 0) -> None:
-        rel = item.data(NAME, PATH_ROLE)
+    def _chosen(self, item: QListWidgetItem) -> None:
+        rel = item.data(PATH_ROLE)
         if self.library is None or not rel:
             return
         self.projectChosen.emit(os.path.join(self.library, *rel.split("/")))
 
     def _open_first(self) -> None:
-        item = self.list.topLevelItem(0)
+        item = self.list.item(0)
         if item is not None:
             self.list.setCurrentItem(item)
             self._chosen(item)
@@ -365,9 +460,9 @@ class ProjectsPane(QWidget):
         from PySide6.QtCore import QEvent
 
         if obj is self.search and event.type() == QEvent.Type.KeyPress and event.key() == Qt.Key.Key_Down:
-            if self.list.topLevelItemCount():
+            if self.list.count():
                 self.list.setFocus()
                 if self.list.currentItem() is None:
-                    self.list.setCurrentItem(self.list.topLevelItem(0))
+                    self.list.setCurrentItem(self.list.item(0))
                 return True
         return super().eventFilter(obj, event)

@@ -797,6 +797,7 @@ class MainWindow(QMainWindow):
         self.left_stack.insertWidget(0, self.projects)
         self.left_stack.setCurrentWidget(self.tree)
         self.projects.projectChosen.connect(self.open_folder)
+        self.projects.loaded_rows.connect(lambda: self.projects.set_current(self.folder))
 
         def looked_up(result: Any) -> None:
             if not isinstance(result, dict) or result.get("kind") != "lookup":
@@ -812,9 +813,24 @@ class MainWindow(QMainWindow):
             return
         self.pane = pane
         self.left_stack.setCurrentWidget(self.projects if pane == "projects" else self.tree)
+        if pane == "projects":
+            self._widen_projects()
         self.pane_buttons[pane].setChecked(True)
         action = self.act_projects_pane if pane == "projects" else self.act_folders_pane
         action.setChecked(True)
+
+    def _widen_projects(self) -> None:
+        """Give the Projects view room for its names: the left pane grows to about 40
+        characters (two fifths of the window at most), taken from the middle pane."""
+        sizes = self.split.sizes()
+        if len(sizes) != 3 or not sum(sizes):
+            return
+        want = min(max(self.fontMetrics().averageCharWidth() * 40, 300), sum(sizes) * 2 // 5)
+        if sizes[0] >= want:
+            return
+        grow = min(want - sizes[0], max(sizes[1] - 200, 0))
+        if grow > 0:
+            self.split.setSizes([sizes[0] + grow, sizes[1] - grow, sizes[2]])
 
     def _size_icons(self) -> None:
         w, h = self.settings.thumbnail_pixels
@@ -1491,6 +1507,8 @@ class MainWindow(QMainWindow):
         self.folder = folder
         self.where_used.folder_opened(folder)
         self.pdm.folder_opened(folder)  # the PDM menu follows the library the folder is in
+        if self.projects is not None:
+            self.projects.set_current(folder)  # marks the opened project in the Projects view
         self.connector.folder_opened(folder)  # the local API, when on, follows the open folder
         self._pending_select = select
         self._cache = IndexCache()

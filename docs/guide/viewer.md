@@ -302,17 +302,23 @@ When the folder you open lies in a library (a folder made one with
 ### Projects
 
 The Projects view lists every project of the library the opened folder is in,
-with its section (such as Projects, Customers or Archive), when it was last
-worked on and how many of its files have changes not checked in. "Last worked
+most recently worked on first. Each project shows its name, and under it its
+section (such as Projects or Customers), when it was last worked on and, when
+there are any, how many of its files have changes not checked in. "Last worked
 on" is the newest change to one of the project's CAD files. A check-in does not
 count, so checking in the whole library does not make every project look recent.
-Archived projects are greyed.
+The project you have open is highlighted, and the pane widens to fit the names
+when you switch to it.
+
+Projects in archive sections are left out unless you tick **Show archived**; a
+search always looks in them too, and shows them greyed.
 
 Type in the search box to narrow the list as you type. Words can come in any
 order and match the project's name, its customer or its section, and letters can
 be left out: "acme brkt" finds the Acme bracket job. Enter opens the best match,
 and Down moves into the list. Click a project to open its folder, and its files
-fill the list. Refresh looks at the projects' files again. The view only reads.
+fill the list. The button beside the search box looks at the projects' files
+again. The view only reads.
 
 Outside a library the menu has one entry, **Make This Folder a Library...**,
 shown once SolidSeas has looked for a library around the opened folder. It

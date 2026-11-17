@@ -918,30 +918,50 @@ def test_check_project_makes_the_planned_copies(app, window, tmp_path, monkeypat
 # --------------------------------------------------------------------------- the Projects view
 @needs_qt
 def test_the_projects_view_lists_searches_and_opens_projects(app, window, tmp_path):
+    import json
+
+    from solidseas_app.viewer import pdmprojects
+
     w = window
     cad = library(tmp_path)
     (cad / "Customers" / "Acme Co").mkdir(parents=True)
     (cad / "Customers" / "Acme Co" / "base.3mf").write_bytes(part(8))
+    (cad / "Old" / "Acme Co").mkdir(parents=True)
+    (cad / "Old" / "Acme Co" / "base.3mf").write_bytes(part(9))
+    settings = cad / ".solidseas" / "vault" / "vault.json"
+    data = json.loads(settings.read_text("utf-8"))
+    data["archive"] = ["Old"]
+    settings.write_text(json.dumps(data), "utf-8")
     old = cad / "Jobs" / "1042"
     for f in old.iterdir():
         os.utime(f, (1_700_000_000, 1_700_000_000))
     before = _state(cad)
     assert w.pane == "folders" and w.left_stack.currentWidget() is w.tree
     _open(app, w, cad)
+    narrow = w.split.sizes()[0]
     w.act_projects_pane.trigger()
     assert w.pane == "projects" and w.pane_buttons["projects"].isChecked()
     p = w.projects
     _wait(app, lambda: p.loaded)
-    assert p.shown_paths() == ["Customers/Acme Co", "Jobs/1042"]  # the newest first
+    assert p.shown_paths() == ["Customers/Acme Co", "Jobs/1042"]  # the newest first, no archive
     assert p.note.text() == "2 projects"
-    p.search.setText("acm")
-    assert p.shown_paths() == ["Customers/Acme Co"] and p.note.text() == "1 of 2 projects"
+    assert w.split.sizes()[0] > narrow  # room for the names
+    first = p.list.item(0)
+    assert first.text() == "Acme Co" and first.data(pdmprojects.DETAIL_ROLE).startswith("Customers \u00b7 ")
+    assert p.list.item(1).data(pdmprojects.DETAIL_ROLE).endswith("2 not checked in")
+    p.show_archived.setChecked(True)
+    assert p.shown_paths() == ["Customers/Acme Co", "Old/Acme Co", "Jobs/1042"]
+    assert p.list.item(1).data(pdmprojects.ARCHIVED_ROLE) is True
+    p.show_archived.setChecked(False)
+    p.search.setText("acm")  # a search looks in the archive too, best match then newest
+    assert p.shown_paths() == ["Customers/Acme Co", "Old/Acme Co"] and p.note.text() == "2 of 3 projects"
     p.search.setText("qqq")
     assert p.shown_paths() == [] and p.note.text().startswith("No project matches")
     p.search.setText("1042")
     p.search.returnPressed.emit()
     _wait(app, lambda: w.folder == str(old) and w.listing_info is not None and w.pdm.idle)
     assert p.library == str(cad) and p.shown_paths() == ["Jobs/1042"]  # the same library: the list stays
+    assert p.current == "Jobs/1042" and p.list.currentItem().data(pdmprojects.PATH_ROLE) == "Jobs/1042"
     w.pane_buttons["folders"].click()
     assert w.pane == "folders" and w.left_stack.currentWidget() is w.tree and w.act_folders_pane.isChecked()
     assert _state(cad) == before  # the view only reads
